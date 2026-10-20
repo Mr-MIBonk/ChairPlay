@@ -16,6 +16,8 @@ import java.util.concurrent.atomic.AtomicReference
  * one), so [run] owns that thread until the window closes. Other threads only call [show] and [close]:
  * [show] leaves the newest frame in an [AtomicReference] and wakes the loop, so a frame that arrives
  * while the previous one is still being drawn simply replaces it — nothing queues, latency stays one frame.
+ * Each frame is released exactly once, by whichever side takes it out of [latest]: [show] for a frame
+ * replaced unseen, the GL thread once the upload has copied the planes into textures.
  */
 class VideoWindow(private val width: Int, private val height: Int) : Closeable {
     private val latest = AtomicReference<DecodedFrame?>()
@@ -48,7 +50,7 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
     }
 
     fun show(frame: DecodedFrame) {
-        latest.set(frame)
+        latest.getAndSet(frame)?.release()
         wake()
     }
 
@@ -95,7 +97,7 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
         }
         glBindVertexArray(vao)
 
-        var picture: DecodedFrame? = null
+        var picture: Size? = null
         val w = IntArray(1)
         val h = IntArray(1)
         try {
@@ -103,9 +105,11 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
                 glfwWaitEvents()
                 val fresh = latest.getAndSet(null)
                 if (fresh != null) {
+                    // glTexImage2D and glTexSubImage2D have read client memory by the time they return.
                     upload(fresh, textures, planeSizes)
-                    picture = fresh
-                    pictureSize = Size(fresh.width, fresh.height)
+                    fresh.release()
+                    picture = Size(fresh.width, fresh.height)
+                    pictureSize = picture
                 }
                 val shown = picture ?: continue
                 // A resize repaints the last picture even when no new one has arrived.
@@ -172,7 +176,7 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
     }
 
     /** Fits the picture inside the window at its own aspect ratio; the rest stays black. */
-    private fun draw(frame: DecodedFrame, fw: Int, fh: Int) {
+    private fun draw(frame: Size, fw: Int, fh: Int) {
         if (fw == 0 || fh == 0) return
         glViewport(0, 0, fw, fh)
         glClearColor(0f, 0f, 0f, 1f)

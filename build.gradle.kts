@@ -116,8 +116,18 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
 }
 
+// TcpLiveness reaches a socket's Winsock handle by reflection to set upstream's keep-alive timing, which
+// JDK 17 does not offer on Windows. Every launcher passes the same opens: the start scripts, the tests
+// and the app image.
+val socketHandleOpens = listOf("java.base/java.net", "java.base/java.io").map { "--add-opens=$it=ALL-UNNAMED" }
+
 application {
     mainClass.set("com.shilapi.xcertplay.desktop.MainKt")
+    applicationDefaultJvmArgs = socketHandleOpens
+}
+
+tasks.test {
+    jvmArgs(socketHandleOpens)
 }
 
 // Concentus is BSD-licensed and its notice must travel with the binaries: inside the jar, and next to it in
@@ -134,5 +144,61 @@ tasks.jar {
 distributions.main {
     contents {
         from(concentusLicence) { rename { "LICENSE-concentus" } }
+    }
+}
+
+// A self-contained Windows app image: the launcher, a trimmed runtime and the jars, no installer tooling
+// needed. The module list is what `jdeps --print-module-deps` reports for the installed jars (java.base,
+// java.desktop, java.management, java.naming, java.sql, jdk.unsupported) plus modules reached only
+// reflectively: java.logging (JmDNS, SLF4J), java.xml, and the security providers, which are looked up by
+// name. A missing provider would break MFi signing at runtime only.
+val appImageModules = listOf(
+    "java.base", "java.desktop", "java.logging", "java.management", "java.naming", "java.sql", "java.xml",
+    "jdk.unsupported", "jdk.crypto.ec", "jdk.crypto.cryptoki", "jdk.crypto.mscapi",
+)
+
+interface FileOps {
+    @get:Inject val fs: FileSystemOperations
+}
+
+val jpackageImage by tasks.registering(Exec::class) {
+    group = "distribution"
+    description = "Builds build/jpackage/DiPlayDesktop with the launcher DiPlayDesktop.exe."
+    dependsOn(tasks.installDist)
+    val launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
+    val installDir = layout.buildDirectory.dir("install/diplay-desktop")
+    val outDir = layout.buildDirectory.dir("jpackage")
+    val repoRoot = layout.projectDirectory.dir("..")
+    val notices = layout.projectDirectory.dir("notices")
+    val thirdParty = layout.projectDirectory.file("THIRD_PARTY_NOTICES")
+    val ops = objects.newInstance<FileOps>()
+    // Command-line arguments given to DiPlayDesktop.exe replace the default `run`, so `devices` and
+    // `probe-bt` work by passing them explicitly.
+    doFirst {
+        ops.fs.delete { delete(outDir) }
+        commandLine(
+            launcher.get().metadata.installationPath.file("bin/jpackage.exe").asFile.path,
+            "--type", "app-image",
+            "--name", "DiPlayDesktop",
+            "--input", installDir.get().dir("lib").asFile.path,
+            "--main-jar", "diplay-desktop.jar",
+            "--main-class", "com.shilapi.xcertplay.desktop.MainKt",
+            "--arguments", "run",
+            "--win-console",
+            "--add-modules", appImageModules.joinToString(","),
+            "--dest", outDir.get().asFile.path,
+            *socketHandleOpens.flatMap { listOf("--java-options", it) }.toTypedArray(),
+        )
+    }
+    // jpackage on JDK 17 has no --app-content, so notices are copied into the image afterwards.
+    doLast {
+        ops.fs.copy {
+            from(installDir.get().file("LICENSE-concentus"))
+            from(repoRoot.file("LICENSE"))
+            from(thirdParty)
+            from(repoRoot.dir("docs/licenses/dependencies")) { into("licenses") }
+            from(notices) { into("licenses") }
+            into(outDir.get().dir("DiPlayDesktop"))
+        }
     }
 }

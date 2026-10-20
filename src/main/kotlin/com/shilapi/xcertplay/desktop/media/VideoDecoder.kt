@@ -13,16 +13,58 @@ import java.nio.ByteBuffer
 /**
  * One decoded picture as tightly packed YUV420P planes (no row padding, so [strides] equal the plane
  * widths). The planes are copies: the decoder reuses its own frame, and the picture is handed to
- * another thread.
+ * another thread. That thread calls [release] once it no longer reads the planes; the decoder may then
+ * fill them with a later picture. A frame never released is simply left to the GC.
  */
-class DecodedFrame(
+class DecodedFrame internal constructor(
     val width: Int,
     val height: Int,
     val y: ByteBuffer,
     val u: ByteBuffer,
     val v: ByteBuffer,
     val strides: IntArray,
-)
+    private val pool: FramePool,
+) {
+    fun release() = pool.recycle(this)
+}
+
+/**
+ * Pictures handed back through [DecodedFrame.release], for the decoder to fill again. Direct memory is
+ * returned only when the GC gets to a buffer: three fresh planes per picture were some 83 MB/s at
+ * 1280x720x60, growing the process and forcing System.gc pauses on the way. A frame is reused only
+ * after its consumer released it, so the decoder never writes planes another thread may still read.
+ */
+internal class FramePool {
+    private val free = ArrayDeque<DecodedFrame>()
+
+    /** Frames made because none of the right size was free. */
+    @Volatile
+    var allocations = 0
+        private set
+
+    @Synchronized
+    fun take(width: Int, height: Int): DecodedFrame {
+        // After a size change the old pictures can never be refilled; dropping them lets the GC have them.
+        free.removeAll { it.width != width || it.height != height }
+        free.removeFirstOrNull()?.let { return it }
+        allocations++
+        val chromaWidth = (width + 1) / 2
+        val chromaHeight = (height + 1) / 2
+        return DecodedFrame(
+            width, height,
+            ByteBuffer.allocateDirect(width * height),
+            ByteBuffer.allocateDirect(chromaWidth * chromaHeight),
+            ByteBuffer.allocateDirect(chromaWidth * chromaHeight),
+            intArrayOf(width, chromaWidth, chromaWidth),
+            this,
+        )
+    }
+
+    @Synchronized
+    fun recycle(frame: DecodedFrame) {
+        free.addLast(frame)
+    }
+}
 
 /**
  * Software H.264 decoder over FFmpeg. Not thread-safe by design: it is driven from the one thread
@@ -40,6 +82,9 @@ class VideoDecoder(
     private val frame: AVFrame = av_frame_alloc()
     private var parameterSets: ByteArray? = null
     private var closed = false
+
+    /** Released pictures come back here; one decoder per stream, so a new stream starts empty. */
+    internal val pool = FramePool()
 
     init {
         val codec = avcodec_find_decoder(AV_CODEC_ID_H264) ?: error("FFmpeg has no H.264 decoder")
@@ -99,24 +144,23 @@ class VideoDecoder(
     private fun copyOut(): DecodedFrame {
         val width = frame.width()
         val height = frame.height()
-        val chromaWidth = (width + 1) / 2
+        val picture = pool.take(width, height)
         val chromaHeight = (height + 1) / 2
-        return DecodedFrame(
-            width, height,
-            plane(0, width, height), plane(1, chromaWidth, chromaHeight), plane(2, chromaWidth, chromaHeight),
-            intArrayOf(width, chromaWidth, chromaWidth),
-        )
+        fill(picture.y, 0, picture.strides[0], height)
+        fill(picture.u, 1, picture.strides[1], chromaHeight)
+        fill(picture.v, 2, picture.strides[2], chromaHeight)
+        return picture
     }
 
-    private fun plane(index: Int, width: Int, height: Int): ByteBuffer {
+    private fun fill(packed: ByteBuffer, index: Int, width: Int, height: Int) {
         val stride = frame.linesize(index)
         val source = frame.data(index).capacity(stride.toLong() * (height - 1) + width).asByteBuffer()
-        val packed = ByteBuffer.allocateDirect(width * height)
+        packed.clear()
         for (row in 0 until height) {
             source.limit(row * stride + width).position(row * stride)
             packed.put(source)
         }
-        return packed.flip()
+        packed.flip()
     }
 
     @Synchronized

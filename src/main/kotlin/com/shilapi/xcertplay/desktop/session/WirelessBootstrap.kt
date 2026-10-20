@@ -179,6 +179,8 @@ class WirelessBootstrap internal constructor(
 
     private fun log(message: String) = listener.onDebugLog(message)
 
+    private fun trace(message: String) = log(redactTrace(message))
+
     private fun bringUp(stack: Stack) {
         val parts = stack.parts
         try {
@@ -207,7 +209,7 @@ class WirelessBootstrap internal constructor(
 
             val rfcomm = stack.own(parts.connectIphone())
             val bootstrap = stack.handOver(rfcomm,
-                Iap2Session.openWireless(rfcomm, traceContext = "wireless-rfcomm", onTrace = ::log))
+                Iap2Session.openWireless(rfcomm, traceContext = "wireless-rfcomm", onTrace = ::trace))
             stack.bootstrap = bootstrap
             val wireless = Iap2WirelessIdentification(radio, info.ssid)
             val identification = desktopIdentification(radio)
@@ -250,7 +252,7 @@ class WirelessBootstrap internal constructor(
         endpoint: Iap2WirelessCarPlayEndpoint,
     ): Boolean {
         val channel = try {
-            stack.own(Iap2Session.openTunnel(stream, traceContext = "wireless-tunnel", onTrace = ::log))
+            stack.own(Iap2Session.openTunnel(stream, traceContext = "wireless-tunnel", onTrace = ::trace))
         } catch (_: StackClosed) {
             return false
         } catch (error: Exception) {

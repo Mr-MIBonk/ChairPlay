@@ -134,6 +134,29 @@ class AudioRendererTest {
         renderer.close()
     }
 
+    @Test
+    fun `a corrupt packet between good ones costs only its own audio`() {
+        val units = encodeAac(44_100, 2, count = 6)
+        val corrupt = ByteArray(64) { 0xff.toByte() }
+        // The packet must really make the decoder throw, or this test proves nothing.
+        AacPcmDecoder(44_100, 2).use { decoder ->
+            assertTrue(runCatching { decoder.decode(corrupt) }.isFailure)
+        }
+        val line = RecordingLine()
+        val logs = CopyOnWriteArrayList<String>()
+        val renderer = AudioRenderer(log = { logs += it }, lineFactory = { _, _, _ -> line })
+        val id = AudioStreamId(101, "media")
+        renderer.start(id, AudioFormat(AudioCodecKind.AAC_LC, 44_100, 2, 96, "media"))
+        val packets = units.take(3) + listOf(corrupt) + units.drop(3)
+        packets.forEachIndexed { index, payload -> renderer.push(id, header(sample = index * 1024) + payload, index * 1024) }
+
+        // Six good access units of 1024 stereo 16-bit samples each.
+        awaitTrue("audio after the corrupt packet") { line.size() == 6 * 1024 * 2 * 2 }
+        assertTrue(logs.toString(), logs.any { "decode errors" in it })
+        assertTrue(logs.none { "stopped" in it })
+        renderer.close()
+    }
+
     private val tenMs = ByteArray(480 * 4)
 
     private fun alertRenderer(line: RecordingLine, clock: AtomicLong, logs: MutableList<String> = CopyOnWriteArrayList()) =
@@ -196,7 +219,7 @@ class AudioRendererTest {
     }
 
     /** Raw AAC access units from FFmpeg's own encoder, one per 1024-sample frame. */
-    private fun encodeAac(rate: Int, channels: Int): List<ByteArray> {
+    private fun encodeAac(rate: Int, channels: Int, count: Int = 1): List<ByteArray> {
         av_log_set_level(AV_LOG_ERROR)
         val codec = avcodec_find_encoder(AV_CODEC_ID_AAC)
         val context: AVCodecContext = avcodec_alloc_context3(codec)
@@ -215,7 +238,7 @@ class AudioRendererTest {
             check(av_frame_get_buffer(frame, 0) >= 0)
             val units = ArrayList<ByteArray>()
             var tick = 0
-            while (units.isEmpty() && tick < 16) {
+            while (units.size < count && tick < 16 + count) {
                 check(av_frame_make_writable(frame) >= 0)
                 for (c in 0 until channels) {
                     val samples = frame.data(c).capacity(1024L * 4).asByteBuffer().asFloatBuffer()

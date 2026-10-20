@@ -15,6 +15,8 @@ import com.shilapi.xcertplay.desktop.session.IAP2_IPHONE_UUID
 import com.shilapi.xcertplay.desktop.session.WirelessBootstrap
 import com.shilapi.xcertplay.desktop.session.desktopIdentification
 import com.shilapi.xcertplay.desktop.session.firewallHint
+import com.shilapi.xcertplay.desktop.session.readFirewall
+import com.shilapi.xcertplay.desktop.session.redactTrace
 import com.shilapi.xcertplay.iap2.session.Iap2Session
 import com.shilapi.xcertplay.mfi.Iap2MfiAuthenticationClient
 import com.shilapi.xcertplay.mfi.LocalMfiAuthenticationClient
@@ -61,7 +63,7 @@ private fun probeBluetooth(address: String?): Boolean {
     val socket = WindowsBluetooth.connectRfcomm(iphone.address, IAP2_IPHONE_UUID)
     log("RFCOMM connected to the iAP2 service")
     val stream = socket.toDuplexStream(::log)
-    val session = Iap2Session.openWireless(stream, traceContext = "probe", onTrace = ::log)
+    val session = Iap2Session.openWireless(stream, traceContext = "probe", onTrace = { log(redactTrace(it)) })
     try {
         val identification = desktopIdentification(radio).forWirelessLink(
             Iap2WirelessLinkRole.BLUETOOTH_BOOTSTRAP,
@@ -88,11 +90,7 @@ private fun probeBluetooth(address: String?): Boolean {
  */
 private fun runCarPlay() {
     val config = DesktopConfig(DesktopConfig.DEFAULT_DIRECTORY)
-    if (!firewallRuleExists()) {
-        val program = ProcessHandle.current().info().command().orElse("java.exe")
-        log("no Windows Firewall rule \"$FIREWALL_RULE\"; the iPhone cannot connect until one is added")
-        log("from an administrator prompt:\n" + firewallHint(config.airPlay.port, program))
-    }
+    checkFirewall(config.airPlay.port)
     val window = VideoWindow(config.airPlay.main.widthPixels, config.airPlay.main.heightPixels)
     val sink = DesktopMediaSink(window, AudioRenderer(::log), ::log)
     val active = AtomicReference<AirPlaySession?>()
@@ -119,8 +117,9 @@ private fun runCarPlay() {
             log("AirPlay session active")
         }
         override fun onSessionEnded(session: AirPlaySession) {
-            active.compareAndSet(session, null)
-            sessionChanged()
+            // /info probes and pairing retries end too; resetting for them would cut a drag on the live session
+            // short, and its release would never reach the iPhone.
+            if (active.compareAndSet(session, null)) sessionChanged()
             log("AirPlay session ended")
         }
         override fun onTransportError(message: String) = log("AirPlay transport error: $message")
@@ -137,10 +136,24 @@ private fun runCarPlay() {
     exitProcess(0)
 }
 
-/** Reads the rule only; adding it needs an administrator and is left to the user. */
-private fun firewallRuleExists(): Boolean =
-    ProcessBuilder("netsh", "advfirewall", "firewall", "show", "rule", "name=$FIREWALL_RULE")
-        .redirectErrorStream(true)
-        .redirectOutput(ProcessBuilder.Redirect.DISCARD)
-        .start()
-        .waitFor() == 0
+/**
+ * Says what keeps the iPhone out, if anything. A block rule wins over any allow rule, so one left by Windows'
+ * first-run prompt is reported even when ours exists.
+ */
+private fun checkFirewall(port: Int) {
+    val program = ProcessHandle.current().info().command().orElse("java.exe")
+    val hint = "from an administrator prompt:\n" + firewallHint(port, program)
+    val state = readFirewall(program)
+    if (state == null) {
+        log("could not read the Windows Firewall rules; if the iPhone cannot connect, add these $hint")
+        return
+    }
+    if (!state.allowRule) {
+        log("no Windows Firewall rule \"$FIREWALL_RULE\"; the iPhone cannot connect until one is added")
+        log(hint)
+    }
+    state.blocking.forEach {
+        log("Windows Firewall rule $it blocks inbound connections to $program; the iPhone cannot connect while " +
+            "it applies. Delete it or set it to Allow in Windows Defender Firewall > Advanced settings > Inbound Rules")
+    }
+}

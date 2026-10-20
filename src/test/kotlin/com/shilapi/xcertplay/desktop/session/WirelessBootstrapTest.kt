@@ -83,6 +83,9 @@ class WirelessBootstrapTest {
         assertTrue(hint, "C:\\x\\diplay.exe" in hint)
         assertTrue(hint, "localport=7000-7010,49152-65535" in hint)
         assertTrue(hint, "protocol=UDP localport=5353" in hint)
+        // The start-up check looks for this name; Windows names its own prompt rules after the exe.
+        assertTrue(hint, "name=\"DiPlayDesktop CarPlay inbound\" dir=in" in hint)
+        assertEquals(3, Regex("name=\"$FIREWALL_RULE\"").findAll(hint).count())
     }
 
     @Test(timeout = 30_000)

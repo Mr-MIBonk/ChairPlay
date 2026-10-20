@@ -76,10 +76,8 @@ class AirPlayListener(
  * Windows takes from its dynamic range 49152-65535. JmDNS answers the iPhone's mDNS queries on UDP 5353.
  */
 fun firewallHint(port: Int, programPath: String): String {
-    val rule = "netsh advfirewall firewall add rule name=$FIREWALL_RULE dir=in action=allow program=\"$programPath\""
+    val rule = "netsh advfirewall firewall add rule name=\"$FIREWALL_RULE\" dir=in action=allow program=\"$programPath\""
     return "$rule protocol=TCP localport=$port-${port + 10},49152-65535\n" +
         "$rule protocol=UDP localport=49152-65535\n" +
         "$rule protocol=UDP localport=5353"
 }
-
-const val FIREWALL_RULE = "DiPlayDesktop"

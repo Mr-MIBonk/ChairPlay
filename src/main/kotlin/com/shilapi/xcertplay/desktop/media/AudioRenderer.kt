@@ -193,7 +193,7 @@ internal class AacPcmDecoder(private val sampleRate: Int, private val channels: 
  * threshold is played after [BUFFER_TAIL_WAIT_NS]. Queued audio more than [SHED_ABOVE_NS] behind the newest
  * packet is trimmed to [SHED_TO_NS] from the oldest end, the bounds of MediaPacketLagGuard
  * (CONGESTION_THRESHOLD_NS and RECOVERY_TARGET_NS) but without its 1.5 s grace period.
- * Drops, underruns and shedding are logged once per class and then at most every [DIAGNOSTIC_INTERVAL_NS].
+ * Drops, underruns, undecodable packets and shedding are logged once per class and then at most every [DIAGNOSTIC_INTERVAL_NS].
  */
 class AudioRenderer internal constructor(
     private val log: (String) -> Unit = {},
@@ -322,7 +322,13 @@ class AudioRenderer internal constructor(
                         continue
                     }
                     lastPacketAt = now
-                    val pcm = decoder.decode(payloadOf(packet.rtp))
+                    val pcm = try {
+                        decoder.decode(payloadOf(packet.rtp))
+                    } catch (_: Exception) {
+                        // One corrupt packet costs its own audio only; the next one decodes on its own.
+                        note("decode errors")
+                        continue
+                    }
                     if (pcm.isEmpty()) continue
                     if (playing) {
                         play(pcm, pcm.size)
@@ -337,7 +343,8 @@ class AudioRenderer internal constructor(
             } catch (_: InterruptedException) {
                 // stop() or close().
             } catch (error: Exception) {
-                // A decoder or device failure silences this stream only; the others keep playing.
+                // A decoder that cannot be created or a device failure silences this stream only; the
+                // others keep playing.
                 if (running) log("audio ${id.audioType}: stopped after ${error.javaClass.simpleName}: ${error.message}")
             } finally {
                 runCatching { line?.close() }
