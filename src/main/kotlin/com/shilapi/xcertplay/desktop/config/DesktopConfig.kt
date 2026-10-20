@@ -48,7 +48,7 @@ class DesktopConfig(private val dir: Path) {
         ),
         port = 7000,
         hevc = false,
-        microphone = false,
+        microphone = true,
         microphoneOpus = false,
         videoInCar = false,
         mainBufferedAudio = false,

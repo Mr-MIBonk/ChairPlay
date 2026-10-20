@@ -81,6 +81,8 @@ class WirelessBootstrapTest {
 
         assertTrue(hint, "localport=7000" in hint)
         assertTrue(hint, "C:\\x\\diplay.exe" in hint)
+        assertTrue(hint, "localport=7000-7010,49152-65535" in hint)
+        assertTrue(hint, "protocol=UDP localport=5353" in hint)
     }
 
     @Test(timeout = 30_000)

@@ -5,7 +5,11 @@ import com.shilapi.xcertplay.airplay.AirPlaySessionListener
 import com.shilapi.xcertplay.desktop.bluetooth.WindowsBluetooth
 import com.shilapi.xcertplay.desktop.bluetooth.selectIphone
 import com.shilapi.xcertplay.desktop.config.DesktopConfig
-import com.shilapi.xcertplay.desktop.media.LoggingMediaSink
+import com.shilapi.xcertplay.desktop.input.TouchQueue
+import com.shilapi.xcertplay.desktop.input.TouchTracker
+import com.shilapi.xcertplay.desktop.media.AudioRenderer
+import com.shilapi.xcertplay.desktop.media.DesktopMediaSink
+import com.shilapi.xcertplay.desktop.media.VideoWindow
 import com.shilapi.xcertplay.desktop.session.FIREWALL_RULE
 import com.shilapi.xcertplay.desktop.session.IAP2_IPHONE_UUID
 import com.shilapi.xcertplay.desktop.session.WirelessBootstrap
@@ -19,6 +23,8 @@ import com.shilapi.xcertplay.transport.Iap2WirelessIdentification
 import com.shilapi.xcertplay.transport.Iap2WirelessLinkRole
 import com.shilapi.xcertplay.transport.forWirelessLink
 import java.time.LocalTime
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
@@ -77,8 +83,8 @@ private fun probeBluetooth(address: String?): Boolean {
 }
 
 /**
- * Wireless CarPlay with media only counted, not shown. Runs until the process is stopped; every
- * session end or failure restarts the bring-up.
+ * Wireless CarPlay with the screen shown in a window and its sound played through Java Sound. Runs until the window
+ * is closed or the process is stopped; every session end or failure restarts the bring-up.
  */
 private fun runCarPlay() {
     val config = DesktopConfig(DesktopConfig.DEFAULT_DIRECTORY)
@@ -87,19 +93,48 @@ private fun runCarPlay() {
         log("no Windows Firewall rule \"$FIREWALL_RULE\"; the iPhone cannot connect until one is added")
         log("from an administrator prompt:\n" + firewallHint(config.airPlay.port, program))
     }
-    val sink = LoggingMediaSink(::log)
+    val window = VideoWindow(config.airPlay.main.widthPixels, config.airPlay.main.heightPixels)
+    val sink = DesktopMediaSink(window, AudioRenderer(::log), ::log)
+    val active = AtomicReference<AirPlaySession?>()
+    // sendTouch writes to the iPhone's socket and can block; the GL thread only maps and enqueues.
+    // One thread keeps the press, moves and release in order.
+    val touchSender = Executors.newSingleThreadExecutor { Thread(it, "touch-sender").apply { isDaemon = true } }
+    val tracker = TouchTracker()
+    val pending = TouchQueue()
+    // Every sample goes through the tracker so it never misses a button change; only the send needs a session.
+    window.setInputHandler { event ->
+        val contact = tracker.handle(event, window.framebufferSize, window.pictureSize) ?: return@setInputHandler
+        if (active.get() == null) return@setInputHandler
+        pending.offer(contact)
+        touchSender.execute { pending.poll()?.let { active.get()?.sendTouch(listOf(it)) } }
+    }
+    fun sessionChanged() {
+        pending.clear()
+        tracker.reset()
+    }
     val bootstrap = WirelessBootstrap(config, sink, object : AirPlaySessionListener {
-        override fun onSessionActive(session: AirPlaySession) = log("AirPlay session active")
-        override fun onSessionEnded(session: AirPlaySession) = log("AirPlay session ended")
+        override fun onSessionActive(session: AirPlaySession) {
+            active.set(session)
+            sessionChanged()
+            log("AirPlay session active")
+        }
+        override fun onSessionEnded(session: AirPlaySession) {
+            active.compareAndSet(session, null)
+            sessionChanged()
+            log("AirPlay session ended")
+        }
         override fun onTransportError(message: String) = log("AirPlay transport error: $message")
         override fun onDebugLog(message: String) = log(message)
     })
     Runtime.getRuntime().addShutdownHook(Thread {
         bootstrap.close()
         sink.close()
+        touchSender.shutdownNow()
     })
     bootstrap.start()
-    Thread.currentThread().join()
+    // GLFW needs its window and event loop on this, the main, thread; the bring-up runs on its own.
+    window.run()
+    exitProcess(0)
 }
 
 /** Reads the rule only; adding it needs an administrator and is left to the user. */

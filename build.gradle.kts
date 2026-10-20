@@ -21,6 +21,7 @@ val upstreamCore by tasks.registering(Sync::class) {
             "com/shilapi/xcertplay/iap2/**",
             "com/shilapi/xcertplay/mfi/**",
             "com/shilapi/xcertplay/compat/Base64Compat.kt",
+            "com/shilapi/xcertplay/media/MediaCodecSupport.kt",
             "com/shilapi/xcertplay/media/TouchLatencyProbe.kt",
             "com/shilapi/xcertplay/network/AirPlayPortSelector.kt",
             "com/shilapi/xcertplay/network/HotspotAddressPolicy.kt",
@@ -30,6 +31,7 @@ val upstreamCore by tasks.registering(Sync::class) {
             "com/shilapi/xcertplay/transport/Iap2*.kt",
             "com/shilapi/xcertplay/transport/I2cTransport.kt",
             "com/shilapi/xcertplay/transport/VehicleSpeedNmea.kt",
+            "org/concentus/**",
         )
         // USB multiplexing belongs to wired CarPlay.
         exclude("com/shilapi/xcertplay/transport/Iap2UsbMuxHost.kt")
@@ -84,6 +86,10 @@ sourceSets {
         }
     }
     main {
+        // Concentus (Opus) is Java: a Kotlin srcDir alone would leave it uncompiled.
+        java {
+            srcDir(upstreamCore)
+        }
         kotlin {
             srcDir(upstreamCore)
             srcDir("src/shim/kotlin")
@@ -95,9 +101,38 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.79")
     implementation("org.jmdns:jmdns:3.6.3")
     implementation("net.java.dev.jna:jna-platform:5.15.0")
+    // Native classifiers are pinned to windows-x86_64: the *-platform artifacts of javacpp presets pull
+    // every OS, hundreds of megabytes this Windows-only app never loads.
+    implementation("org.bytedeco:javacpp:1.5.11")
+    implementation("org.bytedeco:javacpp:1.5.11:windows-x86_64")
+    implementation("org.bytedeco:ffmpeg:7.1-1.5.11")
+    implementation("org.bytedeco:ffmpeg:7.1-1.5.11:windows-x86_64")
+    implementation("org.lwjgl:lwjgl:3.3.4")
+    implementation("org.lwjgl:lwjgl-glfw:3.3.4")
+    implementation("org.lwjgl:lwjgl-opengl:3.3.4")
+    runtimeOnly("org.lwjgl:lwjgl:3.3.4:natives-windows")
+    runtimeOnly("org.lwjgl:lwjgl-glfw:3.3.4:natives-windows")
+    runtimeOnly("org.lwjgl:lwjgl-opengl:3.3.4:natives-windows")
     testImplementation("junit:junit:4.13.2")
 }
 
 application {
     mainClass.set("com.shilapi.xcertplay.desktop.MainKt")
+}
+
+// Concentus is BSD-licensed and its notice must travel with the binaries: inside the jar, and next to it in
+// the distribution.
+val concentusLicence = layout.buildDirectory.file("upstream-core/org/concentus/LICENSE")
+
+tasks.jar {
+    from(concentusLicence) {
+        rename { "LICENSE-concentus" }
+        into("META-INF")
+    }
+}
+
+distributions.main {
+    contents {
+        from(concentusLicence) { rename { "LICENSE-concentus" } }
+    }
 }
