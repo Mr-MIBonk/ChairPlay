@@ -91,8 +91,42 @@ class DesktopConfigTest {
         assertEquals(false, config.airPlay.rightHandDrive)
         assertNull(main.viewAreas)
         assertNull(main.safeArea)
-        assertNull(main.safeAreaDrawOutside)
-        assertNull(main.mainDisplayCornerMasks)
+        assertEquals(true, main.safeAreaDrawOutside)
+    }
+
+    // A window is rectangular, so the picture fills it with square corners unless rounded is asked for.
+    @Test
+    fun `corners are square by default and rounded on request`() {
+        val square = configWith().airPlay.main
+        assertEquals(true, square.mainDisplayCornerMasks)
+        assertEquals(true, square.mainDisplayDisableSafeArea)
+
+        val rounded = configWith("display.corners=rounded").airPlay.main
+        assertNull(rounded.mainDisplayCornerMasks)
+        assertEquals(false, rounded.mainDisplayDisableSafeArea)
+
+        // Square corners leave the safe area out of /info, as upstream does, unless one is set.
+        val inset = configWith("display.safe.top=20").airPlay.main
+        assertEquals(true, inset.mainDisplayCornerMasks)
+        assertEquals(false, inset.mainDisplayDisableSafeArea)
+    }
+
+    // A file written by an older version gains the settings it lacks, after its own lines, which stay as they were.
+    @Test
+    fun `an older settings file gains the missing settings and keeps its own`() {
+        val dir = Files.createTempDirectory("diplay-config")
+        val old = "wifi.ssid=Home\nwifi.passphrase=secret123\ndisplay.width=1920\n"
+        Files.writeString(dir.resolve("settings.properties"), old)
+
+        val config = DesktopConfig(dir)
+
+        val text = Files.readString(dir.resolve("settings.properties"))
+        assertTrue(text, text.startsWith(old))
+        for (key in DesktopConfig.SETTING_KEYS) assertTrue("$key missing", Regex("(?m)^${Regex.escape(key)}=").containsMatchIn(text))
+        assertEquals(1, Regex("(?m)^display\\.width=").findAll(text).count())
+        assertEquals(1920, config.airPlay.main.widthPixels)
+        DesktopConfig(dir)
+        assertEquals(text, Files.readString(dir.resolve("settings.properties")))
     }
 
     @Test
@@ -126,6 +160,15 @@ class DesktopConfigTest {
             assertTrue("$bad was accepted", error is IllegalArgumentException)
             assertTrue("$bad: ${error?.message}", bad.substringBefore('=') in error!!.message!!)
         }
+    }
+
+    // The names are matched against the devices at start, where they exist; the config keeps them as written.
+    @Test
+    fun `sound devices are read as written`() {
+        assertEquals("default", configWith().audioOutput)
+        val config = configWith("audio.output=ULTRAGEAR", "audio.input=default")
+        assertEquals("ULTRAGEAR", config.audioOutput)
+        assertEquals("default", config.audioInput)
     }
 
     // The name the iPhone shows for the car, in CarPlay settings, /info and the Bonjour service; the window

@@ -9,18 +9,21 @@ import java.io.Closeable
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import javax.sound.sampled.Mixer
 
 /**
  * Shows the main CarPlay screen in a [VideoWindow]. The screen stream's thread decodes and hands each
  * picture to the window, which draws it on the GL thread.
  *
  * Audio goes to [audio], which decodes and plays each stream on its own thread. A microphone stream
- * gets one [MicrophoneSender] capturing the default input until the iPhone stops it.
+ * gets one [MicrophoneSender] capturing [microphone] until the iPhone stops it.
  */
 class DesktopMediaSink(
     private val window: VideoWindow,
     private val audio: AudioRenderer,
     private val log: (String) -> Unit = {},
+    /** The microphone (audio.input), or the Windows default recording device when it is null. */
+    private val microphone: Mixer.Info? = null,
 ) : MediaSink, Closeable {
     private val lock = Any()
     private val diagnosticHandlers = ConcurrentHashMap<Int, (String) -> Unit>()
@@ -90,7 +93,7 @@ class DesktopMediaSink(
     // The engine calls this on the downlink thread: a missing device only costs this stream its uplink.
     override fun onMicrophoneStarted(id: AudioStreamId, config: MicrophoneConfig) {
         microphones.remove(id)?.close()
-        val sender = openMicrophoneSender(config, log) ?: return
+        val sender = openMicrophoneSender(config, log, microphone) ?: return
         microphones[id] = sender
         sender.start()
     }

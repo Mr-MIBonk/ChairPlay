@@ -11,6 +11,7 @@ import com.shilapi.xcertplay.desktop.input.ControlsConfig
 import com.shilapi.xcertplay.desktop.input.KeyControls
 import com.shilapi.xcertplay.desktop.input.TouchQueue
 import com.shilapi.xcertplay.desktop.input.TouchTracker
+import com.shilapi.xcertplay.desktop.media.AudioDevices
 import com.shilapi.xcertplay.desktop.media.AudioRenderer
 import com.shilapi.xcertplay.desktop.media.DesktopMediaSink
 import com.shilapi.xcertplay.desktop.media.VideoWindow
@@ -66,6 +67,11 @@ private fun listDevices() {
     WindowsBluetooth.pairedDevices().forEach {
         println("${it.address}  class=0x%06X  ${it.name}".format(it.classOfDevice))
     }
+    // The names audio.output and audio.input match against (Java Sound cuts them to 31 characters).
+    println("audio outputs:")
+    AudioDevices.outputs().forEach { println("  ${it.name}") }
+    println("audio inputs:")
+    AudioDevices.inputs().forEach { println("  ${it.name}") }
 }
 
 /**
@@ -117,7 +123,11 @@ private fun runCarPlay() {
     checkFirewall(config.airPlay.port)
     log(config.displaySummary())
     val window = VideoWindow(config.window.width, config.window.height)
-    val sink = DesktopMediaSink(window, AudioRenderer(::log), ::log)
+    // A device name matching nothing stops here, before any connection, with the devices listed.
+    val output = AudioDevices.output(config.audioOutput)
+    val input = AudioDevices.input(config.audioInput)
+    log("audio output: ${output?.name ?: "Windows default"}; microphone: ${input?.name ?: "Windows default"}")
+    val sink = DesktopMediaSink(window, AudioRenderer(::log, output), ::log, input)
     val active = AtomicReference<AirPlaySession?>()
     // sendTouch writes to the iPhone's socket and can block; the GL thread only maps and enqueues.
     // One thread keeps the press, moves and release in order.

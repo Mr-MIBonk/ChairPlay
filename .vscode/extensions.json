@@ -1,0 +1,4 @@
+{
+  // Gradle for Java lists every Gradle task (test, jpackageImage, deploy, ...) in its own side panel.
+  "recommendations": ["vscjava.vscode-gradle"]
+}

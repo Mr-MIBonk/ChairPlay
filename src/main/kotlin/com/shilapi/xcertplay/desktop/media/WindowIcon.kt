@@ -7,7 +7,7 @@ import javax.imageio.ImageIO
 
 /**
  * The DiPlayDesktop icon for the window's title bar and taskbar button, from the PNGs that
- * desktop/packaging/icon/make_icon.py writes into the resources. Windows picks the size it needs.
+ * packaging/icon/make_icon.py writes into the resources. Windows picks the size it needs.
  */
 internal object WindowIcon {
     class Image(val size: Int, val rgba: ByteArray)

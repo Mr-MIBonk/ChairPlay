@@ -1,0 +1,61 @@
+{
+  // Terminal > Run Task, or the Gradle panel for the Gradle tasks themselves.
+  // The app runs in its own console window: stop it by closing the CarPlay window or with Ctrl+C there.
+  // Never end it with VS Code's "Terminate Task" or Task Manager: a hard kill leaves the iPhone ignoring
+  // new sessions until it is restarted.
+  "version": "2.0.0",
+  "windows": {
+    "options": { "shell": { "executable": "cmd.exe", "args": ["/d", "/c"] } }
+  },
+  "tasks": [
+    {
+      "label": "Test",
+      "type": "shell",
+      "command": ".\\gradlew.bat test",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build app image",
+      "type": "shell",
+      "command": ".\\gradlew.bat jpackageImage",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy to DiPlayDesktopApp",
+      "detail": "Builds the app and syncs it into Documents\\DiPlayDesktopApp, keeping settings and keys. Close the app first.",
+      "type": "shell",
+      "command": ".\\gradlew.bat deploy",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run DiPlayDesktop",
+      "detail": "Starts the deployed app in its own console window.",
+      "type": "shell",
+      "command": "start \"DiPlayDesktop\" /D \"%USERPROFILE%\\Documents\\DiPlayDesktopApp\" DiPlayDesktop.exe",
+      "presentation": { "reveal": "never" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Deploy and run",
+      "dependsOrder": "sequence",
+      "dependsOn": ["Deploy to DiPlayDesktopApp", "Run DiPlayDesktop"],
+      "problemMatcher": []
+    },
+    {
+      "label": "List devices",
+      "detail": "Bluetooth radio, paired devices, sound outputs and inputs.",
+      "type": "shell",
+      "command": "\"%USERPROFILE%\\Documents\\DiPlayDesktopApp\\DiPlayDesktop.exe\" devices",
+      "problemMatcher": []
+    },
+    {
+      "label": "Stop Gradle daemon",
+      "type": "shell",
+      "command": ".\\gradlew.bat --stop",
+      "problemMatcher": []
+    }
+  ]
+}

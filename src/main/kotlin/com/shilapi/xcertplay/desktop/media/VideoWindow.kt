@@ -118,6 +118,10 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
         var picture: Size? = null
         val w = IntArray(1)
         val h = IntArray(1)
+        // Black from the start, like the title bar, instead of the system's white until the first frame.
+        glfwGetFramebufferSize(window, w, h)
+        clear(w[0], h[0])
+        glfwSwapBuffers(window)
         try {
             while (!glfwWindowShouldClose(window) && !closing.get()) {
                 glfwWaitEvents()
@@ -130,11 +134,11 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
                     picture = Size(fresh.width, fresh.height)
                     pictureSize = picture
                 }
-                val shown = picture ?: continue
-                // A resize repaints the last picture even when no new one has arrived.
+                // A resize repaints the last picture even when no new one has arrived, or black before the first.
                 glfwGetFramebufferSize(window, w, h)
                 framebufferSize = Size(w[0], h[0])
-                draw(shown, w[0], h[0])
+                val shown = picture
+                if (shown == null) clear(w[0], h[0]) else draw(shown, w[0], h[0])
                 glfwSwapBuffers(window)
                 if (fresh != null) onFrameShown()
             }
@@ -197,11 +201,15 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
     }
 
     /** Fits the picture inside the window at its own aspect ratio; the rest stays black. */
-    private fun draw(frame: Size, fw: Int, fh: Int) {
-        if (fw == 0 || fh == 0) return
+    private fun clear(fw: Int, fh: Int) {
         glViewport(0, 0, fw, fh)
         glClearColor(0f, 0f, 0f, 1f)
         glClear(GL_COLOR_BUFFER_BIT)
+    }
+
+    private fun draw(frame: Size, fw: Int, fh: Int) {
+        if (fw == 0 || fh == 0) return
+        clear(fw, fh)
         val scale = minOf(fw.toDouble() / frame.width, fh.toDouble() / frame.height)
         val w = (frame.width * scale).toInt()
         val h = (frame.height * scale).toInt()

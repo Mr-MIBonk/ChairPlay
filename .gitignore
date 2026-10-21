@@ -1,0 +1,15 @@
+# Build output and tool state.
+build/
+.gradle/
+.kotlin/
+local.properties
+
+# MFi identity and the app's keys must never be committed.
+offline-mfi/
+*.pk8
+*.p7b
+identity.properties
+
+# Local notes and agent working files, kept out of the repository.
+desktop-docs/
+.superpowers/

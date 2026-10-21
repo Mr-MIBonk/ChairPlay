@@ -1,129 +1,114 @@
 # DiPlay Desktop
 
-A Windows port of DiPlay: it receives wireless CarPlay from an iPhone and shows the screen in a window on the PC,
-with touch, audio and microphone. The iPhone is reached over Bluetooth (iAP2) and then over Wi-Fi (AirPlay), so the
-PC and the iPhone must be on the same Wi-Fi network.
+**Wireless Apple CarPlay on a Windows PC.** Your iPhone connects to the PC the way it connects to a car: over
+Bluetooth first, then over Wi-Fi. CarPlay opens in a window, and you drive it with the mouse and the keyboard,
+hear it through the PC's speakers and talk to Siri through its microphone.
 
-## Build
+Useful for developing and testing CarPlay apps and navigation without sitting in a car, for demos, or simply for
+CarPlay on a desk.
 
-Needs JDK 17 (the only version this build is tested with). From the repository root:
+DiPlay Desktop is built on [DiPlay](https://github.com/shihabal3amri/DiPlay), the Android CarPlay receiver for head
+units by shihabal3amri. It compiles DiPlay's portable CarPlay core (AirPlay, iAP2, MFi authentication) from the
+`upstream/` submodule and adds everything Windows needs around it. It is a separate project, not affiliated with or
+endorsed by DiPlay's authors or by Apple.
 
-```
-gradlew -p desktop jpackageImage
-```
+## What works
 
-The result is `desktop\build\jpackage\DiPlayDesktop\DiPlayDesktop.exe`, a self-contained folder with its own runtime;
-no installer or WiX is needed. The folder also carries the licence notices (`LICENSE`, `LICENSE-concentus`, `THIRD_PARTY_NOTICES`,
-`licenses\`). Only the `windows-x86_64` native libraries are bundled.
+- **Wireless CarPlay** with an iPhone on the same Wi-Fi network as the PC, started over Windows Bluetooth.
+- **Video** in a resizable window, 1280×720 at 60 fps by default, H.264 decoded in software.
+- **Touch** with the mouse: taps, drags, scrolling lists and the map.
+- **Car controls on the keyboard**: arrows tilt CarPlay's knob, Tab turns it, Enter selects, Esc goes back, plus
+  media keys, call keys and Siri. Every binding can be changed.
+- **Audio**: music (AAC-LC 48 kHz stereo), navigation prompts and Siri, on the device you choose.
+- **Microphone** for Siri and calls (Opus), on the device you choose.
+- **Your own "car"**: the name the iPhone shows, the icon and label of the car button on the CarPlay home screen
+  (a Windows window by default; tapping it minimizes CarPlay).
+- **The CarPlay screen as you want it**: resolution, frame rate, physical size or pixel density (which decides how
+  large iOS draws its interface), light or dark theme following Windows, driving side, dock position, safe area,
+  corner style.
+- **Graceful reconnection**: close the window and start again, and the iPhone reconnects by itself.
 
-The app keeps its settings, keys and pairings in the folder of its exe. To run it from a folder of its own that
-rebuilds never wipe, deploy it there:
+Tested on Windows 11 with an iPhone 15 (iOS 18.6).
 
-```
-gradlew -p desktop deploy
-```
+## Requirements
 
-This builds the image and syncs it into `Documents\DiPlayDesktopApp` (another folder with
-`-Pdiplay.home=<path>`), replacing the program and keeping `settings.properties`, `identity.properties`,
-`pairings\`, `offline-mfi\`, `controls.properties` and `carplay-icon.png`. On its first start in a folder without them, the app copies them from
-`%APPDATA%\DiPlayDesktop`, where earlier builds kept them, so the iPhone still knows the PC; the old folder stays.
+- Windows 10 or 11, 64-bit, with Bluetooth and Wi-Fi.
+- An iPhone paired with the PC over Bluetooth, on the same Wi-Fi network (WPA2 or open; no client isolation).
+- **An Apple MFi accessory identity** (certificate and private key). The iPhone authenticates every CarPlay
+  accessory; this project does not and cannot ship one. You supply your own in `offline-mfi\`.
+- JDK 17 to build.
 
-## Set up
-
-The files below live in the app folder, next to `DiPlayDesktop.exe`.
-
-1. **Pair the iPhone** in Windows Settings > Bluetooth & devices. `DiPlayDesktop.exe devices` lists the radio and the
-   paired devices (it connects to nothing).
-2. **MFi identity files.** The wireless handshake needs an Apple MFi identity (certificate and key files). This
-   project does not ship them and the app image never contains them. Put your own files in `offline-mfi\`.
-3. **Settings.** The first start creates `settings.properties`. Fill in:
-   - `wifi.ssid` (required) and `wifi.passphrase`: the Wi-Fi network shared by the PC and the iPhone;
-   - `wifi.security`: `NONE`, `WEP`, `WPA_WPA2` (default), `WPA3_TRANSITION` or `WPA3_ONLY`;
-   - `iphone.address`: the iPhone's Bluetooth address, only needed when several phones are paired;
-   - `device.name`: the name the iPhone shows for the PC, in its CarPlay settings and on the network (default
-     DiPlayDesktop, at most 63 bytes); the window title stays DiPlayDesktop;
-   - `car.label` and `car.icon`: the label and the image of the car button on the CarPlay home screen (default
-     `Windows` and `carplay-icon.png`, a Windows window written into the app folder on the first start). Replace the
-     image with any square PNG, JPEG, BMP or GIF; it is sent at 192 pixels at most;
-   - `display.width` and `display.height`: the CarPlay screen size in pixels, positive even numbers
-     (default 1280 x 720), and `display.fps`, 30 to 60 (default 60);
-   - the screen's physical size, from which iOS chooses how large to draw its interface: either
-     `display.physical.width.mm` and `display.physical.height.mm`, or a pixel density `display.ppi` that the app
-     turns into millimetres. Millimetres win over `display.ppi`; a width alone takes the height from the aspect ratio.
-     Unset, the screen is 200 mm wide, as on DiPlay's head units;
-   - `window.width` and `window.height`: the size of the window on the PC (default: the display size). The picture
-     is scaled into the window, so this changes only how big it looks, not what the iPhone draws.
-
-   - `display.theme`: `windows` (default: follows the Windows dark mode, also while running), `light`, `dark`, or
-     `phone` (the iPhone decides by itself);
-   - `display.right.hand.drive` (`true` puts the dock and controls on the right), `display.dock` (`auto`, `driver` or
-     `bottom`), `display.safe.top`/`bottom`/`left`/`right` (pixels CarPlay keeps its controls out of) with
-     `display.safe.draw.outside`, and `display.corners` (`rounded` or `square`).
-
-   The settings apply at the next start; the console prints what the iPhone was told, for example
-   `display 1280x720 px, 200x113 mm (163 ppi), 60 fps; window 1280x720`.
-4. **Firewall.** Windows Firewall drops the iPhone's inbound connections. From an administrator Command Prompt, add
-   these rules once (the paths are those of the packaged exe; adjust them if you move the folder). The app does not
-   change the firewall itself and prints the same commands at start when no rule named `DiPlayDesktop CarPlay inbound`
-   exists:
-
-   ```
-   netsh advfirewall firewall add rule name="DiPlayDesktop CarPlay inbound" dir=in action=allow program="<folder>\DiPlayDesktop.exe" protocol=TCP localport=7000-7010,49152-65535
-   netsh advfirewall firewall add rule name="DiPlayDesktop CarPlay inbound" dir=in action=allow program="<folder>\DiPlayDesktop.exe" protocol=UDP localport=49152-65535
-   netsh advfirewall firewall add rule name="DiPlayDesktop CarPlay inbound" dir=in action=allow program="<folder>\DiPlayDesktop.exe" protocol=UDP localport=5353
-   ```
-
-   Replace `<folder>` with the full path of `DiPlayDesktop`, e.g. `C:\Apps\DiPlayDesktop`.
-
-   If Windows asks at the first start whether DiPlayDesktop may use the network, answering Cancel creates a rule that
-   blocks it, and a block rule wins over the ones above. At start the app names every enabled inbound block rule for
-   its exe; delete those, or set them to Allow, in Windows Defender Firewall > Advanced settings > Inbound Rules. The
-   check uses PowerShell's firewall cmdlets and finds rules whose program path is written out in full, not through an
-   environment variable such as `%ProgramFiles%`.
-
-## Run
+## Quick start
 
 ```
-DiPlayDesktop.exe
+git clone --recursive https://github.com/NumberOneBot/DiPlayDesktop.git
+cd DiPlayDesktop
+gradlew deploy
 ```
 
-With no arguments the launcher runs `run`. Passing any argument replaces that default, so `DiPlayDesktop.exe devices`
-and `DiPlayDesktop.exe probe-bt [iphone-address]` run those commands instead. The app is a console program: it logs
-to the console window, and the CarPlay screen opens in its own window, titled DiPlayDesktop.
+`deploy` builds a self-contained app (with its own Java runtime) into `Documents\DiPlayDesktopApp` and keeps your
+settings there on later builds. Then:
 
-The iPhone lists the PC as **DiPlayDesktop** (or `device.name`). The CarPlay home screen shows a Windows icon (`car.icon`) where a car shows its maker's;
-tapping it minimizes the CarPlay window and leaves CarPlay running.
+1. Pair the iPhone in Windows Settings > Bluetooth & devices.
+2. Put your MFi identity files in `DiPlayDesktopApp\offline-mfi\`.
+3. Start `DiPlayDesktop.exe` once; it writes `settings.properties`. Fill in your Wi-Fi name and password.
+4. Allow DiPlayDesktop through Windows Firewall (the app prints the exact commands if a rule is missing).
+5. Start `DiPlayDesktop.exe` again with the iPhone unlocked, and accept CarPlay on the iPhone.
 
-Besides touch with the mouse, the keyboard and the mouse wheel work as a car's controls. These are the defaults;
-`controls.properties` in the app folder, written on the first start with every action documented, rebinds them
-(`key.siri = Ctrl+S, F10`; empty turns an action off) and sets the wheel (`wheel.action = knob` or `none`,
-`wheel.invert`, `wheel.notches.per.step`) and `key.repeat.every`. A mistake in it stops the start and names the
-setting; delete the file to get the defaults back.
+[docs/SETUP.md](docs/SETUP.md) has every step in detail and the reference for all settings.
+
+## Controls
 
 | Key | CarPlay |
 | --- | --- |
+| Mouse | touch |
 | Arrows | tilt the knob: focus moves in that direction |
-| Tab / Shift+Tab | turn the knob one step forward / back (held: a step every third repeat) |
-| Mouse wheel | turn the knob, one step per notch (down is forward) |
-| Enter, Space | knob select |
+| Tab / Shift+Tab | turn the knob one step forward / back |
+| Mouse wheel | turn the knob, one step per notch |
+| Enter, Space | select |
 | Backspace, Esc | back |
-| Home | home |
+| Home | home screen |
 | F7 / F8 / F9 | previous track / play-pause / next track |
 | F3 / F4 | answer / end a call |
 | S | Siri |
 
-Quit by closing the window (or Ctrl+C in the console). Do not end the process from Task Manager: see below.
+Rebind any of them in `controls.properties`, which the app writes on its first start with every action listed.
 
-## Troubleshooting
+## Configuration
 
-- **The iPhone accepts the Bluetooth handshake but never connects over Wi-Fi.** The log ends at
-  `iap2 tx=0x4301 carplay-start-session` and, five minutes later, `Bluetooth control ended TIMED_OUT before the iPhone
-  joined over Wi-Fi`. This happened after the app had been killed in the middle of a session, or after `probe-bt`:
-  the iPhone then ignored every new start request. Restarting the iPhone cleared it. Closing the window normally
-  does not cause it.
+Everything lives next to the exe, in plain text:
 
-## Known limits
+- `settings.properties`: Wi-Fi, the iPhone, the car's name and icon, sound devices, and the CarPlay screen
+  (size, frame rate, physical size or ppi, theme, driving side, dock, safe area, corners) and window size.
+- `controls.properties`: key bindings and mouse-wheel behaviour.
+- `carplay-icon.png`: the car button's icon; replace it with any square image.
 
-- Wireless only, and only when the PC and the iPhone share a Wi-Fi network (no PC hotspot, no wired mode).
-- No echo cancellation: use headphones for calls.
-- H.264 video only (no HEVC), decoded in software.
+A wrong value stops the start with the setting named, and the console prints what the iPhone was told.
+
+## Good to know
+
+- Quit by closing the window. If the app is killed mid-session (Task Manager), the iPhone may ignore new sessions
+  until it is restarted.
+- Wireless only, and only over a Wi-Fi network shared by the PC and the iPhone (no PC hotspot, no USB).
+- No echo cancellation yet: use headphones for calls.
+- Over Wi-Fi the iPhone sends music only as AAC; lossless formats are refused.
+- The iPhone's own volume buttons do not change CarPlay's volume; Windows' volume does, as a car's knob would.
+
+## Roadmap
+
+- A macOS (Apple Silicon) version, built from source.
+- Replaying recorded GPS tracks into the iPhone, so its navigation apps follow a route from the desk.
+- Echo cancellation for calls without headphones.
+
+## Building on DiPlay
+
+DiPlay is a git submodule pinned to the version this build is tested with. To move to a newer DiPlay:
+`git -C upstream fetch`, `git -C upstream checkout <commit>`, run `gradlew test`, and commit the new pointer.
+
+## Licence and credits
+
+GPL-3.0, as DiPlay; see [LICENSE](LICENSE). The CarPlay protocol work is DiPlay's; the bundled libraries' notices
+are in `THIRD_PARTY_NOTICES` and travel with the app.
+
+CarPlay, iPhone, AirPlay and Siri are trademarks of Apple Inc. This project is not affiliated with Apple and does
+not include any Apple MFi identity.

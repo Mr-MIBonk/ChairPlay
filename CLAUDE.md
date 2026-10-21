@@ -1,27 +1,27 @@
-# Working on DiPlay Desktop (`desktop/`)
+# Working on DiPlay Desktop
 
-Rules for coding agents, learned from mistakes made on this port. They add to the repository's `AGENTS.md`;
-where they differ for `desktop/`, these win (the CI command there builds Android and does not apply here).
+Rules for coding agents, learned from mistakes made on this port. DiPlay itself lives in the `upstream/`
+submodule; its `AGENTS.md` and CI command are for the Android app and do not apply here.
 
 ## Scope
 
-- Change only `desktop/` and `.gitignore`. Upstream files (`shared/`, `common/`, the root `CLAUDE.md` and
-  `AGENTS.md`, `.github/`) stay untouched so upstream merges stay clean. Replace or wrap upstream code from
-  `desktop/` instead.
+- Never edit files inside `upstream/`: it is DiPlay, pinned to a commit, and moving it to a newer DiPlay must
+  stay a pointer change. Replace or wrap upstream code from this repository instead.
 - Notes and plans that are not for the repository go to `desktop-docs/` (ignored by git).
-- To check that upstream still merges: `git fetch upstream`, then
-  `git merge-tree $(git merge-base HEAD upstream/main) HEAD upstream/main` and look for conflict markers.
-  Git here is 2.37, which has no `merge-tree --write-tree`; its error exit is not a conflict. A clean merge can
-  still break the desktop build when upstream changes the core's API: build and test after merging.
+- To take a newer DiPlay: `git -C upstream fetch`, `git -C upstream checkout <commit>`, build and test, then
+  commit the `upstream` pointer. Upstream can change the core's API, so a new DiPlay can break this build.
+- Git here is 2.37: `merge-tree --write-tree` does not exist, and its error exit is not a conflict.
 
 ## Building and testing
 
-- JDK 17 only. From Git Bash: `export JAVA_HOME="/c/Program Files/Java/jdk-17.0.1"`, then `./gradlew -p desktop …`.
-  Never build the repository root: it needs the Android SDK.
+- JDK 17 only. From Git Bash: `export JAVA_HOME="/c/Program Files/Java/jdk-17.0.1"`, then `./gradlew …`.
+  Never run DiPlay's own build in `upstream/`: it needs the Android SDK.
 - Run tests with a bound and a log, not through a pipe that can hide a hang:
-  `timeout 600 ./gradlew -p desktop test --console=plain > <scratchpad>/test.log 2>&1`, then read the log.
-- Count results from `desktop/build/test-results/test/*.xml`, and check their time: a run that did not reach
+  `timeout 900 ./gradlew test --console=plain > <scratchpad>/test.log 2>&1`, then read the log.
+- Count results from `build/test-results/test/*.xml`, and check their time: a run that did not reach
   the tests leaves the previous run's reports behind.
+- `gradlew.bat` is patched: it passes no `-classpath` (the empty one broke the Oracle `javapath` java.exe stub
+  when `JAVA_HOME` is unset). Regenerating the wrapper (`gradle wrapper`) drops the patch; put it back.
 - Every commit must build on its own. When splitting a change into several commits, compile the earlier one
   alone (a temporary `git worktree` at that commit) before calling it done.
 - Write the failing test first and watch it fail for the expected reason (superpowers:test-driven-development).
@@ -45,7 +45,7 @@ where they differ for `desktop/`, these win (the CI command there builds Android
   renaming it. Prefer bounded waits (`for i in $(seq 1 60); do grep -q … && break; sleep 1; done`) over
   `tail -F`; after stopping any pipeline, kill the leftovers by command line (PowerShell
   `Get-CimInstance Win32_Process`, matching the scratchpad log path), never other sessions' processes.
-- Stop the Gradle daemon (`./gradlew -p desktop --stop`) when the session's builds are done.
+- Stop the Gradle daemon (`./gradlew --stop`) when the session's builds are done.
 - `tasklist | grep …` lists its own `grep.exe`; that one is not a leftover.
-- Install the app with `./gradlew -p desktop deploy` into `Documents\DiPlayDesktopApp`; it keeps the data
+- Install the app with `./gradlew deploy` into `Documents\DiPlayDesktopApp`; it keeps the data
   files there. Never print or copy `identity.properties`, `offline-mfi/` or the Wi-Fi passphrase.

@@ -20,6 +20,7 @@ import java.security.MessageDigest
 import java.util.HexFormat
 import java.util.Properties
 import javax.imageio.ImageIO
+import kotlin.io.path.appendText
 import kotlin.io.path.exists
 import kotlin.io.path.listDirectoryEntries
 import kotlin.io.path.name
@@ -86,6 +87,10 @@ class DesktopConfig(private val dir: Path) {
         positiveSetting("window.height") ?: displayHeight,
     )
 
+    /** audio.output and audio.input as written: blank or "default" for the Windows default, else a device name. */
+    val audioOutput: String? = settings.getProperty("audio.output")
+    val audioInput: String? = settings.getProperty("audio.input")
+
     /** windows follows the Windows dark mode; phone sends nothing and leaves it to the iPhone. */
     val theme: Theme = choiceSetting("display.theme", Theme.WINDOWS, Theme.entries.associateBy { it.name.lowercase() })
 
@@ -115,11 +120,14 @@ class DesktopConfig(private val dir: Path) {
         insets.takeIf { it != AirPlayInsets() }
     }
 
-    private val safeAreaDrawOutside: Boolean? = settings.getProperty("display.safe.draw.outside")?.trim()?.ifEmpty { null }
-        ?.let { booleanSetting("display.safe.draw.outside", true) }
+    /** /info's default is true too, so an older file that lacks it declares the same. */
+    private val safeAreaDrawOutside: Boolean = booleanSetting("display.safe.draw.outside", true)
 
-    /** square: the picture fills the screen with right-angled corners (mainDisplayCornerMasks). */
-    private val squareCorners: Boolean? = choiceSetting("display.corners", null, mapOf("rounded" to null, "square" to true))
+    /**
+     * square (the default, as a window is rectangular): the picture fills the screen with right-angled corners
+     * (mainDisplayCornerMasks); rounded leaves CarPlay's rounded corners.
+     */
+    private val squareCorners: Boolean? = choiceSetting("display.corners", true, mapOf("rounded" to null, "square" to true))
 
     /** What the iPhone is told about its screen, for the start-up log. */
     fun displaySummary(): String {
@@ -148,6 +156,8 @@ class DesktopConfig(private val dir: Path) {
             safeArea = safeArea,
             safeAreaDrawOutside = safeAreaDrawOutside,
             mainDisplayCornerMasks = squareCorners,
+            // Upstream leaves the safe area out with square corners, to avoid a conflict with them; a set one stays.
+            mainDisplayDisableSafeArea = squareCorners == true && safeArea == null,
         ),
         rightHandDrive = rightHandDrive,
         port = 7000,
@@ -167,36 +177,31 @@ class DesktopConfig(private val dir: Path) {
         val file = dir.resolve(SETTINGS)
         if (!file.exists()) {
             Files.createDirectories(dir)
-            file.writeText(
-                "# Wi-Fi network shared by this PC and the iPhone.\nwifi.ssid=\nwifi.passphrase=\n" +
-                    "# NONE, WEP, WPA_WPA2, WPA3_TRANSITION or WPA3_ONLY\nwifi.security=WPA_WPA2\n" +
-                    "# Paired iPhone's Bluetooth address, needed only when several phones are paired.\niphone.address=\n" +
-                    "# The car's name on the iPhone (CarPlay settings, the network); blank is DiPlayDesktop.\n" +
-                    "device.name=\n" +
-                    "# The car button on the CarPlay home screen: its label, and a square image in this folder\n" +
-                    "# (sent at 192 pixels at most). carplay-icon.png is written with the Windows icon to replace.\n" +
-                    "car.label=Windows\ncar.icon=carplay-icon.png\n" +
-                    "# The CarPlay screen the iPhone draws, in pixels (positive even numbers), and its frame rate (30-60).\n" +
-                    "display.width=1280\ndisplay.height=720\ndisplay.fps=60\n" +
-                    "# Its physical size, from which iOS picks its scale (larger or smaller UI). Give the millimetres,\n" +
-                    "# or a pixel density; blank uses 200 mm wide with the height from the aspect ratio.\n" +
-                    "display.physical.width.mm=\ndisplay.physical.height.mm=\ndisplay.ppi=\n" +
-                    "# The window on this PC; the picture is scaled into it. Blank uses the display size.\n" +
-                    "window.width=\nwindow.height=\n" +
-                    "# windows (follow the Windows theme), light, dark, or phone (the iPhone decides).\n" +
-                    "display.theme=windows\n" +
-                    "# true puts CarPlay's dock and controls on the right.\n" +
-                    "display.right.hand.drive=false\n" +
-                    "# Where the dock goes: auto (the iPhone decides), driver (the driver's side) or bottom.\n" +
-                    "display.dock=auto\n" +
-                    "# Pixels at each edge CarPlay keeps its controls out of, and whether it may still draw there.\n" +
-                    "display.safe.top=0\ndisplay.safe.bottom=0\ndisplay.safe.left=0\ndisplay.safe.right=0\n" +
-                    "display.safe.draw.outside=true\n" +
-                    "# rounded (CarPlay rounds the picture's corners) or square.\n" +
-                    "display.corners=rounded\n",
-            )
+            file.writeText(TEMPLATE.joinToString("") { it.text(it.entries) })
+        } else {
+            // A file from an older version gains what it lacks, after its own lines, which stay as they were.
+            val saved = Properties().apply { file.reader().use(::load) }
+            val missing = TEMPLATE.mapNotNull { block ->
+                block.entries.filter { (key, _) -> !saved.containsKey(key) }.takeIf { it.isNotEmpty() }?.let(block::text)
+            }
+            if (missing.isNotEmpty()) {
+                val text = file.readText()
+                file.appendText(
+                    (if (text.isEmpty() || text.endsWith("\n")) "" else "\n") +
+                        "\n# Added by DiPlayDesktop: settings this file did not have yet, at their defaults.\n" +
+                        missing.joinToString(""),
+                )
+            }
         }
         return Properties().apply { file.reader().use(::load) }
+    }
+
+    /** A commented group of settings in the template, with their default values. */
+    private class SettingBlock(val comment: String, vararg entries: Pair<String, String>) {
+        val entries = entries.toList()
+
+        fun text(shown: List<Pair<String, String>>): String =
+            comment.lines().joinToString("") { "# $it\n" } + shown.joinToString("") { (key, value) -> "$key=$value\n" }
     }
 
     /** A whole number of zero or more; blank means 0. */
@@ -298,6 +303,48 @@ class DesktopConfig(private val dir: Path) {
     }
 
     companion object {
+        /** settings.properties as the first start writes it, and what an older file is completed with. */
+        private val TEMPLATE = listOf(
+            SettingBlock("Wi-Fi network shared by this PC and the iPhone.", "wifi.ssid" to "", "wifi.passphrase" to ""),
+            SettingBlock("NONE, WEP, WPA_WPA2, WPA3_TRANSITION or WPA3_ONLY", "wifi.security" to "WPA_WPA2"),
+            SettingBlock("Paired iPhone's Bluetooth address, needed only when several phones are paired.", "iphone.address" to ""),
+            SettingBlock("The car's name on the iPhone (CarPlay settings, the network); blank is DiPlayDesktop.", "device.name" to ""),
+            SettingBlock(
+                "The car button on the CarPlay home screen: its label, and a square image in this folder\n" +
+                    "(sent at 192 pixels at most). carplay-icon.png is written with the Windows icon to replace.",
+                "car.label" to "Windows", "car.icon" to "carplay-icon.png",
+            ),
+            SettingBlock(
+                "Sound devices: default (the Windows default) or a part of a device name that\n" +
+                    "`DiPlayDesktop.exe devices` lists.",
+                "audio.output" to "default", "audio.input" to "default",
+            ),
+            SettingBlock(
+                "The CarPlay screen the iPhone draws, in pixels (positive even numbers), and its frame rate (30-60).",
+                "display.width" to "1280", "display.height" to "720", "display.fps" to "60",
+            ),
+            SettingBlock(
+                "Its physical size, from which iOS picks its scale (larger or smaller UI). Give the millimetres,\n" +
+                    "or a pixel density; blank uses 200 mm wide with the height from the aspect ratio.",
+                "display.physical.width.mm" to "", "display.physical.height.mm" to "", "display.ppi" to "",
+            ),
+            SettingBlock("The window on this PC; the picture is scaled into it. Blank uses the display size.",
+                "window.width" to "", "window.height" to ""),
+            SettingBlock("windows (follow the Windows theme), light, dark, or phone (the iPhone decides).", "display.theme" to "windows"),
+            SettingBlock("true puts CarPlay's dock and controls on the right.", "display.right.hand.drive" to "false"),
+            SettingBlock("Where the dock goes: auto (the iPhone decides), driver (the driver's side) or bottom.", "display.dock" to "auto"),
+            SettingBlock(
+                "Pixels at each edge CarPlay keeps its controls out of, and whether it may still draw there.",
+                "display.safe.top" to "0", "display.safe.bottom" to "0", "display.safe.left" to "0", "display.safe.right" to "0",
+                "display.safe.draw.outside" to "true",
+            ),
+            SettingBlock("square (the picture fills the window to its corners) or rounded (CarPlay rounds them).",
+                "display.corners" to "square"),
+        )
+
+        /** Every key settings.properties knows. */
+        val SETTING_KEYS: List<String> = TEMPLATE.flatMap { block -> block.entries.map { it.first } }
+
         const val DEFAULT_DEVICE_NAME = "DiPlayDesktop"
         const val DEFAULT_ICON_FILE = "carplay-icon.png"
         private const val DEFAULT_CAR_LABEL = "Windows"

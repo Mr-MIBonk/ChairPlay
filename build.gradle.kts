@@ -11,11 +11,11 @@ kotlin {
     jvmToolchain(17)
 }
 
-// The portable CarPlay core is compiled from the Android library's own sources, so upstream
-// changes merge without conflicts. A Sync copy applies the file filter to upstream alone:
-// filtering the source set would also hide desktop replacements that share an upstream path.
+// The portable CarPlay core is compiled from the Android library's own sources in the DiPlay submodule
+// (upstream/), so DiPlay's changes come in by moving the submodule. A Sync copy applies the file filter to
+// upstream alone: filtering the source set would also hide desktop replacements that share an upstream path.
 val upstreamCore by tasks.registering(Sync::class) {
-    from("../shared/src/main/java") {
+    from("upstream/shared/src/main/java") {
         include(
             "com/shilapi/xcertplay/airplay/**",
             "com/shilapi/xcertplay/iap2/**",
@@ -43,7 +43,7 @@ val upstreamCore by tasks.registering(Sync::class) {
 // Robolectric or android.* (no Android runtime here) or when they exercise a class outside the
 // core set; the excluded groups are listed below.
 val upstreamCoreTests by tasks.registering(Sync::class) {
-    from("../shared/src/test/java") {
+    from("upstream/shared/src/test/java") {
         include(
             "com/shilapi/xcertplay/airplay/**",
             "com/shilapi/xcertplay/iap2/**",
@@ -168,7 +168,7 @@ val jpackageImage by tasks.registering(Exec::class) {
     val launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
     val installDir = layout.buildDirectory.dir("install/diplay-desktop")
     val outDir = layout.buildDirectory.dir("jpackage")
-    val repoRoot = layout.projectDirectory.dir("..")
+    val upstream = layout.projectDirectory.dir("upstream")
     val notices = layout.projectDirectory.dir("notices")
     val thirdParty = layout.projectDirectory.file("THIRD_PARTY_NOTICES")
     // Written by packaging/icon/make_icon.py, as are the window icon PNGs in the resources.
@@ -197,9 +197,9 @@ val jpackageImage by tasks.registering(Exec::class) {
     doLast {
         ops.fs.copy {
             from(installDir.get().file("LICENSE-concentus"))
-            from(repoRoot.file("LICENSE"))
+            from(layout.projectDirectory.file("LICENSE"))
             from(thirdParty)
-            from(repoRoot.dir("docs/licenses/dependencies")) { into("licenses") }
+            from(upstream.dir("docs/licenses/dependencies")) { into("licenses") }
             from(notices) { into("licenses") }
             into(outDir.get().dir("DiPlayDesktop"))
         }

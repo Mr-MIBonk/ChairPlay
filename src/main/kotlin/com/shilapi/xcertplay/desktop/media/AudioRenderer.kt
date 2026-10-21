@@ -17,6 +17,7 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import javax.sound.sampled.AudioSystem
+import javax.sound.sampled.Mixer
 import javax.sound.sampled.SourceDataLine
 import javax.sound.sampled.AudioFormat as JavaAudioFormat
 
@@ -65,9 +66,10 @@ private class JavaSoundLine(private val line: SourceDataLine) : PcmLine {
     }
 }
 
-private val javaSoundLines = PcmLineFactory { sampleRate, channels, bufferBytes ->
+/** Lines on [device], or on the Windows default output when it is null. */
+private fun javaSoundLines(device: Mixer.Info?) = PcmLineFactory { sampleRate, channels, bufferBytes ->
     val format = JavaAudioFormat(sampleRate.toFloat(), 16, channels, true, false)
-    val line = AudioSystem.getSourceDataLine(format)
+    val line = if (device == null) AudioSystem.getSourceDataLine(format) else AudioSystem.getSourceDataLine(format, device)
     line.open(format, bufferBytes)
     JavaSoundLine(line)
 }
@@ -197,11 +199,12 @@ internal class AacPcmDecoder(private val sampleRate: Int, private val channels: 
  */
 class AudioRenderer internal constructor(
     private val log: (String) -> Unit = {},
-    private val lineFactory: PcmLineFactory = javaSoundLines,
+    private val lineFactory: PcmLineFactory = javaSoundLines(null),
     private val clock: () -> Long = System::nanoTime,
     private val pollMillis: Long = POLL_MILLIS,
 ) : Closeable {
-    constructor(log: (String) -> Unit) : this(log, javaSoundLines)
+    /** Plays on [output], or on the Windows default output when it is null (audio.output). */
+    constructor(log: (String) -> Unit, output: Mixer.Info? = null) : this(log, javaSoundLines(output))
 
     private val streams = ConcurrentHashMap<AudioStreamId, Stream>()
 

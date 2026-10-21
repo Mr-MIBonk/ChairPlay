@@ -11,6 +11,7 @@ import java.net.InetAddress
 import java.net.InetSocketAddress
 import javax.sound.sampled.AudioSystem
 import javax.sound.sampled.DataLine
+import javax.sound.sampled.Mixer
 import javax.sound.sampled.TargetDataLine
 import javax.sound.sampled.AudioFormat as JavaAudioFormat
 
@@ -81,19 +82,20 @@ class MicrophoneSender(
 }
 
 /**
- * Opens the default microphone at the rate the iPhone asked for and a socket to its data port, or
+ * Opens [device] (the Windows default recording device when null) at the rate the iPhone asked for and a socket to its data port, or
  * returns null after logging why not. No resampling: a device that cannot record at [MicrophoneConfig.sampleRate]
  * fails this stream and leaves the session running.
  */
-internal fun openMicrophoneSender(config: MicrophoneConfig, log: (String) -> Unit): MicrophoneSender? {
+internal fun openMicrophoneSender(config: MicrophoneConfig, log: (String) -> Unit, device: Mixer.Info? = null): MicrophoneSender? {
     val format = JavaAudioFormat(config.sampleRate.toFloat(), 16, config.channels, true, false)
     val info = DataLine.Info(TargetDataLine::class.java, format)
-    if (!AudioSystem.isLineSupported(info)) {
+    val supported = if (device == null) AudioSystem.isLineSupported(info) else AudioSystem.getMixer(device).isLineSupported(info)
+    if (!supported) {
         log("microphone: no input device records ${config.sampleRate} Hz x${config.channels}; stream ${config.audioType} has no uplink")
         return null
     }
     val line = try {
-        (AudioSystem.getLine(info) as TargetDataLine).also {
+        ((if (device == null) AudioSystem.getLine(info) else AudioSystem.getMixer(device).getLine(info)) as TargetDataLine).also {
             it.open(format, config.frameBytes * LINE_BUFFER_FRAMES)
         }
     } catch (error: Exception) {
