@@ -122,6 +122,11 @@ private fun runCarPlay() {
             if (active.compareAndSet(session, null)) sessionChanged()
             log("AirPlay session ended")
         }
+        // The driver tapped the Windows icon on the CarPlay home screen: give the screen back to Windows.
+        override fun onHostUiRequested(session: AirPlaySession) {
+            log("CarPlay asked for the Windows screen; minimizing the window")
+            window.minimize()
+        }
         override fun onTransportError(message: String) = log("AirPlay transport error: $message")
         override fun onDebugLog(message: String) = log(message)
     })

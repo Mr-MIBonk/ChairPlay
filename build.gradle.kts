@@ -171,6 +171,8 @@ val jpackageImage by tasks.registering(Exec::class) {
     val repoRoot = layout.projectDirectory.dir("..")
     val notices = layout.projectDirectory.dir("notices")
     val thirdParty = layout.projectDirectory.file("THIRD_PARTY_NOTICES")
+    // Written by packaging/icon/make_icon.py, as are the window icon PNGs in the resources.
+    val icon = layout.projectDirectory.file("packaging/diplaydesktop.ico")
     val ops = objects.newInstance<FileOps>()
     // Command-line arguments given to DiPlayDesktop.exe replace the default `run`, so `devices` and
     // `probe-bt` work by passing them explicitly.
@@ -185,6 +187,7 @@ val jpackageImage by tasks.registering(Exec::class) {
             "--main-class", "com.shilapi.xcertplay.desktop.MainKt",
             "--arguments", "run",
             "--win-console",
+            "--icon", icon.asFile.path,
             "--add-modules", appImageModules.joinToString(","),
             "--dest", outDir.get().asFile.path,
             *socketHandleOpens.flatMap { listOf("--java-options", it) }.toTypedArray(),

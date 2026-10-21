@@ -37,9 +37,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 internal val IAP2_IPHONE_UUID: UUID = UUID.fromString("00000000-deca-fade-deca-deafdecacafe")
 
-/** The values DiPlay's head-unit build identifies with, keyed to this PC's Bluetooth radio. */
+/** The values DiPlay's head-unit build identifies with, named DiPlayDesktop and keyed to this PC's Bluetooth radio. */
 internal fun desktopIdentification(radio: String) = Iap2IdentificationConfig(
-    name = "DiPlay",
+    name = "DiPlayDesktop",
     modelIdentifier = "DiPlayDesktop",
     manufacturer = "DiPlay",
     serialNumber = "DIPLAY-" + radio.replace(":", ""),
@@ -386,7 +386,7 @@ class WirelessBootstrap internal constructor(
 
         /** DesktopBonjour leaves earlier instances registered when a later address fails. */
         override fun advertise(config: AirPlayConfig, identity: AirPlayIdentity, addresses: List<InetAddress>) =
-            DesktopBonjour(config, identity, addresses).also {
+            DesktopBonjour(config, identity, addresses, log).also {
                 try {
                     it.start()
                 } catch (error: Exception) {

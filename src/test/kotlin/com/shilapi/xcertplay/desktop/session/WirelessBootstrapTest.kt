@@ -53,6 +53,12 @@ class WirelessBootstrapTest {
         pairingId = "pairing-1",
     )
 
+    // The iPhone lists the accessory under the iAP2 identification name.
+    @Test
+    fun `identifies as DiPlayDesktop`() {
+        assertEquals("DiPlayDesktop", desktopIdentification("10:5A:95:75:B2:AA").name)
+    }
+
     @Test
     fun `endpoint carries listener port and address`() {
         val host = InetAddress.getByName("192.168.1.20")

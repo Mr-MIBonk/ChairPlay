@@ -56,7 +56,20 @@ DiPlayDesktop.exe
 
 With no arguments the launcher runs `run`. Passing any argument replaces that default, so `DiPlayDesktop.exe devices`
 and `DiPlayDesktop.exe probe-bt [iphone-address]` run those commands instead. The app is a console program: it logs
-to the console window, and the CarPlay screen opens in its own window.
+to the console window, and the CarPlay screen opens in its own window, titled DiPlayDesktop.
+
+The iPhone lists the PC as **DiPlayDesktop**. The CarPlay home screen shows a Windows icon where a car shows its maker's;
+tapping it minimizes the CarPlay window and leaves CarPlay running.
+
+Quit by closing the window (or Ctrl+C in the console). Do not end the process from Task Manager: see below.
+
+## Troubleshooting
+
+- **The iPhone accepts the Bluetooth handshake but never connects over Wi-Fi.** The log ends at
+  `iap2 tx=0x4301 carplay-start-session` and, five minutes later, `Bluetooth control ended TIMED_OUT before the iPhone
+  joined over Wi-Fi`. This happened after the app had been killed in the middle of a session, or after `probe-bt`:
+  the iPhone then ignored every new start request. Restarting the iPhone cleared it. Closing the window normally
+  does not cause it.
 
 ## Known limits
 

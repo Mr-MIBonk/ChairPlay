@@ -1,5 +1,6 @@
 package com.shilapi.xcertplay.desktop.media
 
+import com.shilapi.xcertplay.airplay.AudioCodecKind
 import com.shilapi.xcertplay.airplay.MicrophoneConfig
 import com.shilapi.xcertplay.airplay.MicrophoneCounters
 import com.shilapi.xcertplay.airplay.MicrophonePacketizer
@@ -14,8 +15,8 @@ import javax.sound.sampled.TargetDataLine
 import javax.sound.sampled.AudioFormat as JavaAudioFormat
 
 /**
- * Seals each captured frame the way MicrophoneUplink does on Android (big-endian PCM body, one
- * [MicrophoneCounters] per stream) and hands the packet to [send]. [capture] blocks until a whole
+ * Seals each captured frame the way MicrophoneUplink does on Android (big-endian PCM body, or the Opus
+ * packets [encode] makes of it, one [MicrophoneCounters] per stream) and hands the packet to [send]. [capture] blocks until a whole
  * frame of `config.frameBytes` little-endian PCM is ready and returns null when capture has ended;
  * both are injected so tests never touch a sound device or a socket. [release] frees the line and
  * socket; it must be idempotent and unblock a pending [capture], and runs when the loop ends or on close.
@@ -26,6 +27,8 @@ class MicrophoneSender(
     private val send: (ByteArray) -> Unit,
     private val release: () -> Unit = {},
     private val onFailure: (Throwable) -> Unit = {},
+    /** Turns a captured frame into Opus packets; used only when the iPhone chose Opus for this stream. */
+    private val encode: (ByteArray) -> List<ByteArray> = { emptyList() },
 ) : Closeable {
     @Volatile private var running = false
     private var thread: Thread? = null
@@ -42,15 +45,19 @@ class MicrophoneSender(
         try {
             while (running) {
                 val frame = capture() ?: break
-                send(
-                    MicrophonePacketizer.sealPacket(
-                        key = config.key,
-                        payloadType = config.payloadType,
-                        counters = counters,
-                        body = MicrophonePacketizer.toWirePcm(frame),
-                        samples = config.rtpSamplesPerPacket,
-                    ),
-                )
+                // As MicrophoneUplink.sendFrame: an Opus frame the encoder dropped sends nothing.
+                val bodies = if (config.codec == AudioCodecKind.OPUS) encode(frame) else listOf(MicrophonePacketizer.toWirePcm(frame))
+                for (body in bodies) {
+                    send(
+                        MicrophonePacketizer.sealPacket(
+                            key = config.key,
+                            payloadType = config.payloadType,
+                            counters = counters,
+                            body = body,
+                            samples = config.rtpSamplesPerPacket,
+                        ),
+                    )
+                }
             }
         } catch (error: Throwable) {
             // A failure after close() is just the line or socket being torn down under the loop.
@@ -104,6 +111,10 @@ internal fun openMicrophoneSender(config: MicrophoneConfig, log: (String) -> Uni
         log("microphone: cannot create socket: $error")
         return null
     }
+    val encoder = if (config.codec == AudioCodecKind.OPUS) {
+        // Upstream CarPlayMediaEngine chooses the bitrate from the negotiated Opus rate.
+        OpusFrameEncoder(config.bitrate ?: 48_000) { message, error -> log("microphone: $message: $error") }
+    } else null
     val frame = ByteArray(config.frameBytes)
     val sender = MicrophoneSender(
         config,
@@ -121,8 +132,10 @@ internal fun openMicrophoneSender(config: MicrophoneConfig, log: (String) -> Uni
             line.stop()
             line.close()
             socket.close()
+            encoder?.close()
         },
         onFailure = { error -> log("microphone: uplink ended: $error") },
+        encode = { pcm -> encoder?.encode(pcm).orEmpty() },
     )
     line.start()
     return sender

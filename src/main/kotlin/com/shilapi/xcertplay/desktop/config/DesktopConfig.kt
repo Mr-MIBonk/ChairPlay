@@ -35,9 +35,12 @@ class DesktopConfig(private val dir: Path) {
         security = Iap2WirelessSecurity.valueOf(settings.getProperty("wifi.security", "WPA_WPA2").trim()),
     )
 
-    /** DiPlay's production values (CarPlayHostActivity.airPlayConfig); btMac is replaced by the radio's. */
+    /**
+     * DiPlay's production values (CarPlayHostActivity.airPlayConfig); btMac is replaced by the radio's. The
+     * CarPlay home screen shows the Windows icon where a car shows its maker's; tapping it minimizes the window.
+     */
     val airPlay = AirPlayConfig(
-        deviceName = "DiPlay",
+        deviceName = "DiPlayDesktop",
         deviceId = deviceId(identity),
         btMac = deviceId(identity),
         sourceVersion = "950.7.1",
@@ -49,9 +52,12 @@ class DesktopConfig(private val dir: Path) {
         port = 7000,
         hevc = false,
         microphone = true,
-        microphoneOpus = false,
+        // Without Opus the wireless iPhone opens no audio stream at all and plays on its own speaker.
+        microphoneOpus = true,
         videoInCar = false,
         mainBufferedAudio = false,
+        oemLabel = "Windows",
+        icons = listOf(WindowsIcon.render()),
     )
 
     fun mfiDirectory(): File = dir.resolve("offline-mfi").toFile()

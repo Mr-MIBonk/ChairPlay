@@ -5,6 +5,7 @@ import com.shilapi.xcertplay.desktop.input.Size
 import com.shilapi.xcertplay.desktop.input.toFramebuffer
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWErrorCallback
+import org.lwjgl.glfw.GLFWNativeWin32.glfwGetWin32Window
 import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GL33C.*
 import java.io.Closeable
@@ -22,6 +23,7 @@ import java.util.concurrent.atomic.AtomicReference
 class VideoWindow(private val width: Int, private val height: Int) : Closeable {
     private val latest = AtomicReference<DecodedFrame?>()
     private val closing = AtomicBoolean()
+    private val minimizing = AtomicBoolean()
     // GLFW rejects glfwPostEmptyEvent outside init..terminate, which frames and close() can fall outside of.
     private val running = AtomicBoolean()
 
@@ -54,6 +56,12 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
         wake()
     }
 
+    /** Safe from any thread: iconifies the window and leaves the session running, like a car's Home button. */
+    fun minimize() {
+        minimizing.set(true)
+        wake()
+    }
+
     /** Safe from any thread; [run] then returns and releases the window. */
     override fun close() {
         closing.set(true)
@@ -71,8 +79,10 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3)
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
-        val window = glfwCreateWindow(width, height, "DiPlay", 0, 0)
+        val window = glfwCreateWindow(width, height, "DiPlayDesktop", 0, 0)
         check(window != 0L) { "cannot create the window" }
+        TitleBar.paintBlack(glfwGetWin32Window(window))
+        WindowIcon.apply(window)
         glfwMakeContextCurrent(window)
         // Draw as soon as a frame is ready instead of waiting for vertical blank, which would add up to a frame.
         glfwSwapInterval(0)
@@ -103,6 +113,7 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
         try {
             while (!glfwWindowShouldClose(window) && !closing.get()) {
                 glfwWaitEvents()
+                if (minimizing.getAndSet(false)) glfwIconifyWindow(window)
                 val fresh = latest.getAndSet(null)
                 if (fresh != null) {
                     // glTexImage2D and glTexSubImage2D have read client memory by the time they return.
