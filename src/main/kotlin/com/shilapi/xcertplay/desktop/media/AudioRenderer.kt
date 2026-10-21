@@ -3,6 +3,7 @@ package com.shilapi.xcertplay.desktop.media
 import com.shilapi.xcertplay.airplay.AudioCodecKind
 import com.shilapi.xcertplay.airplay.AudioFormat
 import com.shilapi.xcertplay.airplay.AudioStreamId
+import com.shilapi.xcertplay.media.EchoReference
 import com.shilapi.xcertplay.media.MediaCodecSupport
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext
 import org.bytedeco.ffmpeg.avcodec.AVPacket
@@ -47,6 +48,8 @@ fun lpcmBigEndianToLittle(payload: ByteArray): ByteArray {
 internal interface PcmLine : Closeable {
     fun start()
     fun write(data: ByteArray, length: Int)
+    /** Frames the device has played so far, as AudioTrack's playback head; null when unknown. */
+    fun playedFrames(): Long? = null
 }
 
 internal fun interface PcmLineFactory {
@@ -58,6 +61,8 @@ private class JavaSoundLine(private val line: SourceDataLine) : PcmLine {
     override fun write(data: ByteArray, length: Int) {
         line.write(data, 0, length)
     }
+
+    override fun playedFrames(): Long = line.longFramePosition
 
     override fun close() {
         line.stop()
@@ -208,14 +213,15 @@ class AudioRenderer internal constructor(
 
     private val streams = ConcurrentHashMap<AudioStreamId, Stream>()
 
-    fun start(id: AudioStreamId, format: AudioFormat) {
+    /** [echoReference], for a call, receives what this stream plays, for the microphone's echo canceller. */
+    internal fun start(id: AudioStreamId, format: AudioFormat, echoReference: EchoReference? = null) {
         streams.remove(id)?.close()
         val supported = format.channels in 1..2 && format.sampleRate > 0
         if (!supported) {
             log("audio ${id.audioType}: ${format.codec} with ${format.channels} channels at ${format.sampleRate} Hz is not supported; dropped")
             return
         }
-        streams[id] = Stream(id, format).also { it.thread.start() }
+        streams[id] = Stream(id, format, echoReference).also { it.thread.start() }
     }
 
     fun push(id: AudioStreamId, rtp: ByteArray, sample: Int) {
@@ -233,7 +239,11 @@ class AudioRenderer internal constructor(
         streams.keys.toList().forEach(::stop)
     }
 
-    private inner class Stream(private val id: AudioStreamId, private val format: AudioFormat) : Closeable {
+    private inner class Stream(
+        private val id: AudioStreamId,
+        private val format: AudioFormat,
+        private val echoReference: EchoReference?,
+    ) : Closeable {
         val dropped = AtomicInteger()
         private val counts = HashMap<String, Int>()
         private val lastLogged = HashMap<String, Long>()
@@ -303,9 +313,16 @@ class AudioRenderer internal constructor(
                 // When the audio already written has all been played, by the clock rather than the line.
                 var playedUntil = 0L
                 var lastPacketAt = clock()
+                var writtenFrames = 0L
                 fun play(pcm: ByteArray, length: Int) {
                     opened.start()
                     opened.write(pcm, length)
+                    writtenFrames += length / frameBytes
+                    // AndroidMediaSink's call renderer: the block and how much is still queued ahead of the speaker.
+                    echoReference?.let { reference ->
+                        val pending = opened.playedFrames()?.let { writtenFrames - it }
+                        reference.append(pcm, 0, length, format.channels, pending, clock())
+                    }
                     playedUntil = maxOf(playedUntil, clock()) + length * 1_000_000_000L / (format.sampleRate * frameBytes)
                     playing = true
                 }

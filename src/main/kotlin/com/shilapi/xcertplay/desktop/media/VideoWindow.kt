@@ -1,5 +1,10 @@
 package com.shilapi.xcertplay.desktop.media
 
+import com.shilapi.xcertplay.desktop.config.ScreenArea
+import com.shilapi.xcertplay.desktop.config.WindowPlacement
+import com.shilapi.xcertplay.desktop.config.WindowSize
+import com.shilapi.xcertplay.desktop.config.fittedTo
+import com.shilapi.xcertplay.desktop.config.isVisibleOn
 import com.shilapi.xcertplay.desktop.input.PointerEvent
 import com.shilapi.xcertplay.desktop.input.Size
 import com.shilapi.xcertplay.desktop.input.toFramebuffer
@@ -7,8 +12,12 @@ import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWErrorCallback
 import org.lwjgl.glfw.GLFWNativeWin32.glfwGetWin32Window
 import org.lwjgl.opengl.GL
+import org.lwjgl.opengl.GLCapabilities
 import org.lwjgl.opengl.GL33C.*
+import java.awt.image.BufferedImage
 import java.io.Closeable
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -19,13 +28,28 @@ import java.util.concurrent.atomic.AtomicReference
  * while the previous one is still being drawn simply replaces it — nothing queues, latency stays one frame.
  * Each frame is released exactly once, by whichever side takes it out of [latest]: [show] for a frame
  * replaced unseen, the GL thread once the upload has copied the planes into textures.
+ *
+ * The window opens [width] x [height] where Windows puts it, or at [placement] when that is still on a monitor,
+ * and hands where it was to [onPlacement] when it closes. Several windows share one loop through [runWindows].
  */
-class VideoWindow(private val width: Int, private val height: Int) : Closeable {
+class VideoWindow(
+    private val width: Int,
+    private val height: Int,
+    private val placement: WindowPlacement? = null,
+    private val title: String = "DiPlayDesktop",
+    /** The picture's shape: the window keeps it while resized and opens with it; null resizes freely. */
+    private val aspect: WindowSize? = null,
+) : Closeable {
     private val latest = AtomicReference<DecodedFrame?>()
     private val closing = AtomicBoolean()
     private val minimizing = AtomicBoolean()
+    private val screenshotRequest = AtomicReference<((BufferedImage) -> Unit)?>()
     // GLFW rejects glfwPostEmptyEvent outside init..terminate, which frames and close() can fall outside of.
     private val running = AtomicBoolean()
+
+    /** Runs on the GL thread as the window closes, with its last place and restored size. */
+    @Volatile
+    var onPlacement: (WindowPlacement) -> Unit = {}
 
     /** Runs on the GL thread after a frame has been swapped to the screen. */
     @Volatile
@@ -70,6 +94,15 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
         wake()
     }
 
+    /**
+     * Safe from any thread: hands the picture on screen, at the size the iPhone sent it, to [onImage] on a thread of
+     * its own. Nothing happens before the first picture.
+     */
+    fun screenshot(onImage: (BufferedImage) -> Unit) {
+        screenshotRequest.set(onImage)
+        wake()
+    }
+
     /** Safe from any thread; [run] then returns and releases the window. */
     override fun close() {
         closing.set(true)
@@ -81,27 +114,50 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
     }
 
     /** Creates the window and draws until it is closed by the user or by [close]. Call on the main thread. */
-    fun run() {
-        GLFWErrorCallback.createPrint(System.err).set()
-        check(glfwInit()) { "cannot initialise GLFW" }
+    fun run() = runWindows(this)
+
+    // GL-thread state of an open window.
+    private var handle = 0L
+    private var capabilities: GLCapabilities? = null
+    private var tracker: PlacementTracker? = null
+    private var program = 0
+    private var vao = 0
+    private val textures = IntArray(3)
+    private val planeSizes = IntArray(6)
+    private var picture: Size? = null
+    private val w = IntArray(1)
+    private val h = IntArray(1)
+
+    /** Creates the window, hidden until it is in place, with its own GL context. GLFW is initialised. */
+    internal fun open() {
+        glfwDefaultWindowHints()
         glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3)
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
-        val window = glfwCreateWindow(width, height, "DiPlayDesktop", 0, 0)
+        // Hidden until it is in place, so it does not flash at the default position first.
+        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
+        val restore = placement?.takeIf { it.isVisibleOn(workAreas()) }
+        val remembered = WindowSize(restore?.width ?: width, restore?.height ?: height)
+        val size = aspect?.let { remembered.fittedTo(it) } ?: remembered
+        val window = glfwCreateWindow(size.width, size.height, title, 0, 0)
         check(window != 0L) { "cannot create the window" }
+        handle = window
+        // Windows applies it to edge drags only, so a maximized window still fills the screen.
+        aspect?.let { glfwSetWindowAspectRatio(window, it.width, it.height) }
+        if (restore != null) glfwSetWindowPos(window, restore.x, restore.y)
         TitleBar.paintBlack(glfwGetWin32Window(window))
         WindowIcon.apply(window)
+        tracker = PlacementTracker(window, restore?.maximized ?: false)
+        if (restore?.maximized == true) glfwMaximizeWindow(window) else glfwShowWindow(window)
         glfwMakeContextCurrent(window)
         // Draw as soon as a frame is ready instead of waiting for vertical blank, which would add up to a frame.
         glfwSwapInterval(0)
-        GL.createCapabilities()
+        capabilities = GL.createCapabilities()
         installInput(window)
-        running.set(true)
 
-        val program = buildProgram()
-        val vao = glGenVertexArrays()
-        val textures = IntArray(3) { glGenTextures() }
-        val planeSizes = IntArray(6)
+        program = buildProgram()
+        vao = glGenVertexArrays()
+        for (plane in 0 until 3) textures[plane] = glGenTextures()
         glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
         glUseProgram(program)
         for (plane in 0 until 3) {
@@ -114,43 +170,124 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
             glUniform1i(glGetUniformLocation(program, arrayOf("planeY", "planeU", "planeV")[plane]), plane)
         }
         glBindVertexArray(vao)
-
-        var picture: Size? = null
-        val w = IntArray(1)
-        val h = IntArray(1)
         // Black from the start, like the title bar, instead of the system's white until the first frame.
         glfwGetFramebufferSize(window, w, h)
         clear(w[0], h[0])
         glfwSwapBuffers(window)
-        try {
-            while (!glfwWindowShouldClose(window) && !closing.get()) {
-                glfwWaitEvents()
-                if (minimizing.getAndSet(false)) glfwIconifyWindow(window)
-                val fresh = latest.getAndSet(null)
-                if (fresh != null) {
-                    // glTexImage2D and glTexSubImage2D have read client memory by the time they return.
-                    upload(fresh, textures, planeSizes)
-                    fresh.release()
-                    picture = Size(fresh.width, fresh.height)
-                    pictureSize = picture
-                }
-                // A resize repaints the last picture even when no new one has arrived, or black before the first.
-                glfwGetFramebufferSize(window, w, h)
-                framebufferSize = Size(w[0], h[0])
-                val shown = picture
-                if (shown == null) clear(w[0], h[0]) else draw(shown, w[0], h[0])
-                glfwSwapBuffers(window)
-                if (fresh != null) onFrameShown()
-            }
-        } finally {
-            running.set(false)
-            glDeleteTextures(textures)
-            glDeleteVertexArrays(vao)
-            glDeleteProgram(program)
-            glfwDestroyWindow(window)
-            glfwTerminate()
-            glfwSetErrorCallback(null)?.free()
+        running.set(true)
+    }
+
+    /** One pass of the event loop for this window; false once it should close. */
+    internal fun step(): Boolean {
+        val window = handle
+        if (glfwWindowShouldClose(window) || closing.get()) return false
+        glfwMakeContextCurrent(window)
+        GL.setCapabilities(capabilities)
+        if (minimizing.getAndSet(false)) glfwIconifyWindow(window)
+        val fresh = latest.getAndSet(null)
+        if (fresh != null) {
+            // glTexImage2D and glTexSubImage2D have read client memory by the time they return.
+            upload(fresh, textures, planeSizes)
+            fresh.release()
+            val size = Size(fresh.width, fresh.height)
+            picture = size
+            pictureSize = size
         }
+        // A resize repaints the last picture even when no new one has arrived, or black before the first.
+        glfwGetFramebufferSize(window, w, h)
+        framebufferSize = Size(w[0], h[0])
+        val shown = picture
+        if (shown == null) clear(w[0], h[0]) else draw(shown, w[0], h[0])
+        glfwSwapBuffers(window)
+        if (fresh != null) onFrameShown()
+        val shot = screenshotRequest.getAndSet(null)
+        if (shot != null && shown != null) {
+            val pixels = readPicture(shown)
+            Thread({ shot(screenshotImage(shown.width, shown.height, pixels)) }, "screenshot").apply { isDaemon = true }.start()
+        }
+        return true
+    }
+
+    /** Hands over the place, frees the GL objects and destroys the window. */
+    internal fun dispose() {
+        val window = handle
+        if (window == 0L) return
+        running.set(false)
+        latest.getAndSet(null)?.release()
+        tracker?.let { runCatching { onPlacement(it.placement()) } }
+        glfwMakeContextCurrent(window)
+        GL.setCapabilities(capabilities)
+        glDeleteTextures(textures)
+        glDeleteVertexArrays(vao)
+        glDeleteProgram(program)
+        glfwMakeContextCurrent(0)
+        glfwDestroyWindow(window)
+        handle = 0L
+    }
+
+    /** Draws the current picture at its own size into an offscreen texture and reads it back, bottom row first. */
+    private fun readPicture(picture: Size): ByteBuffer {
+        val framebuffer = glGenFramebuffers()
+        val target = glGenTextures()
+        // Unit 3: units 0..2 hold the Y, U and V planes the shader samples.
+        glActiveTexture(GL_TEXTURE3)
+        glBindTexture(GL_TEXTURE_2D, target)
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, picture.width, picture.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, null as ByteBuffer?)
+        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
+        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0)
+        glViewport(0, 0, picture.width, picture.height)
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
+        val pixels = ByteBuffer.allocateDirect(picture.width * picture.height * 4).order(ByteOrder.nativeOrder())
+        glPixelStorei(GL_PACK_ALIGNMENT, 1)
+        glReadPixels(0, 0, picture.width, picture.height, GL_RGBA, GL_UNSIGNED_BYTE, pixels)
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+        glDeleteFramebuffers(framebuffer)
+        glDeleteTextures(target)
+        glActiveTexture(GL_TEXTURE0)
+        return pixels
+    }
+
+    private fun workAreas(): List<ScreenArea> {
+        val monitors = glfwGetMonitors() ?: return emptyList()
+        val x = IntArray(1)
+        val y = IntArray(1)
+        val w = IntArray(1)
+        val h = IntArray(1)
+        return (0 until monitors.limit()).map { i ->
+            glfwGetMonitorWorkarea(monitors[i], x, y, w, h)
+            ScreenArea(x[0], y[0], w[0], h[0])
+        }
+    }
+
+    /**
+     * Follows the window's normal (not maximized, not minimized) place and size, since GLFW reports the maximized
+     * or minimized geometry once the window is in that state. A maximized window minimized and closed from the
+     * taskbar stays maximized: GLFW keeps the flag across the minimize.
+     */
+    private class PlacementTracker(private val window: Long, @Volatile private var maximized: Boolean) {
+        private var x = 0
+        private var y = 0
+        private var width = 0
+        private var height = 0
+
+        init {
+            val a = IntArray(1)
+            val b = IntArray(1)
+            glfwGetWindowPos(window, a, b)
+            x = a[0]
+            y = b[0]
+            glfwGetWindowSize(window, a, b)
+            width = a[0]
+            height = b[0]
+            glfwSetWindowMaximizeCallback(window) { _, max -> maximized = max }
+            glfwSetWindowPosCallback(window) { _, newX, newY -> if (normal()) { x = newX; y = newY } }
+            glfwSetWindowSizeCallback(window) { _, newW, newH -> if (normal() && newW > 0 && newH > 0) { width = newW; height = newH } }
+        }
+
+        private fun normal() =
+            glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_FALSE && glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_FALSE
+
+        fun placement() = WindowPlacement(x, y, width, height, maximized)
     }
 
     private fun installInput(window: Long) {
@@ -261,5 +398,37 @@ void main() {
     float v = (texture(planeV, uv).r - 128.0 / 255.0) * (255.0 / 224.0);
     color = vec4(y + 1.5748 * v, y - 0.1873 * u - 0.4681 * v, y + 1.8556 * u, 1.0);
 }"""
+    }
+}
+
+/**
+ * Runs the GLFW event loop for [main] and [others] on the calling (main) thread until [main] closes. GLFW wants
+ * every window and its events on one thread, so the windows take turns after each wake-up. Closing one of
+ * [others] closes only that window.
+ */
+fun runWindows(main: VideoWindow, vararg others: VideoWindow) {
+    GLFWErrorCallback.createPrint(System.err).set()
+    check(glfwInit()) { "cannot initialise GLFW" }
+    val open = mutableListOf(main)
+    try {
+        main.open()
+        for (window in others) {
+            window.open()
+            open += window
+        }
+        while (true) {
+            glfwWaitEvents()
+            if (!main.step()) break
+            for (window in open.drop(1)) {
+                if (!window.step()) {
+                    window.dispose()
+                    open -= window
+                }
+            }
+        }
+    } finally {
+        open.forEach { it.dispose() }
+        glfwTerminate()
+        glfwSetErrorCallback(null)?.free()
     }
 }

@@ -25,6 +25,8 @@ enum class ControlAction(val key: String, val defaults: String, val description:
     CALL_ANSWER("key.call.answer", "F3", "answer a call"),
     CALL_END("key.call.end", "F4", "end a call"),
     SIRI("key.siri", "S", "Siri"),
+    SCREENSHOT("key.screenshot", "F12", "save the CarPlay screen as a PNG in the screenshots folder"),
+    ALTSCREEN_CONTENT("key.altscreen.content", "F11", "show the altscreen's next content: map, turn card, map with turn card"),
 }
 
 /** A GLFW key code with the Shift, Ctrl and Alt bits that must be held. */

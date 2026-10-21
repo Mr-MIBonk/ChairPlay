@@ -3,6 +3,7 @@ package com.shilapi.xcertplay.desktop.media
 import com.shilapi.xcertplay.airplay.AudioCodecKind
 import com.shilapi.xcertplay.airplay.AudioFormat
 import com.shilapi.xcertplay.airplay.AudioStreamId
+import com.shilapi.xcertplay.media.EchoReference
 import org.bytedeco.ffmpeg.avcodec.AVCodecContext
 import org.bytedeco.ffmpeg.avcodec.AVPacket
 import org.bytedeco.ffmpeg.avutil.AVDictionary
@@ -32,6 +33,8 @@ class AudioRendererTest {
         override fun start() { started = true }
         @Synchronized override fun write(data: ByteArray, length: Int) { written.write(data, 0, length) }
         @Synchronized fun size() = written.size()
+        @Volatile var played: Long? = null
+        override fun playedFrames() = played
         override fun close() { closed = true }
     }
 
@@ -102,6 +105,25 @@ class AudioRendererTest {
         assertEquals(1, renderer.droppedPackets(id))
         renderer.close()
         assertTrue(line.closed)
+    }
+
+    // As AndroidMediaSink does, a call stream hands what it writes, and the line's queue, to the echo reference.
+    @Test
+    fun `a call stream feeds its echo reference with what it writes`() {
+        val line = RecordingLine().apply { played = 0L }
+        val renderer = AudioRenderer(lineFactory = { _, _, _ -> line })
+        val id = AudioStreamId(100, "telephony")
+        val reference = EchoReference(48_000)
+        renderer.start(id, AudioFormat(AudioCodecKind.LPCM, 48_000, 1, 100, "telephony"), reference)
+        // 10 ms of mono big-endian LPCM at 48 kHz, every sample 0x1000; four fill the 40 ms jitter buffer.
+        val tenMs = ByteArray(480 * 2) { if (it % 2 == 0) 0x10 else 0 }
+        repeat(4) { renderer.push(id, header(sample = it * 480) + tenMs, it * 480) }
+        awaitTrue("playback") { line.size() == 4 * tenMs.size }
+
+        val out = ShortArray(480)
+        assertTrue("the reference hears the call", reference.read(out, System.nanoTime() + 20_000_000L))
+        assertTrue(out.all { it == 0x1000.toShort() })
+        renderer.stop(id)
     }
 
     @Test

@@ -6,6 +6,7 @@ import com.shilapi.xcertplay.airplay.AirPlayInsets
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayInputStream
@@ -170,6 +171,70 @@ class DesktopConfigTest {
         val config = configWith("audio.output=ULTRAGEAR", "audio.input=default")
         assertEquals("ULTRAGEAR", config.audioOutput)
         assertEquals("default", config.audioInput)
+    }
+
+    // Upstream ships its call echo canceller off, as an experiment; so does the desktop.
+    @Test
+    fun `call echo cancellation is off unless asked for`() {
+        assertFalse(configWith().echoCancellation)
+        assertTrue(configWith("audio.echo.cancellation=true").echoCancellation)
+    }
+
+    @Test
+    fun `windows keep the picture's aspect unless told not to`() {
+        assertTrue(configWith().keepAspect)
+        assertFalse(configWith("window.keep.aspect=false").keepAspect)
+    }
+
+    // Without the setting the iPhone hears of no second screen, as before.
+    @Test
+    fun `the altscreen is off unless asked for`() {
+        assertNull(configWith().airPlay.cluster)
+        assertNull(configWith().altscreen)
+    }
+
+    // DiPlay's cluster display, at the size asked for, with even margins instead of the BYD cluster's crop.
+    @Test
+    fun `an enabled altscreen asks the iPhone for its map at the given size`() {
+        val config = configWith("altscreen.enabled=true", "altscreen.width=1600", "altscreen.height=600")
+
+        val cluster = config.airPlay.cluster!!
+        assertEquals(1600, cluster.widthPixels)
+        assertEquals(600, cluster.heightPixels)
+        assertEquals(30, cluster.fps)
+        assertEquals("maps:/car/instrumentcluster/map", cluster.initialUrl)
+        assertEquals(AltscreenContent.MAP, config.altscreen!!.content)
+        assertEquals(WindowSize(1600, 600), config.altscreen!!.size)
+    }
+
+    @Test
+    fun `the altscreen defaults to Audi's cockpit panel and can start on the turn card`() {
+        val config = configWith("altscreen.enabled=true", "altscreen.content=card")
+
+        val cluster = config.airPlay.cluster!!
+        assertEquals(1440, cluster.widthPixels)
+        assertEquals(542, cluster.heightPixels)
+        assertEquals(292, cluster.widthPhysicalMm)
+        assertEquals(110, cluster.heightPhysicalMm)
+        // Nothing covers a window on a PC, so the iPhone keeps its UI (attribution, car marker) to the panel's edges.
+        assertNull(cluster.safeArea)
+        assertEquals("maps:/car/instrumentcluster/instructioncard", config.airPlay.cluster!!.initialUrl)
+    }
+
+    // Room for an overlay of our own, such as the maneuver layer on the right.
+    @Test
+    fun `the altscreen safe area can leave room at its edges`() {
+        val config = configWith("altscreen.enabled=true", "altscreen.safe.right=400", "altscreen.safe.top=20")
+
+        assertEquals(AirPlayInsets(top = 20, right = 400), config.airPlay.cluster!!.safeArea)
+    }
+
+    @Test
+    fun `an unknown altscreen content stops the start with the setting named`() {
+        val error = assertThrows(IllegalArgumentException::class.java) {
+            configWith("altscreen.enabled=true", "altscreen.content=hud")
+        }
+        assertTrue(error.message, error.message!!.contains("altscreen.content"))
     }
 
     // The name the iPhone shows for the car, in CarPlay settings, /info and the Bonjour service; the window

@@ -25,9 +25,11 @@ endorsed by DiPlay's authors or by Apple.
 - **Microphone** for Siri and calls (Opus), on the device you choose.
 - **Your own "car"**: the name the iPhone shows, the icon and label of the car button on the CarPlay home screen
   (a Windows window by default; tapping it minimizes CarPlay).
-- **The CarPlay screen as you want it**: resolution, frame rate, physical size or pixel density (which decides how
-  large iOS draws its interface), light or dark theme following Windows, driving side, dock position, safe area,
+- **The CarPlay screen as you want it**: resolution (which decides whether iOS draws at @2x or @3x, and how much
+  fits on the screen), frame rate, light or dark theme following Windows, driving side, dock position, safe area,
   corner style.
+- **The altscreen** (experimental): the car's instrument cluster as a second CarPlay screen in its own window,
+  1440x542 like Audi's Virtual Cockpit by default, with the map, the turn card or both, switched on the fly.
 - **Graceful reconnection**: close the window and start again, and the iPhone reconnects by itself.
 
 Tested on Windows 11 with an iPhone 15 (iOS 18.6).
@@ -82,6 +84,9 @@ settings and keys there on later builds. To install it elsewhere, pass `-Pdiplay
 | F7 / F8 / F9 | previous track / play-pause / next track |
 | F3 / F4 | answer / end a call |
 | S | Siri |
+| F12 | screenshot of the CarPlay screen, at the iPhone's resolution, into `screenshots` |
+| F11 | altscreen: map, turn card, map with turn card |
+| Mouse wheel over the altscreen | zoom its map |
 
 Rebind any of them in `controls.properties`, which the app writes on its first start with every action listed.
 
@@ -89,10 +94,12 @@ Rebind any of them in `controls.properties`, which the app writes on its first s
 
 Everything lives next to the exe, in plain text:
 
-- `settings.properties`: Wi-Fi, the iPhone, the car's name and icon, sound devices, and the CarPlay screen
-  (size, frame rate, physical size or ppi, theme, driving side, dock, safe area, corners) and window size.
+- `settings.properties`: Wi-Fi, the iPhone, the car's name and icon, sound devices and call echo cancellation, and
+  the CarPlay screen (size, frame rate, physical size, theme, driving side, dock, safe area, corners) and
+  window size.
 - `controls.properties`: key bindings and mouse-wheel behaviour.
 - `carplay-icon.png`: the car button's icon; replace it with any square image.
+- `window.properties`: where you left the window and its size, written by the app when it closes.
 
 A wrong value stops the start with the setting named, and the console prints what the iPhone was told.
 
@@ -101,7 +108,8 @@ A wrong value stops the start with the setting named, and the console prints wha
 - Quit by closing the window. If the app is killed mid-session (Task Manager), the iPhone may ignore new sessions
   until it is restarted.
 - Wireless only, and only over a Wi-Fi network shared by the PC and the iPhone (no PC hotspot, no USB).
-- No echo cancellation yet: use headphones for calls.
+- Echo cancellation for calls is experimental and off by default (`audio.echo.cancellation`); headphones are the
+  safe choice for calls.
 - Over Wi-Fi the iPhone sends music only as AAC; lossless formats are refused.
 - The iPhone's own volume buttons do not change CarPlay's volume; Windows' volume does, as a car's knob would.
 
@@ -109,7 +117,6 @@ A wrong value stops the start with the setting named, and the console prints wha
 
 - A macOS (Apple Silicon) version, built from source.
 - Replaying recorded GPS tracks into the iPhone, so its navigation apps follow a route from the desk.
-- Echo cancellation for calls without headphones.
 
 ## Building on DiPlay
 

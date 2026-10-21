@@ -20,6 +20,10 @@ submodule; its `AGENTS.md` and CI command are for the Android app and do not app
   `timeout 900 ./gradlew test --console=plain > <scratchpad>/test.log 2>&1`, then read the log.
 - Count results from `build/test-results/test/*.xml`, and check their time: a run that did not reach
   the tests leaves the previous run's reports behind.
+- Upstream's C code (SpeexDSP behind `SpeexEchoCanceller`) is built by `speexEchoDll` with a pinned zig that
+  `installZig` downloads into the Gradle user home. The first build needs about 6 minutes and the network. To
+  move zig, change `zigVersion` and `zigSha256` together (the hash is in https://ziglang.org/download/index.json).
+  The DLL ships in the image's root, next to the exe: jpackage's `app/` folder is not on `java.library.path`.
 - `gradlew.bat` is patched: it passes no `-classpath` (the empty one broke the Oracle `javapath` java.exe stub
   when `JAVA_HOME` is unset). Regenerating the wrapper (`gradle wrapper`) drops the patch; put it back.
 - Every commit must build on its own. When splitting a change into several commits, compile the earlier one

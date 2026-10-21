@@ -4,6 +4,8 @@ import com.shilapi.xcertplay.airplay.AudioCodecKind
 import com.shilapi.xcertplay.airplay.MicrophoneConfig
 import com.shilapi.xcertplay.airplay.MicrophoneCounters
 import com.shilapi.xcertplay.airplay.MicrophonePacketizer
+import com.shilapi.xcertplay.media.CallEchoCanceller
+import com.shilapi.xcertplay.media.EchoReference
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -85,6 +87,66 @@ class MicrophoneSenderTest {
             val samples = OpusDecoder(48_000, 1).decode(packet, 0, packet.size, decoded, 0, decoded.size, false)
             assertEquals(960, samples)
         }
+    }
+
+    private class FakeCanceller(private val result: (ByteArray, ShortArray) -> Boolean) : CallEchoCanceller {
+        override val frameSamples = 320
+        @Volatile var calls = 0
+        @Volatile var closed = false
+        override fun process(frame: ByteArray, reference: ShortArray): Boolean {
+            calls++
+            return result(frame, reference)
+        }
+        override fun close() { closed = true }
+    }
+
+    // As upstream's MicrophoneUplink: each call frame is cancelled against the speaker's audio before sealing.
+    @Test
+    fun `call frames go through the echo canceller before they are sealed`() {
+        val frames = (1..3).map(::frame)
+        val queue = LinkedBlockingQueue(frames)
+        val sent = LinkedBlockingQueue<ByteArray>()
+        val canceller = FakeCanceller { frame, reference -> reference.size == 320 && frame.fill(0).let { true } }
+        val sender = MicrophoneSender(
+            config, capture = { queue.poll() }, send = sent::put, canceller = canceller, echoReference = EchoReference(16_000),
+        )
+        sender.start()
+        val packets = (1..3).map { sent.poll(5, TimeUnit.SECONDS)!! }
+        sender.close()
+
+        val counters = MicrophoneCounters()
+        packets.forEachIndexed { index, packet ->
+            val expected = MicrophonePacketizer.sealPacket(
+                config.key, config.payloadType, counters, MicrophonePacketizer.toWirePcm(ByteArray(samples * 2)), samples,
+            )
+            assertArrayEquals("packet $index", expected, packet)
+        }
+        assertEquals(3, canceller.calls)
+    }
+
+    // A canceller that fails is dropped for the rest of the call; capture goes on without it.
+    @Test
+    fun `a failing echo canceller is dropped and frames go out as captured`() {
+        val frames = (1..3).map(::frame)
+        val queue = LinkedBlockingQueue(frames)
+        val sent = LinkedBlockingQueue<ByteArray>()
+        val canceller = FakeCanceller { _, _ -> false }
+        val sender = MicrophoneSender(
+            config, capture = { queue.poll() }, send = sent::put, canceller = canceller, echoReference = EchoReference(16_000),
+        )
+        sender.start()
+        val packets = (1..3).map { sent.poll(5, TimeUnit.SECONDS)!! }
+        sender.close()
+
+        val counters = MicrophoneCounters()
+        frames.forEachIndexed { index, frame ->
+            val expected = MicrophonePacketizer.sealPacket(
+                config.key, config.payloadType, counters, MicrophonePacketizer.toWirePcm(frame), samples,
+            )
+            assertArrayEquals("packet $index", expected, packets[index])
+        }
+        assertEquals(1, canceller.calls)
+        assertTrue(canceller.closed)
     }
 
     @Test

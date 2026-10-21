@@ -7,6 +7,7 @@ import com.shilapi.xcertplay.airplay.AirPlayIdentity
 import com.shilapi.xcertplay.airplay.AirPlayInfoPlist
 import com.shilapi.xcertplay.airplay.AirPlayInsets
 import com.shilapi.xcertplay.airplay.AirPlayViewArea
+import com.shilapi.xcertplay.airplay.CarPlayClusterDisplay
 import com.shilapi.xcertplay.airplay.PairingStore
 import com.shilapi.xcertplay.desktop.network.SavedWifi
 import com.shilapi.xcertplay.transport.Iap2WirelessSecurity
@@ -37,6 +38,18 @@ data class WindowSize(val width: Int, val height: Int)
 
 enum class Theme { WINDOWS, LIGHT, DARK, PHONE }
 
+/** What the altscreen shows: one of the cluster contents the iPhone lists in its altScreenURLs. */
+enum class AltscreenContent(val key: String, val cluster: CarPlayClusterDisplay.Content) {
+    MAP("map", CarPlayClusterDisplay.Content.MAP),
+    CARD("card", CarPlayClusterDisplay.Content.TURN_CARD),
+    MAP_CARD("map-card", CarPlayClusterDisplay.Content.INSTRUMENTS);
+
+    fun next(): AltscreenContent = entries[(ordinal + 1) % entries.size]
+}
+
+/** The second CarPlay screen, a car's instrument cluster: the stream's [size] and what it starts with. */
+data class Altscreen(val size: WindowSize, val content: AltscreenContent)
+
 class DesktopConfig(private val dir: Path) {
     private val settings = loadSettings()
     val identity: AirPlayIdentity = loadIdentity()
@@ -60,8 +73,8 @@ class DesktopConfig(private val dir: Path) {
         name
     }
 
-    private val displayWidth = evenSetting("display.width", 1280)
-    private val displayHeight = evenSetting("display.height", 720)
+    val displayWidth = evenSetting("display.width", 1280)
+    val displayHeight = evenSetting("display.height", 720)
     private val fps = (positiveSetting("display.fps") ?: 60).also {
         require(it in 30..60) { "display.fps must be between 30 and 60, not $it" }
     }
@@ -90,6 +103,50 @@ class DesktopConfig(private val dir: Path) {
     /** audio.output and audio.input as written: blank or "default" for the Windows default, else a device name. */
     val audioOutput: String? = settings.getProperty("audio.output")
     val audioInput: String? = settings.getProperty("audio.input")
+
+    /** audio.echo.cancellation: DiPlay's SpeexDSP echo canceller on calls, for speakers without headphones. */
+    val echoCancellation: Boolean = booleanSetting("audio.echo.cancellation", false)
+
+    /**
+     * altscreen.*: DiPlay's cluster display, with even margins as for its virtual cluster rather than a BYD
+     * cluster's crop; null when off. The iPhone learns of it only when it connects.
+     */
+    val altscreen: Altscreen? = if (!booleanSetting("altscreen.enabled", false)) null else {
+        val content = choiceSetting("altscreen.content", AltscreenContent.MAP, AltscreenContent.entries.associateBy { it.key })
+        val size = WindowSize(evenSetting("altscreen.width", DEFAULT_ALTSCREEN_WIDTH), evenSetting("altscreen.height", DEFAULT_ALTSCREEN_HEIGHT))
+        Altscreen(size, content)
+    }
+    /**
+     * DiPlay rounds its cluster stream to multiples of 8; Audi's 1440x542 panel goes out as it is, as the MHI2Q
+     * CarPlay project declares it. Nothing covers a window on a PC, so the safe area (where Apple Maps keeps its
+     * attribution and car marker) is the whole panel unless altscreen.safe.* leave room for an overlay.
+     */
+    private val altscreenDisplay = altscreen?.let {
+        val (width, height) = it.size.width to it.size.height
+        val safe = AirPlayInsets(
+            top = nonNegativeSetting("altscreen.safe.top"),
+            bottom = nonNegativeSetting("altscreen.safe.bottom"),
+            left = nonNegativeSetting("altscreen.safe.left"),
+            right = nonNegativeSetting("altscreen.safe.right"),
+        )
+        require(safe.top + safe.bottom < height && safe.left + safe.right < width) {
+            "altscreen.safe.* leave nothing of the ${width}x$height altscreen"
+        }
+        CarPlayClusterDisplay.config(
+            widthPixels = width,
+            heightPixels = height,
+            scalePercent = 100,
+            content = it.content.cluster,
+        ).copy(
+            widthPixels = width,
+            heightPixels = height,
+            heightPhysicalMm = Math.round(ALTSCREEN_WIDTH_MM * height.toDouble() / width).toInt(),
+            safeArea = safe.takeIf { it != AirPlayInsets() },
+        )
+    }
+
+    /** window.keep.aspect: the windows resize only with the picture's shape; a maximized one fills the screen. */
+    val keepAspect: Boolean = booleanSetting("window.keep.aspect", true)
 
     /** windows follows the Windows dark mode; phone sends nothing and leaves it to the iPhone. */
     val theme: Theme = choiceSetting("display.theme", Theme.WINDOWS, Theme.entries.associateBy { it.name.lowercase() })
@@ -167,6 +224,7 @@ class DesktopConfig(private val dir: Path) {
         microphoneOpus = true,
         videoInCar = false,
         mainBufferedAudio = false,
+        cluster = altscreenDisplay,
         oemLabel = settings.getProperty("car.label")?.trim()?.ifEmpty { null } ?: DEFAULT_CAR_LABEL,
         icons = listOf(carIcon()),
     )
@@ -316,16 +374,42 @@ class DesktopConfig(private val dir: Path) {
                 "audio.output" to "default", "audio.input" to "default",
             ),
             SettingBlock(
-                "The CarPlay screen the iPhone draws, in pixels (positive even numbers), and its frame rate (30-60).",
+                "Echo cancellation for calls through speakers, without headphones (experimental): 'true' or 'false'.",
+                "audio.echo.cancellation" to "false",
+            ),
+            SettingBlock(
+                "The CarPlay screen the iPhone draws, in pixels (positive even numbers), and its frame rate (30-60).\n" +
+                    "iOS draws at @3x from about 1280x720 on both sides, at @2x below; more pixels fit more on screen.",
                 "display.width" to "1280", "display.height" to "720", "display.fps" to "60",
             ),
             SettingBlock(
-                "Its physical size, from which iOS picks its scale (larger or smaller UI). Give the millimetres,\n" +
-                    "or a pixel density; blank uses 200 mm wide with the height from the aspect ratio.",
+                "Its physical size: the millimetres, or a pixel density. Blank (best) uses 200 mm wide with the height\n" +
+                    "from the aspect ratio; other proportions than the pixels' squeeze or stretch the picture.",
                 "display.physical.width.mm" to "", "display.physical.height.mm" to "", "display.ppi" to "",
             ),
-            SettingBlock("The window on this PC; the picture is scaled into it. Blank uses the display size.",
-                "window.width" to "", "window.height" to ""),
+            SettingBlock(
+                "The window on this PC; the picture is scaled into it. Blank uses the display size.\n" +
+                    "The app then remembers where you leave the window and its size, until these change.",
+                "window.width" to "", "window.height" to "",
+            ),
+            SettingBlock(
+                "'true' resizes the windows only with the picture's shape (a maximized one still fills the screen),\n" +
+                    "'false' lets them take any shape.",
+                "window.keep.aspect" to "true",
+            ),
+            SettingBlock(
+                "Altscreen (experimental): the car's instrument cluster as a second CarPlay screen in a window of its\n" +
+                    "own, 'true' or 'false' (the iPhone learns of it when it connects); its size in pixels (positive even\n" +
+                    "numbers); what it starts with: 'map', 'card' (the turn card) or 'map-card'.",
+                "altscreen.enabled" to "false", "altscreen.width" to "1440", "altscreen.height" to "542",
+                "altscreen.content" to "map",
+            ),
+            SettingBlock(
+                "Altscreen pixels at each edge the iPhone keeps its map text and car marker out of, for an overlay;\n" +
+                    "all zero uses the whole panel.",
+                "altscreen.safe.top" to "0", "altscreen.safe.bottom" to "0", "altscreen.safe.left" to "0",
+                "altscreen.safe.right" to "0",
+            ),
             SettingBlock("'windows' (follow the Windows theme), 'light', 'dark', or 'phone' (the iPhone decides).", "display.theme" to "windows"),
             SettingBlock("'true' puts CarPlay's dock and controls on the right, 'false' on the left.", "display.right.hand.drive" to "false"),
             SettingBlock("Where the dock goes: 'auto' (the iPhone decides), 'driver' (the driver's side) or 'bottom'.", "display.dock" to "auto"),
@@ -352,6 +436,10 @@ class DesktopConfig(private val dir: Path) {
         private const val DEFAULT_CAR_LABEL = "Windows"
         private const val MAX_ICON_PIXELS = 192
         const val SETTINGS_FILE = "settings.properties"
+        // The Audi Virtual Cockpit's 12.3-inch Kombi panel; DiPlay's cluster display reports the same 292 mm.
+        private const val DEFAULT_ALTSCREEN_WIDTH = 1440
+        private const val DEFAULT_ALTSCREEN_HEIGHT = 542
+        private const val ALTSCREEN_WIDTH_MM = 292
         private const val MM_PER_INCH = 25.4
         /** Upstream AirPlayDisplaySettings.DEFAULT_WIDTH_PHYSICAL_MM. */
         private const val DEFAULT_WIDTH_MM = 200

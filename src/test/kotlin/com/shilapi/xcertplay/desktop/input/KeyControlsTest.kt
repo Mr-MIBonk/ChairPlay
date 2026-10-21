@@ -67,6 +67,30 @@ class KeyControlsTest {
 
     // GLFW reports a mouse notch as 1.0 and a touchpad in fractions; scrolling down turns the knob forward.
     // changeMapZoomLevel on the main screen was tried for zoom: the iPhone took it and did nothing.
+    // The screenshot stays on this PC: one per press, nothing reaches the iPhone on repeat or release.
+    @Test
+    fun `F12 takes a screenshot once per press`() {
+        assertEquals(Control.Screenshot, press(GLFW_KEY_F12))
+        assertNull(controls.key(GLFW_KEY_F12, GLFW_REPEAT, 0))
+        assertNull(release(GLFW_KEY_F12))
+    }
+
+    // The altscreen shows the next of the iPhone's cluster contents; it changes nothing on a release.
+    @Test
+    fun `F11 moves the altscreen to its next content`() {
+        assertEquals(Control.NextAltscreenContent, press(GLFW_KEY_F11))
+        assertNull(release(GLFW_KEY_F11))
+    }
+
+    // On the altscreen the wheel zooms the dashboard map: up zooms in, a step per notch, touchpad fractions add up.
+    @Test
+    fun `the wheel over the altscreen zooms its map`() {
+        assertEquals(Control.MapZoom(1), controls.altscreenScroll(1.0))
+        assertEquals(Control.MapZoom(-2), controls.altscreenScroll(-2.0))
+        assertNull(controls.altscreenScroll(0.5))
+        assertEquals(Control.MapZoom(1), controls.altscreenScroll(0.5))
+    }
+
     @Test
     fun `the mouse wheel turns the knob a step per notch`() {
         assertEquals(Control.Knob(AirPlayKnobState(wheel = 1), true), controls.scroll(-1.0))

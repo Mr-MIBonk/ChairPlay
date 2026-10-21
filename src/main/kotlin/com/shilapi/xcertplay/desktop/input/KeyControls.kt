@@ -4,13 +4,22 @@ import com.shilapi.xcertplay.airplay.AirPlayKnobState
 import com.shilapi.xcertplay.airplay.CarPlayMediaButton
 import org.lwjgl.glfw.GLFW.*
 
-/** What a key or the mouse wheel asks of the iPhone, sent through AirPlaySession's HID and command calls. */
+/**
+ * What a key or the mouse wheel asks of the iPhone, sent through AirPlaySession's HID and command calls, or,
+ * for [Screenshot], of this PC.
+ */
 sealed interface Control {
     /** AirPlaySession.sendKnob: [momentary] releases at once, as a wheel step does. */
     data class Knob(val state: AirPlayKnobState, val momentary: Boolean) : Control
     data class Media(val index: Int) : Control
     data class Telephony(val index: Int) : Control
     data object Siri : Control
+    /** Saves what is on the CarPlay screen; nothing goes to the iPhone. */
+    data object Screenshot : Control
+    /** Zooms the altscreen's map [steps] times, in when positive (AirPlaySession.changeMapZoomLevel). */
+    data class MapZoom(val steps: Int) : Control
+    /** Asks the iPhone for the altscreen's next content (AirPlaySession.setClusterUrl). */
+    data object NextAltscreenContent : Control
 }
 
 /**
@@ -26,6 +35,7 @@ class KeyControls(private val config: ControlsConfig = ControlsConfig.DEFAULT) {
     private val held = HashMap<Int, ControlAction>()
     private val repeats = HashMap<Int, Int>()
     private var scrolled = 0.0
+    private var zoomScrolled = 0.0
 
     /** [action] is GLFW_PRESS, GLFW_REPEAT or GLFW_RELEASE; [mods] GLFW's modifier bits. */
     fun key(key: Int, action: Int, mods: Int): Control? {
@@ -58,6 +68,15 @@ class KeyControls(private val config: ControlsConfig = ControlsConfig.DEFAULT) {
         if (steps == 0) return null
         scrolled -= steps * config.notchesPerStep
         return Control.Knob(AirPlayKnobState(wheel = steps), true)
+    }
+
+    /** [dy] over the altscreen window: a zoom step of its map per notch, up zooming in, as a car's zoom control. */
+    fun altscreenScroll(dy: Double): Control? {
+        zoomScrolled += dy
+        val steps = zoomScrolled.toInt()
+        if (steps == 0) return null
+        zoomScrolled -= steps
+        return Control.MapZoom(steps)
     }
 
     private fun turn(key: Int, action: Int, step: Int): Control? {
@@ -94,6 +113,8 @@ class KeyControls(private val config: ControlsConfig = ControlsConfig.DEFAULT) {
         ControlAction.CALL_ANSWER -> Control.Telephony(TELEPHONY_ANSWER)
         ControlAction.CALL_END -> Control.Telephony(TELEPHONY_HANG_UP)
         ControlAction.SIRI -> Control.Siri
+        ControlAction.SCREENSHOT -> Control.Screenshot
+        ControlAction.ALTSCREEN_CONTENT -> Control.NextAltscreenContent
         else -> null
     }
 

@@ -6,6 +6,8 @@ import com.shilapi.xcertplay.desktop.bluetooth.WindowsBluetooth
 import com.shilapi.xcertplay.desktop.bluetooth.selectIphone
 import com.shilapi.xcertplay.desktop.config.DesktopConfig
 import com.shilapi.xcertplay.desktop.config.Theme
+import com.shilapi.xcertplay.desktop.config.WindowPlacementStore
+import com.shilapi.xcertplay.desktop.config.WindowSize
 import com.shilapi.xcertplay.desktop.input.Control
 import com.shilapi.xcertplay.desktop.input.ControlsConfig
 import com.shilapi.xcertplay.desktop.input.KeyControls
@@ -16,6 +18,8 @@ import com.shilapi.xcertplay.desktop.media.AudioRenderer
 import com.shilapi.xcertplay.desktop.media.DesktopMediaSink
 import com.shilapi.xcertplay.desktop.media.VideoWindow
 import com.shilapi.xcertplay.desktop.media.nightMode
+import com.shilapi.xcertplay.desktop.media.runWindows
+import com.shilapi.xcertplay.desktop.media.saveScreenshot
 import com.shilapi.xcertplay.desktop.media.windowsAppsDark
 import com.shilapi.xcertplay.desktop.session.FIREWALL_RULE
 import com.shilapi.xcertplay.desktop.session.IAP2_IPHONE_UUID
@@ -36,6 +40,7 @@ import java.time.LocalTime
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import kotlin.math.abs
 import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
@@ -119,12 +124,33 @@ private fun runCarPlay() {
     log(controlsConfig.summary())
     checkFirewall(config.airPlay.port)
     log(config.displaySummary())
-    val window = VideoWindow(config.window.width, config.window.height)
+    val placements = WindowPlacementStore(dir)
+    val window = VideoWindow(
+        config.window.width, config.window.height, placements.load(config.window),
+        aspect = WindowSize(config.displayWidth, config.displayHeight).takeIf { config.keepAspect },
+    )
+    window.onPlacement = { placement ->
+        runCatching { placements.save(placement, config.window) }.onFailure { log("window place not saved: $it") }
+    }
+    // The altscreen (altscreen.enabled) gets a window of its own beside the main one; it takes no input.
+    val altscreen = config.altscreen?.let { alt ->
+        log("altscreen ${alt.size.width}x${alt.size.height} px, starting with ${alt.content.key}")
+        val altPlacements = WindowPlacementStore(dir, prefix = "altscreen.")
+        VideoWindow(
+            alt.size.width, alt.size.height, altPlacements.load(alt.size), "DiPlayDesktop altscreen",
+            aspect = alt.size.takeIf { config.keepAspect },
+        ).also {
+            it.onPlacement = { placement ->
+                runCatching { altPlacements.save(placement, alt.size) }.onFailure { log("altscreen place not saved: $it") }
+            }
+        }
+    }
+    var altscreenContent = config.altscreen?.content
     // A device name matching nothing stops here, before any connection, with the devices listed.
     val output = AudioDevices.output(config.audioOutput)
     val input = AudioDevices.input(config.audioInput)
     log("audio output: ${output?.name ?: "Windows default"}; microphone: ${input?.name ?: "Windows default"}")
-    val sink = DesktopMediaSink(window, AudioRenderer(::log, output), ::log, input)
+    val sink = DesktopMediaSink(window, AudioRenderer(::log, output), ::log, input, config.echoCancellation, altscreen)
     val active = AtomicReference<AirPlaySession?>()
     // sendTouch writes to the iPhone's socket and can block; the GL thread only maps and enqueues.
     // One thread keeps the press, moves and release in order.
@@ -142,6 +168,10 @@ private fun runCarPlay() {
     val controls = KeyControls(controlsConfig)
     fun send(control: Control?) {
         control ?: return
+        if (control == Control.Screenshot) {
+            window.screenshot { image -> saveScreenshot(image, dir, ::log) }
+            return
+        }
         touchSender.execute {
             val session = active.get() ?: return@execute
             when (control) {
@@ -149,11 +179,29 @@ private fun runCarPlay() {
                 is Control.Media -> session.sendMedia(control.index)
                 is Control.Telephony -> session.sendTelephony(control.index)
                 Control.Siri -> session.invokeSiri()
+                is Control.MapZoom -> repeat(abs(control.steps)) {
+                    session.changeMapZoomLevel(zoomIn = control.steps > 0)
+                }
+                Control.NextAltscreenContent -> {
+                    val next = altscreenContent?.next() ?: return@execute
+                    altscreenContent = next
+                    log("altscreen ${next.key} sent=${session.setClusterUrl(next.cluster.url, send = true)}")
+                }
+                Control.Screenshot -> Unit
             }
         }
     }
     window.keyHandler = { key, action, mods -> send(controls.key(key, action, mods)) }
+    // Diagnostics: DIPLAY_SCREENSHOT_AFTER=<seconds> saves one screenshot that long after the first picture.
+    System.getenv("DIPLAY_SCREENSHOT_AFTER")?.toLongOrNull()?.let { seconds ->
+        Thread({
+            while (window.pictureSize.width == 0) Thread.sleep(200)
+            Thread.sleep(seconds * 1000)
+            window.screenshot { image -> saveScreenshot(image, dir, ::log) }
+        }, "screenshot-timer").apply { isDaemon = true }.start()
+    }
     window.scrollHandler = { dy -> send(controls.scroll(dy)) }
+    altscreen?.scrollHandler = { dy -> send(controls.altscreenScroll(dy)) }
     fun sessionChanged() {
         pending.clear()
         tracker.reset()
@@ -201,8 +249,8 @@ private fun runCarPlay() {
         touchSender.shutdownNow()
     })
     bootstrap.start()
-    // GLFW needs its window and event loop on this, the main, thread; the bring-up runs on its own.
-    window.run()
+    // GLFW needs its windows and event loop on this, the main, thread; the bring-up runs on its own.
+    if (altscreen == null) window.run() else runWindows(window, altscreen)
     exitProcess(0)
 }
 

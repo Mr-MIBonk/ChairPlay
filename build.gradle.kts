@@ -1,3 +1,10 @@
+import java.net.URI
+import java.nio.file.FileSystemException
+import java.nio.file.Files
+import java.security.DigestOutputStream
+import java.security.MessageDigest
+import java.util.UUID
+
 plugins {
     kotlin("jvm") version "2.2.10"
     application
@@ -21,7 +28,9 @@ val upstreamCore by tasks.registering(Sync::class) {
             "com/shilapi/xcertplay/iap2/**",
             "com/shilapi/xcertplay/mfi/**",
             "com/shilapi/xcertplay/compat/Base64Compat.kt",
+            "com/shilapi/xcertplay/media/EchoReference.kt",
             "com/shilapi/xcertplay/media/MediaCodecSupport.kt",
+            "com/shilapi/xcertplay/media/SpeexEchoCanceller.kt",
             "com/shilapi/xcertplay/media/TouchLatencyProbe.kt",
             "com/shilapi/xcertplay/network/AirPlayPortSelector.kt",
             "com/shilapi/xcertplay/network/HotspotAddressPolicy.kt",
@@ -49,6 +58,7 @@ val upstreamCoreTests by tasks.registering(Sync::class) {
             "com/shilapi/xcertplay/iap2/**",
             "com/shilapi/xcertplay/mfi/**",
             "com/shilapi/xcertplay/compat/Base64CompatTest.kt",
+            "com/shilapi/xcertplay/media/EchoReferenceTest.kt",
             "com/shilapi/xcertplay/network/AirPlayPortSelectorTest.kt",
             "com/shilapi/xcertplay/network/HotspotAddressPolicyTest.kt",
             "com/shilapi/xcertplay/network/WirelessHotspotManagerTest.kt",
@@ -126,8 +136,123 @@ application {
     applicationDefaultJvmArgs = socketHandleOpens
 }
 
+interface FileOps {
+    @get:Inject val fs: FileSystemOperations
+    @get:Inject val archives: ArchiveOperations
+}
+
+// Upstream's call echo canceller (SpeexEchoCanceller) is SpeexDSP in C behind JNI, which DiPlay builds with the
+// Android NDK. Here zig's C compiler builds the same sources into speex_echo.dll. Zig is a pinned release,
+// downloaded once into the Gradle user home and checked against the SHA-256 in
+// https://ziglang.org/download/index.json; moving to another release means changing both values.
+val zigVersion = "0.16.0"
+val zigSha256 = "68659eb5f1e4eb1437a722f1dd889c5a322c9954607f5edcf337bc3684a75a7e"
+val zigName = "zig-x86_64-windows-$zigVersion"
+val zigRoot: File = gradle.gradleUserHomeDir.resolve("caches/diplay-desktop/zig")
+val zigExe: File = zigRoot.resolve("$zigName/zig.exe")
+
+val installZig by tasks.registering {
+    description = "Downloads zig $zigVersion into the Gradle user home, unless it is there already."
+    val ops = objects.newInstance<FileOps>()
+    val root = zigRoot
+    val exe = zigExe
+    val name = zigName
+    val url = "https://ziglang.org/download/$zigVersion/$name.zip"
+    val sha256 = zigSha256
+    // No declared output: Gradle would create the output's folder before the run, and the finished zig folder
+    // is moved into place in one step. Once zig is there, the task only checks for zig.exe.
+    doLast {
+        if (exe.isFile) return@doLast
+        root.mkdirs()
+        // Unique names, so builds in two checkouts at once do not share half-written files.
+        val part = "$name.${UUID.randomUUID()}.part"
+        val zip = root.resolve("$part.zip")
+        val staging = root.resolve(part)
+        try {
+            logger.lifecycle("Downloading $url")
+            val digest = MessageDigest.getInstance("SHA-256")
+            val connection = URI(url).toURL().openConnection().apply {
+                connectTimeout = 30_000
+                readTimeout = 60_000
+            }
+            connection.getInputStream().use { input ->
+                DigestOutputStream(zip.outputStream(), digest).use { input.copyTo(it) }
+            }
+            val actual = digest.digest().joinToString("") { "%02x".format(it) }
+            check(actual == sha256) { "$url has SHA-256 $actual, expected $sha256" }
+            ops.fs.copy {
+                from(ops.archives.zipTree(zip))
+                into(staging)
+            }
+            check(staging.resolve("$name/zig.exe").isFile) { "$url has no $name/zig.exe" }
+            // An empty folder left by an interrupted run would block the move.
+            exe.parentFile.delete()
+            try {
+                Files.move(staging.resolve(name).toPath(), exe.parentFile.toPath())
+            } catch (e: FileSystemException) {
+                // Another build installed it first.
+                if (!exe.isFile) throw e
+            }
+        } finally {
+            ops.fs.delete { delete(zip, staging) }
+        }
+    }
+}
+
+// The sources and flags of upstream's shared/src/main/jni/Android.mk (module speex_echo). The JNI headers come
+// from the build's JDK 17 toolchain. Zig links the DLL against Windows' own C runtime (UCRT), so it needs no
+// DLL that Windows 10 or later lacks.
+val speexCflags = listOf("-O2", "-DFLOATING_POINT", "-DUSE_KISS_FFT", "-DEXPORT=", "-Wno-unused-parameter")
+val speexSources = listOf("speex_echo_jni.c") +
+    listOf("mdf.c", "preprocess.c", "fftwrap.c", "kiss_fft.c", "kiss_fftr.c", "filterbank.c").map { "speexdsp/$it" }
+val nativeDir = layout.buildDirectory.dir("native")
+
+val speexEchoDll by tasks.registering(Exec::class) {
+    group = "build"
+    description = "Compiles upstream's SpeexDSP echo canceller into build/native/speex_echo.dll."
+    dependsOn(installZig)
+    val jni = layout.projectDirectory.dir("upstream/shared/src/main/jni")
+    val jdk = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }.map { it.metadata }
+    val dll = nativeDir.map { it.file("speex_echo.dll") }
+    // Zig writes an import library and a PDB next to the DLL, so it links in the task's own folder and only the
+    // DLL is kept.
+    val work = temporaryDir
+    val ops = objects.newInstance<FileOps>()
+    inputs.files(speexSources.map { jni.file(it) }).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.files(fileTree(jni.dir("speexdsp")) { include("**/*.h") }).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.property("zig", zigVersion)
+    inputs.property("cflags", speexCflags)
+    inputs.property("jdk", jdk.map { it.javaRuntimeVersion })
+    outputs.file(dll)
+    workingDir(jni)
+    // Zig's caches stay out of %LOCALAPPDATA%: the global one next to zig, the local one in build/.
+    environment("ZIG_GLOBAL_CACHE_DIR", zigRoot.resolve("cache").path)
+    environment("ZIG_LOCAL_CACHE_DIR", work.resolve("zig-cache").path)
+    doFirst {
+        val include = jdk.get().installationPath.dir("include").asFile
+        commandLine(
+            listOf(zigExe.path, "cc", "-target", "x86_64-windows-gnu", "-shared") + speexCflags +
+                listOf("-Ispeexdsp", "-Ispeexdsp/include", "-I${include.path}", "-I${include.resolve("win32").path}") +
+                speexSources + listOf("-o", work.resolve("speex_echo.dll").path),
+        )
+    }
+    doLast {
+        ops.fs.copy {
+            from(work.resolve("speex_echo.dll"))
+            into(dll.get().asFile.parentFile)
+        }
+    }
+}
+
 tasks.test {
     jvmArgs(socketHandleOpens)
+    dependsOn(speexEchoDll)
+    systemProperty("java.library.path", nativeDir.get().asFile.path)
+}
+
+tasks.named<JavaExec>("run") {
+    dependsOn(speexEchoDll)
+    systemProperty("java.library.path", nativeDir.get().asFile.path)
 }
 
 // Concentus is BSD-licensed and its notice must travel with the binaries: inside the jar, and next to it in
@@ -141,9 +266,26 @@ tasks.jar {
     }
 }
 
+// SpeexDSP is BSD-licensed too; its notice goes next to speex_echo.dll wherever that is shipped.
+val speexLicence = layout.projectDirectory.file("upstream/shared/src/main/jni/speexdsp/COPYING")
+
+// speex_echo.dll goes into bin/, not lib/: lib/ is jpackage's input, whose files land in the image's app/
+// folder, which is not on the launcher's library path.
 distributions.main {
     contents {
         from(concentusLicence) { rename { "LICENSE-concentus" } }
+        from(speexLicence) { rename { "LICENSE-speexdsp" } }
+        from(speexEchoDll) { into("bin") }
+    }
+}
+
+// The start scripts load speex_echo.dll from bin/. The placeholder becomes the scripts' own APP_HOME variable,
+// which both scripts set before DEFAULT_JVM_OPTS.
+tasks.startScripts {
+    defaultJvmOpts = socketHandleOpens + "-Djava.library.path=__APP_HOME__/bin"
+    doLast {
+        unixScript.writeText(unixScript.readText().replace("__APP_HOME__", "'\"\$APP_HOME\"'"))
+        windowsScript.writeText(windowsScript.readText().replace("__APP_HOME__/bin", "%APP_HOME%\\bin"))
     }
 }
 
@@ -156,10 +298,6 @@ val appImageModules = listOf(
     "java.base", "java.desktop", "java.logging", "java.management", "java.naming", "java.sql", "java.xml",
     "jdk.unsupported", "jdk.crypto.ec", "jdk.crypto.cryptoki", "jdk.crypto.mscapi",
 )
-
-interface FileOps {
-    @get:Inject val fs: FileSystemOperations
-}
 
 val jpackageImage by tasks.registering(Exec::class) {
     group = "distribution"
@@ -193,10 +331,14 @@ val jpackageImage by tasks.registering(Exec::class) {
             *socketHandleOpens.flatMap { listOf("--java-options", it) }.toTypedArray(),
         )
     }
-    // jpackage on JDK 17 has no --app-content, so notices are copied into the image afterwards.
+    // jpackage on JDK 17 has no --app-content, so notices are copied into the image afterwards, and so is
+    // speex_echo.dll: into the image's root next to DiPlayDesktop.exe, because the launcher sets no
+    // java.library.path and the JVM's default one on Windows starts with the folder of the running exe.
     doLast {
         ops.fs.copy {
+            from(installDir.get().file("bin/speex_echo.dll"))
             from(installDir.get().file("LICENSE-concentus"))
+            from(installDir.get().file("LICENSE-speexdsp"))
             from(layout.projectDirectory.file("LICENSE"))
             from(thirdParty)
             from(upstream.dir("docs/licenses/dependencies")) { into("licenses") }
@@ -220,7 +362,7 @@ val syncApp by tasks.registering(Sync::class) {
     into(appHome)
     // The app data: settings, controls and car icon, the AirPlay identity, pairings and the MFi files.
     preserve {
-        include("settings.properties", "controls.properties", "carplay-icon.png", "identity.properties", "pairings/**", "offline-mfi/**")
+        include("settings.properties", "controls.properties", "carplay-icon.png", "window.properties", "identity.properties", "pairings/**", "offline-mfi/**")
     }
     // Sync deletes whatever else is there, so a mistyped folder must not be one with other files in it.
     val home = appHome.map { file(it) }
