@@ -5,11 +5,17 @@ import com.shilapi.xcertplay.airplay.AirPlaySessionListener
 import com.shilapi.xcertplay.desktop.bluetooth.WindowsBluetooth
 import com.shilapi.xcertplay.desktop.bluetooth.selectIphone
 import com.shilapi.xcertplay.desktop.config.DesktopConfig
+import com.shilapi.xcertplay.desktop.config.Theme
+import com.shilapi.xcertplay.desktop.input.Control
+import com.shilapi.xcertplay.desktop.input.ControlsConfig
+import com.shilapi.xcertplay.desktop.input.KeyControls
 import com.shilapi.xcertplay.desktop.input.TouchQueue
 import com.shilapi.xcertplay.desktop.input.TouchTracker
 import com.shilapi.xcertplay.desktop.media.AudioRenderer
 import com.shilapi.xcertplay.desktop.media.DesktopMediaSink
 import com.shilapi.xcertplay.desktop.media.VideoWindow
+import com.shilapi.xcertplay.desktop.media.nightMode
+import com.shilapi.xcertplay.desktop.media.windowsAppsDark
 import com.shilapi.xcertplay.desktop.session.FIREWALL_RULE
 import com.shilapi.xcertplay.desktop.session.IAP2_IPHONE_UUID
 import com.shilapi.xcertplay.desktop.session.WirelessBootstrap
@@ -24,8 +30,10 @@ import com.shilapi.xcertplay.transport.Iap2IdentificationClient
 import com.shilapi.xcertplay.transport.Iap2WirelessIdentification
 import com.shilapi.xcertplay.transport.Iap2WirelessLinkRole
 import com.shilapi.xcertplay.transport.forWirelessLink
+import java.nio.file.Path
 import java.time.LocalTime
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.system.exitProcess
 
@@ -39,6 +47,19 @@ fun main(args: Array<String>) {
 }
 
 private fun log(message: String) = println("${LocalTime.now()} $message")
+
+/** How often display.theme=windows looks at the Windows theme. */
+private const val THEME_POLL_SECONDS = 5L
+
+/** The app folder, after copying the settings, keys and pairings an older build kept in %APPDATA%. */
+private fun dataDirectory(): Path {
+    val dir = DesktopConfig.appDirectory()
+    if (DesktopConfig.adoptLegacy(dir, DesktopConfig.LEGACY_DIRECTORY)) {
+        log("copied settings, keys and pairings from ${DesktopConfig.LEGACY_DIRECTORY} into $dir; the old folder is kept")
+    }
+    log("settings and keys: $dir")
+    return dir
+}
 
 private fun listDevices() {
     println("radio ${WindowsBluetooth.localRadioAddress()}")
@@ -57,7 +78,7 @@ private fun probeBluetooth(address: String?): Boolean {
     val iphone = selectIphone(WindowsBluetooth.pairedDevices(), address)
     log("radio $radio, target ${iphone.name} ${iphone.address}")
 
-    val mfiDirectory = DesktopConfig.DEFAULT_DIRECTORY.resolve("offline-mfi").toFile()
+    val mfiDirectory = dataDirectory().resolve("offline-mfi").toFile()
     val mfi = LocalMfiAuthenticationClient.load(mfiDirectory) { log("local MFi identity signs ($it-byte signature)") }
 
     val socket = WindowsBluetooth.connectRfcomm(iphone.address, IAP2_IPHONE_UUID)
@@ -89,9 +110,13 @@ private fun probeBluetooth(address: String?): Boolean {
  * is closed or the process is stopped; every session end or failure restarts the bring-up.
  */
 private fun runCarPlay() {
-    val config = DesktopConfig(DesktopConfig.DEFAULT_DIRECTORY)
+    val dir = dataDirectory()
+    val config = DesktopConfig(dir)
+    val controlsConfig = ControlsConfig.load(dir)
+    log(controlsConfig.summary())
     checkFirewall(config.airPlay.port)
-    val window = VideoWindow(config.airPlay.main.widthPixels, config.airPlay.main.heightPixels)
+    log(config.displaySummary())
+    val window = VideoWindow(config.window.width, config.window.height)
     val sink = DesktopMediaSink(window, AudioRenderer(::log), ::log)
     val active = AtomicReference<AirPlaySession?>()
     // sendTouch writes to the iPhone's socket and can block; the GL thread only maps and enqueues.
@@ -106,15 +131,47 @@ private fun runCarPlay() {
         pending.offer(contact)
         touchSender.execute { pending.poll()?.let { active.get()?.sendTouch(listOf(it)) } }
     }
+    // Keys and the wheel go through the touch thread too, so a tap and a key press reach the iPhone in order.
+    val controls = KeyControls(controlsConfig)
+    fun send(control: Control?) {
+        control ?: return
+        touchSender.execute {
+            val session = active.get() ?: return@execute
+            when (control) {
+                is Control.Knob -> session.sendKnob(control.state, control.momentary)
+                is Control.Media -> session.sendMedia(control.index)
+                is Control.Telephony -> session.sendTelephony(control.index)
+                Control.Siri -> session.invokeSiri()
+            }
+        }
+    }
+    window.keyHandler = { key, action, mods -> send(controls.key(key, action, mods)) }
+    window.scrollHandler = { dy -> send(controls.scroll(dy)) }
     fun sessionChanged() {
         pending.clear()
         tracker.reset()
+    }
+    // The theme goes out once a session is active; with display.theme=windows a change of the Windows theme follows.
+    // Set from the session thread and read by the watch thread.
+    val lastNight = AtomicReference<Boolean?>()
+    fun sendTheme(session: AirPlaySession) {
+        val night = nightMode(config.theme, ::windowsAppsDark) ?: return
+        lastNight.set(night)
+        touchSender.execute { log("CarPlay theme ${if (night) "dark" else "light"} sent=${session.setNightMode(night)}") }
+    }
+    val themeWatch = Executors.newSingleThreadScheduledExecutor { Thread(it, "theme-watch").apply { isDaemon = true } }
+    if (config.theme == Theme.WINDOWS) {
+        themeWatch.scheduleWithFixedDelay({
+            val session = active.get()
+            if (session != null && nightMode(config.theme, ::windowsAppsDark) != lastNight.get()) sendTheme(session)
+        }, THEME_POLL_SECONDS, THEME_POLL_SECONDS, TimeUnit.SECONDS)
     }
     val bootstrap = WirelessBootstrap(config, sink, object : AirPlaySessionListener {
         override fun onSessionActive(session: AirPlaySession) {
             active.set(session)
             sessionChanged()
             log("AirPlay session active")
+            sendTheme(session)
         }
         override fun onSessionEnded(session: AirPlaySession) {
             // /info probes and pairing retries end too; resetting for them would cut a drag on the live session
@@ -131,6 +188,7 @@ private fun runCarPlay() {
         override fun onDebugLog(message: String) = log(message)
     })
     Runtime.getRuntime().addShutdownHook(Thread {
+        themeWatch.shutdownNow()
         bootstrap.close()
         sink.close()
         touchSender.shutdownNow()

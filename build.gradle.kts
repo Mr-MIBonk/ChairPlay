@@ -205,3 +205,31 @@ val jpackageImage by tasks.registering(Exec::class) {
         }
     }
 }
+
+// The app folder holds the program next to its data (settings, keys, pairings), which the app reads from
+// its exe's folder. deploy refreshes the program there and never touches the data. Override the folder with
+// -Pdiplay.home=<path>.
+val appHome = providers.gradleProperty("diplay.home")
+    .orElse(providers.systemProperty("user.home").map { "$it/Documents/DiPlayDesktopApp" })
+
+val deploy by tasks.registering(Sync::class) {
+    group = "distribution"
+    description = "Copies the app image into the app folder (diplay.home), keeping its settings, keys and pairings."
+    dependsOn(jpackageImage)
+    from(layout.buildDirectory.dir("jpackage/DiPlayDesktop"))
+    into(appHome)
+    // DesktopConfig.DATA_ENTRIES.
+    preserve {
+        include("settings.properties", "controls.properties", "carplay-icon.png", "identity.properties", "pairings/**", "offline-mfi/**")
+    }
+    // Sync deletes whatever else is there, so a mistyped folder must not be one with other files in it.
+    val home = appHome.map { file(it) }
+    doFirst {
+        val target = home.get()
+        val entries = target.list().orEmpty()
+        val known = setOf("DiPlayDesktop.exe", "settings.properties", "controls.properties", "carplay-icon.png", "identity.properties", "pairings", "offline-mfi")
+        check(entries.isEmpty() || entries.any { it in known }) {
+            "$target has files but no DiPlayDesktop.exe or app data; refusing to replace its contents"
+        }
+    }
+}

@@ -51,6 +51,14 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
         inputHandler = handler
     }
 
+    /** Receives GLFW key codes, actions (press, repeat, release) and modifier bits on the GL thread. */
+    @Volatile
+    var keyHandler: (key: Int, action: Int, mods: Int) -> Unit = { _, _, _ -> }
+
+    /** Receives the vertical scroll offset GLFW reports, on the GL thread. */
+    @Volatile
+    var scrollHandler: (dy: Double) -> Unit = {}
+
     fun show(frame: DecodedFrame) {
         latest.getAndSet(frame)?.release()
         wake()
@@ -153,6 +161,8 @@ class VideoWindow(private val width: Int, private val height: Int) : Closeable {
             glfwGetCursorPos(window, x, y)
             emitPointer(window, x[0], y[0], held)
         }
+        glfwSetKeyCallback(window) { _, key, _, action, mods -> keyHandler(key, action, mods) }
+        glfwSetScrollCallback(window) { _, _, dy -> scrollHandler(dy) }
     }
 
     /** Converts a cursor position in window units to framebuffer pixels, the space the letterbox is computed in. */

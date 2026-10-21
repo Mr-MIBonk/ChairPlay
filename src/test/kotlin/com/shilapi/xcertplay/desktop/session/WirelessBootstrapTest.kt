@@ -57,6 +57,7 @@ class WirelessBootstrapTest {
     @Test
     fun `identifies as DiPlayDesktop`() {
         assertEquals("DiPlayDesktop", desktopIdentification("10:5A:95:75:B2:AA").name)
+        assertEquals("Гараж", desktopIdentification("10:5A:95:75:B2:AA", "Гараж").name)
     }
 
     @Test

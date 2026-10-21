@@ -37,9 +37,9 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 internal val IAP2_IPHONE_UUID: UUID = UUID.fromString("00000000-deca-fade-deca-deafdecacafe")
 
-/** The values DiPlay's head-unit build identifies with, named DiPlayDesktop and keyed to this PC's Bluetooth radio. */
-internal fun desktopIdentification(radio: String) = Iap2IdentificationConfig(
-    name = "DiPlayDesktop",
+/** The values DiPlay's head-unit build identifies with, under [name] and keyed to this PC's Bluetooth radio. */
+internal fun desktopIdentification(radio: String, name: String = DesktopConfig.DEFAULT_DEVICE_NAME) = Iap2IdentificationConfig(
+    name = name,
     modelIdentifier = "DiPlayDesktop",
     manufacturer = "DiPlay",
     serialNumber = "DIPLAY-" + radio.replace(":", ""),
@@ -212,7 +212,7 @@ class WirelessBootstrap internal constructor(
                 Iap2Session.openWireless(rfcomm, traceContext = "wireless-rfcomm", onTrace = ::trace))
             stack.bootstrap = bootstrap
             val wireless = Iap2WirelessIdentification(radio, info.ssid)
-            val identification = desktopIdentification(radio)
+            val identification = desktopIdentification(radio, config.airPlay.deviceName)
             val runtimeIdentification = identification.forWirelessLink(Iap2WirelessLinkRole.RUNTIME_TUNNEL, wireless)
             val endpoint = buildEndpoint(info, host, advertised.port, advertised, config.identity)
             media.setIapTunnelHandler { tunnel -> startTunnelControl(stack, tunnel, runtimeIdentification, endpoint) }
