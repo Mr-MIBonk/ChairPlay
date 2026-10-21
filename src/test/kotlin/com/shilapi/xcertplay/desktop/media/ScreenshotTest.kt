@@ -30,5 +30,9 @@ class ScreenshotTest {
         val file = screenshotFile(Path.of("app"), LocalDateTime.of(2026, 10, 21, 22, 30, 5))
 
         assertEquals(Path.of("app", "screenshots", "carplay-2026-10-21-223005.png"), file)
+        assertEquals(
+            Path.of("app", "screenshots", "altscreen-2026-10-21-223005.png"),
+            screenshotFile(Path.of("app"), LocalDateTime.of(2026, 10, 21, 22, 30, 5), "altscreen"),
+        )
     }
 }

@@ -6,8 +6,14 @@ import com.shilapi.xcertplay.desktop.bluetooth.WindowsBluetooth
 import com.shilapi.xcertplay.desktop.bluetooth.selectIphone
 import com.shilapi.xcertplay.desktop.config.DesktopConfig
 import com.shilapi.xcertplay.desktop.config.Theme
+import com.shilapi.xcertplay.desktop.config.AltscreenCards
 import com.shilapi.xcertplay.desktop.config.WindowPlacementStore
+import com.shilapi.xcertplay.desktop.config.altscreenTitle
+import com.shilapi.xcertplay.desktop.config.mainWindowTitle
+import com.shilapi.xcertplay.desktop.config.altscreenUrl
 import com.shilapi.xcertplay.desktop.config.WindowSize
+import com.shilapi.xcertplay.desktop.data.CarPlayData
+import com.shilapi.xcertplay.desktop.data.CarPlayDataLog
 import com.shilapi.xcertplay.desktop.input.Control
 import com.shilapi.xcertplay.desktop.input.ControlsConfig
 import com.shilapi.xcertplay.desktop.input.KeyControls
@@ -127,6 +133,7 @@ private fun runCarPlay() {
     val placements = WindowPlacementStore(dir)
     val window = VideoWindow(
         config.window.width, config.window.height, placements.load(config.window),
+        mainWindowTitle(WindowSize(config.displayWidth, config.displayHeight)),
         aspect = WindowSize(config.displayWidth, config.displayHeight).takeIf { config.keepAspect },
     )
     window.onPlacement = { placement ->
@@ -137,7 +144,7 @@ private fun runCarPlay() {
         log("altscreen ${alt.size.width}x${alt.size.height} px, starting with ${alt.content.key}")
         val altPlacements = WindowPlacementStore(dir, prefix = "altscreen.")
         VideoWindow(
-            alt.size.width, alt.size.height, altPlacements.load(alt.size), "DiPlayDesktop altscreen",
+            alt.size.width, alt.size.height, altPlacements.load(alt.size), altscreenTitle(alt.size, alt.content, alt.cards),
             aspect = alt.size.takeIf { config.keepAspect },
         ).also {
             it.onPlacement = { placement ->
@@ -146,6 +153,12 @@ private fun runCarPlay() {
         }
     }
     var altscreenContent = config.altscreen?.content
+    var altscreenCards = config.altscreen?.cards ?: AltscreenCards.AUTO
+    // F12 saves both screens, each at the size the iPhone draws it.
+    fun screenshots() {
+        window.screenshot { image -> saveScreenshot(image, dir, ::log) }
+        altscreen?.screenshot { image -> saveScreenshot(image, dir, ::log, "altscreen") }
+    }
     // A device name matching nothing stops here, before any connection, with the devices listed.
     val output = AudioDevices.output(config.audioOutput)
     val input = AudioDevices.input(config.audioInput)
@@ -169,7 +182,7 @@ private fun runCarPlay() {
     fun send(control: Control?) {
         control ?: return
         if (control == Control.Screenshot) {
-            window.screenshot { image -> saveScreenshot(image, dir, ::log) }
+            screenshots()
             return
         }
         touchSender.execute {
@@ -182,22 +195,29 @@ private fun runCarPlay() {
                 is Control.MapZoom -> repeat(abs(control.steps)) {
                     session.changeMapZoomLevel(zoomIn = control.steps > 0)
                 }
-                Control.NextAltscreenContent -> {
-                    val next = altscreenContent?.next() ?: return@execute
-                    altscreenContent = next
-                    log("altscreen ${next.key} sent=${session.setClusterUrl(next.cluster.url, send = true)}")
+                Control.NextAltscreenContent, Control.NextAltscreenCards -> {
+                    val content = altscreenContent ?: return@execute
+                    if (control == Control.NextAltscreenContent) altscreenContent = content.next()
+                    else altscreenCards = altscreenCards.next()
+                    val url = altscreenUrl(altscreenContent!!, altscreenCards)
+                    val sent = session.setClusterUrl(url, send = true)
+                    log("altscreen ${altscreenContent!!.key}, cards ${altscreenCards.key}: $url sent=$sent")
+                    val size = config.altscreen!!.size
+                    altscreen?.setTitle(altscreenTitle(size, altscreenContent!!, altscreenCards) + if (sent) "" else " (not sent)")
                 }
                 Control.Screenshot -> Unit
             }
         }
     }
     window.keyHandler = { key, action, mods -> send(controls.key(key, action, mods)) }
+    // The same keys work while the altscreen window has the focus; both windows run on the one GL thread.
+    altscreen?.keyHandler = window.keyHandler
     // Diagnostics: DIPLAY_SCREENSHOT_AFTER=<seconds> saves one screenshot that long after the first picture.
     System.getenv("DIPLAY_SCREENSHOT_AFTER")?.toLongOrNull()?.let { seconds ->
         Thread({
             while (window.pictureSize.width == 0) Thread.sleep(200)
             Thread.sleep(seconds * 1000)
-            window.screenshot { image -> saveScreenshot(image, dir, ::log) }
+            screenshots()
         }, "screenshot-timer").apply { isDaemon = true }.start()
     }
     window.scrollHandler = { dy -> send(controls.scroll(dy)) }
@@ -221,6 +241,8 @@ private fun runCarPlay() {
             if (session != null && nightMode(config.theme, ::windowsAppsDark) != lastNight.get()) sendTheme(session)
         }, THEME_POLL_SECONDS, THEME_POLL_SECONDS, TimeUnit.SECONDS)
     }
+    // The iPhone's route, song, call and battery messages, for later screens and, with log.carplay.data, a file.
+    val carPlayData = CarPlayData(if (config.logCarPlayData) CarPlayDataLog(dir.resolve("logs"), log = ::log) else null)
     val bootstrap = WirelessBootstrap(config, sink, object : AirPlaySessionListener {
         override fun onSessionActive(session: AirPlaySession) {
             active.set(session)
@@ -241,10 +263,11 @@ private fun runCarPlay() {
         }
         override fun onTransportError(message: String) = log("AirPlay transport error: $message")
         override fun onDebugLog(message: String) = log(message)
-    })
+    }, carPlayData)
     Runtime.getRuntime().addShutdownHook(Thread {
         themeWatch.shutdownNow()
         bootstrap.close()
+        carPlayData.close()
         sink.close()
         touchSender.shutdownNow()
     })

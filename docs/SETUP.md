@@ -40,7 +40,7 @@ gradlew deploy
 
 This builds the image and syncs it into `dist\DiPlayDesktop` in the project, replacing the program and keeping
 `settings.properties`, `controls.properties`, `carplay-icon.png`, `window.properties`, `identity.properties`,
-`pairings\` and `offline-mfi\`. It is outside `build\`, which `gradlew clean` wipes, and git ignores it.
+`pairings\`, `offline-mfi\`, `screenshots\` and `logs\`. It is outside `build\`, which `gradlew clean` wipes, and git ignores it.
 
 To install somewhere else, give the folder as the `diplay.home` property: once with `gradlew deploy
 -Pdiplay.home=C:\Apps\DiPlayDesktop`, or for good in `%USERPROFILE%\.gradle\gradle.properties`:
@@ -85,6 +85,8 @@ The files below live in the app folder, next to `DiPlayDesktop.exe`.
      calls, so the other side does not hear itself when CarPlay plays through speakers. It takes out of the
      microphone what the call stream played, as DiPlay does on head units. Siri and headphones do not need it;
      a canceller that fails stops for the rest of the call and logs why;
+   - `log.carplay.data` (default `false`): `true` writes every message the iPhone sends about the route, the song,
+     calls and its battery to a file in `logs\` (see [The CarPlay data log](#the-carplay-data-log));
    - `display.width` and `display.height`: the CarPlay screen size in pixels, positive even numbers
      (default 1280 x 720), and `display.fps`, 30 to 60 (default 60). The size alone decides how iOS draws:
      at @3x when both sides are at least about 1280 x 720, at @2x below that (the switch lies between 1200 x 676
@@ -105,7 +107,7 @@ The files below live in the app folder, next to `DiPlayDesktop.exe`.
      remembered size. A window left on a monitor that is no longer connected opens where Windows puts it. Delete
      `window.properties` to forget the place;
    - `window.keep.aspect` (default `true`): the windows resize only with the shape of their picture, the
-     main window's that of `display.width` x `display.height` and the altscreen's that of its size; a maximized
+     main window's that of `display.width` x `display.height` and the AltScreen's that of its size; a maximized
      window still fills the screen. `false` lets them take any shape;
    - `altscreen.enabled` (experimental, default `false`): `true` declares a second CarPlay screen, the car's
      instrument cluster, and shows it in a window of its own (place and size remembered under `altscreen.` in
@@ -113,7 +115,9 @@ The files below live in the app folder, next to `DiPlayDesktop.exe`.
      `altscreen.width` and `altscreen.height` set its size in pixels (default 1440 x 542, Audi's Virtual Cockpit
      panel), and `altscreen.content` what it starts with: `map`, `card` (the turn card) or `map-card`. F11
      (`key.altscreen.content`) switches between them without reconnecting, and the mouse wheel over the window
-     zooms the map, as a car's zoom control does. `altscreen.safe.top`/`bottom`/`left`/`right` (default 0) are
+     or + and − on either keyboard (`key.altscreen.zoom.in`/`out`) zoom the map, as a car's zoom control does. `altscreen.cards` places the navigation app's ETA and turn
+     card: `auto` (default, CarPlay decides; with a wide cluster it keeps a column at the left free), `left`,
+     `right`, `top`, or `off` (the map alone); Shift+F11 (`key.altscreen.cards`) moves them on the fly. `altscreen.safe.top`/`bottom`/`left`/`right` (default 0) are
      pixels at each edge the iPhone keeps its map attribution and car marker out of, for an overlay of our own;
      all zero uses the whole panel, since nothing covers a window on a PC;
    - `display.theme`: `windows` (default: follows the Windows dark mode, also while running), `light`, `dark`, or
@@ -162,9 +166,31 @@ Besides touch with the mouse, the keyboard and the mouse wheel work as a car's c
 `wheel.invert`, `wheel.notches.per.step`) and `key.repeat.every`. A mistake in it stops the start and names the
 setting; delete the file to get the defaults back.
 
-F12 (`key.screenshot`) saves the CarPlay screen as a PNG at the size the iPhone draws it, not the window's, in
-`screenshots` in the app folder; the console prints the file name. For unattended runs, the environment variable
+F12 (`key.screenshot`) saves the CarPlay screen, and the AltScreen when it is on, as PNGs at the size the
+iPhone draws them, not the windows', in `screenshots` in the app folder; the console prints the file names. For unattended runs, the environment variable
 `DIPLAY_SCREENSHOT_AFTER=<seconds>` saves one screenshot that many seconds after the first picture.
+
+## The CarPlay data log
+
+Besides the picture and the sound, the iPhone tells the car about the drive and the phone over iAP2: route guidance
+(the next maneuver, its distance, the road, the arrival time, the remaining time and distance), now playing (title,
+artist, album, position, playback state) and its artwork, calls, the phone's network and its battery. The app
+collects them for screens to come, and asks for more of the song (album artist, genre, track and disc, queue,
+shuffle and repeat), of calls (the number's label, FaceTime, conferences) and of the network (carrier,
+registration, airplane mode, voicemail) than DiPlay does. Lane guidance and the phone's lists (recent calls,
+favourites) would need DiPlay's identification to declare them, so they do not arrive. With `log.carplay.data=true` it also writes each of these messages, as it
+arrives, to `logs\carplay-data-<yyyy-MM-dd-HHmmss>.jsonl` in the app folder: one file per start, made with the first
+message, and one JSON object per line, for example
+
+```
+{"time":"2026-10-22T14:03:07.412+02:00","link":"wifi","id":"0x5201","name":"RouteGuidanceUpdate","fields":{"routeGuidanceState":"ROUTE_SET","currentRoadName":"Main Street","distanceToNextManeuver":150,"currentManeuverList":[3,4]}}
+```
+
+`link` says which iAP2 link carried it (`bluetooth` while CarPlay starts, `wifi` once it runs over Wi-Fi). A
+parameter the app does not know yet is listed under `unknown` as `"<id>:<hex>"`, and a message it cannot decode
+is written as `hex`. Only these data messages are written: the Wi-Fi passphrase, the MFi certificate and its
+challenges never reach the file. The file grows by a line or two a second while music plays, and holds the
+names and numbers of callers; delete it when it is no longer needed.
 
 ## Keyboard bindings
 

@@ -28,6 +28,10 @@ val upstreamCore by tasks.registering(Sync::class) {
             "com/shilapi/xcertplay/iap2/**",
             "com/shilapi/xcertplay/mfi/**",
             "com/shilapi/xcertplay/compat/Base64Compat.kt",
+            // Upstream's route guidance and now playing parsers, for the CarPlay data bus.
+            "com/shilapi/xcertplay/hud/BydHudRouteState.kt",
+            "com/shilapi/xcertplay/hud/BydManeuverCodes.kt",
+            "com/shilapi/xcertplay/media/CarPlayPlaybackStatus.kt",
             "com/shilapi/xcertplay/media/EchoReference.kt",
             "com/shilapi/xcertplay/media/MediaCodecSupport.kt",
             "com/shilapi/xcertplay/media/SpeexEchoCanceller.kt",
@@ -58,6 +62,8 @@ val upstreamCoreTests by tasks.registering(Sync::class) {
             "com/shilapi/xcertplay/iap2/**",
             "com/shilapi/xcertplay/mfi/**",
             "com/shilapi/xcertplay/compat/Base64CompatTest.kt",
+            "com/shilapi/xcertplay/hud/BydHudRouteStateTest.kt",
+            "com/shilapi/xcertplay/media/CarPlayPlaybackStatusTest.kt",
             "com/shilapi/xcertplay/media/EchoReferenceTest.kt",
             "com/shilapi/xcertplay/network/AirPlayPortSelectorTest.kt",
             "com/shilapi/xcertplay/network/HotspotAddressPolicyTest.kt",
@@ -360,9 +366,9 @@ val syncApp by tasks.registering(Sync::class) {
     dependsOn(jpackageImage)
     from(layout.buildDirectory.dir("jpackage/DiPlayDesktop"))
     into(appHome)
-    // The app data: settings, controls and car icon, the AirPlay identity, pairings and the MFi files.
+    // The app data: settings, controls and car icon, the AirPlay identity, pairings, the MFi files and the data logs.
     preserve {
-        include("settings.properties", "controls.properties", "carplay-icon.png", "window.properties", "identity.properties", "pairings/**", "offline-mfi/**")
+        include("settings.properties", "controls.properties", "carplay-icon.png", "window.properties", "identity.properties", "pairings/**", "offline-mfi/**", "screenshots/**", "logs/**")
     }
     // Sync deletes whatever else is there, so a mistyped folder must not be one with other files in it.
     val home = appHome.map { file(it) }

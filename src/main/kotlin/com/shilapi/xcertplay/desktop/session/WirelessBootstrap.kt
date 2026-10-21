@@ -10,9 +10,13 @@ import com.shilapi.xcertplay.airplay.MediaSink
 import com.shilapi.xcertplay.desktop.bluetooth.WindowsBluetooth
 import com.shilapi.xcertplay.desktop.bluetooth.selectIphone
 import com.shilapi.xcertplay.desktop.config.DesktopConfig
+import com.shilapi.xcertplay.desktop.data.CarPlayDataTap
+import com.shilapi.xcertplay.desktop.data.DataLink
+import com.shilapi.xcertplay.desktop.data.DataSubscriptions
 import com.shilapi.xcertplay.desktop.discovery.DesktopBonjour
 import com.shilapi.xcertplay.desktop.network.SameLanNetwork
 import com.shilapi.xcertplay.iap2.session.Iap2Session
+import com.shilapi.xcertplay.iap2.wire.Iap2Frame
 import com.shilapi.xcertplay.mfi.Iap2MfiAuthenticationClient
 import com.shilapi.xcertplay.mfi.LocalMfiAuthenticationClient
 import com.shilapi.xcertplay.mfi.MfiAuthenticator
@@ -104,6 +108,8 @@ internal interface WirelessParts {
         timeoutMillis: Long,
         onReady: () -> Unit,
         keepAliveAfterDeadline: () -> Boolean,
+        /** Each frame the control loop does not handle itself: route guidance, now playing, calls, power. */
+        onIncoming: (Iap2Frame) -> Unit,
     ): Iap2WirelessControlResult
 }
 
@@ -112,16 +118,18 @@ internal interface WirelessParts {
  * AirPlay listener, Bonjour, then iAP2 over Bluetooth hands the iPhone the Wi-Fi endpoint. Every
  * bring-up owns one [Stack]. The end of an AirPlay session that went active, or a failure before
  * the iPhone joined over Wi-Fi, closes it and starts the next one exactly once; callbacks from a
- * stack already replaced are ignored.
+ * stack already replaced are ignored. The data the iPhone sends over either iAP2 link (route guidance,
+ * now playing, calls, battery, artwork) goes to [data] until its stack is retired.
  */
 class WirelessBootstrap internal constructor(
     private val config: DesktopConfig,
     private val sink: MediaSink,
     private val listener: AirPlaySessionListener,
+    private val data: CarPlayDataTap = CarPlayDataTap.NONE,
     private val newParts: () -> WirelessParts,
 ) : Closeable {
-    constructor(config: DesktopConfig, sink: MediaSink, listener: AirPlaySessionListener) :
-        this(config, sink, listener, { DesktopParts(config, listener::onDebugLog) })
+    constructor(config: DesktopConfig, sink: MediaSink, listener: AirPlaySessionListener, data: CarPlayDataTap = CarPlayDataTap.NONE) :
+        this(config, sink, listener, data, { DesktopParts(config, listener::onDebugLog) })
 
     private val lock = Any()
     @Volatile private var current: Stack? = null
@@ -175,7 +183,11 @@ class WirelessBootstrap internal constructor(
     private fun retire(stack: Stack) {
         current = null
         stack.close()
+        data.onSessionEnded()
     }
+
+    /** A retired stack's links may still deliver a frame or two; they must not refill the next session's data. */
+    private fun dataFrom(stack: Stack, link: DataLink): (Iap2Frame) -> Unit = { if (!stack.closed) data.onFrame(link, it) }
 
     private fun log(message: String) = listener.onDebugLog(message)
 
@@ -209,7 +221,8 @@ class WirelessBootstrap internal constructor(
 
             val rfcomm = stack.own(parts.connectIphone())
             val bootstrap = stack.handOver(rfcomm,
-                Iap2Session.openWireless(rfcomm, traceContext = "wireless-rfcomm", onTrace = ::trace))
+                Iap2Session.openWireless(rfcomm, traceContext = "wireless-rfcomm", onTrace = ::trace,
+                    onArtwork = { if (!stack.closed) data.onArtwork(DataLink.BLUETOOTH, it) }))
             stack.bootstrap = bootstrap
             val wireless = Iap2WirelessIdentification(radio, info.ssid)
             val identification = desktopIdentification(radio, config.airPlay.deviceName)
@@ -227,6 +240,7 @@ class WirelessBootstrap internal constructor(
                 onReady = {},
                 // keepBluetoothControlAlive: until a handoff, Bluetooth is the only iAP2 channel.
                 keepAliveAfterDeadline = { stack.rendered && stack.active.isNotEmpty() },
+                onIncoming = dataFrom(stack, DataLink.BLUETOOTH),
             )
             if (stack.closed || stack.handedOff.get()) return
             log("iAP2 Bluetooth control ended ${result.terminal} at ${result.stage}")
@@ -252,7 +266,8 @@ class WirelessBootstrap internal constructor(
         endpoint: Iap2WirelessCarPlayEndpoint,
     ): Boolean {
         val channel = try {
-            stack.own(Iap2Session.openTunnel(stream, traceContext = "wireless-tunnel", onTrace = ::trace))
+            stack.own(Iap2Session.openTunnel(stream, traceContext = "wireless-tunnel", onTrace = ::trace,
+                onArtwork = { if (!stack.closed) data.onArtwork(DataLink.WIFI, it) }))
         } catch (_: StackClosed) {
             return false
         } catch (error: Exception) {
@@ -262,7 +277,8 @@ class WirelessBootstrap internal constructor(
         Thread({
             try {
                 val result = stack.parts.control(channel, identification, endpoint,
-                    Iap2WirelessControlClient.NO_TIMEOUT_MILLIS, onReady = { tunnelReady(stack) }, keepAliveAfterDeadline = { false })
+                    Iap2WirelessControlClient.NO_TIMEOUT_MILLIS, onReady = { tunnelReady(stack) }, keepAliveAfterDeadline = { false },
+                    onIncoming = dataFrom(stack, DataLink.WIFI))
                 if (!stack.closed) log("iAP2 tunnel ended ${result.terminal} at ${result.stage}")
             } catch (error: Exception) {
                 if (!stack.closed) log("tunneled iAP2 control failed: ${error.javaClass.simpleName}: ${error.message}")
@@ -408,9 +424,15 @@ class WirelessBootstrap internal constructor(
             timeoutMillis: Long,
             onReady: () -> Unit,
             keepAliveAfterDeadline: () -> Boolean,
+            onIncoming: (Iap2Frame) -> Unit,
         ) = Iap2WirelessControlClient(session, Iap2MfiAuthenticationClient(mfi)).run(
             identification, endpoint, timeoutMillis,
-            onReady = onReady, keepAliveAfterDeadline = keepAliveAfterDeadline, onProgress = log,
+            // Upstream's subscriptions have just gone out on this link; ours ask for more of the same.
+            onReady = {
+                onReady()
+                DataSubscriptions.send({ session.send(it, SUBSCRIPTION_SEND_TIMEOUT_MILLIS) }, log)
+            },
+            onIncoming = onIncoming, keepAliveAfterDeadline = keepAliveAfterDeadline, onProgress = log,
         )
     }
 
@@ -422,6 +444,8 @@ class WirelessBootstrap internal constructor(
          */
         const val CONTROL_LOOP_TIMEOUT_MILLIS = 5 * 60_000L
         const val RETRY_DELAY_MILLIS = 5_000L
+        /** Iap2Session's own default for a send. */
+        const val SUBSCRIPTION_SEND_TIMEOUT_MILLIS = 5_000L
 
         fun isBluetoothHandoffCommand(type: String) =
             type.equals("disableBluetooth", ignoreCase = true) || type.equals("disable-bluetooth", ignoreCase = true)

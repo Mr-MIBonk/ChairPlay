@@ -10,7 +10,10 @@ import com.shilapi.xcertplay.airplay.CarPlayMediaEngine
 import com.shilapi.xcertplay.airplay.MediaSink
 import com.shilapi.xcertplay.desktop.config.DesktopConfig
 import com.shilapi.xcertplay.desktop.config.writeTestSettings
+import com.shilapi.xcertplay.desktop.data.CarPlayDataTap
+import com.shilapi.xcertplay.desktop.data.DataLink
 import com.shilapi.xcertplay.iap2.session.Iap2Session
+import com.shilapi.xcertplay.iap2.wire.Iap2Frame
 import com.shilapi.xcertplay.mfi.MfiAuthenticator
 import com.shilapi.xcertplay.network.WirelessHotspotBackend
 import com.shilapi.xcertplay.network.WirelessHotspotInfo
@@ -169,8 +172,48 @@ class WirelessBootstrapTest {
         }
     }
 
+    @Test(timeout = 30_000)
+    fun `data frames from both iAP2 links reach the data tap`() {
+        val tap = RecordingTap()
+        Harness(tap).use { harness ->
+            val port = harness.nextPort()
+            RtspClient(harness.loopback, port).use { client ->
+                assertOk(client.request("RECORD", "*"))
+                val parts = harness.parts.last
+                awaitTrue { parts.tunnelHandler.get() != null }
+                assertTrue(parts.tunnelHandler.get()!!(SilentStream()))
+                awaitTrue { tap.frames.size >= 2 }
+
+                assertEquals(setOf(DataLink.BLUETOOTH to POWER_UPDATE, DataLink.WIFI to POWER_UPDATE), tap.frames.toSet())
+            }
+        }
+    }
+
+    @Test(timeout = 30_000)
+    fun `the end of an active session clears the data`() {
+        val tap = RecordingTap()
+        Harness(tap).use { harness ->
+            val port = harness.nextPort()
+            RtspClient(harness.loopback, port).use { assertOk(it.request("RECORD", "*")) }
+            harness.nextPort()
+
+            assertEquals(1, tap.ends.get())
+        }
+    }
+
+    private class RecordingTap : CarPlayDataTap {
+        val frames = LinkedBlockingQueue<Pair<DataLink, Int>>()
+        val ends = AtomicInteger()
+        override fun onFrame(link: DataLink, frame: Iap2Frame) {
+            frames += link to frame.messageId
+        }
+        override fun onSessionEnded() {
+            ends.incrementAndGet()
+        }
+    }
+
     /** A bootstrap over fakes on 127.0.0.1; each stack's parts and advertised port are recorded. */
-    private inner class Harness : Closeable {
+    private inner class Harness(tap: CarPlayDataTap = CarPlayDataTap.NONE) : Closeable {
         val loopback: InetAddress = InetAddress.getByName("127.0.0.1")
         val stacks = AtomicInteger()
         val parts = LinkedBlockingDeque<FakeParts>()
@@ -179,7 +222,7 @@ class WirelessBootstrapTest {
         private val advertisedPorts = LinkedBlockingQueue<Int>()
         private val bootstrap = Files.createTempDirectory("diplay-bootstrap").let { dir ->
             writeTestSettings(dir)
-            WirelessBootstrap(DesktopConfig(dir), object : MediaSink {}, object : AirPlaySessionListener {}) {
+            WirelessBootstrap(DesktopConfig(dir), object : MediaSink {}, object : AirPlaySessionListener {}, tap) {
                 if (stacks.incrementAndGet() > 1) previousPortFree.set(bindable(loopback, previousPort.get()))
                 FakeParts(info(listOf(loopback))) { port ->
                     previousPort.set(port)
@@ -301,7 +344,9 @@ class WirelessBootstrapTest {
             timeoutMillis: Long,
             onReady: () -> Unit,
             keepAliveAfterDeadline: () -> Boolean,
+            onIncoming: (Iap2Frame) -> Unit,
         ): Iap2WirelessControlResult {
+            onIncoming(Iap2Frame(POWER_UPDATE, ByteArray(0)))
             // Only the tunnel runs without a deadline.
             if (timeoutMillis == Iap2WirelessControlClient.NO_TIMEOUT_MILLIS) {
                 readyRuns.incrementAndGet()
@@ -311,6 +356,10 @@ class WirelessBootstrapTest {
             while (!session.isClosed) session.recv(50)
             throw IOException("iAP2 link ended")
         }
+    }
+
+    private companion object {
+        const val POWER_UPDATE = 0xae01
     }
 
     /** Never speaks; [endFromPeer] is the iPhone dropping the link, [close] is ours. */

@@ -47,8 +47,37 @@ enum class AltscreenContent(val key: String, val cluster: CarPlayClusterDisplay.
     fun next(): AltscreenContent = entries[(ordinal + 1) % entries.size]
 }
 
+/**
+ * Where CarPlay lays out the navigation app's ETA and turn card on the altscreen. DashBoard reads it from the
+ * cluster URL for every app (notes of the MHI2Q CarPlay project); without one it chooses, and a third-party app
+ * on a wide cluster keeps a column at the left free, even showing the map alone.
+ */
+enum class AltscreenCards(val key: String, val query: String) {
+    AUTO("auto", ""),
+    LEFT("left", "showETA=yes&maneuverLayout=leftAligned"),
+    RIGHT("right", "showETA=yes&maneuverLayout=rightAligned"),
+    TOP("top", "showETA=yes&maneuverLayout=topAligned"),
+    OFF("off", "showETA=no&maneuverLayout=no");
+
+    fun next(): AltscreenCards = entries[(ordinal + 1) % entries.size]
+}
+
+/** The cluster URL the iPhone is asked for: [content] with the [cards] layout. */
+fun altscreenUrl(content: AltscreenContent, cards: AltscreenCards): String =
+    if (cards.query.isEmpty()) content.cluster.url else "${content.cluster.url}?${cards.query}"
+
+/** The main window's title, with the size the iPhone draws the CarPlay screen at. */
+fun mainWindowTitle(stream: WindowSize): String = "DiPlayDesktop · ${stream.width}×${stream.height}"
+
+/**
+ * The AltScreen window's title, with its stream size; without a route every mode looks alike, so the title says
+ * which one is on. AltScreen is Apple's name for it (the altScreen feature and altScreenURLs).
+ */
+fun altscreenTitle(stream: WindowSize, content: AltscreenContent, cards: AltscreenCards): String =
+    "DiPlayDesktop AltScreen · ${stream.width}×${stream.height} · ${content.key} · cards ${cards.key}"
+
 /** The second CarPlay screen, a car's instrument cluster: the stream's [size] and what it starts with. */
-data class Altscreen(val size: WindowSize, val content: AltscreenContent)
+data class Altscreen(val size: WindowSize, val content: AltscreenContent, val cards: AltscreenCards = AltscreenCards.AUTO)
 
 class DesktopConfig(private val dir: Path) {
     private val settings = loadSettings()
@@ -114,7 +143,8 @@ class DesktopConfig(private val dir: Path) {
     val altscreen: Altscreen? = if (!booleanSetting("altscreen.enabled", false)) null else {
         val content = choiceSetting("altscreen.content", AltscreenContent.MAP, AltscreenContent.entries.associateBy { it.key })
         val size = WindowSize(evenSetting("altscreen.width", DEFAULT_ALTSCREEN_WIDTH), evenSetting("altscreen.height", DEFAULT_ALTSCREEN_HEIGHT))
-        Altscreen(size, content)
+        val cards = choiceSetting("altscreen.cards", AltscreenCards.AUTO, AltscreenCards.entries.associateBy { it.key })
+        Altscreen(size, content, cards)
     }
     /**
      * DiPlay rounds its cluster stream to multiples of 8; Audi's 1440x542 panel goes out as it is, as the MHI2Q
@@ -142,11 +172,15 @@ class DesktopConfig(private val dir: Path) {
             heightPixels = height,
             heightPhysicalMm = Math.round(ALTSCREEN_WIDTH_MM * height.toDouble() / width).toInt(),
             safeArea = safe.takeIf { it != AirPlayInsets() },
+            initialUrl = altscreenUrl(it.content, it.cards),
         )
     }
 
     /** window.keep.aspect: the windows resize only with the picture's shape; a maximized one fills the screen. */
     val keepAspect: Boolean = booleanSetting("window.keep.aspect", true)
+
+    /** log.carplay.data: the iPhone's route, song, call and battery messages to logs\carplay-data-<time>.jsonl. */
+    val logCarPlayData: Boolean = booleanSetting("log.carplay.data", false)
 
     /** windows follows the Windows dark mode; phone sends nothing and leaves it to the iPhone. */
     val theme: Theme = choiceSetting("display.theme", Theme.WINDOWS, Theme.entries.associateBy { it.name.lowercase() })
@@ -378,6 +412,11 @@ class DesktopConfig(private val dir: Path) {
                 "audio.echo.cancellation" to "false",
             ),
             SettingBlock(
+                "Write every message the iPhone sends about the route, the song, calls and its battery to\n" +
+                    "logs\\carplay-data-<date-time>.jsonl in this folder, one JSON object per line: 'true' or 'false'.",
+                "log.carplay.data" to "false",
+            ),
+            SettingBlock(
                 "The CarPlay screen the iPhone draws, in pixels (positive even numbers), and its frame rate (30-60).\n" +
                     "iOS draws at @3x from about 1280x720 on both sides, at @2x below; more pixels fit more on screen.",
                 "display.width" to "1280", "display.height" to "720", "display.fps" to "60",
@@ -403,6 +442,11 @@ class DesktopConfig(private val dir: Path) {
                     "numbers); what it starts with: 'map', 'card' (the turn card) or 'map-card'.",
                 "altscreen.enabled" to "false", "altscreen.width" to "1440", "altscreen.height" to "542",
                 "altscreen.content" to "map",
+            ),
+            SettingBlock(
+                "Where the altscreen shows the navigation app's ETA and turn card: 'auto' (CarPlay decides), 'left',\n" +
+                    "'right', 'top', or 'off' (the map alone).",
+                "altscreen.cards" to "auto",
             ),
             SettingBlock(
                 "Altscreen pixels at each edge the iPhone keeps its map text and car marker out of, for an overlay;\n" +

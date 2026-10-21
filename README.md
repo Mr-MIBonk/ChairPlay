@@ -28,7 +28,7 @@ endorsed by DiPlay's authors or by Apple.
 - **The CarPlay screen as you want it**: resolution (which decides whether iOS draws at @2x or @3x, and how much
   fits on the screen), frame rate, light or dark theme following Windows, driving side, dock position, safe area,
   corner style.
-- **The altscreen** (experimental): the car's instrument cluster as a second CarPlay screen in its own window,
+- **AltScreen** (experimental): the car's instrument cluster as a second CarPlay screen in its own window,
   1440x542 like Audi's Virtual Cockpit by default, with the map, the turn card or both, switched on the fly.
 - **Graceful reconnection**: close the window and start again, and the iPhone reconnects by itself.
 
@@ -84,9 +84,10 @@ settings and keys there on later builds. To install it elsewhere, pass `-Pdiplay
 | F7 / F8 / F9 | previous track / play-pause / next track |
 | F3 / F4 | answer / end a call |
 | S | Siri |
-| F12 | screenshot of the CarPlay screen, at the iPhone's resolution, into `screenshots` |
-| F11 | altscreen: map, turn card, map with turn card |
-| Mouse wheel over the altscreen | zoom its map |
+| F12 | screenshots of the CarPlay screen and the AltScreen, at the iPhone's resolution, into `screenshots` |
+| F11 | AltScreen: map, turn card, map with turn card |
+| Shift+F11 | AltScreen: move the ETA and turn card (auto, left, right, top, off) |
+| Mouse wheel over the AltScreen, + / − (either keyboard) | zoom the AltScreen map |
 
 Rebind any of them in `controls.properties`, which the app writes on its first start with every action listed.
 

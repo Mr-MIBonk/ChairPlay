@@ -44,6 +44,7 @@ class VideoWindow(
     private val closing = AtomicBoolean()
     private val minimizing = AtomicBoolean()
     private val screenshotRequest = AtomicReference<((BufferedImage) -> Unit)?>()
+    private val newTitle = AtomicReference<String?>()
     // GLFW rejects glfwPostEmptyEvent outside init..terminate, which frames and close() can fall outside of.
     private val running = AtomicBoolean()
 
@@ -100,6 +101,12 @@ class VideoWindow(
      */
     fun screenshot(onImage: (BufferedImage) -> Unit) {
         screenshotRequest.set(onImage)
+        wake()
+    }
+
+    /** Safe from any thread: GLFW sets a title on the main thread only, so the next loop pass applies it. */
+    fun setTitle(title: String) {
+        newTitle.set(title)
         wake()
     }
 
@@ -184,6 +191,7 @@ class VideoWindow(
         glfwMakeContextCurrent(window)
         GL.setCapabilities(capabilities)
         if (minimizing.getAndSet(false)) glfwIconifyWindow(window)
+        newTitle.getAndSet(null)?.let { glfwSetWindowTitle(window, it) }
         val fresh = latest.getAndSet(null)
         if (fresh != null) {
             // glTexImage2D and glTexSubImage2D have read client memory by the time they return.

@@ -20,6 +20,8 @@ sealed interface Control {
     data class MapZoom(val steps: Int) : Control
     /** Asks the iPhone for the altscreen's next content (AirPlaySession.setClusterUrl). */
     data object NextAltscreenContent : Control
+    /** Asks the iPhone for the altscreen's next card layout, through the cluster URL. */
+    data object NextAltscreenCards : Control
 }
 
 /**
@@ -50,6 +52,8 @@ class KeyControls(private val config: ControlsConfig = ControlsConfig.DEFAULT) {
         return when (bound) {
             ControlAction.KNOB_NEXT -> turn(key, action, 1)
             ControlAction.KNOB_PREVIOUS -> turn(key, action, -1)
+            ControlAction.ALTSCREEN_ZOOM_IN -> if (steps(key, action, config.zoomRepeatEvery)) Control.MapZoom(1) else null
+            ControlAction.ALTSCREEN_ZOOM_OUT -> if (steps(key, action, config.zoomRepeatEvery)) Control.MapZoom(-1) else null
             else -> hold(bound)?.let { state ->
                 when (action) {
                     GLFW_PRESS -> Control.Knob(state, false)
@@ -79,21 +83,23 @@ class KeyControls(private val config: ControlsConfig = ControlsConfig.DEFAULT) {
         return Control.MapZoom(steps)
     }
 
-    private fun turn(key: Int, action: Int, step: Int): Control? {
-        val send = when (action) {
+    private fun turn(key: Int, action: Int, step: Int): Control? =
+        if (steps(key, action)) Control.Knob(AirPlayKnobState(wheel = step), true) else null
+
+    /** A step on the press and on every [every]-th repeat of a held key (none when 0); none on release. */
+    private fun steps(key: Int, action: Int, every: Int = config.repeatEvery): Boolean =
+        when (action) {
             GLFW_PRESS -> true
             GLFW_REPEAT -> {
                 val count = (repeats[key] ?: 0) + 1
                 repeats[key] = count
-                count % config.repeatEvery == 0
+                every > 0 && count % every == 0
             }
             else -> {
                 repeats.remove(key)
                 false
             }
         }
-        return if (send) Control.Knob(AirPlayKnobState(wheel = step), true) else null
-    }
 
     private fun hold(action: ControlAction): AirPlayKnobState? = when (action) {
         ControlAction.KNOB_LEFT -> AirPlayKnobState(x = -NUDGE)
@@ -115,6 +121,7 @@ class KeyControls(private val config: ControlsConfig = ControlsConfig.DEFAULT) {
         ControlAction.SIRI -> Control.Siri
         ControlAction.SCREENSHOT -> Control.Screenshot
         ControlAction.ALTSCREEN_CONTENT -> Control.NextAltscreenContent
+        ControlAction.ALTSCREEN_CARDS -> Control.NextAltscreenCards
         else -> null
     }
 

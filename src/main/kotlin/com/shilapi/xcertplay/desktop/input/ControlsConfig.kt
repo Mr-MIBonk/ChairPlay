@@ -27,6 +27,9 @@ enum class ControlAction(val key: String, val defaults: String, val description:
     SIRI("key.siri", "S", "Siri"),
     SCREENSHOT("key.screenshot", "F12", "save the CarPlay screen as a PNG in the screenshots folder"),
     ALTSCREEN_CONTENT("key.altscreen.content", "F11", "show the altscreen's next content: map, turn card, map with turn card"),
+    ALTSCREEN_ZOOM_IN("key.altscreen.zoom.in", "Equal, Shift+Equal, KP_Add", "zoom the AltScreen map in"),
+    ALTSCREEN_ZOOM_OUT("key.altscreen.zoom.out", "Minus, KP_Subtract", "zoom the AltScreen map out"),
+    ALTSCREEN_CARDS("key.altscreen.cards", "Shift+F11", "move the altscreen's ETA and turn card: auto, left, right, top, off"),
 }
 
 /** A GLFW key code with the Shift, Ctrl and Alt bits that must be held. */
@@ -42,6 +45,8 @@ enum class WheelAction { KNOB, NONE }
 class ControlsConfig(
     val bindings: Map<KeyBinding, ControlAction>,
     val repeatEvery: Int = 3,
+    /** A held AltScreen zoom key steps on every N-th repeat; 0 steps once a press. */
+    val zoomRepeatEvery: Int = 10,
     val wheel: WheelAction = WheelAction.KNOB,
     val wheelInvert: Boolean = false,
     val notchesPerStep: Int = 1,
@@ -53,6 +58,7 @@ class ControlsConfig(
         const val FILE = "controls.properties"
 
         private const val REPEAT = "key.repeat.every"
+        private const val ZOOM_REPEAT = "key.zoom.repeat.every"
         private const val WHEEL = "wheel.action"
         private const val INVERT = "wheel.invert"
         private const val NOTCHES = "wheel.notches.per.step"
@@ -73,7 +79,7 @@ class ControlsConfig(
         }
 
         private fun parse(settings: Properties): ControlsConfig {
-            val known = ControlAction.entries.map { it.key }.toSet() + setOf(REPEAT, WHEEL, INVERT, NOTCHES)
+            val known = ControlAction.entries.map { it.key }.toSet() + setOf(REPEAT, ZOOM_REPEAT, WHEEL, INVERT, NOTCHES)
             settings.stringPropertyNames().firstOrNull { it !in known }?.let {
                 throw IllegalArgumentException("$FILE: unknown setting $it")
             }
@@ -95,6 +101,10 @@ class ControlsConfig(
             return ControlsConfig(
                 bindings,
                 repeatEvery = positive(settings, REPEAT, 3),
+                zoomRepeatEvery = settings.getProperty(ZOOM_REPEAT)?.trim()?.ifEmpty { null }?.let { raw ->
+                    raw.toIntOrNull()?.takeIf { it >= 0 }
+                        ?: throw IllegalArgumentException("$FILE: $ZOOM_REPEAT must be a whole number of zero or more, not $raw")
+                } ?: 10,
                 wheel = when (val wheel = settings.getProperty(WHEEL)?.trim()?.lowercase() ?: "knob") {
                     "knob" -> WheelAction.KNOB
                     "none" -> WheelAction.NONE
@@ -173,6 +183,8 @@ class ControlsConfig(
             append("\n")
             append("# A held key-bound knob turn steps on every N-th key repeat.\n")
             append("$REPEAT=3\n")
+            append("# A held AltScreen zoom key steps on every N-th key repeat; '0' steps once a press.\n")
+            append("$ZOOM_REPEAT=10\n")
             append("\n")
             append("# Mouse wheel: 'knob' turns the knob (scrolling down is forward), 'none' ignores the wheel.\n")
             append("$WHEEL=knob\n")

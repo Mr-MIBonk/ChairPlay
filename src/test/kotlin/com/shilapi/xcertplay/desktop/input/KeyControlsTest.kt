@@ -92,6 +92,31 @@ class KeyControlsTest {
     }
 
     @Test
+    fun `shift F11 moves the altscreen to its next card layout`() {
+        assertEquals(Control.NextAltscreenCards, press(GLFW_KEY_F11, GLFW_MOD_SHIFT))
+    }
+
+    // Plus and minus on either keyboard zoom the AltScreen map; plus on the main keys is Shift+Equal.
+    @Test
+    fun `plus and minus zoom the altscreen map on both keyboards`() {
+        assertEquals(Control.MapZoom(1), press(GLFW_KEY_EQUAL))
+        assertEquals(Control.MapZoom(1), press(GLFW_KEY_EQUAL, GLFW_MOD_SHIFT))
+        assertEquals(Control.MapZoom(1), press(GLFW_KEY_KP_ADD))
+        assertEquals(Control.MapZoom(-1), press(GLFW_KEY_MINUS))
+        assertEquals(Control.MapZoom(-1), press(GLFW_KEY_KP_SUBTRACT))
+        assertNull(release(GLFW_KEY_KP_SUBTRACT))
+    }
+
+    // Windows repeats about 30 times a second; the cluster map has few zoom levels and reached its end within a
+    // second at every third repeat, so a held zoom key steps on every tenth.
+    @Test
+    fun `a held zoom key steps on every tenth repeat`() {
+        press(GLFW_KEY_KP_ADD)
+        val repeats = (1..20).map { controls.key(GLFW_KEY_KP_ADD, GLFW_REPEAT, 0) }
+        assertEquals(listOf(10, 20), repeats.withIndex().filter { it.value != null }.map { it.index + 1 })
+    }
+
+    @Test
     fun `the mouse wheel turns the knob a step per notch`() {
         assertEquals(Control.Knob(AirPlayKnobState(wheel = 1), true), controls.scroll(-1.0))
         assertEquals(Control.Knob(AirPlayKnobState(wheel = -2), true), controls.scroll(2.0))

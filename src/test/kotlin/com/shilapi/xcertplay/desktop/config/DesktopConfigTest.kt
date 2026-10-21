@@ -221,6 +221,31 @@ class DesktopConfigTest {
         assertEquals("maps:/car/instrumentcluster/instructioncard", config.airPlay.cluster!!.initialUrl)
     }
 
+    // DashBoard reads the card layout from the cluster URL for every navigation app (MHI2Q CarPlay project notes).
+    @Test
+    fun `the altscreen card layout goes into the cluster url`() {
+        assertEquals("maps:/car/instrumentcluster/map", configWith("altscreen.enabled=true").airPlay.cluster!!.initialUrl)
+        assertEquals(
+            "maps:/car/instrumentcluster?showETA=yes&maneuverLayout=rightAligned",
+            configWith("altscreen.enabled=true", "altscreen.content=map-card", "altscreen.cards=right").airPlay.cluster!!.initialUrl,
+        )
+        assertEquals(
+            "maps:/car/instrumentcluster/map?showETA=no&maneuverLayout=no",
+            configWith("altscreen.enabled=true", "altscreen.cards=off").airPlay.cluster!!.initialUrl,
+        )
+        assertEquals(AltscreenCards.TOP, AltscreenCards.RIGHT.next())
+    }
+
+    // Without a route the altscreen looks the same in every mode, so its title says which one it is in.
+    @Test
+    fun `the window titles name the stream size, and the AltScreen its content and card layout`() {
+        assertEquals("DiPlayDesktop · 1280×720", mainWindowTitle(WindowSize(1280, 720)))
+        assertEquals(
+            "DiPlayDesktop AltScreen · 1440×542 · map-card · cards right",
+            altscreenTitle(WindowSize(1440, 542), AltscreenContent.MAP_CARD, AltscreenCards.RIGHT),
+        )
+    }
+
     // Room for an overlay of our own, such as the maneuver layer on the right.
     @Test
     fun `the altscreen safe area can leave room at its edges`() {
@@ -235,6 +260,15 @@ class DesktopConfigTest {
             configWith("altscreen.enabled=true", "altscreen.content=hud")
         }
         assertTrue(error.message, error.message!!.contains("altscreen.content"))
+    }
+
+    // The CarPlay data log is for diagnostics and grows during every drive: off unless asked for.
+    @Test
+    fun `the CarPlay data log is off unless asked for`() {
+        assertFalse(configWith().logCarPlayData)
+        assertTrue(configWith("log.carplay.data=true").logCarPlayData)
+        assertTrue(DesktopConfig.defaultSettingsText().contains("'true' or 'false'.\nlog.carplay.data=false\n"))
+        assertTrue(runCatching { configWith("log.carplay.data=yes").logCarPlayData }.exceptionOrNull() is IllegalArgumentException)
     }
 
     // The name the iPhone shows for the car, in CarPlay settings, /info and the Bonjour service; the window

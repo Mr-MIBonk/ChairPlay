@@ -94,8 +94,17 @@ class ControlsConfigTest {
         assertEquals(listOf(true, true, true, true), sent.map { it != null })
     }
 
+    // Zero gives one zoom step a press, as the zoom buttons on many steering wheels.
+    @Test
+    fun `the zoom repeat is configurable and zero turns it off`() {
+        val controls = KeyControls(ControlsConfig.load(dirWith("key.zoom.repeat.every=0")))
+        assertEquals(Control.MapZoom(1), controls.key(GLFW_KEY_KP_ADD, GLFW_PRESS, 0))
+        assertTrue((1..40).all { controls.key(GLFW_KEY_KP_ADD, GLFW_REPEAT, 0) == null })
+        assertEquals(10, ControlsConfig.DEFAULT.zoomRepeatEvery)
+    }
+
     @Test
     fun `the summary counts bound actions and names the wheel mode`() {
-        assertEquals("controls: 17 actions, wheel=knob", ControlsConfig.DEFAULT.summary())
+        assertEquals("controls: 20 actions, wheel=knob", ControlsConfig.DEFAULT.summary())
     }
 }

@@ -24,13 +24,13 @@ internal fun screenshotImage(width: Int, height: Int, rgba: ByteBuffer): Buffere
     return image
 }
 
-/** screenshots/carplay-<date>-<time>.png in the app folder [dir]. */
-internal fun screenshotFile(dir: Path, now: LocalDateTime): Path =
-    dir.resolve("screenshots").resolve("carplay-${now.format(FILE_TIME)}.png")
+/** screenshots/<screen>-<date>-<time>.png in the app folder [dir]; [screen] is carplay or altscreen. */
+internal fun screenshotFile(dir: Path, now: LocalDateTime, screen: String = "carplay"): Path =
+    dir.resolve("screenshots").resolve("$screen-${now.format(FILE_TIME)}.png")
 
 /** Writes [image] next to the app's other files and logs where, or why not. */
-internal fun saveScreenshot(image: BufferedImage, dir: Path, log: (String) -> Unit) {
-    val file = screenshotFile(dir, LocalDateTime.now())
+internal fun saveScreenshot(image: BufferedImage, dir: Path, log: (String) -> Unit, screen: String = "carplay") {
+    val file = screenshotFile(dir, LocalDateTime.now(), screen)
     try {
         Files.createDirectories(file.parent)
         ImageIO.write(image, "png", file.toFile())
