@@ -54,7 +54,7 @@ class SameLanNetworkTest {
             hotspotInfoFor(emptyList(), listOf(wifiNic), saved)
             fail("expected an exception")
         } catch (e: IllegalStateException) {
-            assertTrue(e.message!!.contains("Wi-Fi не подключён"))
+            assertTrue(e.message, e.message!!.contains("not connected to Wi-Fi"))
         }
     }
 

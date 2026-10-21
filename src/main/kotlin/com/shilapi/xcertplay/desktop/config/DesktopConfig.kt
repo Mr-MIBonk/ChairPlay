@@ -43,7 +43,7 @@ class DesktopConfig(private val dir: Path) {
     val pairings: PairingStore = loadPairings()
     val iphoneAddress: String? = settings.getProperty("iphone.address")?.trim()?.ifEmpty { null }
     val wifi = SavedWifi(
-        ssid = settings.getProperty("wifi.ssid")?.ifBlank { null } ?: error("Set wifi.ssid in ${dir.resolve(SETTINGS)}"),
+        ssid = settings.getProperty("wifi.ssid")?.ifBlank { null } ?: error("Set wifi.ssid in ${dir.resolve(SETTINGS_FILE)}"),
         passphrase = settings.getProperty("wifi.passphrase").orEmpty(),
         security = Iap2WirelessSecurity.valueOf(settings.getProperty("wifi.security", "WPA_WPA2").trim()),
     )
@@ -174,10 +174,10 @@ class DesktopConfig(private val dir: Path) {
     fun mfiDirectory(): File = dir.resolve("offline-mfi").toFile()
 
     private fun loadSettings(): Properties {
-        val file = dir.resolve(SETTINGS)
+        val file = dir.resolve(SETTINGS_FILE)
         if (!file.exists()) {
             Files.createDirectories(dir)
-            file.writeText(TEMPLATE.joinToString("") { it.text(it.entries) })
+            file.writeText(defaultSettingsText())
         } else {
             // A file from an older version gains what it lacks, after its own lines, which stay as they were.
             val saved = Properties().apply { file.reader().use(::load) }
@@ -186,11 +186,7 @@ class DesktopConfig(private val dir: Path) {
             }
             if (missing.isNotEmpty()) {
                 val text = file.readText()
-                file.appendText(
-                    (if (text.isEmpty() || text.endsWith("\n")) "" else "\n") +
-                        "\n# Added by DiPlayDesktop: settings this file did not have yet, at their defaults.\n" +
-                        missing.joinToString(""),
-                )
+                file.appendText((if (text.isEmpty() || text.endsWith("\n")) "" else "\n") + missing.joinToString(""))
             }
         }
         return Properties().apply { file.reader().use(::load) }
@@ -306,16 +302,16 @@ class DesktopConfig(private val dir: Path) {
         /** settings.properties as the first start writes it, and what an older file is completed with. */
         private val TEMPLATE = listOf(
             SettingBlock("Wi-Fi network shared by this PC and the iPhone.", "wifi.ssid" to "", "wifi.passphrase" to ""),
-            SettingBlock("NONE, WEP, WPA_WPA2, WPA3_TRANSITION or WPA3_ONLY", "wifi.security" to "WPA_WPA2"),
+            SettingBlock("'NONE', 'WEP', 'WPA_WPA2', 'WPA3_TRANSITION' or 'WPA3_ONLY'", "wifi.security" to "WPA_WPA2"),
             SettingBlock("Paired iPhone's Bluetooth address, needed only when several phones are paired.", "iphone.address" to ""),
-            SettingBlock("The car's name on the iPhone (CarPlay settings, the network); blank is DiPlayDesktop.", "device.name" to ""),
+            SettingBlock("The car's name on the iPhone (CarPlay settings, the network); blank is 'DiPlayDesktop'.", "device.name" to ""),
             SettingBlock(
                 "The car button on the CarPlay home screen: its label, and a square image in this folder\n" +
                     "(sent at 192 pixels at most). carplay-icon.png is written with the Windows icon to replace.",
                 "car.label" to "Windows", "car.icon" to "carplay-icon.png",
             ),
             SettingBlock(
-                "Sound devices: default (the Windows default) or a part of a device name that\n" +
+                "Sound devices: 'default' (the Windows default) or a part of a device name that\n" +
                     "`DiPlayDesktop.exe devices` lists.",
                 "audio.output" to "default", "audio.input" to "default",
             ),
@@ -330,17 +326,23 @@ class DesktopConfig(private val dir: Path) {
             ),
             SettingBlock("The window on this PC; the picture is scaled into it. Blank uses the display size.",
                 "window.width" to "", "window.height" to ""),
-            SettingBlock("windows (follow the Windows theme), light, dark, or phone (the iPhone decides).", "display.theme" to "windows"),
-            SettingBlock("true puts CarPlay's dock and controls on the right.", "display.right.hand.drive" to "false"),
-            SettingBlock("Where the dock goes: auto (the iPhone decides), driver (the driver's side) or bottom.", "display.dock" to "auto"),
+            SettingBlock("'windows' (follow the Windows theme), 'light', 'dark', or 'phone' (the iPhone decides).", "display.theme" to "windows"),
+            SettingBlock("'true' puts CarPlay's dock and controls on the right, 'false' on the left.", "display.right.hand.drive" to "false"),
+            SettingBlock("Where the dock goes: 'auto' (the iPhone decides), 'driver' (the driver's side) or 'bottom'.", "display.dock" to "auto"),
             SettingBlock(
-                "Pixels at each edge CarPlay keeps its controls out of, and whether it may still draw there.",
+                "Pixels at each edge CarPlay keeps its controls out of, and whether it may still draw there ('true' or 'false').",
                 "display.safe.top" to "0", "display.safe.bottom" to "0", "display.safe.left" to "0", "display.safe.right" to "0",
                 "display.safe.draw.outside" to "true",
             ),
-            SettingBlock("square (the picture fills the window to its corners) or rounded (CarPlay rounds them).",
+            SettingBlock("'square' (the picture fills the window to its corners) or 'rounded' (CarPlay rounds them).",
                 "display.corners" to "square"),
         )
+
+        /** settings.properties with every setting at its default, as the first start or deploy writes it. */
+        fun defaultSettingsText(): String =
+            "# DiPlayDesktop settings, read at start. Delete this file to get the defaults back (the Wi-Fi too).\n" +
+                "# A setting this file lacks is added at its end, at its default, when the app starts.\n\n" +
+                TEMPLATE.joinToString("") { it.text(it.entries) }
 
         /** Every key settings.properties knows. */
         val SETTING_KEYS: List<String> = TEMPLATE.flatMap { block -> block.entries.map { it.first } }
@@ -349,48 +351,18 @@ class DesktopConfig(private val dir: Path) {
         const val DEFAULT_ICON_FILE = "carplay-icon.png"
         private const val DEFAULT_CAR_LABEL = "Windows"
         private const val MAX_ICON_PIXELS = 192
-        private const val SETTINGS = "settings.properties"
+        const val SETTINGS_FILE = "settings.properties"
         private const val MM_PER_INCH = 25.4
         /** Upstream AirPlayDisplaySettings.DEFAULT_WIDTH_PHYSICAL_MM. */
         private const val DEFAULT_WIDTH_MM = 200
         private val HEX = HexFormat.of()
 
-        /** %APPDATA%\DiPlayDesktop: where everything lived before the app folder, and still does outside the exe. */
-        val LEGACY_DIRECTORY: Path? = System.getenv("APPDATA")?.let { Path.of(it, "DiPlayDesktop") }
-
-        /** What the app folder holds besides the program; `deploy` never replaces these. */
-        val DATA_ENTRIES = listOf(SETTINGS, "controls.properties", DEFAULT_ICON_FILE, "identity.properties", "pairings", "offline-mfi")
-
         /**
          * The folder of the packaged exe, whose path jpackage's launcher puts in `jpackage.app-path`: the
-         * program and its data live together there. Run any other way, the legacy folder.
+         * program and its data live together there. Run any other way (installDist, an IDE), the working directory.
          */
         fun appDirectory(appPath: String? = System.getProperty("jpackage.app-path")): Path =
-            appPath?.let { Path.of(it).toAbsolutePath().parent }
-                ?: checkNotNull(LEGACY_DIRECTORY) { "APPDATA is not set and the app was not started from its exe" }
-
-        /**
-         * Copies the settings, keys and pairings from [legacy] into a [target] that has none, so the iPhone
-         * keeps knowing this PC as the same car. The legacy folder stays as it was, a backup.
-         */
-        fun adoptLegacy(target: Path, legacy: Path?): Boolean {
-            if (legacy == null || target == legacy || !Files.isDirectory(legacy)) return false
-            if (Files.exists(target.resolve(SETTINGS)) || Files.exists(target.resolve("identity.properties"))) return false
-            val present = DATA_ENTRIES.map(legacy::resolve).filter(Files::exists)
-            if (present.isEmpty()) return false
-            for (entry in present) {
-                Files.walk(entry).use { paths ->
-                    paths.forEach { source ->
-                        val copy = target.resolve(legacy.relativize(source).toString())
-                        if (Files.isDirectory(source)) Files.createDirectories(copy) else {
-                            Files.createDirectories(copy.parent)
-                            Files.copy(source, copy)
-                        }
-                    }
-                }
-            }
-            return true
-        }
+            appPath?.let { Path.of(it).toAbsolutePath().parent } ?: Path.of(System.getProperty("user.dir")).toAbsolutePath()
 
         /** DiPlayBootstrap.deviceId: a locally administered MAC derived from the AirPlay public key. */
         fun deviceId(identity: AirPlayIdentity): String {

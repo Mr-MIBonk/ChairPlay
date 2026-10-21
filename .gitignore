@@ -4,6 +4,9 @@ build/
 .kotlin/
 local.properties
 
+# The deployed app with its settings and keys (gradlew deploy).
+dist/
+
 # MFi identity and the app's keys must never be committed.
 offline-mfi/
 *.pk8

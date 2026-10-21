@@ -33,10 +33,19 @@ rebuilds never wipe, deploy it there:
 gradlew deploy
 ```
 
-This builds the image and syncs it into `Documents\DiPlayDesktopApp` (another folder with
-`-Pdiplay.home=<path>`), replacing the program and keeping `settings.properties`, `identity.properties`,
-`pairings\`, `offline-mfi\`, `controls.properties` and `carplay-icon.png`. On its first start in a folder without them, the app copies them from
-`%APPDATA%\DiPlayDesktop`, where earlier builds kept them, so the iPhone still knows the PC; the old folder stays.
+This builds the image and syncs it into `dist\DiPlayDesktop` in the project, replacing the program and keeping
+`settings.properties`, `controls.properties`, `carplay-icon.png`, `identity.properties`, `pairings\` and
+`offline-mfi\`. It is outside `build\`, which `gradlew clean` wipes, and git ignores it.
+
+To install somewhere else, give the folder as the `diplay.home` property: once with `gradlew deploy
+-Pdiplay.home=C:\Apps\DiPlayDesktop`, or for good in `%USERPROFILE%\.gradle\gradle.properties`:
+
+```
+diplay.home=C:/Apps/DiPlayDesktop
+```
+
+`gradlew launchApp` starts the app from the same folder in its own console window, and `gradlew listDevices`
+lists the Bluetooth and sound devices with it.
 
 ## In VS Code
 
@@ -53,8 +62,10 @@ The files below live in the app folder, next to `DiPlayDesktop.exe`.
    paired devices (it connects to nothing).
 2. **MFi identity files.** The wireless handshake needs an Apple MFi identity (certificate and key files). This
    project does not ship them and the app image never contains them. Put your own files in `offline-mfi\`.
-3. **Settings.** The first start creates `settings.properties` with every setting at its default and a comment
-   on each; a file from an older version gets the settings it lacks added at its end. Fill in:
+3. **Settings.** `deploy` (or the first start, for a folder filled by hand) writes `settings.properties` with
+   every setting at its default and a comment on each, together with `controls.properties` and `carplay-icon.png`;
+   files already there are kept, and a settings file from an older version gets the settings it lacks added at
+   its end. Fill in:
    - `wifi.ssid` (required) and `wifi.passphrase`: the Wi-Fi network shared by the PC and the iPhone;
    - `wifi.security`: `NONE`, `WEP`, `WPA_WPA2` (default), `WPA3_TRANSITION` or `WPA3_ONLY`;
    - `iphone.address`: the iPhone's Bluetooth address, only needed when several phones are paired;
@@ -115,7 +126,7 @@ tapping it minimizes the CarPlay window and leaves CarPlay running.
 
 Besides touch with the mouse, the keyboard and the mouse wheel work as a car's controls. These are the defaults;
 `controls.properties` in the app folder, written on the first start with every action documented, rebinds them
-(`key.siri = Ctrl+S, F10`; empty turns an action off) and sets the wheel (`wheel.action = knob` or `none`,
+(`key.siri=Ctrl+S, F10`; empty turns an action off) and sets the wheel (`wheel.action=knob` or `none`,
 `wheel.invert`, `wheel.notches.per.step`) and `key.repeat.every`. A mistake in it stops the start and names the
 setting; delete the file to get the defaults back.
 

@@ -207,18 +207,18 @@ val jpackageImage by tasks.registering(Exec::class) {
 }
 
 // The app folder holds the program next to its data (settings, keys, pairings), which the app reads from
-// its exe's folder. deploy refreshes the program there and never touches the data. Override the folder with
-// -Pdiplay.home=<path>.
-val appHome = providers.gradleProperty("diplay.home")
-    .orElse(providers.systemProperty("user.home").map { "$it/Documents/DiPlayDesktopApp" })
+// its exe's folder. deploy refreshes the program there and never touches the data. It is dist/DiPlayDesktop
+// in the project (outside build/, which clean wipes), or the path in the diplay.home property: on the
+// command line (-Pdiplay.home=<path>) or, to keep one for good, in %USERPROFILE%\.gradle\gradle.properties.
+val appHome: Provider<String> = providers.gradleProperty("diplay.home")
+    .orElse(layout.projectDirectory.dir("dist/DiPlayDesktop").asFile.path)
 
-val deploy by tasks.registering(Sync::class) {
-    group = "distribution"
+val syncApp by tasks.registering(Sync::class) {
     description = "Copies the app image into the app folder (diplay.home), keeping its settings, keys and pairings."
     dependsOn(jpackageImage)
     from(layout.buildDirectory.dir("jpackage/DiPlayDesktop"))
     into(appHome)
-    // DesktopConfig.DATA_ENTRIES.
+    // The app data: settings, controls and car icon, the AirPlay identity, pairings and the MFi files.
     preserve {
         include("settings.properties", "controls.properties", "carplay-icon.png", "identity.properties", "pairings/**", "offline-mfi/**")
     }
@@ -232,4 +232,35 @@ val deploy by tasks.registering(Sync::class) {
             "$target has files but no DiPlayDesktop.exe or app data; refusing to replace its contents"
         }
     }
+}
+
+// Then writes the default settings, controls and car icon the folder lacks, so the Wi-Fi can be filled in
+// before the first start; the templates live in the app's code (AppDefaults.kt).
+val deploy by tasks.registering(JavaExec::class) {
+    group = "distribution"
+    description = "Installs the app into the app folder (diplay.home) with default settings where it has none."
+    dependsOn(syncApp)
+    mainClass = "com.shilapi.xcertplay.desktop.config.AppDefaultsKt"
+    classpath = sourceSets.main.get().runtimeClasspath
+    jvmArgs("-Djava.awt.headless=true")
+    args(appHome.get())
+}
+
+// Starts the deployed app in its own console window, so it is stopped by closing its window: a task runner's
+// stop button would kill it hard, and the iPhone then ignores new sessions until it restarts.
+val launchApp by tasks.registering(Exec::class) {
+    group = "application"
+    description = "Starts DiPlayDesktop.exe from the app folder (diplay.home) in its own console window."
+    val home = appHome.map { file(it) }
+    doFirst {
+        check(home.get().resolve("DiPlayDesktop.exe").isFile) { "no DiPlayDesktop.exe in ${home.get()}; run deploy first" }
+    }
+    commandLine("cmd", "/c", "start", "DiPlayDesktop", "/D", home.get().path, "DiPlayDesktop.exe")
+}
+
+val listDevices by tasks.registering(Exec::class) {
+    group = "application"
+    description = "Lists the Bluetooth radio, paired devices and sound devices with the deployed app."
+    val home = appHome.map { file(it) }
+    commandLine(home.get().resolve("DiPlayDesktop.exe").path, "devices")
 }

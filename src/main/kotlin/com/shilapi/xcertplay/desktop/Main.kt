@@ -52,12 +52,9 @@ private fun log(message: String) = println("${LocalTime.now()} $message")
 /** How often display.theme=windows looks at the Windows theme. */
 private const val THEME_POLL_SECONDS = 5L
 
-/** The app folder, after copying the settings, keys and pairings an older build kept in %APPDATA%. */
+/** The app folder, where the settings, keys and pairings live. */
 private fun dataDirectory(): Path {
     val dir = DesktopConfig.appDirectory()
-    if (DesktopConfig.adoptLegacy(dir, DesktopConfig.LEGACY_DIRECTORY)) {
-        log("copied settings, keys and pairings from ${DesktopConfig.LEGACY_DIRECTORY} into $dir; the old folder is kept")
-    }
     log("settings and keys: $dir")
     return dir
 }

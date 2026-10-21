@@ -22,7 +22,9 @@ class ControlsConfigTest {
         val loaded = ControlsConfig.load(dir)
 
         val text = Files.readString(dir.resolve(ControlsConfig.FILE))
-        for (action in ControlAction.entries) assertTrue("${action.key} missing", "${action.key} = " in text)
+        // key=value without spaces, as settings.properties writes it.
+        for (action in ControlAction.entries) assertTrue("${action.key} missing", "\n${action.key}=" in text)
+        assertTrue("no spaces around =", " = " !in text.lines().filterNot { it.startsWith("#") }.joinToString("\n"))
         assertEquals(ControlsConfig.DEFAULT.bindings, loaded.bindings)
         assertEquals(ControlsConfig.DEFAULT.bindings, ControlsConfig.load(dir).bindings)
         assertEquals(ControlAction.KNOB_PREVIOUS, loaded.bindings[KeyBinding(GLFW_KEY_TAB, GLFW_MOD_SHIFT)])

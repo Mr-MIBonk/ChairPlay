@@ -23,8 +23,8 @@
       "problemMatcher": []
     },
     {
-      "label": "Deploy to DiPlayDesktopApp",
-      "detail": "Builds the app and syncs it into Documents\\DiPlayDesktopApp, keeping settings and keys. Close the app first.",
+      "label": "Deploy",
+      "detail": "Builds the app into dist\\DiPlayDesktop, or the diplay.home path, keeping settings and keys. Close the app first.",
       "type": "shell",
       "command": ".\\gradlew.bat deploy",
       "group": "build",
@@ -32,23 +32,23 @@
     },
     {
       "label": "Run DiPlayDesktop",
-      "detail": "Starts the deployed app in its own console window.",
+      "detail": "Starts the deployed app (dist\\DiPlayDesktop or diplay.home) in its own console window.",
       "type": "shell",
-      "command": "start \"DiPlayDesktop\" /D \"%USERPROFILE%\\Documents\\DiPlayDesktopApp\" DiPlayDesktop.exe",
+      "command": ".\\gradlew.bat -q launchApp",
       "presentation": { "reveal": "never" },
       "problemMatcher": []
     },
     {
       "label": "Deploy and run",
       "dependsOrder": "sequence",
-      "dependsOn": ["Deploy to DiPlayDesktopApp", "Run DiPlayDesktop"],
+      "dependsOn": ["Deploy", "Run DiPlayDesktop"],
       "problemMatcher": []
     },
     {
       "label": "List devices",
       "detail": "Bluetooth radio, paired devices, sound outputs and inputs.",
       "type": "shell",
-      "command": "\"%USERPROFILE%\\Documents\\DiPlayDesktopApp\\DiPlayDesktop.exe\" devices",
+      "command": ".\\gradlew.bat -q listDevices",
       "problemMatcher": []
     },
     {

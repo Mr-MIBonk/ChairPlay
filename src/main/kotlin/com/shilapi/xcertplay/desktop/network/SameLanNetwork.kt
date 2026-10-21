@@ -28,18 +28,19 @@ fun hotspotInfoFor(
     interfaces: List<NicSnapshot>,
     saved: SavedWifi,
 ): WirelessHotspotInfo {
-    val connection = connections.firstOrNull() ?: error("Wi-Fi не подключён")
+    val connection = connections.firstOrNull()
+        ?: error("This PC is not connected to Wi-Fi; connect it to the network in wifi.ssid (an Ethernet link is not enough)")
     check(connection.ssid == saved.ssid) {
-        "PC подключён к Wi-Fi \"${connection.ssid}\", а сохранён \"${saved.ssid}\""
+        "This PC is on Wi-Fi \"${connection.ssid}\", but wifi.ssid is \"${saved.ssid}\""
     }
     val matches = interfaces.filter { it.up && it.displayName == connection.interfaceDescription }
     check(matches.size == 1) {
-        "Адаптер \"${connection.interfaceDescription}\" найден ${matches.size} раз(а) среди сетевых интерфейсов"
+        "Wi-Fi adapter \"${connection.interfaceDescription}\" matches ${matches.size} network interfaces, not one"
     }
     val nic = matches.single()
     val addresses = nic.addresses.filterNot { it.isLoopbackAddress }
     val hostAddress = HotspotAddressPolicy.select(addresses)
-        ?: error("У адаптера \"${connection.interfaceDescription}\" нет подходящего адреса")
+        ?: error("Wi-Fi adapter \"${connection.interfaceDescription}\" has no usable IPv4 or link-local IPv6 address")
     val band = when (connection.channel) {
         in 1..14 -> 1
         in 32..177 -> 2
@@ -72,7 +73,7 @@ class SameLanNetwork(private val saved: SavedWifi) : WirelessHotspotManager {
         val before = checkNotNull(published) { "SameLanNetwork is not started" }
         val now = describe()
         check(now.hostAddresses == before.hostAddresses) {
-            "Адрес Wi-Fi сменился: ${before.hostAddresses} -> ${now.hostAddresses}"
+            "The Wi-Fi address changed: ${before.hostAddresses} -> ${now.hostAddresses}"
         }
     }
 

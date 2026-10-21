@@ -4,6 +4,8 @@
 Bluetooth first, then over Wi-Fi. CarPlay opens in a window, and you drive it with the mouse and the keyboard,
 hear it through the PC's speakers and talk to Siri through its microphone.
 
+![CarPlay home screen in the DiPlayDesktop window, with the Windows car button](docs/images/carplay-window.png)
+
 Useful for developing and testing CarPlay apps and navigation without sitting in a car, for demos, or simply for
 CarPlay on a desk.
 
@@ -32,8 +34,15 @@ Tested on Windows 11 with an iPhone 15 (iOS 18.6).
 
 ## Requirements
 
-- Windows 10 or 11, 64-bit, with Bluetooth and Wi-Fi.
-- An iPhone paired with the PC over Bluetooth, on the same Wi-Fi network (WPA2 or open; no client isolation).
+- Windows 10 or 11, 64-bit.
+- **Bluetooth**: a built-in or USB adapter with Bluetooth Classic (BR/EDR), on Windows' own Microsoft Bluetooth
+  stack: the app opens the iPhone's iAP2 channel over RFCOMM through Winsock. Bluetooth LE-only adapters and
+  third-party stacks (old Broadcom WIDCOMM, Toshiba) do not work. The iPhone must be paired in Windows Settings.
+- **Wi-Fi**: the PC itself must be on Wi-Fi, through its own Wi-Fi adapter, on the same network as the iPhone; a PC
+  wired to the same router by Ethernet is not enough yet. The network must be WPA2-Personal or open (a WPA2/WPA3
+  mixed router works as WPA2; WPA3-only does not), and must let its clients reach each other and pass multicast
+  for Bonjour: no client or AP isolation, which guest networks usually have. Tested on 5 GHz.
+- **Windows Firewall** must let the iPhone in (the app prints the commands if a rule is missing).
 - **An Apple MFi accessory identity** (certificate and private key). The iPhone authenticates every CarPlay
   accessory; this project does not and cannot ship one. You supply your own in `offline-mfi\`.
 - JDK 17 to build.
@@ -46,14 +55,16 @@ cd DiPlayDesktop
 gradlew deploy
 ```
 
-`deploy` builds a self-contained app (with its own Java runtime) into `Documents\DiPlayDesktopApp` and keeps your
-settings there on later builds. Then:
+`deploy` builds a self-contained app (with its own Java runtime) into `dist\DiPlayDesktop` and keeps your
+settings and keys there on later builds. To install it elsewhere, pass `-Pdiplay.home=<folder>`, or put
+`diplay.home=<folder>` in `%USERPROFILE%\.gradle\gradle.properties` once. Then:
 
 1. Pair the iPhone in Windows Settings > Bluetooth & devices.
-2. Put your MFi identity files in `DiPlayDesktopApp\offline-mfi\`.
-3. Start `DiPlayDesktop.exe` once; it writes `settings.properties`. Fill in your Wi-Fi name and password.
+2. Put your MFi identity files in `dist\DiPlayDesktop\offline-mfi\`.
+3. Fill in your Wi-Fi name and password in `dist\DiPlayDesktop\settings.properties`, which `deploy` wrote with
+   every setting at its default.
 4. Allow DiPlayDesktop through Windows Firewall (the app prints the exact commands if a rule is missing).
-5. Start `DiPlayDesktop.exe` again with the iPhone unlocked, and accept CarPlay on the iPhone.
+5. Start `DiPlayDesktop.exe` with the iPhone unlocked, and accept CarPlay on the iPhone.
 
 [docs/SETUP.md](docs/SETUP.md) has every step in detail and the reference for all settings.
 
@@ -112,3 +123,17 @@ are in `THIRD_PARTY_NOTICES` and travel with the app.
 
 CarPlay, iPhone, AirPlay and Siri are trademarks of Apple Inc. This project is not affiliated with Apple and does
 not include any Apple MFi identity.
+
+## Contributing
+
+Ideas, bug reports and fixes are welcome. Open an issue or a pull request, or write to me at
+[alex.strelets@gmail.com](mailto:alex.strelets@gmail.com) with what you would like to see. A log from the console
+helps with anything that does not connect; the app leaves the Wi-Fi password out of it, but look it over before
+sending.
+
+## Support the project
+
+DiPlay Desktop is a hobby project, built and tested on real hardware in my spare time. If it saves you a trip to
+the car or helps your CarPlay work, you can buy me a coffee:
+
+<a href="https://www.buymeacoffee.com/alexstrelets"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="217"></a>

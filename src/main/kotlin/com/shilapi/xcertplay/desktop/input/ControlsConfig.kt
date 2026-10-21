@@ -65,7 +65,7 @@ class ControlsConfig(
             val file = dir.resolve(FILE)
             if (!file.exists()) {
                 Files.createDirectories(dir)
-                file.writeText(template())
+                file.writeText(defaultText())
             }
             return parse(Properties().apply { file.reader().use(::load) })
         }
@@ -154,29 +154,30 @@ class ControlsConfig(
             ))
         }
 
-        private fun template(): String = buildString {
-            append("# DiPlayDesktop controls, read at start. Delete this file to get the defaults back.\n")
-            append("#\n")
-            append("# action = keys, separated by commas; leave it empty to turn the action off.\n")
-            append("# Keys: A-Z, 0-9, F1-F25, Left, Right, Up, Down, Enter, Space, Tab, Escape, Backspace, Insert,\n")
-            append("# Delete, Home, End, PageUp, PageDown, KP_0-KP_9, KP_Enter, KP_Add, KP_Subtract, Minus, Equal,\n")
-            append("# Comma, Period, Slash, ... named after their place on a US keyboard, so letters work in any\n")
-            append("# layout. A raw GLFW key code is written #290. Modifiers: Shift+, Ctrl+, Alt+ (Ctrl+Shift+S).\n")
+        /** controls.properties with every action at its default keys, as the first start or deploy writes it. */
+        fun defaultText(): String = buildString {
+            append("# DiPlayDesktop controls, read at start. Delete this file to get the defaults back.\n\n")
+            append("# action=keys, separated by commas; leave it empty to turn the action off.\n")
+            append("# Keys: 'A'-'Z', '0'-'9', 'F1'-'F25', 'Left', 'Right', 'Up', 'Down', 'Enter', 'Space', 'Tab', 'Escape',\n")
+            append("# 'Backspace', 'Insert', 'Delete', 'Home', 'End', 'PageUp', 'PageDown', 'KP_0'-'KP_9', 'KP_Enter',\n")
+            append("# 'KP_Add', 'KP_Subtract', 'Minus', 'Equal', 'Comma', 'Period', 'Slash', ... named after their place on\n")
+            append("# a US keyboard, so letters work in any layout. A raw GLFW key code is written '#290'.\n")
+            append("# Modifiers: 'Shift+', 'Ctrl+', 'Alt+' (for example 'Ctrl+Shift+S').\n")
             append("\n")
             for (action in ControlAction.entries) {
                 append("# ${action.description}\n")
-                append("${action.key} = ${action.defaults}\n")
+                append("${action.key}=${action.defaults}\n")
             }
             append("\n")
             append("# A held key-bound knob turn steps on every N-th key repeat.\n")
-            append("$REPEAT = 3\n")
+            append("$REPEAT=3\n")
             append("\n")
-            append("# Mouse wheel: knob turns the knob (scrolling down is forward), none ignores the wheel.\n")
-            append("$WHEEL = knob\n")
-            append("# true makes scrolling up forward.\n")
-            append("$INVERT = false\n")
+            append("# Mouse wheel: 'knob' turns the knob (scrolling down is forward), 'none' ignores the wheel.\n")
+            append("$WHEEL=knob\n")
+            append("# 'true' makes scrolling up forward, 'false' keeps down forward.\n")
+            append("$INVERT=false\n")
             append("# Wheel notches per knob step.\n")
-            append("$NOTCHES = 1\n")
+            append("$NOTCHES=1\n")
         }
     }
 }

@@ -122,6 +122,7 @@ class DesktopConfigTest {
 
         val text = Files.readString(dir.resolve("settings.properties"))
         assertTrue(text, text.startsWith(old))
+        assertFalse("each block has its own comment; no banner", text.contains("Added by"))
         for (key in DesktopConfig.SETTING_KEYS) assertTrue("$key missing", Regex("(?m)^${Regex.escape(key)}=").containsMatchIn(text))
         assertEquals(1, Regex("(?m)^display\\.width=").findAll(text).count())
         assertEquals(1920, config.airPlay.main.widthPixels)
@@ -195,37 +196,10 @@ class DesktopConfigTest {
         assertEquals(exe.parent, DesktopConfig.appDirectory(exe.toString()))
     }
 
-    // The iPhone knows this PC by the identity and pairings, so the first start in the app folder copies them.
+    // Started another way (installDist, an IDE), the app keeps its files in the working directory.
     @Test
-    fun `adopts the legacy settings keys and pairings once`() {
-        val legacy = Files.createTempDirectory("diplay-legacy")
-        writeTestSettings(legacy)
-        Files.writeString(legacy.resolve("identity.properties"), "pairingId=abc\n")
-        Files.createDirectories(legacy.resolve("pairings")).resolve("6964").let { Files.writeString(it, "00") }
-        Files.createDirectories(legacy.resolve("offline-mfi")).resolve("certificate.p7b").let { Files.writeString(it, "cert") }
-        Files.writeString(legacy.resolve("unrelated.txt"), "x")
-        val app = Files.createTempDirectory("diplay-app")
-
-        assertTrue(DesktopConfig.adoptLegacy(app, legacy))
-
-        assertEquals("pairingId=abc\n", Files.readString(app.resolve("identity.properties")))
-        assertEquals("00", Files.readString(app.resolve("pairings/6964")))
-        assertEquals("cert", Files.readString(app.resolve("offline-mfi/certificate.p7b")))
-        assertTrue(Files.exists(app.resolve("settings.properties")))
-        assertFalse(Files.exists(app.resolve("unrelated.txt")))
-        assertTrue("the legacy folder stays as a backup", Files.exists(legacy.resolve("identity.properties")))
-
-        Files.writeString(legacy.resolve("identity.properties"), "pairingId=newer\n")
-        assertFalse(DesktopConfig.adoptLegacy(app, legacy))
-        assertEquals("pairingId=abc\n", Files.readString(app.resolve("identity.properties")))
-    }
-
-    @Test
-    fun `adopts nothing without a legacy folder`() {
-        val app = Files.createTempDirectory("diplay-app")
-
-        assertFalse(DesktopConfig.adoptLegacy(app, null))
-        assertFalse(DesktopConfig.adoptLegacy(app, app.resolve("missing")))
+    fun `without the packaged exe the app folder is the working directory`() {
+        assertEquals(Path.of(System.getProperty("user.dir")).toAbsolutePath(), DesktopConfig.appDirectory(null))
     }
 
     // Without Opus among the microphone formats the wireless iPhone opened no audio stream at all and
