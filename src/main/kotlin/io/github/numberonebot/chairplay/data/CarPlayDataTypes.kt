@@ -130,13 +130,27 @@ data class RouteGuidance(
     val currentManeuvers: List<Maneuver> = emptyList(),
 )
 
-/** One lane of LaneGuidanceInfoUpdate (0x5204). */
-data class Lane(val position: Int? = null, val directionAngle: Int? = null, val status: LaneStatus? = null)
+/** One lane of LaneGuidanceInfoUpdate (0x5204), its angles in degrees, negative to the left. */
+data class Lane(
+    /** Where the lane is across the road, as sent. */
+    val position: Int? = null,
+    /** Apple's lane status as sent, also when [status] does not know it. */
+    val statusCode: Int? = null,
+    /** Every way the lane leads. */
+    val angles: List<Int> = emptyList(),
+    /** The way the route takes from this lane, when the iPhone marks one. */
+    val highlightAngle: Int? = null,
+) {
+    val status: LaneStatus? get() = codeOf<LaneStatus>(statusCode)
+
+    /** The lane's main way: the highlighted angle, else the first, as the MHI2Q project's parser reads it. */
+    val direction: Int? get() = highlightAngle ?: angles.firstOrNull()
+}
 
 /**
- * Lane guidance from LaneGuidanceInfoUpdate (0x5204). Its layout is not in upstream and has not been seen
- * from an iPhone (the identification does not declare the message), so it is decoded from the layout of
- * its siblings 0x5201 and 0x5202 and the data log keeps its raw bytes too.
+ * One lane guidance event from LaneGuidanceInfoUpdate (0x5204), the lanes of one place on the route. Its layout is not
+ * in upstream and has not been seen from an iPhone (the identification does not declare the message): it is the one
+ * the MHI2Q project's parser reads (hook/routeguidance/rgd_tlv.c), and the data log keeps the raw bytes too.
  */
 data class LaneGuidance(val index: Int? = null, val lanes: List<Lane> = emptyList(), val description: String? = null)
 
@@ -232,6 +246,10 @@ data class Power(
 /** Everything the bus knows, as of its last change. */
 data class CarPlayDataSnapshot(
     val route: RouteGuidance? = null,
+    /**
+     * The current lane event: the one whose index [RouteGuidance.laneGuidanceIndex] names. Whether to show it is
+     * [RouteGuidance.laneGuidanceShowing]'s call.
+     */
     val lanes: LaneGuidance? = null,
     val nowPlaying: NowPlaying? = null,
     val artwork: Artwork? = null,
@@ -244,7 +262,8 @@ data class CarPlayDataSnapshot(
 /** One change on the bus; the snapshot already holds it when listeners hear of it. */
 sealed interface CarPlayDataEvent {
     data class RouteChanged(val route: RouteGuidance) : CarPlayDataEvent
-    data class LanesChanged(val lanes: LaneGuidance) : CarPlayDataEvent
+    /** The current lane event changed; null when there is none. */
+    data class LanesChanged(val lanes: LaneGuidance?) : CarPlayDataEvent
     data class NowPlayingChanged(val nowPlaying: NowPlaying) : CarPlayDataEvent
     data class ArtworkChanged(val artwork: Artwork) : CarPlayDataEvent
     /** [call] as updated, also when it ended and has left [calls]. */

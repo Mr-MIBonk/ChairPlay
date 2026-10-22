@@ -256,22 +256,93 @@ class CarPlayDataBusTest {
         assertEquals("UA-KYIVSTAR", last<CommunicationsChanged>().communications.carrier)
     }
 
-    @Test
-    fun `lane guidance becomes lanes`() {
-        frame(0x5204) {
-            u16(1, 0)
-            group(2) {
-                u16(0, 0)
-                i16(1, 0)
-                u8(2, 2)
-            }
-            string(3, "Keep left")
+    private fun lanes(index: Int?, description: String = "Lanes $index") = frame(0x5204) {
+        index?.let { u16(1, it) }
+        group(2) {
+            u16(0, 0)
+            u8(1, 2)
+            i16(2, -90)
+            i16(3, -90)
         }
+        group(2) {
+            u16(0, 1)
+            u8(1, 1)
+            i16(2, 0)
+        }
+        string(3, description)
+    }
 
-        assertEquals(
-            LaneGuidance(0, listOf(Lane(0, 0, LaneStatus.PREFERRED)), "Keep left"),
-            last<LanesChanged>().lanes,
+    private fun currentLanes(index: Int) = frame(0x5201) {
+        u8(1, 1)
+        u16(16, index)
+        bool(18, true)
+    }
+
+    @Test
+    fun `lane guidance becomes lanes once the route makes its event current`() {
+        lanes(4, "Keep left")
+        assertNull(bus.snapshot().lanes)
+        assertTrue(events.filterIsInstance<LanesChanged>().isEmpty())
+
+        currentLanes(4)
+
+        val expected = LaneGuidance(
+            4,
+            listOf(Lane(0, LaneStatus.PREFERRED.code, listOf(-90), -90), Lane(1, LaneStatus.GOOD.code, listOf(0))),
+            "Keep left",
         )
+        assertEquals(expected, last<LanesChanged>().lanes)
+        assertEquals(expected, bus.snapshot().lanes)
+        assertEquals(LaneStatus.PREFERRED, expected.lanes[0].status)
+        // The highlighted angle, else the first.
+        assertEquals(listOf(-90, 0), expected.lanes.map { it.direction })
+        assertEquals(true, bus.snapshot().route!!.laneGuidanceShowing)
+    }
+
+    // The MHI2Q project's lane cache (hook/routeguidance/rgd_hook.c): the iPhone sends a window of lane events ahead
+    // of the route update that makes one current, and never needs one below the current index again.
+    @Test
+    fun `lane events wait for their turn and passed ones are dropped`() {
+        lanes(4)
+        lanes(5)
+        currentLanes(4)
+        assertEquals(4, bus.snapshot().lanes!!.index)
+
+        currentLanes(5)
+        assertEquals(5, last<LanesChanged>().lanes!!.index)
+
+        currentLanes(4)
+        assertNull(bus.snapshot().lanes)
+        assertNull(last<LanesChanged>().lanes)
+    }
+
+    @Test
+    fun `lane data without an event index is dropped`() {
+        lanes(null)
+        currentLanes(0)
+        assertNull(bus.snapshot().lanes)
+    }
+
+    @Test
+    fun `a full lane cache drops its oldest event but keeps the current one`() {
+        lanes(0)
+        currentLanes(0)
+        for (index in 1..32) lanes(index)
+
+        // Event 0 stayed while it was current; event 1, the oldest of the others, went to make room.
+        assertEquals(0, bus.snapshot().lanes!!.index)
+        currentLanes(1)
+        assertNull(bus.snapshot().lanes)
+        currentLanes(2)
+        assertEquals(2, bus.snapshot().lanes!!.index)
+    }
+
+    @Test
+    fun `the end of a route forgets its lane events`() {
+        lanes(3)
+        frame(0x5201) { u8(1, 0) }
+        currentLanes(3)
+        assertNull(bus.snapshot().lanes)
     }
 
     @Test

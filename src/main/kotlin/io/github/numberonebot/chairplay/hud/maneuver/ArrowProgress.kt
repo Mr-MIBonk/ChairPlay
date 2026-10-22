@@ -24,7 +24,7 @@ data class ArrowProgress(val level: Int, val state: Int) {
 
 // The MHI2Q bridge's distance policy (BAPBridge): the HUD prepares a maneuver 1.5 km ahead in town and 3 km on a
 // highway; the bar covers the last 15 % of that, or the step to the maneuver when it is shorter, and the arrow blinks
-// in its last 20 %. A step over 2 km counts as a highway.
+// in its last 20 %. A step over 2 km counts as a highway. Unlike the bridge, the fill ends where the blink starts.
 private const val CITY_PREPARE_METERS = 1_500L
 private const val HIGHWAY_PREPARE_METERS = 3_000L
 private const val HIGHWAY_STEP_METERS = 2_000L
@@ -61,7 +61,9 @@ fun arrowProgress(distanceMeters: Long?, stepMeters: Long?, typeCode: Int?, nowM
         val lit = Math.floorMod(nowMillis / ArrowProgress.BLINK_MILLIS, 2L) == 0L
         return if (lit) ArrowProgress(16, ArrowProgress.BLINK_HIGH) else ArrowProgress(0, ArrowProgress.BLINK_LOW)
     }
-    return ArrowProgress(percent * 16 / 100, ArrowProgress.FILL)
+    // The MHI2Q bridge fills over the whole bar (percent * 16 / 100), so the blink cut in with three sixteenths still
+    // white. Here the fill runs over the bar until the blink: the whole arrow is blue as the blink begins.
+    return ArrowProgress((percent - BLINK_PERCENT) * 16 / (100 - BLINK_PERCENT), ArrowProgress.FILL)
 }
 
 /** When [arrowProgress] changes next with the same distance (the blink's next phase), or null when it does not. */

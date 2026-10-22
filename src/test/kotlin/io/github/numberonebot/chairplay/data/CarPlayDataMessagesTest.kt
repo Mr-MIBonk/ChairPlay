@@ -210,19 +210,23 @@ class CarPlayDataMessagesTest {
         assertEquals("Elm", CarPlayDataMessages.decode(frame)!!.values["currentRoadName"])
     }
 
+    // The lane layout of the MHI2Q project's parser (hook/routeguidance/rgd_tlv.c, from the head unit's own
+    // libesoiap2 parseLaneInformation): position, status, the angles one per parameter, the highlighted angle.
     @Test
     fun `lane guidance decodes its lanes and keeps the raw bytes`() {
         val frame = Iap2Messages.buildRaw(0x5204) {
             u16(1, 2)
             group(2) {
                 u16(0, 0)
-                i16(1, -45)
-                u8(2, 0)
+                u8(1, 0)
+                i16(2, -45)
             }
             group(2) {
                 u16(0, 1)
-                i16(1, 0)
-                u8(2, 2)
+                u8(1, 2)
+                i16(2, 0)
+                i16(2, 90)
+                i16(3, 90)
             }
             string(3, "Use the right lane")
         }
@@ -233,12 +237,33 @@ class CarPlayDataMessagesTest {
         assertEquals(2, values["laneGuidanceIndex"])
         assertEquals(2, lanes.size)
         assertEquals(
-            mapOf("position" to 1, "direction" to 0, "status" to CodedValue(2, "PREFERRED")),
+            mapOf("position" to 0, "status" to CodedValue(0, "NOT_GOOD"), "angles" to listOf(-45)),
+            (lanes[0] as DecodedFields).values,
+        )
+        assertEquals(
+            mapOf("position" to 1, "status" to CodedValue(2, "PREFERRED"), "angles" to listOf(0, 90), "highlightAngle" to 90),
             (lanes[1] as DecodedFields).values,
         )
         assertEquals("Use the right lane", values["laneGuidanceDescription"])
         assertTrue(CarPlayDataMessages.keepsRawBytes(0x5204))
         assertFalse(CarPlayDataMessages.keepsRawBytes(0x5201))
+    }
+
+    @Test
+    fun `a lane's angles may also come packed into one parameter`() {
+        val frame = Iap2Messages.buildRaw(0x5204) {
+            u16(1, 0)
+            group(2) {
+                u16(0, 0)
+                u8(1, 1)
+                raw(2, byteArrayOf(0, 0, 0xFF.toByte(), 0xD3.toByte()))
+                i16(2, 45)
+            }
+        }
+
+        val lane = (CarPlayDataMessages.decode(frame)!!.values["laneInformation"] as List<*>).single() as DecodedFields
+
+        assertEquals(listOf(0, -45, 45), lane.values["angles"])
     }
 
     @Test

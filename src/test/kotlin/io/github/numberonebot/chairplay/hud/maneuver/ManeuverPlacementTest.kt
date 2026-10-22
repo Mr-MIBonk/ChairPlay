@@ -17,6 +17,19 @@ class ManeuverPlacementTest {
         assertEquals(254f / 180f, ManeuverPlacement.ASPECT, 0.0001f)
     }
 
+    // The HUD fades the frame's bottom into its black where the roads leave it; under the lane row the renderer has
+    // already ended them, and the fade would dim the arrows. It goes and comes back with the row's 250 ms fade.
+    @Test
+    fun `the bottom fade gives way to the lane row`() {
+        val full = ManeuverPlacement.BOTTOM_FADE
+        assertEquals(full, bottomFade(lanes = false, sinceChangeMillis = 10_000), 0f)
+        assertEquals(0f, bottomFade(lanes = true, sinceChangeMillis = 10_000), 0f)
+        assertEquals(full, bottomFade(lanes = true, sinceChangeMillis = 0), 0f)
+        assertEquals(0f, bottomFade(lanes = false, sinceChangeMillis = 0), 0f)
+        assertEquals(full / 2, bottomFade(lanes = true, sinceChangeMillis = 125), 0.001f)
+        assertEquals(0f, bottomFade(lanes = true, sinceChangeMillis = 250), 0f)
+    }
+
     @Test
     fun `a tiny box still gets a usable texture`() {
         val tiny = maneuverPlacement(0f, 0f, 2f, 2f)

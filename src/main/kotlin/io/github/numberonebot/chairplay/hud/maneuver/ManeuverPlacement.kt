@@ -29,6 +29,12 @@ data class ManeuverPlacement(
         /** The frame pixels at the top that fade into black. */
         const val TOP_FADE = 12
 
+        /** The share of the shown part's height that fades into black at the bottom, where the roads leave it. */
+        const val BOTTOM_FADE = 0.08f
+
+        /** How long the renderer's lane row takes to fade in or out (lane_panel.cpp, FadeSeconds). */
+        const val LANE_FADE_MILLIS = 250L
+
         /** The shown part's width to its height, which the box should keep. */
         const val ASPECT = SHOWN_WIDTH.toFloat() / SHOWN_HEIGHT
 
@@ -65,6 +71,16 @@ fun maneuverPlacement(x: Float, y: Float, width: Float, height: Float, sharpHeig
         frameWidth = frameWidth,
         frameHeight = frameHeight,
     )
+}
+
+/**
+ * The share of the shown part's height to fade into black at the bottom, [sinceChangeMillis] after the renderer's lane
+ * row began to show ([lanes]) or to go. The row sits on the bottom edge, and the renderer ends the roads above it
+ * itself; the fade would only dim its arrows, so it gives way while the row fades in, and comes back as it fades out.
+ */
+fun bottomFade(lanes: Boolean, sinceChangeMillis: Long): Float {
+    val done = (sinceChangeMillis.toFloat() / ManeuverPlacement.LANE_FADE_MILLIS).coerceIn(0f, 1f)
+    return ManeuverPlacement.BOTTOM_FADE * if (lanes) 1f - done else done
 }
 
 private const val MIN_WIDTH = 64

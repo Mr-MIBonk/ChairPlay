@@ -5,6 +5,8 @@ import io.github.numberonebot.chairplay.data.CallDirection
 import io.github.numberonebot.chairplay.data.CallStatus
 import io.github.numberonebot.chairplay.data.CarPlayDataSnapshot
 import io.github.numberonebot.chairplay.data.DistanceUnits
+import io.github.numberonebot.chairplay.data.Lane
+import io.github.numberonebot.chairplay.data.LaneGuidance
 import io.github.numberonebot.chairplay.data.Maneuver
 import io.github.numberonebot.chairplay.data.NowPlaying
 import io.github.numberonebot.chairplay.data.PlaybackStatus
@@ -52,6 +54,19 @@ class HudStateTest {
 
         assertEquals(route.nextManeuver, hud.maneuver!!.next)
         assertEquals(152L, hud.maneuver!!.distanceMeters)
+    }
+
+    // The MHI2Q bridge's gate (BAPBridge.laneGuidanceVisible): the iPhone's laneGuidanceShowing alone, at any distance.
+    @Test
+    fun `lanes show while the iPhone says so`() {
+        val lanes = LaneGuidance(4, listOf(Lane(0, 2, listOf(0))))
+        fun hudLanes(showing: Boolean?) =
+            hudState(CarPlayDataSnapshot(route = route.copy(laneGuidanceIndex = 4, laneGuidanceShowing = showing), lanes = lanes), zone)
+                .maneuver!!.lanes
+
+        assertEquals(lanes, hudLanes(true))
+        assertNull(hudLanes(false))
+        assertNull(hudLanes(null))
     }
 
     private val song = NowPlaying(title = "Gasoline", artist = "Twin Fin", playing = true)

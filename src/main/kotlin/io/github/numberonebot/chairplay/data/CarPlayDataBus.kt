@@ -30,6 +30,8 @@ class CarPlayDataBus(nanoTime: () -> Long = System::nanoTime) {
     private var nowPlayingValues = NowPlaying()
     private var nowPlaying: NowPlaying? = null
 
+    /** The lane events the iPhone has sent ahead, by their index, oldest first. */
+    private val laneEvents = LinkedHashMap<Int, LaneGuidance>()
     private var lanes: LaneGuidance? = null
     private var artwork: Artwork? = null
     private val calls = LinkedHashMap<String, Call>()
@@ -76,6 +78,7 @@ class CarPlayDataBus(nanoTime: () -> Long = System::nanoTime) {
             playback.clearAll()
             nowPlayingValues = NowPlaying()
             nowPlaying = null
+            laneEvents.clear()
             lanes = null
             artwork = null
             calls.clear()
@@ -103,16 +106,29 @@ class CarPlayDataBus(nanoTime: () -> Long = System::nanoTime) {
                     values.currentManeuverIndexes.firstOrNull()?.let { activeIndex = it }
                     routeValues = values
                 }
-                publishRoute()
+                // The MHI2Q project's lane cache (hook/routeguidance/rgd_hook.c): a route reset forgets the lane events,
+                // and the iPhone never needs one below the current index again.
+                if (state == RouteGuidanceState.NO_ROUTE_SET) laneEvents.clear()
+                routeValues?.laneGuidanceIndex?.takeIf { fields.has("laneGuidanceIndex") }?.let { current ->
+                    laneEvents.keys.removeAll { it < current }
+                }
+                return listOfNotNull(publishRoute(), publishLanes())
             }
             ROUTE_GUIDANCE_MANEUVER_UPDATE -> {
                 val index = fields.int("index", null) ?: return emptyList()
                 maneuvers[index] = (maneuvers[index] ?: Maneuver(index)).merged(fields)
                 publishRoute()
             }
-            LANE_GUIDANCE_INFO_UPDATE -> laneGuidance(fields).takeIf { it != lanes }?.let {
-                lanes = it
-                CarPlayDataEvent.LanesChanged(it)
+            LANE_GUIDANCE_INFO_UPDATE -> {
+                val event = laneGuidance(fields)
+                val index = event.index ?: return emptyList()
+                // Full: the oldest event goes, never the current one.
+                if (index !in laneEvents && laneEvents.size >= MAX_LANE_EVENTS) {
+                    val current = routeValues?.laneGuidanceIndex
+                    laneEvents.keys.firstOrNull { it != current }?.let { laneEvents.remove(it) }
+                }
+                laneEvents[index] = event
+                publishLanes()
             }
             CarPlayPlaybackStatus.NOW_PLAYING_UPDATE -> {
                 nowPlayingValues = nowPlayingValues.merged(fields)
@@ -154,6 +170,14 @@ class CarPlayDataBus(nanoTime: () -> Long = System::nanoTime) {
         return CarPlayDataEvent.RouteChanged(next)
     }
 
+    /** The current lane event, when it differs from the one last published. */
+    private fun publishLanes(): CarPlayDataEvent? {
+        val next = routeValues?.laneGuidanceIndex?.let { laneEvents[it] }
+        if (next == lanes) return null
+        lanes = next
+        return CarPlayDataEvent.LanesChanged(next)
+    }
+
     /** Several calls can exist at once (call waiting); each is known by its UUID, or its number without one. */
     private fun acceptCall(fields: DecodedFields): CarPlayDataEvent? {
         val id = fields.string("callUuid", null) ?: fields.string("remoteId", null) ?: ""
@@ -188,6 +212,8 @@ class CarPlayDataBus(nanoTime: () -> Long = System::nanoTime) {
         const val ROUTE_GUIDANCE_UPDATE = 0x5201
         const val ROUTE_GUIDANCE_MANEUVER_UPDATE = 0x5202
         const val LANE_GUIDANCE_INFO_UPDATE = 0x5204
+        /** As many lane events as the MHI2Q project keeps (MANEUVER_CACHE_SIZE); the iPhone sends a few at a time. */
+        const val MAX_LANE_EVENTS = 32
         const val CALL_STATE_UPDATE = 0x4155
         const val COMMUNICATIONS_UPDATE = 0x4158
         const val POWER_UPDATE = 0xae01
@@ -256,7 +282,12 @@ private fun Maneuver.merged(fields: DecodedFields) = copy(
 private fun laneGuidance(fields: DecodedFields) = LaneGuidance(
     index = fields.int("laneGuidanceIndex", null),
     lanes = (fields.values["laneInformation"] as? List<*>).orEmpty().filterIsInstance<DecodedFields>().map {
-        Lane(it.int("position", null), it.int("direction", null), it.coded("status", null))
+        Lane(
+            position = it.int("position", null),
+            statusCode = (it.values["status"] as? CodedValue)?.code,
+            angles = it.ints("angles", emptyList()),
+            highlightAngle = it.int("highlightAngle", null),
+        )
     },
     description = fields.string("laneGuidanceDescription", null),
 )

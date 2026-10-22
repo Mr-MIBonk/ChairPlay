@@ -4,7 +4,9 @@ import io.github.numberonebot.chairplay.data.CallDirection
 import io.github.numberonebot.chairplay.data.CallStatus
 import io.github.numberonebot.chairplay.data.CarPlayDataSnapshot
 import io.github.numberonebot.chairplay.data.DistanceUnits
+import io.github.numberonebot.chairplay.data.LaneGuidance
 import io.github.numberonebot.chairplay.data.Maneuver
+import io.github.numberonebot.chairplay.data.RouteGuidance
 import io.github.numberonebot.chairplay.data.RouteGuidanceState
 import java.time.Instant
 import java.time.ZoneId
@@ -40,6 +42,8 @@ data class HudManeuver(
     val next: Maneuver? = null,
     /** The metres to it, for the arrow's progress. */
     val distanceMeters: Long? = null,
+    /** The lanes to show under it, while the iPhone shows lanes. */
+    val lanes: LaneGuidance? = null,
 )
 
 data class HudArrival(val time: String?, val remaining: String?, val destination: String?)
@@ -63,6 +67,7 @@ fun hudState(snapshot: CarPlayDataSnapshot, zone: ZoneId = ZoneId.systemDefault(
             description = next?.description.clip(),
             next = next,
             distanceMeters = it.distanceToManeuverMeters,
+            lanes = snapshot.lanes.takeIf { _ -> lanesVisible(it) },
         )
     }
     val arrival = route?.let {
@@ -99,6 +104,13 @@ fun hudState(snapshot: CarPlayDataSnapshot, zone: ZoneId = ZoneId.systemDefault(
     }
     return HudState(media, maneuver, arrival, call)
 }
+
+/**
+ * The MHI2Q bridge's gate for lanes (BAPBridge.laneGuidanceVisible): the iPhone's laneGuidanceShowing, unless no route
+ * is set. No distance or maneuver type counts: lanes may come long before a junction, to get into lane early.
+ */
+private fun lanesVisible(route: RouteGuidance) =
+    route.laneGuidanceShowing == true && !(route.maneuverCount == 0 && route.state == RouteGuidanceState.NO_ROUTE_SET)
 
 /** The iPhone's own distance text with a short unit, or the metres counted out when it sent no text. */
 private fun distance(text: String?, units: DistanceUnits?, meters: Long?): String? {

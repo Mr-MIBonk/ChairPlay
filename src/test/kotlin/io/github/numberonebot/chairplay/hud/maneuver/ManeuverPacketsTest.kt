@@ -36,6 +36,35 @@ class ManeuverPacketsTest {
         assertArrayEquals(bytes(3, 0xFF, 0xFE, 0x98), ManeuverPackets.maneuver(uturn, ArrowProgress.OFF, false).copyOfRange(2, 6))
     }
 
+    // RendererServer.lanePacket: BEGIN, one LANE per lane, COMMIT, all with the batch's token.
+    @Test
+    fun `lanes go as one batch, as the MHI2Q bridge sends them`() {
+        val lanes = RendererLanes(
+            eventIndex = 258, showing = true, complete = true,
+            lanes = listOf(RendererLane(0, 2, -90, listOf(-90, 0)), RendererLane(1, 255, 1000, emptyList())),
+        )
+        val batch = ManeuverPackets.lanes(lanes, token = 0x01020304)
+        assertEquals(4, batch.size)
+        batch.forEach { assertEquals(48, it.size) }
+        // Begin: token, count, complete, showing, a spare byte, the event index.
+        assertArrayEquals(bytes(0x0C, 0, 1, 2, 3, 4, 2, 1, 1, 0, 0, 0, 1, 2), batch[0].copyOfRange(0, 14))
+        assertArrayEquals(ByteArray(34), batch[0].copyOfRange(14, 48))
+        // A lane: token, record, position, status, angle count, primary angle, the angles.
+        assertArrayEquals(bytes(0x0D, 0, 1, 2, 3, 4, 0, 0, 0, 2, 2, 0xFF, 0xA6, 0xFF, 0xA6, 0, 0), batch[1].copyOfRange(0, 17))
+        assertArrayEquals(ByteArray(31), batch[1].copyOfRange(17, 48))
+        assertArrayEquals(bytes(0x0D, 0, 1, 2, 3, 4, 1, 0, 1, 0xFF, 0, 0x03, 0xE8), batch[2].copyOfRange(0, 13))
+        assertArrayEquals(bytes(0x0E, 0, 1, 2, 3, 4), batch[3].copyOfRange(0, 6))
+        assertArrayEquals(ByteArray(42), batch[3].copyOfRange(6, 48))
+    }
+
+    @Test
+    fun `hidden lanes are a batch without lanes`() {
+        val batch = ManeuverPackets.lanes(RendererLanes.HIDDEN, token = 5)
+        assertEquals(listOf(0x0C, 0x0E), batch.map { it[0].toInt() })
+        // No lanes, not complete, not showing, event -1.
+        assertArrayEquals(bytes(0, 0, 0, 0, 0xFF, 0xFF, 0xFF, 0xFF), batch[0].copyOfRange(6, 14))
+    }
+
     @Test
     fun `progress and clear are packets of their own`() {
         val blink = ManeuverPackets.progress(ArrowProgress(0, ArrowProgress.BLINK_LOW))

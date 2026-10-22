@@ -48,6 +48,10 @@ val upstreamCore by tasks.registering(Sync::class) {
         )
         // USB multiplexing belongs to wired CarPlay.
         exclude("com/shilapi/xcertplay/transport/Iap2UsbMuxHost.kt")
+        // Replaced in src/main/kotlin: the identification asks for lane guidance too, and the catalog knows the
+        // route guidance component's lane limits it gives.
+        exclude("com/shilapi/xcertplay/transport/Iap2IdentificationClient.kt")
+        exclude("com/shilapi/xcertplay/iap2/catalog/Iap2Endpoint.kt")
     }
     into(layout.buildDirectory.dir("upstream-core"))
 }
@@ -91,6 +95,9 @@ val upstreamCoreTests by tasks.registering(Sync::class) {
         exclude("com/shilapi/xcertplay/airplay/AirPlayCryptoChachaTest.kt")
         // SoftwareOpusEncoder is not in the core set (replaced in a later task).
         exclude("com/shilapi/xcertplay/airplay/AirPlayInfoPlistTest.kt")
+        // Pins DiPlay's RouteGuidance component, which ChairPlay's identification replaces with LuKa's; its checks
+        // are in ChairPlay's Iap2LaneGuidanceIdentificationTest with ChairPlay's values.
+        exclude("com/shilapi/xcertplay/transport/Iap2RouteGuidanceSubscriptionTest.kt")
     }
     into(layout.buildDirectory.dir("upstream-core-tests"))
 }

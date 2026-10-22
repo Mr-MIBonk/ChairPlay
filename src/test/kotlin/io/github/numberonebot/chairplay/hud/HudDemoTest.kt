@@ -1,12 +1,16 @@
 package io.github.numberonebot.chairplay.hud
 
+import io.github.numberonebot.chairplay.data.LaneStatus
 import io.github.numberonebot.chairplay.data.ManeuverType
 import io.github.numberonebot.chairplay.data.RouteGuidanceState
+import io.github.numberonebot.chairplay.hud.maneuver.ArrowProgress
+import io.github.numberonebot.chairplay.hud.maneuver.arrowProgress
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.abs
 
 class HudDemoTest {
     @Test
@@ -66,6 +70,31 @@ class HudDemoTest {
     }
 
     @Test
+    fun `the demo shows lanes where a road would have them`() {
+        val demo = HudDemo(withMedia = false)
+        val left = demo.snapshot(0)
+        assertEquals(true, left.route!!.laneGuidanceShowing)
+        assertEquals(left.route!!.laneGuidanceIndex, left.lanes!!.index)
+        assertEquals(listOf(-90), left.lanes!!.lanes.filter { it.status == LaneStatus.PREFERRED }.map { it.direction })
+        assertEquals(left.lanes, hudState(left).maneuver!!.lanes)
+
+        // None on the roundabout.
+        val ring = demo.snapshot(HudDemo.STEP_MILLIS)
+        assertNull(ring.lanes)
+        assertEquals(false, ring.route!!.laneGuidanceShowing)
+        assertNull(hudState(ring).maneuver!!.lanes)
+
+        // Wherever lanes show, a recommended one leads the maneuver's way.
+        val withLanes = (0 until demo.steps).map { demo.snapshot(it * HudDemo.STEP_MILLIS) }.filter { it.lanes != null }
+        assertTrue("${withLanes.size} steps with lanes", withLanes.size >= 5)
+        for (snapshot in withLanes) {
+            val exit = snapshot.route!!.nextManeuver!!.exitAngle ?: continue
+            val recommended = snapshot.lanes!!.lanes.filter { it.status == LaneStatus.PREFERRED }.mapNotNull { it.direction }
+            assertTrue("$exit: $recommended", recommended.isNotEmpty() && recommended.all { abs(it - exit) <= 45 })
+        }
+    }
+
+    @Test
     fun `only the environment variable turns it on`() {
         assertNull(HudDemo.fromEnvironment(emptyMap()))
         assertEquals(false, HudDemo.fromEnvironment(mapOf("CHAIRPLAY_HUD_DEMO" to "1"))!!.withMedia)
@@ -73,6 +102,29 @@ class HudDemoTest {
         val cycle = HudDemo.fromEnvironment(mapOf("CHAIRPLAY_HUD_DEMO" to "cycle"))!!
         assertTrue(cycle.cycle)
         assertTrue(cycle.withMedia)
+    }
+
+    @Test
+    fun `the lanes demo switches lanes under one maneuver`() {
+        val demo = HudDemo.fromEnvironment(mapOf("CHAIRPLAY_HUD_DEMO" to "lanes"))!!
+        assertTrue(demo.lanes)
+        val events = (0 until demo.laneEvents).map { demo.snapshot(it * HudDemo.LANE_STEP_MILLIS + 100) }
+        // The maneuver stays the same, so nothing slides: only the lanes change.
+        assertEquals(1, events.map { it.route!!.nextManeuver!!.index to it.route!!.nextManeuver!!.typeCode }.toSet().size)
+        // Far enough that the arrow stays quiet: no fill or blink to watch past the lanes.
+        val m = hudState(events[0]).maneuver!!
+        assertEquals(ArrowProgress.OFF, arrowProgress(m.distanceMeters, m.next!!.distanceBetweenMeters, m.typeCode, 0))
+        // Every event is a new one for the bus and the renderer...
+        val shown = events.filter { it.route!!.laneGuidanceShowing == true }
+        assertEquals(shown.size, shown.map { it.route!!.laneGuidanceIndex }.toSet().size)
+        assertTrue(shown.all { it.lanes!!.index == it.route!!.laneGuidanceIndex })
+        // ...the recommended lane moves, the row grows past the frame's five cells, and it goes and comes back.
+        val recommended = shown.map { it.lanes!!.lanes.indexOfFirst { lane -> lane.statusCode == LaneStatus.PREFERRED.code } }
+        assertTrue("recommended lanes $recommended", recommended.toSet().size >= 3)
+        assertTrue(shown.any { it.lanes!!.lanes.size > 5 })
+        assertTrue(events.any { it.route!!.laneGuidanceShowing == false })
+        // And over again.
+        assertEquals(events[0].lanes!!.lanes, demo.snapshot(demo.laneEvents * HudDemo.LANE_STEP_MILLIS + 100).lanes!!.lanes)
     }
 
     @Test

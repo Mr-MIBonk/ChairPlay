@@ -10,6 +10,9 @@ object ManeuverPackets {
     private const val CMD_MANEUVER = 0x01
     private const val CMD_PROGRESS = 0x06
     private const val CMD_CLEAR = 0x07
+    private const val CMD_LANES_BEGIN = 0x0C
+    private const val CMD_LANES_LANE = 0x0D
+    private const val CMD_LANES_COMMIT = 0x0E
 
     private const val FLAG_SET_PERSPECTIVE = 0x01
     private const val FLAG_PROGRESS = 0x02
@@ -58,8 +61,39 @@ object ManeuverPackets {
         return packet
     }
 
-    /** Fades the maneuver out: guidance has ended. */
+    /** Fades the maneuver out: guidance has ended. It clears the lanes too. */
     fun clear(): ByteArray = ByteArray(SIZE).also { it[0] = CMD_CLEAR.toByte() }
+
+    /**
+     * The lane event [lanes] as one batch (RendererServer.lanePacket): a begin, one packet per lane, a commit, all
+     * with [token], which tells this batch from any other. The renderer takes the lanes only at the commit, and only
+     * whole: a batch with a lane missing shows none.
+     */
+    fun lanes(lanes: RendererLanes, token: Int): List<ByteArray> {
+        val begin = ByteArray(SIZE)
+        begin[0] = CMD_LANES_BEGIN.toByte()
+        int(begin, P, token)
+        begin[P + 4] = lanes.lanes.size.toByte()
+        begin[P + 5] = (if (lanes.complete) 1 else 0).toByte()
+        begin[P + 6] = (if (lanes.showing) 1 else 0).toByte()
+        int(begin, P + 8, lanes.eventIndex)
+        val records = lanes.lanes.mapIndexed { i, lane ->
+            val packet = ByteArray(SIZE)
+            packet[0] = CMD_LANES_LANE.toByte()
+            int(packet, P, token)
+            packet[P + 4] = i.toByte()
+            short(packet, P + 5, lane.position)
+            packet[P + 7] = lane.status.toByte()
+            packet[P + 8] = lane.angles.size.toByte()
+            short(packet, P + 9, lane.primary)
+            lane.angles.forEachIndexed { j, angle -> short(packet, P + 11 + j * 2, angle) }
+            packet
+        }
+        val commit = ByteArray(SIZE)
+        commit[0] = CMD_LANES_COMMIT.toByte()
+        int(commit, P, token)
+        return listOf(begin) + records + listOf(commit)
+    }
 
     /** The legacy mode byte the renderer checks against the state: 1 while progress shows. */
     private fun mode(progress: ArrowProgress) = if (progress.state == ArrowProgress.QUIET) 0 else 1
@@ -67,5 +101,10 @@ object ManeuverPackets {
     private fun short(packet: ByteArray, at: Int, value: Int) {
         packet[at] = (value shr 8).toByte()
         packet[at + 1] = value.toByte()
+    }
+
+    private fun int(packet: ByteArray, at: Int, value: Int) {
+        short(packet, at, value shr 16)
+        short(packet, at + 2, value)
     }
 }

@@ -17,21 +17,30 @@ class ArrowProgressTest {
 
     @Test
     fun `within the last 15 percent of the prepare distance the arrow fills in sixteenths`() {
-        // City: prepare at 1500 m, so the bar runs over the last 225 m, or the step when it is shorter.
-        assertEquals(ArrowProgress(14, ArrowProgress.FILL), arrowProgress(200, 300, turn, 0))
-        assertEquals(ArrowProgress(3, ArrowProgress.FILL), arrowProgress(30, 150, turn, 0))
+        // City: prepare at 1500 m, so the bar runs over the last 225 m, or the step when it is shorter. The fill
+        // runs over the bar's first 80 percent, so the whole arrow is blue as the blink begins.
+        assertEquals(ArrowProgress(13, ArrowProgress.FILL), arrowProgress(200, 300, turn, 0))
         assertEquals(ArrowProgress(16, ArrowProgress.FILL), arrowProgress(150, 150, turn, 0))
     }
 
     @Test
+    fun `the fill reaches the whole arrow as the blink begins`() {
+        // 30 of 150 m left is the bar's last 20 percent's edge: full, then the blink.
+        assertEquals(ArrowProgress(0, ArrowProgress.FILL), arrowProgress(30, 150, turn, 0))
+        assertEquals(ArrowProgress(16, ArrowProgress.BLINK_HIGH), arrowProgress(29, 150, turn, 0))
+        // Half way along the fill: 90 of 150 m left is 60 percent of the bar.
+        assertEquals(ArrowProgress(8, ArrowProgress.FILL), arrowProgress(90, 150, turn, 0))
+    }
+
+    @Test
     fun `a long step is a highway, with twice the distance`() {
-        assertEquals(ArrowProgress(7, ArrowProgress.FILL), arrowProgress(200, 5_000, turn, 0))
+        assertEquals(ArrowProgress(4, ArrowProgress.FILL), arrowProgress(200, 5_000, turn, 0))
     }
 
     @Test
     fun `without a step the type tells a highway`() {
-        assertEquals(ArrowProgress(7, ArrowProgress.FILL), arrowProgress(200, null, ManeuverType.OFF_RAMP.code, 0))
-        assertEquals(ArrowProgress(14, ArrowProgress.FILL), arrowProgress(200, null, turn, 0))
+        assertEquals(ArrowProgress(4, ArrowProgress.FILL), arrowProgress(200, null, ManeuverType.OFF_RAMP.code, 0))
+        assertEquals(ArrowProgress(13, ArrowProgress.FILL), arrowProgress(200, null, turn, 0))
     }
 
     @Test

@@ -164,11 +164,14 @@ internal object CarPlayDataMessages {
             listOf(
                 field(0, "displayComponentIds", Kind.U16_LIST),
                 field(1, "laneGuidanceIndex", Kind.U16),
+                // The MHI2Q project's layout (hook/routeguidance/rgd_tlv.c), read off the head unit's libesoiap2: the
+                // angles come one per parameter there; packed ones are read too.
                 group(
                     2, "laneInformation",
                     field(0, "position", Kind.U16),
-                    field(1, "direction", Kind.I16),
-                    enumField<LaneStatus>(2, "status"),
+                    enumField<LaneStatus>(1, "status"),
+                    field(2, "angles", Kind.I16_LIST),
+                    field(3, "highlightAngle", Kind.I16),
                     repeated = true,
                 ),
                 field(3, "laneGuidanceDescription", Kind.STRING),

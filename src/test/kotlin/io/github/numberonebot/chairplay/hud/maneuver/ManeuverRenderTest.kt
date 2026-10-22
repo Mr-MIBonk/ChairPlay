@@ -2,6 +2,9 @@ package io.github.numberonebot.chairplay.hud.maneuver
 
 import io.github.numberonebot.chairplay.data.DrivingSide
 import io.github.numberonebot.chairplay.data.JunctionType
+import io.github.numberonebot.chairplay.data.Lane
+import io.github.numberonebot.chairplay.data.LaneGuidance
+import io.github.numberonebot.chairplay.data.LaneStatus
 import io.github.numberonebot.chairplay.data.Maneuver
 import io.github.numberonebot.chairplay.data.ManeuverType
 import io.github.numberonebot.chairplay.hud.HudDemo
@@ -244,6 +247,82 @@ class ManeuverRenderTest {
         } finally {
             assertTrue(ManeuverNative.loadFlagAtlas())
         }
+    }
+
+    /** The lane panel's blue pixels (a recommended lane, lane_panel.cpp) in the frame's bottom 34 of 181 rows. */
+    private fun bluePanelPixels(pixels: ByteBuffer): Int {
+        var count = 0
+        // Rows run bottom up.
+        for (y in 0 until HEIGHT * 34 / 181) for (x in 0 until WIDTH) {
+            val i = (y * WIDTH + x) * 4
+            val r = pixels[i].toInt() and 0xFF
+            val g = pixels[i + 1].toInt() and 0xFF
+            val b = pixels[i + 2].toInt() and 0xFF
+            if (r < 90 && g > 120 && b > 170) count++
+        }
+        return count
+    }
+
+    private fun lane(position: Int, status: LaneStatus, vararg angles: Int, highlight: Int? = null) =
+        Lane(position, status.code, angles.toList(), highlight)
+
+    @Test
+    fun `lanes show under the maneuver and go again`() {
+        val cases = listOf(
+            "lanes-left" to (
+                maneuver(ManeuverType.LEFT_TURN, -90, listOf(-90, 0, 90)) to LaneGuidance(
+                    0,
+                    listOf(
+                        lane(0, LaneStatus.PREFERRED, -90, highlight = -90),
+                        lane(1, LaneStatus.GOOD, -90, 0, highlight = -90),
+                        lane(2, LaneStatus.NOT_GOOD, 0),
+                        lane(3, LaneStatus.NOT_GOOD, 0, 90),
+                    ),
+                )
+                ),
+            "lanes-off-ramp" to (
+                maneuver(ManeuverType.OFF_RAMP, 25) to LaneGuidance(
+                    1,
+                    listOf(
+                        lane(0, LaneStatus.NOT_GOOD, 0),
+                        lane(1, LaneStatus.NOT_GOOD, 0),
+                        lane(2, LaneStatus.GOOD, 0, 45),
+                        lane(3, LaneStatus.PREFERRED, 45, highlight = 45),
+                    ),
+                )
+                ),
+            // More lanes than the frame's 5 cells: the end away from the recommended lanes becomes an ellipsis.
+            "lanes-overflow" to (
+                maneuver(ManeuverType.KEEP_RIGHT, 20, listOf(0, 20)) to LaneGuidance(
+                    2, List(7) { lane(it, if (it >= 5) LaneStatus.PREFERRED else LaneStatus.NOT_GOOD, 0, 45, highlight = if (it >= 5) 45 else 0) },
+                )
+                ),
+            "lanes-roundabout" to (
+                maneuver(ManeuverType.ROUNDABOUT_EXIT_3, 90, listOf(-90, 0, 90, 180), JunctionType.ROUNDABOUT) to LaneGuidance(
+                    3,
+                    listOf(lane(0, LaneStatus.NOT_GOOD, -90, 0), lane(1, LaneStatus.PREFERRED, 0, 90, highlight = 90)),
+                )
+                ),
+        )
+        cases.forEachIndexed { i, (name, case) ->
+            val (m, guidance) = case
+            ManeuverNative.command(ManeuverPackets.clear())
+            run(0.2)
+            ManeuverPackets.lanes(rendererLanes(guidance), token = i + 1).forEach { assertTrue(ManeuverNative.command(it)) }
+            show(m.copy(index = i))
+            run(1.5)
+            val frame = pixels()
+            save(name, frame)
+            assertTrue("$name drew ${bluePanelPixels(frame)} blue lane pixels", bluePanelPixels(frame) > 100)
+            assertTrue("$name drew the maneuver", routeCentre(frame).second > 200)
+        }
+        // Hidden again: the panel fades out and the maneuver stays.
+        ManeuverPackets.lanes(RendererLanes.HIDDEN, token = 99).forEach { ManeuverNative.command(it) }
+        run(1.0)
+        val hidden = pixels()
+        save("lanes-hidden", hidden)
+        assertEquals(0, bluePanelPixels(hidden))
+        assertTrue(routeCentre(hidden).second > 200)
     }
 
     // The HUD's whole path, from the bus snapshot through hudState and ManeuverFeed, at 60 frames a second.

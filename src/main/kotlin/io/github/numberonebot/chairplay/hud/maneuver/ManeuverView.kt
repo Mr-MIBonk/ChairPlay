@@ -24,6 +24,8 @@ class ManeuverView(private val frames: RepaintTimer?, private val log: (String) 
     private var image = -1
     private var imageContext = 0L
     private var unavailable = false
+    private var lanesShown = false
+    private var lanesChangedAt = Long.MIN_VALUE / 2
     private val paint = NVGPaint.create()
     private val black = nvgRGBAf(0f, 0f, 0f, 1f, NVGColor.create())
     private val clear = nvgRGBAf(0f, 0f, 0f, 0f, NVGColor.create())
@@ -55,6 +57,11 @@ class ManeuverView(private val frames: RepaintTimer?, private val log: (String) 
             status and ManeuverNative.LOOPING != 0 -> frames?.after(FLAG_FRAME_MILLIS)
         }
         feed.nextChange(maneuver, now)?.let { frames?.after(it - now) }
+        if (feed.showingLanes != lanesShown) {
+            lanesShown = feed.showingLanes
+            lanesChangedAt = now
+        }
+        if (now - lanesChangedAt < ManeuverPlacement.LANE_FADE_MILLIS) frames?.after(ACTIVE_FRAME_MILLIS)
         if (image < 0 || imageContext != vg) {
             if (image >= 0 && imageContext == vg) nvgDeleteImage(vg, image)
             // The texture stays ours: NanoVG must not delete it with the image.
@@ -66,24 +73,24 @@ class ManeuverView(private val frames: RepaintTimer?, private val log: (String) 
         nvgRect(vg, x, y, width, height)
         nvgFillPaint(vg, paint)
         nvgFill(vg)
-        feather(vg, x, y, width, height)
+        feather(vg, x, y, width, height, bottomFade(lanesShown, now - lanesChangedAt))
         return true
     }
 
     /**
      * Fades the shown part's edges into the HUD's black: the sides over the margin around the crop, where the roads
-     * would otherwise end in a hard cut, and a little of the top and bottom, where they leave the frame. The bands
-     * reach past the box over NanoVG's antialiased fringe of the picture.
+     * would otherwise end in a hard cut, and a little of the top and of the bottom ([bottomShare] of the height), where
+     * they leave the frame. The bands reach past the box over NanoVG's antialiased fringe of the picture.
      */
-    private fun feather(vg: Long, x: Float, y: Float, width: Float, height: Float) {
+    private fun feather(vg: Long, x: Float, y: Float, width: Float, height: Float, bottomShare: Float) {
         val side = width * ManeuverPlacement.SIDE / ManeuverPlacement.SHOWN_WIDTH
         val top = height * ManeuverPlacement.TOP_FADE / ManeuverPlacement.SHOWN_HEIGHT
-        val bottom = height * BOTTOM_FADE
+        val bottom = height * bottomShare
         val e = FRINGE
         fade(vg, x - e, y - e, side + e, height + 2 * e, x, y, x + side, y)
         fade(vg, x + width - side, y - e, side + e, height + 2 * e, x + width, y, x + width - side, y)
         fade(vg, x - e, y - e, width + 2 * e, top + e, x, y, x, y + top)
-        fade(vg, x - e, y + height - bottom, width + 2 * e, bottom + e, x, y + height, x, y + height - bottom)
+        if (bottom > 0f) fade(vg, x - e, y + height - bottom, width + 2 * e, bottom + e, x, y + height, x, y + height - bottom)
     }
 
     /** Fills the rectangle with black at (fromX, fromY) fading to clear at (toX, toY), and beyond them likewise. */
@@ -141,8 +148,6 @@ class ManeuverView(private val frames: RepaintTimer?, private val log: (String) 
         /** The flag's 14 frames turn at about 10 a second. */
         const val FLAG_FRAME_MILLIS = 80L
         const val RESIZE_SLACK = 2
-        /** The share of the box's height that fades into black at the bottom. */
-        const val BOTTOM_FADE = 0.08f
         /** How far, in pixels, the fades reach past the box. */
         const val FRINGE = 2f
     }
