@@ -70,7 +70,7 @@ goto fail
 :execute
 @rem Setup the command line
 
-@rem DiPlay Desktop: no -classpath below. With -jar, java ignores it, and the empty -classpath ""
+@rem ChairPlay: no -classpath below. With -jar, java ignores it, and the empty -classpath ""
 @rem made the Oracle java.exe stub on PATH (Common Files\Oracle\Java\javapath) fail with
 @rem "-classpath requires class path specification" when JAVA_HOME is not set.
 set CLASSPATH=

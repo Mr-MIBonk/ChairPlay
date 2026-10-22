@@ -1,4 +1,4 @@
-# Building and setting up DiPlay Desktop
+# Building and setting up ChairPlay
 
 The README gives the short version; this page has every step and every setting.
 
@@ -14,6 +14,16 @@ In a clone made without `--recursive`, run `git submodule update --init`. The su
 version this build is tested with. To move to a newer DiPlay: `git -C upstream fetch`, `git -C upstream checkout
 <commit or tag>`, build and run the tests, then commit the new `upstream` pointer.
 
+`scripts\mirror-upstream.cmd <mirror-url>` copies DiPlay into a repository you control (create it empty and
+private first) and points the submodule at it, so the build survives DiPlay's repository going away. With
+`--local` only your clone uses the mirror and `.gitmodules` keeps DiPlay's URL for everyone else. Once the
+submodule uses a mirror, run the script again before each `git -C upstream fetch`.
+
+Turn on the repository's git hooks once per clone: `git config core.hooksPath .githooks`. They refuse a commit
+that would add keys, the MFi identity, pairings or the app's settings, and a push of history that is not this
+project's (DiPlay's tags, for example). Git runs hooks with its own bash, whatever shell the commit comes from.
+`scripts\test-repo-tools.cmd` tests the hooks and the mirror script.
+
 ## Build
 
 Needs JDK 17 (the only version this build is tested with). From the repository root:
@@ -22,14 +32,14 @@ Needs JDK 17 (the only version this build is tested with). From the repository r
 gradlew jpackageImage
 ```
 
-The result is `build\jpackage\DiPlayDesktop\DiPlayDesktop.exe`, a self-contained folder with its own runtime;
+The result is `build\jpackage\ChairPlay\ChairPlay.exe`, a self-contained folder with its own runtime;
 no installer or WiX is needed. The folder also carries the licence notices (`LICENSE`, `LICENSE-concentus`,
 `LICENSE-speexdsp`, `THIRD_PARTY_NOTICES`, `licenses\`). Only the `windows-x86_64` native libraries are bundled.
 
 The call echo canceller is DiPlay's copy of SpeexDSP, which is C. The build compiles it into `speex_echo.dll`
-(next to `DiPlayDesktop.exe`) with the C compiler of [zig](https://ziglang.org/), so no Visual Studio or MinGW is
+(next to `ChairPlay.exe`) with the C compiler of [zig](https://ziglang.org/), so no Visual Studio or MinGW is
 needed. The first build downloads zig 0.16.0 (about 100 MB, checked against its SHA-256) into
-`%USERPROFILE%\.gradle\caches\diplay-desktop\zig` and reuses it after that; it needs internet access once.
+`%USERPROFILE%\.gradle\caches\chairplay\zig` and reuses it after that; it needs internet access once.
 
 The app keeps its settings, keys and pairings in the folder of its exe. To run it from a folder of its own that
 rebuilds never wipe, deploy it there:
@@ -38,15 +48,15 @@ rebuilds never wipe, deploy it there:
 gradlew deploy
 ```
 
-This builds the image and syncs it into `dist\DiPlayDesktop` in the project, replacing the program and keeping
+This builds the image and syncs it into `dist\ChairPlay` in the project, replacing the program and keeping
 `settings.properties`, `controls.properties`, `carplay-icon.png`, `window.properties`, `identity.properties`,
 `pairings\`, `offline-mfi\`, `screenshots\` and `logs\`. It is outside `build\`, which `gradlew clean` wipes, and git ignores it.
 
-To install somewhere else, give the folder as the `diplay.home` property: once with `gradlew deploy
--Pdiplay.home=C:\Apps\DiPlayDesktop`, or for good in `%USERPROFILE%\.gradle\gradle.properties`:
+To install somewhere else, give the folder as the `chairplay.home` property: once with `gradlew deploy
+-Pchairplay.home=C:\Apps\ChairPlay`, or for good in `%USERPROFILE%\.gradle\gradle.properties`:
 
 ```
-diplay.home=C:/Apps/DiPlayDesktop
+chairplay.home=C:/Apps/ChairPlay
 ```
 
 `gradlew launchApp` starts the app from the same folder in its own console window, and `gradlew listDevices`
@@ -55,15 +65,15 @@ lists the Bluetooth and sound devices with it.
 ## In VS Code
 
 The repository recommends the Gradle for Java extension, whose side panel lists every Gradle task (`test`,
-`jpackageImage`, `deploy`, ...). Terminal > Run Task adds the rest: Deploy and run, Run DiPlayDesktop (in its
+`jpackageImage`, `deploy`, ...). Terminal > Run Task adds the rest: Deploy and run, Run ChairPlay (in its
 own console window), List devices and Stop Gradle daemon. Stop the app by closing its window or with Ctrl+C in its
 console, never with Terminate Task, which kills it hard.
 
 ## Set up
 
-The files below live in the app folder, next to `DiPlayDesktop.exe`.
+The files below live in the app folder, next to `ChairPlay.exe`.
 
-1. **Pair the iPhone** in Windows Settings > Bluetooth & devices. `DiPlayDesktop.exe devices` lists the radio and the
+1. **Pair the iPhone** in Windows Settings > Bluetooth & devices. `ChairPlay.exe devices` lists the radio and the
    paired devices (it connects to nothing).
 2. **MFi identity files.** The wireless handshake needs an Apple MFi identity (certificate and key files). This
    project does not ship them and the app image never contains them. Put your own files in `offline-mfi\`.
@@ -79,12 +89,12 @@ The files below live in the app folder, next to `DiPlayDesktop.exe`.
      so this only matters when it lost the Wi-Fi meanwhile; a new iPhone always has five minutes, to accept CarPlay.
      Ctrl+R (`key.reconnect`) starts over at once, ending a running session as closing the window does;
    - `device.name`: the name the iPhone shows for the PC, in its CarPlay settings and on the network (default
-     DiPlayDesktop, at most 63 bytes); the window title stays DiPlayDesktop;
+     ChairPlay, at most 63 bytes); the window title stays ChairPlay;
    - `car.label` and `car.icon`: the label and the image of the car button on the CarPlay home screen (default
      `Windows` and `carplay-icon.png`, a Windows window written into the app folder on the first start). Replace the
      image with any square PNG, JPEG, BMP or GIF; it is sent at 192 pixels at most;
    - `audio.output` and `audio.input`: the sound device CarPlay plays on and the microphone, `default` (the Windows
-     default, as before) or a part of a device name; `DiPlayDesktop.exe devices` lists the names;
+     default, as before) or a part of a device name; `ChairPlay.exe devices` lists the names;
    - `audio.echo.cancellation` (experimental, default `false`): `true` runs DiPlay's SpeexDSP echo canceller on
      calls, so the other side does not hear itself when CarPlay plays through speakers. It takes out of the
      microphone what the call stream played, as DiPlay does on head units. Siri and headphones do not need it;
@@ -121,7 +131,9 @@ The files below live in the app folder, next to `DiPlayDesktop.exe`.
      (`key.altscreen.content`) switches between them without reconnecting, and the mouse wheel over the window
      or + and − on either keyboard (`key.altscreen.zoom.in`/`out`) zoom the map, as a car's zoom control does. `altscreen.cards` places the navigation app's ETA and turn
      card: `auto` (default, CarPlay decides; with a wide cluster it keeps a column at the left free), `left`,
-     `right`, `top`, or `off` (the map alone); Shift+F11 (`key.altscreen.cards`) moves them on the fly. `altscreen.safe.top`/`bottom`/`left`/`right` (default 0) are
+     `right`, `top`, or `off` (the map alone); Shift+F11 (`key.altscreen.cards`) moves them on the fly. The
+     AltScreen opens on the content and layout F11 and Shift+F11 left it on (kept in `window.properties`), unless
+     these two settings changed since. `altscreen.safe.top`/`bottom`/`left`/`right` (default 0) are
      pixels at each edge the iPhone keeps its map attribution and car marker out of, for an overlay of our own;
      all zero uses the whole panel, since nothing covers a window on a PC;
    - `display.theme`: `windows` (default: follows the Windows dark mode, also while running), `light`, `dark`, or
@@ -134,18 +146,18 @@ The files below live in the app folder, next to `DiPlayDesktop.exe`.
    `display 1280x720 px, 200x113 mm (163 ppi), 60 fps; window 1280x720`.
 4. **Firewall.** Windows Firewall drops the iPhone's inbound connections. From an administrator Command Prompt, add
    these rules once (the paths are those of the packaged exe; adjust them if you move the folder). The app does not
-   change the firewall itself and prints the same commands at start when no rule named `DiPlayDesktop CarPlay inbound`
+   change the firewall itself and prints the same commands at start when no rule named `ChairPlay CarPlay inbound`
    exists:
 
    ```
-   netsh advfirewall firewall add rule name="DiPlayDesktop CarPlay inbound" dir=in action=allow program="<folder>\DiPlayDesktop.exe" protocol=TCP localport=7000-7010,49152-65535
-   netsh advfirewall firewall add rule name="DiPlayDesktop CarPlay inbound" dir=in action=allow program="<folder>\DiPlayDesktop.exe" protocol=UDP localport=49152-65535
-   netsh advfirewall firewall add rule name="DiPlayDesktop CarPlay inbound" dir=in action=allow program="<folder>\DiPlayDesktop.exe" protocol=UDP localport=5353
+   netsh advfirewall firewall add rule name="ChairPlay CarPlay inbound" dir=in action=allow program="<folder>\ChairPlay.exe" protocol=TCP localport=7000-7010,49152-65535
+   netsh advfirewall firewall add rule name="ChairPlay CarPlay inbound" dir=in action=allow program="<folder>\ChairPlay.exe" protocol=UDP localport=49152-65535
+   netsh advfirewall firewall add rule name="ChairPlay CarPlay inbound" dir=in action=allow program="<folder>\ChairPlay.exe" protocol=UDP localport=5353
    ```
 
-   Replace `<folder>` with the full path of `DiPlayDesktop`, e.g. `C:\Apps\DiPlayDesktop`.
+   Replace `<folder>` with the full path of `ChairPlay`, e.g. `C:\Apps\ChairPlay`.
 
-   If Windows asks at the first start whether DiPlayDesktop may use the network, answering Cancel creates a rule that
+   If Windows asks at the first start whether ChairPlay may use the network, answering Cancel creates a rule that
    blocks it, and a block rule wins over the ones above. At start the app names every enabled inbound block rule for
    its exe; delete those, or set them to Allow, in Windows Defender Firewall > Advanced settings > Inbound Rules. The
    check uses PowerShell's firewall cmdlets and finds rules whose program path is written out in full, not through an
@@ -154,14 +166,14 @@ The files below live in the app folder, next to `DiPlayDesktop.exe`.
 ## Running
 
 ```
-DiPlayDesktop.exe
+ChairPlay.exe
 ```
 
-With no arguments the launcher runs `run`. Passing any argument replaces that default, so `DiPlayDesktop.exe devices`
-and `DiPlayDesktop.exe probe-bt [iphone-address]` run those commands instead. The app is a console program: it logs
-to the console window, and the CarPlay screen opens in its own window, titled DiPlayDesktop.
+With no arguments the launcher runs `run`. Passing any argument replaces that default, so `ChairPlay.exe devices`
+and `ChairPlay.exe probe-bt [iphone-address]` run those commands instead. The app is a console program: it logs
+to the console window, and the CarPlay screen opens in its own window, titled ChairPlay.
 
-The iPhone lists the PC as **DiPlayDesktop** (or `device.name`). The CarPlay home screen shows a Windows icon (`car.icon`) where a car shows its maker's;
+The iPhone lists the PC as **ChairPlay** (or `device.name`). The CarPlay home screen shows a Windows icon (`car.icon`) where a car shows its maker's;
 tapping it minimizes the CarPlay window and leaves CarPlay running.
 
 Besides touch with the mouse, the keyboard and the mouse wheel work as a car's controls. These are the defaults;
@@ -172,7 +184,7 @@ setting; delete the file to get the defaults back.
 
 F12 (`key.screenshot`) saves the CarPlay screen, and the AltScreen when it is on, as PNGs at the size the
 iPhone draws them, not the windows', in `screenshots` in the app folder; the console prints the file names. For unattended runs, the environment variable
-`DIPLAY_SCREENSHOT_AFTER=<seconds>` saves one screenshot that many seconds after the first picture.
+`CHAIRPLAY_SCREENSHOT_AFTER=<seconds>` saves one screenshot that many seconds after the first picture.
 
 ## The CarPlay data log
 

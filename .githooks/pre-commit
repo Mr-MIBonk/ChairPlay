@@ -1,0 +1,115 @@
+#!/usr/bin/env bash
+# Refuses a commit that would put a secret into the repository: the app folder's data (MFi identity,
+# AirPlay identity, pairings, settings), key and certificate files, PEM private keys, and the content of the
+# app folder's key files under any other name or pasted as base64. It names the file, never what it found.
+#
+# Enable once per clone: git config core.hooksPath .githooks
+# The app folders it reads the keys from: dist/ChairPlay, chairplay.home from ~/.gradle/gradle.properties,
+# or the folders in GUARD_DATA_DIRS (separated by ';'), which replaces both.
+set -u
+
+TOP=$(git rev-parse --show-toplevel)
+problems=()
+
+# The app folders: their key files are what must never reach git.
+data_dirs=()
+if [ -n "${GUARD_DATA_DIRS:-}" ]; then
+    IFS=';' read -r -a data_dirs <<< "$GUARD_DATA_DIRS"
+else
+    data_dirs+=("$TOP/dist/ChairPlay")
+    home_line=$(grep -E '^[[:space:]]*chairplay\.home[[:space:]]*[=:]' "$HOME/.gradle/gradle.properties" 2>/dev/null | tail -1)
+    if [ -n "$home_line" ]; then
+        # A .properties value: "C\:\\Users\\..." or "C:/Users/...".
+        home=$(printf '%s' "${home_line#*[=:]}" | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' -e 's/\\\\/\\/g' -e 's/\\:/:/g')
+        data_dirs+=("$(cygpath -u "$home" 2>/dev/null || printf '%s' "$home")")
+    fi
+fi
+
+secret_files=()
+for dir in "${data_dirs[@]}"; do
+    [ -d "$dir" ] || continue
+    for file in "$dir"/offline-mfi/* "$dir"/pairings/* "$dir/identity.properties"; do
+        [ -f "$file" ] && secret_files+=("$file")
+    done
+done
+
+# Each key file is recognised by its blob id (an exact copy) and by short pieces of its base64 and, for a
+# text file, of its long tokens. The pieces sit where neither 64- nor 76-column wrapping breaks them.
+# Every process costs on Windows, so the work is done in few of them: one hash-object for all key files,
+# one diff for the staged files and one cat-file with perl for their content.
+declare -A secret_blobs=()
+pieces=()
+if [ ${#secret_files[@]} -gt 0 ]; then
+    i=0
+    while IFS= read -r id; do
+        file=${secret_files[$i]}; i=$((i + 1))
+        rel=${file##*/}
+        case "$file" in */offline-mfi/*) rel="offline-mfi/$rel" ;; */pairings/*) rel="pairings/$rel" ;; esac
+        secret_blobs[$id]=$rel
+    done < <(git hash-object --no-filters -- "${secret_files[@]}")
+fi
+for file in ${secret_files[@]+"${secret_files[@]}"}; do
+    b64=$(base64 -w0 < "$file")
+    if [ ${#b64} -ge 288 ]; then pieces+=("${b64:200:24}" "${b64:264:24}")
+    elif [ ${#b64} -ge 24 ]; then pieces+=("${b64:0:24}"); fi
+    if grep -Iq . "$file"; then
+        while IFS= read -r token; do pieces+=("${token:0:24}"); done < <(grep -oE '[A-Za-z0-9+/_-]{24,}' "$file")
+    fi
+done
+
+# The staged files, as ":<old mode> <new mode> <old blob> <new blob> <status>" and the path.
+declare -A blob_paths=()
+blobs=()
+while IFS= read -r -d '' meta && IFS= read -r -d '' path; do
+    read -r _ mode _ blob _ <<< "$meta"
+    name=${path##*/}
+    case "/$path" in
+        */offline-mfi/* | */pairings/* | */dist/*)
+            problems+=("$path: the app folder's data (offline-mfi, pairings, dist) never goes into git"); continue ;;
+    esac
+    case "$name" in
+        identity.properties | settings.properties | window.properties | controls.properties)
+            problems+=("$path: the app's own settings and identity file never goes into git"); continue ;;
+    esac
+    case "${name,,}" in
+        *.pem | *.key | *.pk8 | *.p7b | *.p12 | *.pfx | *.der | *.cer | *.crt | *.jks | *.keystore | *.bundle)
+            problems+=("$path: a key, certificate or bundle file"); continue ;;
+    esac
+
+    [ "$mode" = 160000 ] && continue  # a submodule pointer
+    if [ -n "${secret_blobs[$blob]+set}" ]; then
+        problems+=("$path: a copy of ${secret_blobs[$blob]} from the app folder"); continue
+    fi
+    [ -z "${blob_paths[$blob]+set}" ] && blobs+=("$blob")
+    blob_paths[$blob]+="$path"$'\n'
+done < <(git diff --cached --raw -z --no-abbrev --no-renames --diff-filter=ACM)
+
+# The content of all staged blobs in one stream; perl answers "<blob> pem" or "<blob> piece" per finding.
+if [ ${#blobs[@]} -gt 0 ]; then
+    while read -r blob finding; do
+        case "$finding" in
+            pem) reason="contains a PEM private key" ;;
+            *) reason="contains data from a key file in the app folder" ;;
+        esac
+        while IFS= read -r path; do
+            [ -n "$path" ] && problems+=("$path: $reason")
+        done <<< "${blob_paths[$blob]}"
+    done < <(printf '%s\n' "${blobs[@]}" | git cat-file --batch | perl -e '
+        open(my $in, "<&=", 3) or die "pieces: $!";
+        my @pieces = grep { length } map { chomp; $_ } <$in>;
+        binmode STDIN;
+        while (my $header = <STDIN>) {
+            my ($blob, $type, $size) = split " ", $header;
+            next if $type eq "missing";
+            read(STDIN, my $content, $size); read(STDIN, my $newline, 1);
+            if ($content =~ /-----BEGIN (?:[A-Z0-9]+ )*PRIVATE KEY-----\s+[A-Za-z0-9+\/=\r\n]{40,}/) { print "$blob pem\n"; next }
+            for my $piece (@pieces) { if (index($content, $piece) >= 0) { print "$blob piece\n"; last } }
+        }' 3< <(printf '%s\n' ${pieces[@]+"${pieces[@]}"}))
+fi
+
+if [ ${#problems[@]} -gt 0 ]; then
+    echo "pre-commit: refused, the commit would put secrets into git:" >&2
+    printf '  %s\n' "${problems[@]}" >&2
+    echo "Unstage them (git restore --staged <file>); keys belong in the app folder only." >&2
+    exit 1
+fi

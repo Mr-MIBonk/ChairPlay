@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+# Refuses to push history that is not this project's. DiPlay's tags and branches can end up in this
+# repository (a fetch from upstream in the wrong folder), and `git push --tags` or `--mirror` would then
+# publish all of DiPlay here. A pushed commit must descend from this project's first commit.
+#
+# Enable once per clone: git config core.hooksPath .githooks
+set -u
+
+ZERO=0000000000000000000000000000000000000000
+ours=$(git rev-list --max-parents=0 refs/heads/main 2>/dev/null || git rev-list --max-parents=0 HEAD)
+problems=()
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ "$local_sha" = "$ZERO" ] && continue  # a deletion
+    commit=$(git rev-parse -q --verify "$local_sha^{commit}") || continue
+    if ! git rev-list --max-parents=0 "$commit" | grep -qxF -f <(printf '%s\n' "$ours"); then
+        problems+=("$remote_ref ($local_ref): history of another project, not descended from this repository's first commit")
+    fi
+done
+
+if [ ${#problems[@]} -gt 0 ]; then
+    echo "pre-push: refused:" >&2
+    printf '  %s\n' "${problems[@]}" >&2
+    echo "Delete those refs locally (git tag -d / git branch -D) or push only this project's branches." >&2
+    exit 1
+fi

@@ -1,12 +1,12 @@
-DiPlay Desktop - third-party components
+ChairPlay - third-party components
 
-DiPlay Desktop itself is licensed under the GNU GPL v3 (file LICENSE next to this one).
+ChairPlay itself is licensed under the GNU GPL v3 (file LICENSE next to this one).
 The app image bundles the components below (every jar in app/, and speex_echo.dll). Licence texts are in
 this folder's licenses/ directory unless a jar embeds its own, noted as "in jar".
 
 Component                         Version        Licence                          Upstream
 --------------------------------  -------------  -------------------------------  --------------------------------------
-Concentus (Opus, in diplay-desktop.jar)  -       BSD-3-Clause (LICENSE-concentus) https://github.com/lostromb/concentus
+Concentus (Opus, in chairplay.jar)  -       BSD-3-Clause (LICENSE-concentus) https://github.com/lostromb/concentus
 SpeexDSP echo canceller           1.2.1          BSD-3-Clause (LICENSE-speexdsp)  https://github.com/xiph/speexdsp
   (speex_echo.dll, built from DiPlay's copy of the sources)
 Bouncy Castle bcprov-jdk18on      1.79           MIT-style (Bouncy-Castle-LICENSE.txt)  https://www.bouncycastle.org/

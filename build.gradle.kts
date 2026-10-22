@@ -140,7 +140,7 @@ dependencies {
 val socketHandleOpens = listOf("java.base/java.net", "java.base/java.io").map { "--add-opens=$it=ALL-UNNAMED" }
 
 application {
-    mainClass.set("com.shilapi.xcertplay.desktop.MainKt")
+    mainClass.set("io.github.numberonebot.chairplay.MainKt")
     applicationDefaultJvmArgs = socketHandleOpens
 }
 
@@ -156,7 +156,7 @@ interface FileOps {
 val zigVersion = "0.16.0"
 val zigSha256 = "68659eb5f1e4eb1437a722f1dd889c5a322c9954607f5edcf337bc3684a75a7e"
 val zigName = "zig-x86_64-windows-$zigVersion"
-val zigRoot: File = gradle.gradleUserHomeDir.resolve("caches/diplay-desktop/zig")
+val zigRoot: File = gradle.gradleUserHomeDir.resolve("caches/chairplay/zig")
 val zigExe: File = zigRoot.resolve("$zigName/zig.exe")
 
 val installZig by tasks.registering {
@@ -309,28 +309,28 @@ val appImageModules = listOf(
 
 val jpackageImage by tasks.registering(Exec::class) {
     group = "distribution"
-    description = "Builds build/jpackage/DiPlayDesktop with the launcher DiPlayDesktop.exe."
+    description = "Builds build/jpackage/ChairPlay with the launcher ChairPlay.exe."
     dependsOn(tasks.installDist)
     val launcher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }
-    val installDir = layout.buildDirectory.dir("install/diplay-desktop")
+    val installDir = layout.buildDirectory.dir("install/chairplay")
     val outDir = layout.buildDirectory.dir("jpackage")
     val upstream = layout.projectDirectory.dir("upstream")
     val notices = layout.projectDirectory.dir("notices")
     val thirdParty = layout.projectDirectory.file("THIRD_PARTY_NOTICES")
     // Written by packaging/icon/make_icon.py, as are the window icon PNGs in the resources.
-    val icon = layout.projectDirectory.file("packaging/diplaydesktop.ico")
+    val icon = layout.projectDirectory.file("packaging/chairplay.ico")
     val ops = objects.newInstance<FileOps>()
-    // Command-line arguments given to DiPlayDesktop.exe replace the default `run`, so `devices` and
+    // Command-line arguments given to ChairPlay.exe replace the default `run`, so `devices` and
     // `probe-bt` work by passing them explicitly.
     doFirst {
         ops.fs.delete { delete(outDir) }
         commandLine(
             launcher.get().metadata.installationPath.file("bin/jpackage.exe").asFile.path,
             "--type", "app-image",
-            "--name", "DiPlayDesktop",
+            "--name", "ChairPlay",
             "--input", installDir.get().dir("lib").asFile.path,
-            "--main-jar", "diplay-desktop.jar",
-            "--main-class", "com.shilapi.xcertplay.desktop.MainKt",
+            "--main-jar", "chairplay.jar",
+            "--main-class", "io.github.numberonebot.chairplay.MainKt",
             "--arguments", "run",
             "--win-console",
             "--icon", icon.asFile.path,
@@ -340,7 +340,7 @@ val jpackageImage by tasks.registering(Exec::class) {
         )
     }
     // jpackage on JDK 17 has no --app-content, so notices are copied into the image afterwards, and so is
-    // speex_echo.dll: into the image's root next to DiPlayDesktop.exe, because the launcher sets no
+    // speex_echo.dll: into the image's root next to ChairPlay.exe, because the launcher sets no
     // java.library.path and the JVM's default one on Windows starts with the folder of the running exe.
     doLast {
         ops.fs.copy {
@@ -351,22 +351,22 @@ val jpackageImage by tasks.registering(Exec::class) {
             from(thirdParty)
             from(upstream.dir("docs/licenses/dependencies")) { into("licenses") }
             from(notices) { into("licenses") }
-            into(outDir.get().dir("DiPlayDesktop"))
+            into(outDir.get().dir("ChairPlay"))
         }
     }
 }
 
 // The app folder holds the program next to its data (settings, keys, pairings), which the app reads from
-// its exe's folder. deploy refreshes the program there and never touches the data. It is dist/DiPlayDesktop
-// in the project (outside build/, which clean wipes), or the path in the diplay.home property: on the
-// command line (-Pdiplay.home=<path>) or, to keep one for good, in %USERPROFILE%\.gradle\gradle.properties.
-val appHome: Provider<String> = providers.gradleProperty("diplay.home")
-    .orElse(layout.projectDirectory.dir("dist/DiPlayDesktop").asFile.path)
+// its exe's folder. deploy refreshes the program there and never touches the data. It is dist/ChairPlay
+// in the project (outside build/, which clean wipes), or the path in the chairplay.home property: on the
+// command line (-Pchairplay.home=<path>) or, to keep one for good, in %USERPROFILE%\.gradle\gradle.properties.
+val appHome: Provider<String> = providers.gradleProperty("chairplay.home")
+    .orElse(layout.projectDirectory.dir("dist/ChairPlay").asFile.path)
 
 val syncApp by tasks.registering(Sync::class) {
-    description = "Copies the app image into the app folder (diplay.home), keeping its settings, keys and pairings."
+    description = "Copies the app image into the app folder (chairplay.home), keeping its settings, keys and pairings."
     dependsOn(jpackageImage)
-    from(layout.buildDirectory.dir("jpackage/DiPlayDesktop"))
+    from(layout.buildDirectory.dir("jpackage/ChairPlay"))
     into(appHome)
     // The app data: settings, controls and car icon, the AirPlay identity, pairings, the MFi files and the data logs.
     preserve {
@@ -377,9 +377,9 @@ val syncApp by tasks.registering(Sync::class) {
     doFirst {
         val target = home.get()
         val entries = target.list().orEmpty()
-        val known = setOf("DiPlayDesktop.exe", "settings.properties", "controls.properties", "carplay-icon.png", "identity.properties", "pairings", "offline-mfi")
+        val known = setOf("ChairPlay.exe", "settings.properties", "controls.properties", "carplay-icon.png", "identity.properties", "pairings", "offline-mfi")
         check(entries.isEmpty() || entries.any { it in known }) {
-            "$target has files but no DiPlayDesktop.exe or app data; refusing to replace its contents"
+            "$target has files but no ChairPlay.exe or app data; refusing to replace its contents"
         }
     }
 }
@@ -388,9 +388,9 @@ val syncApp by tasks.registering(Sync::class) {
 // before the first start; the templates live in the app's code (AppDefaults.kt).
 val deploy by tasks.registering(JavaExec::class) {
     group = "distribution"
-    description = "Installs the app into the app folder (diplay.home) with default settings where it has none."
+    description = "Installs the app into the app folder (chairplay.home) with default settings where it has none."
     dependsOn(syncApp)
-    mainClass = "com.shilapi.xcertplay.desktop.config.AppDefaultsKt"
+    mainClass = "io.github.numberonebot.chairplay.config.AppDefaultsKt"
     classpath = sourceSets.main.get().runtimeClasspath
     jvmArgs("-Djava.awt.headless=true")
     args(appHome.get())
@@ -400,17 +400,17 @@ val deploy by tasks.registering(JavaExec::class) {
 // stop button would kill it hard, and the iPhone then ignores new sessions until it restarts.
 val launchApp by tasks.registering(Exec::class) {
     group = "application"
-    description = "Starts DiPlayDesktop.exe from the app folder (diplay.home) in its own console window."
+    description = "Starts ChairPlay.exe from the app folder (chairplay.home) in its own console window."
     val home = appHome.map { file(it) }
     doFirst {
-        check(home.get().resolve("DiPlayDesktop.exe").isFile) { "no DiPlayDesktop.exe in ${home.get()}; run deploy first" }
+        check(home.get().resolve("ChairPlay.exe").isFile) { "no ChairPlay.exe in ${home.get()}; run deploy first" }
     }
-    commandLine("cmd", "/c", "start", "DiPlayDesktop", "/D", home.get().path, "DiPlayDesktop.exe")
+    commandLine("cmd", "/c", "start", "ChairPlay", "/D", home.get().path, "ChairPlay.exe")
 }
 
 val listDevices by tasks.registering(Exec::class) {
     group = "application"
     description = "Lists the Bluetooth radio, paired devices and sound devices with the deployed app."
     val home = appHome.map { file(it) }
-    commandLine(home.get().resolve("DiPlayDesktop.exe").path, "devices")
+    commandLine(home.get().resolve("ChairPlay.exe").path, "devices")
 }

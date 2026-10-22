@@ -1,8 +1,8 @@
-"""Builds the DiPlayDesktop app icon from glyph.png: the glyph in dark grey on a light grey squircle.
+"""Builds the ChairPlay app icon from glyph.png: the glyph in dark grey on a light grey squircle.
 
 Run from this directory with Pillow and NumPy installed:  python make_icon.py
-Writes ../diplaydesktop.ico (exe icon for jpackage), ../../src/main/resources/icons/diplaydesktop-N.png
-(window icon), and for a future macOS build ../macos/diplaydesktop.icns and ../macos/diplaydesktop-1024.png
+Writes ../chairplay.ico (exe icon for jpackage), ../../src/main/resources/icons/chairplay-N.png
+(window icon), and for a future macOS build ../macos/chairplay.icns and ../macos/chairplay-1024.png
 on Apple's macOS icon grid (an 824-pixel body on a 1024 canvas, with a soft drop shadow).
 """
 from pathlib import Path
@@ -75,13 +75,13 @@ def main():
     mac = macos(icon)
     mac_dir = HERE.parent / "macos"
     mac_dir.mkdir(exist_ok=True)
-    mac.save(mac_dir / "diplaydesktop-1024.png")
-    mac.save(mac_dir / "diplaydesktop.icns", sizes=[(s, s) for s in (16, 32, 64, 128, 256, 512, 1024)])
-    icon.save(HERE.parent / "diplaydesktop.ico", sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
+    mac.save(mac_dir / "chairplay-1024.png")
+    mac.save(mac_dir / "chairplay.icns", sizes=[(s, s) for s in (16, 32, 64, 128, 256, 512, 1024)])
+    icon.save(HERE.parent / "chairplay.ico", sizes=[(s, s) for s in (16, 24, 32, 48, 64, 128, 256)])
     resources = HERE.parent.parent / "src" / "main" / "resources" / "icons"
     resources.mkdir(parents=True, exist_ok=True)
     for s in (16, 32, 48, 256):
-        icon.resize((s, s), Image.LANCZOS).save(resources / f"diplaydesktop-{s}.png")
+        icon.resize((s, s), Image.LANCZOS).save(resources / f"chairplay-{s}.png")
 
 
 if __name__ == "__main__":

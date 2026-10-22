@@ -1,4 +1,4 @@
-# Working on DiPlay Desktop
+# Working on ChairPlay
 
 Rules for coding agents, learned from mistakes made on this port. DiPlay itself lives in the `upstream/`
 submodule; its `AGENTS.md` and CI command are for the Android app and do not apply here.
@@ -10,6 +10,18 @@ submodule; its `AGENTS.md` and CI command are for the Android app and do not app
 - Notes and plans that are not for the repository go to `desktop-docs/` (ignored by git).
 - To take a newer DiPlay: `git -C upstream fetch`, `git -C upstream checkout <commit>`, build and test, then
   commit the `upstream` pointer. Upstream can change the core's API, so a new DiPlay can break this build.
+  When the submodule points at a mirror rather than DiPlay's GitHub, run `scripts\mirror-upstream.cmd <url>`
+  first (add `--local` if only this clone uses the mirror): the script fills it and pins every commit used here.
+- Never fetch DiPlay's refs into this repository (only into `upstream/`); its tags here would be pushed with
+  `--tags`. The pre-push hook refuses history that does not start at this project's first commit.
+- Git hooks live in `.githooks/` (`git config core.hooksPath .githooks`). Never bypass them with
+  `--no-verify`; a refused commit means a key or app-folder file is staged. After changing a hook or
+  `scripts\mirror-upstream.cmd`, run `scripts\test-repo-tools.cmd`.
+- The owner works in cmd: scripts meant to be run by hand are `.cmd` (CRLF, Windows' own `sort`/`find` by full
+  path). Hooks stay bash, because git runs them with its bash. Every process start is slow on Windows; batch
+  work into few processes (one `git cat-file --batch`, not one call per file).
+- Another agent session may share this working tree: never stage ahead of the commit (a `git rm` sat in the
+  index and went into another session's commit). Commit only your own paths: `git commit -- <paths>`.
 - Git here is 2.37: `merge-tree --write-tree` does not exist, and its error exit is not a conflict.
 
 ## Building and testing
@@ -51,5 +63,5 @@ submodule; its `AGENTS.md` and CI command are for the Android app and do not app
   `Get-CimInstance Win32_Process`, matching the scratchpad log path), never other sessions' processes.
 - Stop the Gradle daemon (`./gradlew --stop`) when the session's builds are done.
 - `tasklist | grep …` lists its own `grep.exe`; that one is not a leftover.
-- Install the app with `./gradlew deploy` into `Documents\DiPlayDesktopApp`; it keeps the data
+- Install the app with `./gradlew deploy` into `Documents\ChairPlayApp`; it keeps the data
   files there. Never print or copy `identity.properties`, `offline-mfi/` or the Wi-Fi passphrase.

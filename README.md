@@ -1,15 +1,15 @@
-# DiPlay Desktop
+# ChairPlay
 
 **Wireless Apple CarPlay on a Windows PC.** Your iPhone connects to the PC the way it connects to a car: over
 Bluetooth first, then over Wi-Fi. CarPlay opens in a window, and you drive it with the mouse and the keyboard,
 hear it through the PC's speakers and talk to Siri through its microphone.
 
-![CarPlay home screen in the DiPlayDesktop window, with the Windows car button](docs/images/carplay-window.png)
+![CarPlay home screen in the ChairPlay window, with the Windows car button](docs/images/carplay-window.png)
 
 Useful for developing and testing CarPlay apps and navigation without sitting in a car, for demos, or simply for
 CarPlay on a desk.
 
-DiPlay Desktop is built on [DiPlay](https://github.com/shihabal3amri/DiPlay), the Android CarPlay receiver for head
+ChairPlay is built on [DiPlay](https://github.com/shihabal3amri/DiPlay), the Android CarPlay receiver for head
 units by shihabal3amri. It compiles DiPlay's portable CarPlay core (AirPlay, iAP2, MFi authentication) from the
 `upstream/` submodule and adds everything Windows needs around it. It is a separate project, not affiliated with or
 endorsed by DiPlay's authors or by Apple.
@@ -52,21 +52,21 @@ Tested on Windows 11 with an iPhone 15 (iOS 18.6).
 ## Quick start
 
 ```
-git clone --recursive https://github.com/NumberOneBot/DiPlayDesktop.git
-cd DiPlayDesktop
+git clone --recursive https://github.com/NumberOneBot/ChairPlay.git
+cd ChairPlay
 gradlew deploy
 ```
 
-`deploy` builds a self-contained app (with its own Java runtime) into `dist\DiPlayDesktop` and keeps your
-settings and keys there on later builds. To install it elsewhere, pass `-Pdiplay.home=<folder>`, or put
-`diplay.home=<folder>` in `%USERPROFILE%\.gradle\gradle.properties` once. Then:
+`deploy` builds a self-contained app (with its own Java runtime) into `dist\ChairPlay` and keeps your
+settings and keys there on later builds. To install it elsewhere, pass `-Pchairplay.home=<folder>`, or put
+`chairplay.home=<folder>` in `%USERPROFILE%\.gradle\gradle.properties` once. Then:
 
 1. Pair the iPhone in Windows Settings > Bluetooth & devices.
-2. Put your MFi identity files in `dist\DiPlayDesktop\offline-mfi\`.
-3. Fill in your Wi-Fi name and password in `dist\DiPlayDesktop\settings.properties`, which `deploy` wrote with
+2. Put your MFi identity files in `dist\ChairPlay\offline-mfi\`.
+3. Fill in your Wi-Fi name and password in `dist\ChairPlay\settings.properties`, which `deploy` wrote with
    every setting at its default.
-4. Allow DiPlayDesktop through Windows Firewall (the app prints the exact commands if a rule is missing).
-5. Start `DiPlayDesktop.exe` with the iPhone unlocked, and accept CarPlay on the iPhone.
+4. Allow ChairPlay through Windows Firewall (the app prints the exact commands if a rule is missing).
+5. Start `ChairPlay.exe` with the iPhone unlocked, and accept CarPlay on the iPhone.
 
 [docs/SETUP.md](docs/SETUP.md) has every step in detail and the reference for all settings.
 
@@ -124,6 +124,8 @@ A wrong value stops the start with the setting named, and the console prints wha
 
 DiPlay is a git submodule pinned to the version this build is tested with. To move to a newer DiPlay:
 `git -C upstream fetch`, `git -C upstream checkout <commit>`, run `gradlew test`, and commit the new pointer.
+[docs/SETUP.md](docs/SETUP.md) describes the mirror script that keeps the build working without DiPlay's
+repository, and the git hooks that keep keys out of commits.
 
 ## Licence and credits
 
@@ -142,7 +144,7 @@ sending.
 
 ## Support the project
 
-DiPlay Desktop is a hobby project, built and tested on real hardware in my spare time. If it saves you a trip to
+ChairPlay is a hobby project, built and tested on real hardware in my spare time. If it saves you a trip to
 the car or helps your CarPlay work, you can buy me a coffee:
 
 <a href="https://www.buymeacoffee.com/alexstrelets"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="217"></a>
