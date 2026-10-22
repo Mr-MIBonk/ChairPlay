@@ -41,6 +41,16 @@ The call echo canceller is DiPlay's copy of SpeexDSP, which is C. The build comp
 needed. The first build downloads zig 0.16.0 (about 100 MB, checked against its SHA-256) into
 `%USERPROFILE%\.gradle\caches\chairplay\zig` and reuses it after that; it needs internet access once.
 
+The start and settings screens are a web page (React and TypeScript in `webui\`, built by Vite) that the app shows
+in WebView2 inside its window. The build needs no Node.js on the machine: it downloads Node.js 24 (checked against
+its SHA-256) into `%USERPROFILE%\.gradle\caches\chairplay\node`, installs the page's packages from
+`webui\package-lock.json` (npm checks each against its integrity hash, and runs no install scripts), type-checks
+and builds the page into the jar, and runs its Vitest tests with `gradlew test` (report in
+`build\test-results\webui`). The web view host, `chairplay_webview.dll`, is the
+[webview](https://github.com/webview/webview) library with a few calls of our own (`src\native\webview`), built by
+zig against the headers of Microsoft's WebView2 SDK; both are downloaded once, pinned and checked, and the SDK's
+`WebView2Loader.dll` ships next to `ChairPlay.exe`.
+
 The app keeps its settings, keys and pairings in the folder of its exe. To run it from a folder of its own that
 rebuilds never wipe, deploy it there:
 
@@ -80,9 +90,15 @@ The files below live in the app folder, next to `ChairPlay.exe`.
 3. **Settings.** `deploy` (or the first start, for a folder filled by hand) writes `settings.properties` with
    every setting at its default and a comment on each, together with `controls.properties` and `carplay-icon.png`;
    files already there are kept, and a settings file from an older version gets the settings it lacks added at
-   its end. Fill in:
-   - `wifi.ssid` (required) and `wifi.passphrase`: the Wi-Fi network shared by the PC and the iPhone;
+   its end. The start screen sets the Wi-Fi network and the settings screen a few others (see
+   [The start and settings screens](#the-start-and-settings-screens)); the rest are edited here:
+   - `wifi.ssid` and `wifi.passphrase`: the Wi-Fi network shared by the PC and the iPhone. Nothing connects
+     without it; while it is blank the start screen asks for it;
    - `wifi.security`: `NONE`, `WEP`, `WPA_WPA2` (default), `WPA3_TRANSITION` or `WPA3_ONLY`;
+   - `ui.autoconnect` (default `true`): connect to the iPhone as the app starts; `false` waits for Connect on the
+     start screen;
+   - `ui.autoshow` (default `true`): show CarPlay over the start screen as soon as the iPhone connects; `false`
+     stays on the start screen, which then offers Show CarPlay;
    - `iphone.address`: the iPhone's Bluetooth address, only needed when several phones are paired;
    - `iphone.join.seconds` (default 30): how long an iPhone that paired before has to join the Wi-Fi after the
      Bluetooth start before the app starts over and gives it the network again. It joins within a second or two,
@@ -120,6 +136,11 @@ The files below live in the app folder, next to `ChairPlay.exe`.
      opens it there the next time; changing these two settings (or the display size they follow) replaces the
      remembered size. A window left on a monitor that is no longer connected opens where Windows puts it. Delete
      `window.properties` to forget the place;
+   - `window.controls` (default `false`): `true` opens a window of on-screen car controls beside CarPlay's: the knob
+     (select in the middle, tilts around it, turns above its corners), back, home, Siri, the media keys, the call
+     keys and the AltScreen's zoom. A button held with the mouse holds its control until the release, as a held
+     key does, so CarPlay tells a long press. The window keeps its place and size under `controls.` in
+     `window.properties`, and F12 saves it as `controls-<time>.png`;
    - `window.keep.aspect` (default `true`): the windows resize only with the shape of their picture, the
      main window's that of `display.width` x `display.height` and the AltScreen's that of its size; a maximized
      window still fills the screen. `false` lets them take any shape;
@@ -142,7 +163,8 @@ The files below live in the app folder, next to `ChairPlay.exe`.
      `bottom`), `display.safe.top`/`bottom`/`left`/`right` (pixels CarPlay keeps its controls out of) with
      `display.safe.draw.outside`, and `display.corners` (`square`, the default, fills the window to its corners; `rounded` keeps CarPlay's rounded corners).
 
-   The settings apply at the next start; the console prints what the iPhone was told, for example
+   The settings apply at the next start (the Wi-Fi network with the next connection, `ui.autoshow` at once); the
+   console prints what the iPhone was told, for example
    `display 1280x720 px, 200x113 mm (163 ppi), 60 fps; window 1280x720`.
 4. **Firewall.** Windows Firewall drops the iPhone's inbound connections. From an administrator Command Prompt, add
    these rules once (the paths are those of the packaged exe; adjust them if you move the folder). The app does not
@@ -174,7 +196,7 @@ and `ChairPlay.exe probe-bt [iphone-address]` run those commands instead. The ap
 to the console window, and the CarPlay screen opens in its own window, titled ChairPlay.
 
 The iPhone lists the PC as **ChairPlay** (or `device.name`). The CarPlay home screen shows a Windows icon (`car.icon`) where a car shows its maker's;
-tapping it minimizes the CarPlay window and leaves CarPlay running.
+tapping it opens the settings screen over CarPlay and leaves CarPlay running.
 
 Besides touch with the mouse, the keyboard and the mouse wheel work as a car's controls. These are the defaults;
 `controls.properties` in the app folder, written on the first start with every action documented, rebinds them
@@ -184,7 +206,67 @@ setting; delete the file to get the defaults back.
 
 F12 (`key.screenshot`) saves the CarPlay screen, and the AltScreen when it is on, as PNGs at the size the
 iPhone draws them, not the windows', in `screenshots` in the app folder; the console prints the file names. For unattended runs, the environment variable
-`CHAIRPLAY_SCREENSHOT_AFTER=<seconds>` saves one screenshot that many seconds after the first picture.
+`CHAIRPLAY_SCREENSHOT_AFTER=<seconds>` saves one screenshot that many seconds after the first picture. It saves
+CarPlay's picture only, never the start or settings screen.
+
+## The start and settings screens
+
+Whenever CarPlay is not on screen, the window shows the **start screen** instead of black:
+
+- where the connection stands: *Wi-Fi network needed*, *Not connected* (with `ui.autoconnect=false`, until
+  Connect), *Starting*, *Waiting for the iPhone* (calling it over Bluetooth), *Connecting* (the iPhone answered
+  and joins the Wi-Fi; a new one asks to accept CarPlay first), *Connected*, or *Trying again*, with the last
+  error, its time and a hint for the usual causes (missing MFi files, Bluetooth, Wi-Fi). The buttons are Connect,
+  Reconnect now (what Ctrl+R does) and, with a session, Show CarPlay;
+- the **Wi-Fi network**: name, password and security. The stored password is never shown or sent to the page,
+  which only learns whether one is set; typing a new one replaces it, leaving the field empty keeps it. With
+  `ui.autoconnect` the first network saved starts the connection; a change during a session applies with the
+  next connection, which Reconnect now starts at once;
+- the setup steps, with what the app found: the MFi files in `offline-mfi\`, the firewall rule (with the netsh
+  commands and a Copy button when it is missing), pairing in Windows and accepting CarPlay on the iPhone.
+
+With `ui.autoshow` CarPlay covers the start screen as soon as the session is active; otherwise the start screen
+stays and offers Show CarPlay. When the session ends, the start screen comes back.
+
+The **settings screen** opens from the start screen's Settings button, and over CarPlay from the car button on the
+CarPlay home screen; its back button (or Esc) returns to CarPlay when there is a session, else to the start screen.
+It has the two switches, the AltScreen (on or off, and its size) and the main window's size. Each change is
+written into `settings.properties` in place, keeping the comments and every other line, after the same checks the
+app makes when it starts, and the screen says when it applies: `ui.autoshow` at once, the Wi-Fi network with the
+next connection, the others when ChairPlay starts again (listed at the top until then).
+
+While a screen covers the window, the keyboard and the mouse are the screen's; while CarPlay shows, the screen is
+hidden and every key works as before.
+
+The page runs in Microsoft Edge WebView2, which Windows 11 and an updated Windows 10 carry. Without it (or without
+`chairplay_webview.dll`) the app opens the page in the default browser, says so in the console, and the car
+button minimizes the window as before. WebView2 keeps its profile (cache) in `%LOCALAPPDATA%\ChairPlay\WebView2`.
+
+The page talks to the app over HTTP on `127.0.0.1` only, on a free port, with a random key in its address; the
+console prints the whole address at start (`UI at http://127.0.0.1:<port>/?token=<key>`), and any browser on the
+PC can open it, for example to look at the screens from a second monitor. Every API call carries the key, and a
+request naming another host than `127.0.0.1` or `localhost` is refused.
+
+### Changing the screens
+
+The page's sources are in `webui\src`. To work on them with Vite's dev server, which reloads the page on every save:
+
+1. Start the app with a fixed port for its HTTP server, for example from a Command Prompt in the app folder:
+   `set CHAIRPLAY_UI_PORT=47800` and then `ChairPlay.exe`. Without an iPhone at hand, put `wifi.ssid=TestNet` and
+   `iphone.address=02:00:00:00:00:01` in a test folder's `settings.properties` (`gradlew deploy
+   -Pchairplay.home=<test folder>`), so it connects to nothing.
+2. In `webui\`, start the dev server with the build's own Node.js (run `gradlew npmCi` once first):
+
+   ```
+   set PATH=%USERPROFILE%\.gradle\caches\chairplay\node\node-v24.22.1-win-x64;%PATH%
+   npm run dev
+   ```
+
+   Its proxy sends `/api` to `127.0.0.1:%CHAIRPLAY_UI_PORT%` (47800 when unset).
+3. Open `http://localhost:5173/?token=<the key from the app's console>` in a browser.
+
+`npm test` (or `gradlew webuiTest`) runs the page's tests, and `gradlew webuiBuild` builds it as the app ships it.
+`CHAIRPLAY_UI_DEBUG=1` turns on the developer tools (F12) and the context menu inside the app's window.
 
 ## The CarPlay data log
 

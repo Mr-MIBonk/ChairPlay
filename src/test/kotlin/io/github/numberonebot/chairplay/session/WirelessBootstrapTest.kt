@@ -217,6 +217,38 @@ class WirelessBootstrapTest {
         }
     }
 
+    // The start screen tells the driver what the app is waiting for.
+    @Test(timeout = 30_000)
+    fun `the bring-up reports its progress`() {
+        Harness().use { harness ->
+            harness.nextPort()
+
+            assertEquals(BringUpStatus.Starting, harness.statuses.poll(10, TimeUnit.SECONDS))
+            assertEquals(BringUpStatus.CallingIphone, harness.statuses.poll(10, TimeUnit.SECONDS))
+            assertEquals(BringUpStatus.Joining(knownIphone = false), harness.statuses.poll(10, TimeUnit.SECONDS))
+        }
+    }
+
+    // Missing MFi files stopped the start in the caller's thread, so the reason reached only the console.
+    @Test(timeout = 30_000)
+    fun `parts that cannot be made fail the bring-up with the reason`() {
+        val dir = Files.createTempDirectory("chairplay-bootstrap")
+        writeTestSettings(dir)
+        val statuses = LinkedBlockingQueue<BringUpStatus>()
+        val listener = object : AirPlaySessionListener {}
+        WirelessBootstrap(DesktopConfig(dir), object : MediaSink {}, listener, CarPlayDataTap.NONE) {
+            throw IllegalArgumentException("Offline MFi directory is missing or invalid")
+        }.use { bootstrap ->
+            bootstrap.onStatus = statuses::add
+
+            bootstrap.start()
+
+            assertEquals(BringUpStatus.Starting, statuses.poll(10, TimeUnit.SECONDS))
+            val failed = statuses.poll(10, TimeUnit.SECONDS)
+            assertEquals(BringUpStatus.Failed("Offline MFi directory is missing or invalid", 5_000L), failed)
+        }
+    }
+
     private class RecordingTap : CarPlayDataTap {
         val frames = LinkedBlockingQueue<Pair<DataLink, Int>>()
         val ends = AtomicInteger()
@@ -238,6 +270,7 @@ class WirelessBootstrapTest {
         val stacks = AtomicInteger()
         val parts = LinkedBlockingDeque<FakeParts>()
         val previousPortFree = AtomicBoolean()
+        val statuses = LinkedBlockingQueue<BringUpStatus>()
         private val previousPort = AtomicInteger()
         private val advertisedPorts = LinkedBlockingQueue<Int>()
         private val bootstrap = Files.createTempDirectory("chairplay-bootstrap").let { dir ->
@@ -251,7 +284,7 @@ class WirelessBootstrapTest {
                     previousPort.set(port)
                     advertisedPorts.add(port)
                 }.also(parts::add)
-            }
+            }.also { it.onStatus = statuses::add }
         }
 
         init {

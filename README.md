@@ -17,6 +17,13 @@ endorsed by DiPlay's authors or by Apple.
 ## What works
 
 - **Wireless CarPlay** with an iPhone on the same Wi-Fi network as the PC, started over Windows Bluetooth.
+- **A start screen** in the window whenever CarPlay is not on it: where the connection stands (waiting for the
+  iPhone, connecting, connected, the last error with a hint), the Wi-Fi network to enter, and the setup steps with
+  what is still missing (MFi files, the firewall rule and its commands). Two switches decide whether the app
+  connects as it starts and whether CarPlay covers the start screen as soon as the iPhone is there.
+- **A settings screen**, from the start screen or the car button on the CarPlay home screen, over CarPlay: the
+  switches, the AltScreen and the window sizes, each saved into `settings.properties` in place, saying when it
+  applies, with Reconnect now where a reconnect is enough.
 - **Video** in a resizable window, 1280×720 at 60 fps by default, H.264 decoded in software.
 - **Touch** with the mouse: taps, drags, scrolling lists and the map.
 - **Car controls on the keyboard**: arrows tilt CarPlay's knob, Tab turns it, Enter selects, Esc goes back, plus
@@ -24,12 +31,14 @@ endorsed by DiPlay's authors or by Apple.
 - **Audio**: music (AAC-LC 48 kHz stereo), navigation prompts and Siri, on the device you choose.
 - **Microphone** for Siri and calls (Opus), on the device you choose.
 - **Your own "car"**: the name the iPhone shows, the icon and label of the car button on the CarPlay home screen
-  (a Windows window by default; tapping it minimizes CarPlay).
+  (a Windows window by default; tapping it opens the settings screen).
 - **The CarPlay screen as you want it**: resolution (which decides whether iOS draws at @2x or @3x, and how much
   fits on the screen), frame rate, light or dark theme following Windows, driving side, dock position, safe area,
   corner style.
 - **AltScreen** (experimental): the car's instrument cluster as a second CarPlay screen in its own window,
   1440x542 like Audi's Virtual Cockpit by default, with the map, the turn card or both, switched on the fly.
+- **On-screen car controls** (`window.controls=true`): a window of buttons for the knob, back, home, media, calls,
+  Siri and the AltScreen's zoom, held as long as the mouse holds them.
 - **Graceful reconnection**: close the window and start again, and the iPhone reconnects by itself.
 
 Tested on Windows 11 with an iPhone 15 (iOS 18.6).
@@ -44,10 +53,14 @@ Tested on Windows 11 with an iPhone 15 (iOS 18.6).
   wired to the same router by Ethernet is not enough yet. The network must be WPA2-Personal or open (a WPA2/WPA3
   mixed router works as WPA2; WPA3-only does not), and must let its clients reach each other and pass multicast
   for Bonjour: no client or AP isolation, which guest networks usually have. Tested on 5 GHz.
-- **Windows Firewall** must let the iPhone in (the app prints the commands if a rule is missing).
+- **Windows Firewall** must let the iPhone in (the start screen and the console give the commands if a rule is
+  missing).
+- **Microsoft Edge WebView2** for the start and settings screens: part of Windows 11 and of an updated Windows 10.
+  Without it the screens open in the default browser instead.
 - **An Apple MFi accessory identity** (certificate and private key). The iPhone authenticates every CarPlay
   accessory; this project does not and cannot ship one. You supply your own in `offline-mfi\`.
-- JDK 17 to build.
+- JDK 17 to build. The build downloads the rest itself (zig, Node.js for the screens, the WebView2 SDK), each
+  pinned and checked.
 
 ## Quick start
 
@@ -63,10 +76,11 @@ settings and keys there on later builds. To install it elsewhere, pass `-Pchairp
 
 1. Pair the iPhone in Windows Settings > Bluetooth & devices.
 2. Put your MFi identity files in `dist\ChairPlay\offline-mfi\`.
-3. Fill in your Wi-Fi name and password in `dist\ChairPlay\settings.properties`, which `deploy` wrote with
-   every setting at its default.
-4. Allow ChairPlay through Windows Firewall (the app prints the exact commands if a rule is missing).
-5. Start `ChairPlay.exe` with the iPhone unlocked, and accept CarPlay on the iPhone.
+3. Start `ChairPlay.exe`. The start screen asks for your Wi-Fi network (or fill it into
+   `dist\ChairPlay\settings.properties`, which `deploy` wrote with every setting at its default) and shows what
+   else is missing.
+4. Allow ChairPlay through Windows Firewall: the start screen gives the exact commands if a rule is missing.
+5. With the iPhone unlocked, accept CarPlay on it; CarPlay then covers the start screen.
 
 [docs/SETUP.md](docs/SETUP.md) has every step in detail and the reference for all settings.
 
@@ -89,6 +103,9 @@ settings and keys there on later builds. To install it elsewhere, pass `-Pchairp
 | F11 | AltScreen: map, turn card, map with turn card |
 | Shift+F11 | AltScreen: move the ETA and turn card (auto, left, right, top, off) |
 | Mouse wheel over the AltScreen, + / − (either keyboard) | zoom the AltScreen map |
+| The car button on the CarPlay home screen | the settings screen; its back button or Esc returns to CarPlay |
+
+While the start or settings screen covers the window, the keys and the mouse are the screen's, not CarPlay's.
 
 Rebind any of them in `controls.properties`, which the app writes on its first start with every action listed.
 
@@ -96,9 +113,10 @@ Rebind any of them in `controls.properties`, which the app writes on its first s
 
 Everything lives next to the exe, in plain text:
 
-- `settings.properties`: Wi-Fi, the iPhone, the car's name and icon, sound devices and call echo cancellation, and
-  the CarPlay screen (size, frame rate, physical size, theme, driving side, dock, safe area, corners) and
-  window size.
+- `settings.properties`: Wi-Fi, the iPhone, the start screen's two switches, the car's name and icon, sound
+  devices and call echo cancellation, and the CarPlay screen (size, frame rate, physical size, theme, driving
+  side, dock, safe area, corners) and window size. The start and settings screens change some of these in place,
+  keeping the file's comments and the other lines.
 - `controls.properties`: key bindings and mouse-wheel behaviour.
 - `carplay-icon.png`: the car button's icon; replace it with any square image.
 - `window.properties`: where you left the window and its size, written by the app when it closes.

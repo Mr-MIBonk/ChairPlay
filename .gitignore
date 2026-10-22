@@ -3,6 +3,7 @@ build/
 .gradle/
 .kotlin/
 local.properties
+webui/node_modules/
 
 # The deployed app with its settings and keys (gradlew deploy).
 dist/
@@ -16,3 +17,4 @@ identity.properties
 # Local notes and agent working files, kept out of the repository.
 desktop-docs/
 .superpowers/
+.playwright-mcp/

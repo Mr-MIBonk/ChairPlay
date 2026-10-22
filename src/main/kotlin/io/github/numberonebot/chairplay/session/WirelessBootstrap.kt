@@ -115,6 +115,21 @@ internal interface WirelessParts {
     ): Iap2WirelessControlResult
 }
 
+/** How far a bring-up got, for the start screen. A session that goes active is reported by the session listener. */
+sealed interface BringUpStatus {
+    /** Opening the Wi-Fi side: the network, the AirPlay listener and Bonjour. */
+    data object Starting : BringUpStatus
+
+    /** Calling the paired iPhone over Bluetooth. */
+    data object CallingIphone : BringUpStatus
+
+    /** The iPhone answered over Bluetooth and is to join the Wi-Fi; a new one asks the driver to accept CarPlay first. */
+    data class Joining(val knownIphone: Boolean) : BringUpStatus
+
+    /** The bring-up failed for [message]; the next one starts after [retryMillis]. */
+    data class Failed(val message: String, val retryMillis: Long) : BringUpStatus
+}
+
 /**
  * Wireless CarPlay bring-up in the order of upstream CarPlayController.runWireless: network,
  * AirPlay listener, Bonjour, then iAP2 over Bluetooth hands the iPhone the Wi-Fi endpoint. Every
@@ -133,6 +148,10 @@ class WirelessBootstrap internal constructor(
     constructor(config: DesktopConfig, sink: MediaSink, listener: AirPlaySessionListener, data: CarPlayDataTap = CarPlayDataTap.NONE) :
         this(config, sink, listener, data, { DesktopParts(config, listener::onDebugLog) })
 
+    /** Receives each bring-up's progress, on the bring-up's threads. */
+    @Volatile
+    var onStatus: (BringUpStatus) -> Unit = {}
+
     private val lock = Any()
     @Volatile private var current: Stack? = null
     private var closed = false
@@ -140,8 +159,10 @@ class WirelessBootstrap internal constructor(
     fun start() {
         synchronized(lock) {
             if (closed || current != null) return
-            val stack = Stack(newParts())
+            // The parts are made on the bring-up's thread: one that fails (no MFi files) fails the bring-up.
+            val stack = Stack(newParts)
             current = stack
+            onStatus(BringUpStatus.Starting)
             Thread({ bringUp(stack) }, "chairplay-wireless").apply {
                 isDaemon = true
                 start()
@@ -177,6 +198,7 @@ class WirelessBootstrap internal constructor(
             if (current !== stack) return
             log("wireless bring-up failed: ${error.javaClass.simpleName}: ${error.message}")
             retire(stack)
+            onStatus(BringUpStatus.Failed(error.message ?: error.javaClass.simpleName, RETRY_DELAY_MILLIS))
         }
         Thread.sleep(RETRY_DELAY_MILLIS)
         synchronized(lock) { if (current == null) start() }
@@ -196,8 +218,8 @@ class WirelessBootstrap internal constructor(
     private fun trace(message: String) = log(redactTrace(message))
 
     private fun bringUp(stack: Stack) {
-        val parts = stack.parts
         try {
+            val parts = stack.makeParts()
             val network = stack.own(parts.network())
             val info = network.start(NETWORK_TIMEOUT_MILLIS)
             val host = HotspotAddressPolicy.select(info.hostAddresses) ?: info.hostAddress
@@ -221,7 +243,10 @@ class WirelessBootstrap internal constructor(
             network.validateReady()
             stack.own(parts.advertise(advertised, config.identity, info.hostAddresses))
 
+            onStatus(BringUpStatus.CallingIphone)
             val rfcomm = stack.own(parts.connectIphone())
+            val known = config.iphoneKnown()
+            onStatus(BringUpStatus.Joining(known))
             val bootstrap = stack.handOver(rfcomm,
                 Iap2Session.openWireless(rfcomm, traceContext = "wireless-rfcomm", onTrace = ::trace,
                     onArtwork = { if (!stack.closed) data.onArtwork(DataLink.BLUETOOTH, it) }))
@@ -234,7 +259,6 @@ class WirelessBootstrap internal constructor(
             stack.own(AutoCloseable { media.setIapTunnelHandler(null) })
 
             network.validateReady()
-            val known = config.iphoneKnown()
             val joinTimeout = if (known) config.iphoneJoinSeconds * 1_000L else CONTROL_LOOP_TIMEOUT_MILLIS
             log("waiting up to ${joinTimeout / 1_000} s for the ${if (known) "known" else "new"} iPhone to join the Wi-Fi")
             val result = parts.control(
@@ -348,8 +372,14 @@ class WirelessBootstrap internal constructor(
     }
 
     /** One bring-up's resources, closed in reverse order of acquisition, and its handoff state. */
-    private class Stack(val parts: WirelessParts) : Closeable {
+    private class Stack(private val newParts: () -> WirelessParts) : Closeable {
         private val owned = ArrayList<AutoCloseable>()
+
+        /** Set by [makeParts] as the bring-up begins. */
+        @Volatile lateinit var parts: WirelessParts
+            private set
+
+        fun makeParts(): WirelessParts = newParts().also { parts = it }
         @Volatile var closed = false
             private set
 
@@ -399,7 +429,10 @@ class WirelessBootstrap internal constructor(
     private class DesktopParts(private val config: DesktopConfig, private val log: (String) -> Unit) : WirelessParts {
         override val mfi = LocalMfiAuthenticationClient.load(config.mfiDirectory())
 
-        override fun network() = SameLanNetwork(config.wifi)
+        /** Read for each bring-up, so a network changed on the start screen applies with the next connection. */
+        override fun network() = SameLanNetwork(
+            config.currentWifi() ?: throw IOException("no Wi-Fi network is set: enter it on the start screen (wifi.ssid)"),
+        )
 
         override fun radioAddress() = WindowsBluetooth.localRadioAddress()
 

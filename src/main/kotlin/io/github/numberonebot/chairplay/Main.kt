@@ -17,10 +17,13 @@ import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.data.CarPlayData
 import io.github.numberonebot.chairplay.data.CarPlayDataLog
 import io.github.numberonebot.chairplay.input.Control
+import io.github.numberonebot.chairplay.input.ControlPad
 import io.github.numberonebot.chairplay.input.ControlsConfig
+import io.github.numberonebot.chairplay.input.ControlsPainter
 import io.github.numberonebot.chairplay.input.KeyControls
 import io.github.numberonebot.chairplay.input.TouchQueue
 import io.github.numberonebot.chairplay.input.TouchTracker
+import io.github.numberonebot.chairplay.input.controlAt
 import io.github.numberonebot.chairplay.media.AudioDevices
 import io.github.numberonebot.chairplay.media.AudioRenderer
 import io.github.numberonebot.chairplay.media.DesktopMediaSink
@@ -39,6 +42,9 @@ import io.github.numberonebot.chairplay.session.desktopIdentification
 import io.github.numberonebot.chairplay.session.firewallHint
 import io.github.numberonebot.chairplay.session.readFirewall
 import io.github.numberonebot.chairplay.session.redactTrace
+import io.github.numberonebot.chairplay.ui.ChairPlayUi
+import io.github.numberonebot.chairplay.ui.FirewallStatus
+import io.github.numberonebot.chairplay.ui.UiActions
 import com.shilapi.xcertplay.iap2.session.Iap2Session
 import com.shilapi.xcertplay.mfi.Iap2MfiAuthenticationClient
 import com.shilapi.xcertplay.mfi.LocalMfiAuthenticationClient
@@ -48,6 +54,7 @@ import com.shilapi.xcertplay.transport.Iap2WirelessLinkRole
 import com.shilapi.xcertplay.transport.forWirelessLink
 import java.nio.file.Path
 import java.time.LocalTime
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -68,6 +75,8 @@ private fun log(message: String) = println("${LocalTime.now()} $message")
 
 /** How often display.theme=windows looks at the Windows theme. */
 private const val CONNECTING = "connecting…"
+private val CONTROLS_SIZE = WindowSize(720, 320)
+private const val SCREENSHOT_PICTURE_WAIT_NANOS = 30_000_000_000L
 private const val CLOSING_PREVIOUS = "closing previous run…"
 private const val PREVIOUS_RUN_WAIT_MILLIS = 15_000L
 private const val FADE_OUT_MILLIS = 1_000L
@@ -75,6 +84,7 @@ private const val FADE_OUT_MILLIS = 1_000L
 /** Held for the life of the process; the system lets go of it when the process ends. */
 private val instanceLock = AtomicReference<InstanceLock?>()
 private const val RECONNECTING = "reconnecting…"
+private const val NOT_CONNECTED = "not connected"
 private const val THEME_POLL_SECONDS = 5L
 
 /** The app folder, where the settings, keys and pairings live. */
@@ -142,7 +152,7 @@ private fun runCarPlay() {
     val config = DesktopConfig(dir)
     val controlsConfig = ControlsConfig.load(dir)
     log(controlsConfig.summary())
-    checkFirewall(config.airPlay.port)
+    val firewall = checkFirewall(config.airPlay.port)
     log(config.displaySummary())
     val placements = WindowPlacementStore(dir)
     val window = VideoWindow(
@@ -154,6 +164,18 @@ private fun runCarPlay() {
         runCatching { placements.save(placement, config.window) }.onFailure { log("window place not saved: $it") }
     }
     // The altscreen (altscreen.enabled) gets a window of its own beside the main one; it takes no input.
+    // window.controls: the car's controls as buttons in a window of their own, shaped freely.
+    val controlsPainter = if (config.controlsWindow) ControlsPainter(::log) else null
+    val controlsWindow = controlsPainter?.let { painter ->
+        val placements = WindowPlacementStore(dir, prefix = "controls.")
+        VideoWindow(CONTROLS_SIZE.width, CONTROLS_SIZE.height, placements.load(CONTROLS_SIZE), "ChairPlay Controls").also {
+            it.overlay = painter
+            it.hud = true
+            it.onPlacement = { placement ->
+                runCatching { placements.save(placement, CONTROLS_SIZE) }.onFailure { error -> log("controls window place not saved: $error") }
+            }
+        }
+    }
     val altscreen = config.altscreen?.let { alt ->
         log("altscreen ${alt.size.width}x${alt.size.height} px, starting with ${alt.content.key}")
         val altPlacements = WindowPlacementStore(dir, prefix = "altscreen.")
@@ -173,6 +195,7 @@ private fun runCarPlay() {
     fun screenshots() {
         window.screenshot { image -> saveScreenshot(image, dir, ::log) }
         altscreen?.screenshot { image -> saveScreenshot(image, dir, ::log, "altscreen") }
+        controlsWindow?.screenshot { image -> saveScreenshot(image, dir, ::log, "controls") }
     }
     // A device name matching nothing stops here, before any connection, with the devices listed.
     val output = AudioDevices.output(config.audioOutput)
@@ -241,18 +264,53 @@ private fun runCarPlay() {
             }
         }
     }
-    window.keyHandler = { key, action, mods -> send(controls.key(key, action, mods)) }
+    // The start and settings screens (ui/): a page over the picture, served by a local HTTP server. Connect waits,
+    // as the start does, for a previous run to let go of the iPhone.
+    val lockReady = CountDownLatch(1)
+    val startBootstrap = AtomicReference<() -> Unit> {}
+    val ui = ChairPlayUi(dir, config, firewall, object : UiActions {
+        override fun connect() = Thread({
+            lockReady.await()
+            window.setTitle(mainWindowTitle(stream, CONNECTING))
+            startBootstrap.get()()
+        }, "connect").apply { isDaemon = true }.start()
+        override fun reconnect() = send(Control.Reconnect)
+    }, window::repaint, ::log)
+    window.child = ui.view
+    // While the page covers the window, the keys and the wheel are its own.
+    window.keyHandler = { key, action, mods -> if (!ui.coversWindow) send(controls.key(key, action, mods)) }
     // The same keys work while the altscreen window has the focus; both windows run on the one GL thread.
     altscreen?.keyHandler = window.keyHandler
-    // Diagnostics: CHAIRPLAY_SCREENSHOT_AFTER=<seconds> saves one screenshot that long after the first picture.
+    // A button held with the mouse holds its control until the release, wherever the cursor goes meanwhile.
+    controlsWindow?.let { buttons ->
+        val painter = controlsPainter!!
+        val pad = ControlPad()
+        buttons.keyHandler = window.keyHandler
+        buttons.setInputHandler { event ->
+            val held = painter.pressed
+            if (event.down && held == null) {
+                val action = controlAt(painter.buttons, event.x.toFloat(), event.y.toFloat()) ?: return@setInputHandler
+                painter.pressed = action
+                send(pad.press(action))
+                buttons.repaint()
+            } else if (!event.down && held != null) {
+                painter.pressed = null
+                send(pad.release(held))
+                buttons.repaint()
+            }
+        }
+    }
+    // Diagnostics: CHAIRPLAY_SCREENSHOT_AFTER=<seconds> saves one screenshot that long after the first picture, or
+    // after half a minute without one, so the windows the app draws itself can be looked at without an iPhone.
     System.getenv("CHAIRPLAY_SCREENSHOT_AFTER")?.toLongOrNull()?.let { seconds ->
         Thread({
-            while (window.pictureSize.width == 0) Thread.sleep(200)
+            val giveUp = System.nanoTime() + SCREENSHOT_PICTURE_WAIT_NANOS
+            while (window.pictureSize.width == 0 && System.nanoTime() < giveUp) Thread.sleep(200)
             Thread.sleep(seconds * 1000)
             screenshots()
         }, "screenshot-timer").apply { isDaemon = true }.start()
     }
-    window.scrollHandler = { dy -> send(controls.scroll(dy)) }
+    window.scrollHandler = { dy -> if (!ui.coversWindow) send(controls.scroll(dy)) }
     altscreen?.scrollHandler = { dy -> send(controls.altscreenScroll(dy)) }
     fun sessionChanged() {
         pending.clear()
@@ -288,6 +346,7 @@ private fun runCarPlay() {
             active.set(session)
             sessionChanged()
             log("AirPlay session active")
+            ui.sessionActive()
             reconnecting.set(false)
             window.setTitle(mainWindowTitle(stream))
             sendTheme(session)
@@ -297,22 +356,31 @@ private fun runCarPlay() {
             // short, and its release would never reach the iPhone.
             if (active.compareAndSet(session, null)) {
                 sessionChanged()
+                ui.sessionEnded()
                 window.setTitle(mainWindowTitle(stream, if (reconnecting.get()) RECONNECTING else CONNECTING))
             }
             log("AirPlay session ended")
         }
-        // The driver tapped the Windows icon on the CarPlay home screen: give the screen back to Windows.
+        // The driver tapped the car button (the Windows icon) on the CarPlay home screen: the settings screen covers
+        // CarPlay. With the page in a browser instead, the window gives the screen back to Windows, as before.
         override fun onHostUiRequested(session: AirPlaySession) {
-            log("CarPlay asked for the Windows screen; minimizing the window")
-            window.minimize()
+            if (ui.carButton()) {
+                log("CarPlay's car button: showing the settings")
+            } else {
+                log("CarPlay asked for the Windows screen; minimizing the window")
+                window.minimize()
+            }
         }
         override fun onTransportError(message: String) = log("AirPlay transport error: $message")
         override fun onDebugLog(message: String) = log(message)
     }, carPlayData)
     restartBootstrap.set(bootstrap::restart)
+    startBootstrap.set(bootstrap::start)
+    bootstrap.onStatus = ui::bringUp
     Runtime.getRuntime().addShutdownHook(Thread {
         // The window is gone at once; the sound fades over the seconds the session takes to end.
         sink.fadeOut(FADE_OUT_MILLIS)
+        ui.close()
         themeWatch.shutdownNow()
         bootstrap.close()
         carPlayData.close()
@@ -325,25 +393,31 @@ private fun runCarPlay() {
             log("the previous run is still closing; waiting for it")
             window.setTitle(mainWindowTitle(stream, CLOSING_PREVIOUS))
         })
-        window.setTitle(mainWindowTitle(stream, CONNECTING))
-        bootstrap.start()
+        lockReady.countDown()
+        if (ui.connectsAtStart) {
+            window.setTitle(mainWindowTitle(stream, CONNECTING))
+            bootstrap.start()
+        } else {
+            log(if (config.wifi == null) "no Wi-Fi network set; enter it on the start screen" else "waiting for Connect on the start screen")
+            window.setTitle(mainWindowTitle(stream, NOT_CONNECTED))
+        }
     }, "instance-lock").apply { isDaemon = true }.start()
     // GLFW needs its windows and event loop on this, the main, thread; the bring-up runs on its own.
-    if (altscreen == null) window.run() else runWindows(window, altscreen)
+    runWindows(window, *listOfNotNull(altscreen, controlsWindow).toTypedArray())
     exitProcess(0)
 }
 
 /**
  * Says what keeps the iPhone out, if anything. A block rule wins over any allow rule, so one left by Windows'
- * first-run prompt is reported even when ours exists.
+ * first-run prompt is reported even when ours exists. The start screen shows the same.
  */
-private fun checkFirewall(port: Int) {
+private fun checkFirewall(port: Int): FirewallStatus {
     val program = ProcessHandle.current().info().command().orElse("java.exe")
     val hint = "from an administrator prompt:\n" + firewallHint(port, program)
     val state = readFirewall(program)
     if (state == null) {
         log("could not read the Windows Firewall rules; if the iPhone cannot connect, add these $hint")
-        return
+        return FirewallStatus.UNKNOWN
     }
     if (!state.allowRule) {
         log("no Windows Firewall rule \"$FIREWALL_RULE\"; the iPhone cannot connect until one is added")
@@ -352,5 +426,10 @@ private fun checkFirewall(port: Int) {
     state.blocking.forEach {
         log("Windows Firewall rule $it blocks inbound connections to $program; the iPhone cannot connect while " +
             "it applies. Delete it or set it to Allow in Windows Defender Firewall > Advanced settings > Inbound Rules")
+    }
+    return when {
+        state.blocking.isNotEmpty() -> FirewallStatus.BLOCKED
+        !state.allowRule -> FirewallStatus.MISSING
+        else -> FirewallStatus.PRESENT
     }
 }

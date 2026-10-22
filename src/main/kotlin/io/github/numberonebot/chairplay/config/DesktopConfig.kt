@@ -103,11 +103,18 @@ class DesktopConfig(private val dir: Path) {
 
     /** True once an iPhone has paired with this app: its AirPlay pairing record is in pairings/. */
     fun iphoneKnown(): Boolean = Files.list(dir.resolve("pairings")).use { it.findAny().isPresent }
-    val wifi = SavedWifi(
-        ssid = settings.getProperty("wifi.ssid")?.ifBlank { null } ?: error("Set wifi.ssid in ${dir.resolve(SETTINGS_FILE)}"),
-        passphrase = settings.getProperty("wifi.passphrase").orEmpty(),
-        security = Iap2WirelessSecurity.valueOf(settings.getProperty("wifi.security", "WPA_WPA2").trim()),
-    )
+
+    /** The Wi-Fi network as the app started with it; null until wifi.ssid is set, which the start screen asks for. */
+    val wifi: SavedWifi? = savedWifi(settings)
+
+    /** The Wi-Fi network as settings.properties has it now: the start screen may have changed it since the start. */
+    fun currentWifi(): SavedWifi? = savedWifi(Properties().apply { dir.resolve(SETTINGS_FILE).reader().use(::load) })
+
+    /** ui.autoconnect: the app connects to the iPhone as it starts; false waits for Connect on the start screen. */
+    val autoconnect: Boolean = booleanSetting("ui.autoconnect", true)
+
+    /** ui.autoshow: CarPlay covers the start screen as soon as the iPhone is there; false waits for Show CarPlay. */
+    val autoshow: Boolean = booleanSetting("ui.autoshow", true)
 
     /**
      * The car's name on the iPhone: in its CarPlay settings, in /info, in the iAP2 identification and as the
@@ -200,6 +207,9 @@ class DesktopConfig(private val dir: Path) {
     /** window.keep.aspect: the windows resize only with the picture's shape; a maximized one fills the screen. */
     val keepAspect: Boolean = booleanSetting("window.keep.aspect", true)
 
+    /** window.controls: a window of on-screen car controls beside CarPlay's. */
+    val controlsWindow: Boolean = booleanSetting("window.controls", false)
+
     /** log.carplay.data: the iPhone's route, song, call and battery messages to logs\carplay-data-<time>.jsonl. */
     val logCarPlayData: Boolean = booleanSetting("log.carplay.data", false)
 
@@ -251,7 +261,7 @@ class DesktopConfig(private val dir: Path) {
 
     /**
      * DiPlay's production values (CarPlayHostActivity.airPlayConfig); btMac is replaced by the radio's. The
-     * CarPlay home screen shows the Windows icon where a car shows its maker's; tapping it minimizes the window.
+     * CarPlay home screen shows the Windows icon where a car shows its maker's; tapping it opens the settings screen.
      */
     val airPlay = AirPlayConfig(
         deviceName = deviceName,
@@ -421,6 +431,15 @@ class DesktopConfig(private val dir: Path) {
                 "Seconds an iPhone that paired before has to join the Wi-Fi before the app starts over (a new one has five minutes).",
                 "iphone.join.seconds" to "30",
             ),
+            SettingBlock(
+                "The start screen: 'true' connects to the iPhone as the app starts, 'false' waits for Connect.",
+                "ui.autoconnect" to "true",
+            ),
+            SettingBlock(
+                "'true' shows CarPlay over the start screen as soon as the iPhone connects, 'false' stays on the start\n" +
+                    "screen until you choose Show CarPlay.",
+                "ui.autoshow" to "true",
+            ),
             SettingBlock("The car's name on the iPhone (CarPlay settings, the network); blank is 'ChairPlay'.", "device.name" to ""),
             SettingBlock(
                 "The car button on the CarPlay home screen: its label, and a square image in this folder\n" +
@@ -460,6 +479,11 @@ class DesktopConfig(private val dir: Path) {
                 "'true' resizes the windows only with the picture's shape (a maximized one still fills the screen),\n" +
                     "'false' lets them take any shape.",
                 "window.keep.aspect" to "true",
+            ),
+            SettingBlock(
+                "'true' opens a window of on-screen car controls: the knob, back, home, media, calls, Siri and the\n" +
+                    "AltScreen's zoom; 'false' does not.",
+                "window.controls" to "false",
             ),
             SettingBlock(
                 "Altscreen (experimental): the car's instrument cluster as a second CarPlay screen in a window of its\n" +
@@ -520,6 +544,15 @@ class DesktopConfig(private val dir: Path) {
          */
         fun appDirectory(appPath: String? = System.getProperty("jpackage.app-path")): Path =
             appPath?.let { Path.of(it).toAbsolutePath().parent } ?: Path.of(System.getProperty("user.dir")).toAbsolutePath()
+
+        /** wifi.ssid, wifi.passphrase and wifi.security from [settings]; null while wifi.ssid is blank. */
+        private fun savedWifi(settings: Properties): SavedWifi? {
+            val ssid = settings.getProperty("wifi.ssid")?.ifBlank { null } ?: return null
+            val security = settings.getProperty("wifi.security")?.trim()?.ifEmpty { null } ?: "WPA_WPA2"
+            val choices = Iap2WirelessSecurity.entries.associateBy { it.name }
+            require(security in choices) { "wifi.security must be one of ${choices.keys.joinToString()}, not $security" }
+            return SavedWifi(ssid, settings.getProperty("wifi.passphrase").orEmpty(), choices.getValue(security))
+        }
 
         /** DiPlayBootstrap.deviceId: a locally administered MAC derived from the AirPlay public key. */
         fun deviceId(identity: AirPlayIdentity): String {

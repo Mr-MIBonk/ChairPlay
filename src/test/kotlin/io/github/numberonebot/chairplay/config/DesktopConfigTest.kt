@@ -173,11 +173,42 @@ class DesktopConfigTest {
         assertEquals("default", config.audioInput)
     }
 
+    // As before the start screen: the app connects at start and CarPlay covers the screen once the iPhone is there.
+    @Test
+    fun `the app connects and shows CarPlay on its own unless told not to`() {
+        assertTrue(configWith().autoconnect)
+        assertTrue(configWith().autoshow)
+        val config = configWith("ui.autoconnect=false", "ui.autoshow=false")
+        assertFalse(config.autoconnect)
+        assertFalse(config.autoshow)
+    }
+
+    // The start screen asks for the Wi-Fi, so a missing network no longer stops the start; each bring-up reads it anew.
+    @Test
+    fun `a missing Wi-Fi network leaves the start to the start screen`() {
+        val dir = Files.createTempDirectory("chairplay-config")
+        Files.writeString(dir.resolve("settings.properties"), "wifi.ssid=\n")
+
+        val config = DesktopConfig(dir)
+
+        assertNull(config.wifi)
+        assertNull(config.currentWifi())
+        SettingsFile(dir.resolve("settings.properties")).write(mapOf("wifi.ssid" to "Home", "wifi.passphrase" to "secret123"))
+        assertEquals("Home", config.currentWifi()?.ssid)
+        assertEquals("secret123", config.currentWifi()?.passphrase)
+    }
+
     // Upstream ships its call echo canceller off, as an experiment; so does the desktop.
     @Test
     fun `call echo cancellation is off unless asked for`() {
         assertFalse(configWith().echoCancellation)
         assertTrue(configWith("audio.echo.cancellation=true").echoCancellation)
+    }
+
+    @Test
+    fun `the controls window opens only when asked for`() {
+        assertFalse(configWith().controlsWindow)
+        assertTrue(configWith("window.controls=true").controlsWindow)
     }
 
     @Test

@@ -56,13 +56,13 @@ class KeyControls(private val config: ControlsConfig = ControlsConfig.DEFAULT) {
             ControlAction.KNOB_PREVIOUS -> turn(key, action, -1)
             ControlAction.ALTSCREEN_ZOOM_IN -> if (steps(key, action, config.zoomRepeatEvery)) Control.MapZoom(1) else null
             ControlAction.ALTSCREEN_ZOOM_OUT -> if (steps(key, action, config.zoomRepeatEvery)) Control.MapZoom(-1) else null
-            else -> hold(bound)?.let { state ->
+            else -> knobHold(bound)?.let { state ->
                 when (action) {
                     GLFW_PRESS -> Control.Knob(state, false)
                     GLFW_RELEASE -> Control.Knob(AirPlayKnobState(), false)
                     else -> null
                 }
-            } ?: if (action == GLFW_PRESS) press(bound) else null
+            } ?: if (action == GLFW_PRESS) pressControl(bound) else null
         }
     }
 
@@ -103,36 +103,41 @@ class KeyControls(private val config: ControlsConfig = ControlsConfig.DEFAULT) {
             }
         }
 
-    private fun hold(action: ControlAction): AirPlayKnobState? = when (action) {
-        ControlAction.KNOB_LEFT -> AirPlayKnobState(x = -NUDGE)
-        ControlAction.KNOB_RIGHT -> AirPlayKnobState(x = NUDGE)
-        ControlAction.KNOB_UP -> AirPlayKnobState(y = -NUDGE)
-        ControlAction.KNOB_DOWN -> AirPlayKnobState(y = NUDGE)
-        ControlAction.SELECT -> AirPlayKnobState(select = true)
-        ControlAction.BACK -> AirPlayKnobState(back = true)
-        ControlAction.HOME -> AirPlayKnobState(home = true)
-        else -> null
-    }
 
-    private fun press(action: ControlAction): Control? = when (action) {
-        ControlAction.MEDIA_PREVIOUS -> Control.Media(CarPlayMediaButton.PREVIOUS)
-        ControlAction.MEDIA_PLAY_PAUSE -> Control.Media(CarPlayMediaButton.PLAY_PAUSE)
-        ControlAction.MEDIA_NEXT -> Control.Media(CarPlayMediaButton.NEXT)
-        ControlAction.CALL_ANSWER -> Control.Telephony(TELEPHONY_ANSWER)
-        ControlAction.CALL_END -> Control.Telephony(TELEPHONY_HANG_UP)
-        ControlAction.SIRI -> Control.Siri
-        ControlAction.SCREENSHOT -> Control.Screenshot
-        ControlAction.RECONNECT -> Control.Reconnect
-        ControlAction.ALTSCREEN_CONTENT -> Control.NextAltscreenContent
-        ControlAction.ALTSCREEN_CARDS -> Control.NextAltscreenCards
-        else -> null
-    }
 
     companion object {
         /** Upstream CarPlayController's TELEPHONY_HOOK_SWITCH and TELEPHONY_DROP. */
         const val TELEPHONY_ANSWER = 1
         const val TELEPHONY_HANG_UP = 3
-        /** Full deflection of the knob descriptor's X/Y axes (logical -127..127). */
-        private const val NUDGE = 127
     }
+}
+
+/** Full deflection of the knob descriptor's X/Y axes (logical -127..127). */
+private const val KNOB_NUDGE = 127
+
+/** The knob state [action] holds while its key or button is down; null for actions that are no knob hold. */
+internal fun knobHold(action: ControlAction): AirPlayKnobState? = when (action) {
+    ControlAction.KNOB_LEFT -> AirPlayKnobState(x = -KNOB_NUDGE)
+    ControlAction.KNOB_RIGHT -> AirPlayKnobState(x = KNOB_NUDGE)
+    ControlAction.KNOB_UP -> AirPlayKnobState(y = -KNOB_NUDGE)
+    ControlAction.KNOB_DOWN -> AirPlayKnobState(y = KNOB_NUDGE)
+    ControlAction.SELECT -> AirPlayKnobState(select = true)
+    ControlAction.BACK -> AirPlayKnobState(back = true)
+    ControlAction.HOME -> AirPlayKnobState(home = true)
+    else -> null
+}
+
+/** What [action] asks for at once, on its press alone; null for knob holds and turns. */
+internal fun pressControl(action: ControlAction): Control? = when (action) {
+    ControlAction.MEDIA_PREVIOUS -> Control.Media(CarPlayMediaButton.PREVIOUS)
+    ControlAction.MEDIA_PLAY_PAUSE -> Control.Media(CarPlayMediaButton.PLAY_PAUSE)
+    ControlAction.MEDIA_NEXT -> Control.Media(CarPlayMediaButton.NEXT)
+    ControlAction.CALL_ANSWER -> Control.Telephony(KeyControls.TELEPHONY_ANSWER)
+    ControlAction.CALL_END -> Control.Telephony(KeyControls.TELEPHONY_HANG_UP)
+    ControlAction.SIRI -> Control.Siri
+    ControlAction.SCREENSHOT -> Control.Screenshot
+    ControlAction.RECONNECT -> Control.Reconnect
+    ControlAction.ALTSCREEN_CONTENT -> Control.NextAltscreenContent
+    ControlAction.ALTSCREEN_CARDS -> Control.NextAltscreenCards
+    else -> null
 }

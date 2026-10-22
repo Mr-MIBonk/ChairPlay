@@ -58,6 +58,9 @@ class VideoWindow(
     var overlay: WindowOverlay? = null
     private var overlayOpen = false
 
+    /** A native view over the picture (the web UI), laid out with the window; set before [runWindows]. */
+    var child: WindowChild? = null
+
     /** Safe from any thread: draws the window again, as the HUD does when its data changes. */
     fun repaint() = wake()
     // GLFW rejects glfwPostEmptyEvent outside init..terminate, which frames and close() can fall outside of.
@@ -200,6 +203,7 @@ class VideoWindow(
         clear(w[0], h[0])
         glfwSwapBuffers(window)
         running.set(true)
+        child?.attach(glfwGetWin32Window(window))
     }
 
     /** One pass of the event loop for this window; false once it should close. */
@@ -222,6 +226,7 @@ class VideoWindow(
         // A resize repaints the last picture even when no new one has arrived, or black before the first.
         glfwGetFramebufferSize(window, w, h)
         framebufferSize = Size(w[0], h[0])
+        child?.layout(w[0], h[0])
         val shown = picture
         val layer = overlay
         when {
@@ -284,6 +289,7 @@ class VideoWindow(
         GL.setCapabilities(capabilities)
         if (overlayOpen) runCatching { overlay?.close() }
         overlayOpen = false
+        child?.let { runCatching { it.detach() } }
         glDeleteTextures(textures)
         glDeleteVertexArrays(vao)
         glDeleteProgram(program)
