@@ -4,6 +4,7 @@ import io.github.numberonebot.chairplay.data.CallDirection
 import io.github.numberonebot.chairplay.data.CallStatus
 import io.github.numberonebot.chairplay.data.CarPlayDataSnapshot
 import io.github.numberonebot.chairplay.data.DistanceUnits
+import io.github.numberonebot.chairplay.data.Maneuver
 import io.github.numberonebot.chairplay.data.RouteGuidanceState
 import java.time.Instant
 import java.time.ZoneId
@@ -35,6 +36,10 @@ data class HudManeuver(
     val distance: String?,
     val road: String?,
     val description: String?,
+    /** The maneuver as the iPhone sent it, for the maneuver renderer. */
+    val next: Maneuver? = null,
+    /** The metres to it, for the arrow's progress. */
+    val distanceMeters: Long? = null,
 )
 
 data class HudArrival(val time: String?, val remaining: String?, val destination: String?)
@@ -56,6 +61,8 @@ fun hudState(snapshot: CarPlayDataSnapshot, zone: ZoneId = ZoneId.systemDefault(
             distance = distance(it.distanceToManeuverText, it.distanceToManeuverUnits, it.distanceToManeuverMeters),
             road = next?.afterRoad.clip() ?: it.currentRoad.clip(),
             description = next?.description.clip(),
+            next = next,
+            distanceMeters = it.distanceToManeuverMeters,
         )
     }
     val arrival = route?.let {

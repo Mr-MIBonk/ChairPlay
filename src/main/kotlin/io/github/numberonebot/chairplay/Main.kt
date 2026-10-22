@@ -30,6 +30,7 @@ import io.github.numberonebot.chairplay.media.DesktopMediaSink
 import io.github.numberonebot.chairplay.media.VideoWindow
 import io.github.numberonebot.chairplay.media.nightMode
 import io.github.numberonebot.chairplay.media.runWindows
+import io.github.numberonebot.chairplay.hud.HudDemo
 import io.github.numberonebot.chairplay.hud.HudPainter
 import io.github.numberonebot.chairplay.hud.HudView
 import io.github.numberonebot.chairplay.hud.hudState
@@ -315,6 +316,8 @@ private fun runCarPlay() {
     fun sessionChanged() {
         pending.clear()
         tracker.reset()
+        // The HUD's waiting line and the session's parts rise and fade as the session comes and goes.
+        altscreen?.let { if (it.hud) it.repaint() }
     }
     // The theme goes out once a session is active; with display.theme=windows a change of the Windows theme follows.
     // Set from the session thread and read by the watch thread.
@@ -335,10 +338,14 @@ private fun runCarPlay() {
     val carPlayData = CarPlayData(if (config.logCarPlayData) CarPlayDataLog(dir.resolve("logs"), log = ::log) else null)
     // The AltScreen's HUD shows the bus's data, drawn again when it changes.
     altscreen?.let { alt ->
+        // CHAIRPLAY_HUD_DEMO plays a made-up route instead of the bus's data, for watching the maneuvers (HudDemo).
+        val demo = HudDemo.fromEnvironment()?.start(alt::repaint) { name ->
+            alt.screenshot { image -> saveScreenshot(image, dir, ::log, "altscreen-demo-$name") }
+        }
         alt.overlay = HudPainter({
-            val snapshot = carPlayData.bus.snapshot()
-            HudView(active.get() != null, hudState(snapshot), snapshot.artwork)
-        }, ::log)
+            val snapshot = demo?.invoke() ?: carPlayData.bus.snapshot()
+            HudView(demo != null || active.get() != null, hudState(snapshot), snapshot.artwork)
+        }, ::log, alt::repaint)
         carPlayData.bus.addListener { if (alt.hud) alt.repaint() }
     }
     val bootstrap = WirelessBootstrap(config, sink, object : AirPlaySessionListener {

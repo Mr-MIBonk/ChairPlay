@@ -1,8 +1,8 @@
 ChairPlay - third-party components
 
 ChairPlay itself is licensed under the GNU GPL v3 (file LICENSE next to this one).
-The app image bundles the components below (every jar in app/, speex_echo.dll, chairplay_webview.dll and
-WebView2Loader.dll). Licence texts are in
+The app image bundles the components below (every jar in app/, speex_echo.dll, chairplay_webview.dll,
+WebView2Loader.dll and chairplay_maneuver.dll). Licence texts are in
 this folder's licenses/ directory unless a jar embeds its own, noted as "in jar".
 
 Component                         Version        Licence                          Upstream
@@ -10,6 +10,9 @@ Component                         Version        Licence                        
 Concentus (Opus, in chairplay.jar)  -       BSD-3-Clause (LICENSE-concentus) https://github.com/lostromb/concentus
 SpeexDSP echo canceller           1.2.1          BSD-3-Clause (LICENSE-speexdsp)  https://github.com/xiph/speexdsp
   (speex_echo.dll, built from DiPlay's copy of the sources)
+MHI2Q CarPlay maneuver renderer   commit 0ae41e3 GPL-3.0-or-later (LICENSE)       https://github.com/luka-dev/mib2q-carplay-rgi
+  (chairplay_maneuver.dll: maneuver_render by LuKa, the HUD's animated maneuvers; the copied files and
+  ChairPlay's changes are listed in native/maneuver/README.md in ChairPlay's source)
 Bouncy Castle bcprov-jdk18on      1.79           MIT-style (Bouncy-Castle-LICENSE.txt)  https://www.bouncycastle.org/
 JmDNS                             3.6.3          Apache-2.0 (Apache-2.0.txt)      https://github.com/jmdns/jmdns
 SLF4J API                         2.0.7          MIT (SLF4J-LICENSE.txt; in jar)  https://www.slf4j.org/

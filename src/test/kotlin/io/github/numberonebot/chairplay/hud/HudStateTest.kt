@@ -45,6 +45,15 @@ class HudStateTest {
         assertEquals("Олімпійський", hud.arrival!!.destination)
     }
 
+    // The maneuver renderer draws from the iPhone's own maneuver and the metres to it.
+    @Test
+    fun `the maneuver keeps what the renderer needs`() {
+        val hud = hudState(CarPlayDataSnapshot(route = route.copy(distanceToManeuverMeters = 152)), zone)
+
+        assertEquals(route.nextManeuver, hud.maneuver!!.next)
+        assertEquals(152L, hud.maneuver!!.distanceMeters)
+    }
+
     private val song = NowPlaying(title = "Gasoline", artist = "Twin Fin", playing = true)
 
     // Without guidance the HUD shows the song alone; with it, the route and the song side by side. The iPhone does

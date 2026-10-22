@@ -373,6 +373,8 @@ val syncApp by tasks.registering(Sync::class) {
     // The app data: settings, controls and car icon, the AirPlay identity, pairings, the MFi files and the data logs.
     preserve {
         include("settings.properties", "controls.properties", "carplay-icon.png", "window.properties", "identity.properties", "pairings/**", "offline-mfi/**", "screenshots/**", "logs/**")
+        // Keep the optional Windows-style CarPlay icon alongside the active one.
+        include("carplay-icon-windows.png")
     }
     // Sync deletes whatever else is there, so a mistyped folder must not be one with other files in it.
     val home = appHome.map { file(it) }
@@ -650,6 +652,60 @@ distributions.main {
     }
 }
 
+// The HUD's maneuver renderer: the MHI2Q project's maneuver_render (native/maneuver, see its README) with
+// ChairPlay's engine, GL layer and JNI entry points (native/maneuver/chairplay), built by the same zig into
+// chairplay_maneuver.dll. It goes wherever speex_echo.dll goes: build/native for tests and run, bin/ of the
+// distribution, the app image's root. The C++ part links zig's static libc++, so the DLL needs only Windows' UCRT.
+val maneuverCSources = listOf("render.c", "maneuver.c", "route_path.c") +
+    listOf("engine.c", "gl_core.c", "flag.c", "jni.c").map { "chairplay/$it" }
+val maneuverCxxSources = listOf("scene.cpp", "geometry.cpp", "layout.cpp", "lane_panel.cpp").map { "scene/$it" }
+// Upstream's flags (maneuver_render/Makefile).
+val maneuverDefines = listOf("-DPLATFORM_CHAIRPLAY")
+val maneuverCFlags = listOf("-std=gnu99", "-Wall", "-Wextra", "-Wno-unused-parameter")
+val maneuverCxxFlags = listOf("-std=c++11", "-fno-exceptions", "-fno-rtti", "-Wall")
+
+val maneuverDll by tasks.registering(Exec::class) {
+    group = "build"
+    description = "Compiles the HUD's maneuver renderer into build/native/chairplay_maneuver.dll."
+    dependsOn(installZig)
+    val src = layout.projectDirectory.dir("native/maneuver")
+    val jdk = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(17) }.map { it.metadata }
+    val dll = nativeDir.map { it.file("chairplay_maneuver.dll") }
+    val work = temporaryDir
+    val ops = objects.newInstance<FileOps>()
+    inputs.files(fileTree(src) { include("**/*.c", "**/*.cpp", "**/*.h", "**/*.hpp") }).withPathSensitivity(PathSensitivity.RELATIVE)
+    inputs.property("zig", zigVersion)
+    inputs.property("flags", maneuverDefines + maneuverCFlags + maneuverCxxFlags)
+    inputs.property("jdk", jdk.map { it.javaRuntimeVersion })
+    outputs.file(dll)
+    workingDir(src)
+    environment("ZIG_GLOBAL_CACHE_DIR", zigRoot.resolve("cache").path)
+    environment("ZIG_LOCAL_CACHE_DIR", work.resolve("zig-cache").path)
+    doFirst {
+        val include = jdk.get().installationPath.dir("include").asFile
+        commandLine(
+            listOf(
+                zigExe.path, "build-lib", "-dynamic", "-target", "x86_64-windows-gnu", "-O", "ReleaseFast",
+                "-lc", "-lc++", "-lopengl32", "--name", "chairplay_maneuver",
+                "-femit-bin=${work.resolve("chairplay_maneuver.dll").path}",
+                "-I.", "-Ichairplay", "-I${include.path}", "-I${include.resolve("win32").path}",
+            ) + maneuverDefines + listOf("-cflags") + maneuverCFlags + listOf("--") + maneuverCSources +
+                listOf("-cflags") + maneuverCxxFlags + listOf("--") + maneuverCxxSources,
+        )
+    }
+    doLast {
+        ops.fs.copy {
+            from(work.resolve("chairplay_maneuver.dll"))
+            into(dll.get().asFile.parentFile)
+        }
+    }
+}
+
+// The render test runs the DLL: a new build of it runs the tests again.
+tasks.test { inputs.files(maneuverDll).withPropertyName("maneuverDll") }
+tasks.named<JavaExec>("run") { dependsOn(maneuverDll) }
+distributions.main { contents { from(maneuverDll) { into("bin") } } }
+
 tasks.named<Exec>("jpackageImage") {
     val installDir = layout.buildDirectory.dir("install/chairplay")
     val outDir = layout.buildDirectory.dir("jpackage")
@@ -657,6 +713,7 @@ tasks.named<Exec>("jpackageImage") {
     doLast {
         ops.fs.copy {
             from(installDir.get().file("bin/chairplay_webview.dll"), installDir.get().file("bin/WebView2Loader.dll"))
+            from(installDir.get().file("bin/chairplay_maneuver.dll"))
             into(outDir.get().dir("ChairPlay"))
         }
     }

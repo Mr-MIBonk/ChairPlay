@@ -1,8 +1,9 @@
-"""Builds the ChairPlay app icon from glyph.png: the glyph in dark grey on a light grey squircle.
+"""Builds the ChairPlay icons from glyph.png: an armchair on the original light grey gradient.
 
 Run from this directory with Pillow and NumPy installed:  python make_icon.py
 Writes ../chairplay.ico (exe icon for jpackage), ../../src/main/resources/icons/chairplay-N.png
-(window icon), and for a future macOS build ../macos/chairplay.icns and ../macos/chairplay-1024.png
+(window icon), chairplay-1024.png (master), carplay-icon.png (192-pixel CarPlay icon),
+and for a future macOS build ../macos/chairplay.icns and ../macos/chairplay-1024.png
 on Apple's macOS icon grid (an 824-pixel body on a 1024 canvas, with a soft drop shadow).
 """
 from pathlib import Path
@@ -39,17 +40,23 @@ def gradient(size):
     return Image.fromarray(np.repeat(rows, size, axis=1), "RGB").convert("RGBA")
 
 
-def render():
+def render(round_corners=True):
     icon = gradient(SIZE)
-    icon.putalpha(squircle(SIZE))
+    if round_corners:
+        icon.putalpha(squircle(SIZE))
     alpha = Image.open(HERE / "glyph.png").convert("RGBA").split()[3]
-    alpha = alpha.crop(alpha.getbbox())
+    # Ignore nearly transparent stray pixels when centring the generated source glyph.
+    bounds = alpha.point(lambda value: 255 if value >= 128 else 0).getbbox()
+    if bounds is None:
+        raise ValueError("glyph.png must contain a visible glyph")
+    left, top, right, bottom = bounds
+    alpha = alpha.crop((max(0, left - 2), max(0, top - 2), min(alpha.width, right + 2), min(alpha.height, bottom + 2)))
     scale = SIZE * GLYPH_FRACTION / max(alpha.size)
     alpha = alpha.resize((round(alpha.size[0] * scale), round(alpha.size[1] * scale)), Image.LANCZOS)
     glyph = Image.new("RGBA", alpha.size, GLYPH + (255,))
     glyph.putalpha(alpha)
-    # The C opens to the right, so its optical centre sits a little right of the box centre.
-    x = (SIZE - alpha.size[0]) // 2 + SIZE // 100
+    # The armchair is balanced on both sides and sits at the centre of the tile.
+    x = (SIZE - alpha.size[0]) // 2
     y = (SIZE - alpha.size[1]) // 2
     icon.alpha_composite(glyph, (x, y))
     return icon
@@ -72,6 +79,9 @@ def macos(icon):
 
 def main():
     icon = render()
+    icon.save(HERE / "chairplay-1024.png")
+    # CarPlay accepts at most 192 pixels and iOS applies its own corner mask.
+    render(round_corners=False).convert("RGB").resize((192, 192), Image.LANCZOS).save(HERE / "carplay-icon.png")
     mac = macos(icon)
     mac_dir = HERE.parent / "macos"
     mac_dir.mkdir(exist_ok=True)

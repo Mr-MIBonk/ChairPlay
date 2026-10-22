@@ -2,6 +2,9 @@ package io.github.numberonebot.chairplay.hud
 
 import io.github.numberonebot.chairplay.data.Artwork
 import io.github.numberonebot.chairplay.data.ManeuverType
+import io.github.numberonebot.chairplay.hud.maneuver.ManeuverPlacement
+import io.github.numberonebot.chairplay.hud.maneuver.ManeuverView
+import io.github.numberonebot.chairplay.hud.maneuver.RepaintTimer
 import io.github.numberonebot.chairplay.media.WindowOverlay
 import org.lwjgl.nanovg.NVGColor
 import org.lwjgl.nanovg.NVGPaint
@@ -14,6 +17,7 @@ import java.nio.ByteBuffer
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.roundToInt
 import kotlin.math.sin
 
 /** What the HUD needs at a moment: whether a session runs, its data, and the cover the iPhone sent last. */
@@ -26,8 +30,17 @@ class HudView(val connected: Boolean, val state: HudState, val artwork: Artwork?
  * follow the window's height. Text is in Inter, numbers that should stand out (distance) in a
  * wide Roboto Flex, after the way Audi pairs Audi Type with Audi Type Extended; both ship with the app, so the HUD
  * looks the same on every system. Symbols the fonts lack (play, pause) are drawn as vectors.
+ *
+ * The maneuver is the MHI2Q project's animated renderer ([ManeuverView]) where its library runs, else a simple
+ * vector arrow. Every part rises from the dark and fades back into it ([HudMotion]); the song moves between the
+ * middle and its column as guidance comes and goes. The animations ask for frames through [repaint], which draws the
+ * window again from any thread.
  */
-class HudPainter(private val view: () -> HudView, private val log: (String) -> Unit = {}) : WindowOverlay {
+class HudPainter(
+    private val view: () -> HudView,
+    private val log: (String) -> Unit = {},
+    repaint: (() -> Unit)? = null,
+) : WindowOverlay {
     private var vg = 0L
     private var fonts = false
     // NanoVG reads the font files from these buffers for as long as the context lives.
@@ -36,6 +49,14 @@ class HudPainter(private val view: () -> HudView, private val log: (String) -> U
     private var coverId: Int? = null
     private val color = NVGColor.create()
     private val paint = NVGPaint.create()
+    private val frames = repaint?.let { RepaintTimer(it) }
+    private val maneuverView = ManeuverView(frames, log)
+    private val motion = HudMotion()
+    // What each part showed last, kept while it fades into the dark after its data is gone.
+    private var shownMedia: HudMedia? = null
+    private var shownManeuver: HudManeuver? = null
+    private var shownArrival: HudArrival? = null
+    private var shownCall: String? = null
 
     override fun open() {
         vg = nvgCreate(NVG_ANTIALIAS or NVG_STENCIL_STROKES)
@@ -51,6 +72,7 @@ class HudPainter(private val view: () -> HudView, private val log: (String) -> U
     }
 
     override fun close() {
+        if (vg != 0L) maneuverView.close(vg)
         if (cover >= 0) nvgDeleteImage(vg, cover)
         if (vg != 0L) nvgDelete(vg)
         vg = 0L
@@ -60,29 +82,48 @@ class HudPainter(private val view: () -> HudView, private val log: (String) -> U
     override fun paint(width: Int, height: Int) {
         if (vg == 0L || width == 0 || height == 0) return
         val now = view()
+        val state = now.state
+        val connected = now.connected
+        val shown = motion.update(connected, state.media != null, state.maneuver != null, state.call != null, System.nanoTime())
+        if (connected && state.media != null) shownMedia = state.media else if (shown.media == 0f) shownMedia = null
+        if (connected && state.maneuver != null) {
+            shownManeuver = state.maneuver
+            shownArrival = state.arrival
+        } else if (shown.route == 0f) {
+            shownManeuver = null
+            shownArrival = null
+        }
+        if (connected && state.call != null) shownCall = state.call else if (shown.call == 0f) shownCall = null
+        // Also while the maneuver is hidden (a call) or fading out, so it never animates from a stale one.
+        maneuverView.update(shownManeuver)
         nvgBeginFrame(vg, width.toFloat(), height.toFloat(), 1f)
         val h = height.toFloat()
         val w = width.toFloat()
-        val pad = PAD * h
-        val state = now.state
-        when {
-            !now.connected -> centred("Waiting for iPhone", w / 2, h / 2, 0.07f * h, GREY)
-            else -> {
-                // No clock, signal or battery: the CarPlay screen always shows them.
-                val top = pad
-                val bottom = h - pad
-                when {
-                    state.call != null -> callCard(state.call, pad, top, w - pad, bottom, h)
-                    state.maneuver != null && state.media != null -> {
-                        navigation(state.maneuver, state.arrival, pad, top, w / 2, bottom, h)
-                        media(state.media, now, w / 2, top, w - pad, bottom, 0.38f * h, h)
-                    }
-                    state.maneuver != null -> navigation(state.maneuver, state.arrival, pad, top, w - pad, bottom, h)
-                    state.media != null -> media(state.media, now, pad, top, w - pad, bottom, 0.55f * h, h)
-                }
-            }
-        }
+        // No clock, signal or battery: the CarPlay screen always shows them.
+        emerging(shown.waiting, w / 2, h / 2) { centred("Waiting for iPhone", w / 2, h / 2, 0.07f * h, GREY) }
+        shownManeuver?.let { navigation(it, shownArrival, routeBox(w, h, shown.routePlace), routeBox(w, h, 0f), h, shown.route) }
+        shownMedia?.let { media(it, now, mediaBox(w, h, shown.mediaPlace), h, shown.media) }
+        shownCall?.let { callCard(it, w, h, shown.call) }
         nvgEndFrame(vg)
+        if (shown.moving) frames?.after(FRAME_MILLIS)
+    }
+
+    /**
+     * Draws [content] [presence] of the way out of the dark: see-through, and a little smaller around ([cx], [cy]),
+     * until it is fully there; nothing while it is gone.
+     */
+    private inline fun emerging(presence: Float, cx: Float, cy: Float, content: () -> Unit) {
+        if (presence <= 0f) return
+        nvgSave(vg)
+        nvgGlobalAlpha(vg, presence)
+        if (presence < 1f) {
+            val scale = lerp(EMERGE_SCALE, 1f, presence)
+            nvgTranslate(vg, cx, cy)
+            nvgScale(vg, scale, scale)
+            nvgTranslate(vg, -cx, -cy)
+        }
+        content()
+        nvgRestore(vg)
     }
 
     /** A play triangle or two pause bars at [x], centred on [y]; returns the width used. */
@@ -105,16 +146,26 @@ class HudPainter(private val view: () -> HudView, private val log: (String) -> U
         return h * 0.8f
     }
 
-    /** The cover and, beside it, the title, artist and album, a progress bar and the app; centred in the box. */
-    private fun media(media: HudMedia, now: HudView, left: Float, top: Float, right: Float, bottom: Float, coverSize: Float, h: Float) {
+    /**
+     * The cover and, beside it, the title, artist and album, a progress bar and the app; centred in the [box] with its
+     * cover's size, [presence] of the way out of the dark.
+     */
+    private fun media(media: HudMedia, now: HudView, box: HudBox, h: Float, presence: Float) {
         val gap = 0.05f * h
-        val textWidth = min(right - left - coverSize - gap, 0.9f * h * 1.4f)
+        val coverSize = box.cover
+        val textWidth = min(box.right - box.left - coverSize - gap, 0.9f * h * 1.4f)
         val blockWidth = coverSize + gap + textWidth
-        val x = left + (right - left - blockWidth) / 2
-        val y = (top + bottom) / 2 - coverSize / 2
+        val x = box.left + (box.right - box.left - blockWidth) / 2
+        val y = h / 2 - coverSize / 2
+        emerging(presence, x + blockWidth / 2, h / 2) { mediaBlock(media, now, x, y, coverSize, gap, textWidth, h) }
+    }
+
+    private fun mediaBlock(media: HudMedia, now: HudView, x: Float, y: Float, coverSize: Float, gap: Float, textWidth: Float, h: Float) {
         drawCover(now.artwork?.takeIf { it.transferId == media.artworkId && it.size > 0 }, x, y, coverSize)
         val tx = x + coverSize + gap
-        val titleSize = 0.085f * h * coverSize / (0.55f * h)
+        // In whole pixels: while the song moves between the middle and its column, every size between would be
+        // another set of glyphs for NanoVG to render.
+        val titleSize = (0.085f * h * coverSize / (0.55f * h)).roundToInt().toFloat()
         var ty = y + coverSize * 0.18f
         text(fit(media.title.orEmpty(), textWidth, titleSize, BOLD), tx, ty, titleSize, WHITE, BOLD, NVG_ALIGN_LEFT)
         ty += titleSize * 1.15f
@@ -163,17 +214,27 @@ class HudPainter(private val view: () -> HudView, private val log: (String) -> U
     }
 
     /**
-     * Everything about the route in one block, centred in the box: the arrow, and beside it the distance to the
-     * maneuver, the road, the arrival with the time and distance left, and the destination.
+     * Everything about the route in one block, centred in the [box]: the arrow, and beside it the distance to the
+     * maneuver, the road, the arrival with the time and distance left, and the destination; [presence] of the way out
+     * of the dark. The renderer draws for the route's largest box, [alone], so a box that changes during an animation
+     * only scales its picture.
      */
-    private fun navigation(maneuver: HudManeuver, arrival: HudArrival?, left: Float, top: Float, right: Float, bottom: Float, h: Float) {
+    private fun navigation(maneuver: HudManeuver, arrival: HudArrival?, box: HudBox, alone: HudBox, h: Float, presence: Float) {
+        val left = box.left
+        val right = box.right
+        val top = HUD_PAD * h
+        val bottom = h - top
         val arrowSize = 0.30f * h
-        val gap = 0.05f * h
-        val distanceSize = 0.14f * h
+        val (viewWidth, viewHeight) = maneuverSize(left, right, top, bottom, h)
+        val sharpHeight = maneuverSize(alone.left, alone.right, top, bottom, h).second
+        // The picture's sides fade out, so the text can come closer.
+        val gap = 0.03f * h
         val roadSize = 0.06f * h
         val smallSize = 0.045f * h
-        val textWidth = min(right - left - arrowSize - gap, 0.9f * h * 1.4f)
-        val x = left + (right - left - (arrowSize + gap + textWidth)) / 2
+        val textWidth = min(right - left - viewWidth - gap, 0.9f * h * 1.4f)
+        // The distance stands out; a long one shrinks a little before it is cut.
+        val distanceSize = fitSize(maneuver.distance ?: "", textWidth, 0.14f * h, 0.10f * h, WIDE)
+        val x = left + (right - left - (viewWidth + gap + textWidth)) / 2
         val road = maneuver.road ?: maneuver.description
         val arrivalLine = arrival
             ?.let { listOfNotNull(it.time?.let { time -> "Arrival $time" }, it.remaining).joinToString("  ·  ") }
@@ -186,21 +247,36 @@ class HudPainter(private val view: () -> HudView, private val log: (String) -> U
         }
         val blockHeight = lines.sumOf { (it.size * it.spacing).toDouble() }.toFloat()
         val cy = (top + bottom) / 2
-        arrow(maneuver.typeCode, x, cy - arrowSize / 2, arrowSize)
-        val tx = x + arrowSize + gap
-        var y = cy - blockHeight / 2
-        for (line in lines) {
-            y += line.size * line.spacing / 2
-            text(fit(line.text, textWidth, line.size, line.font), tx, y, line.size, line.rgb, line.font, NVG_ALIGN_LEFT)
-            y += line.size * line.spacing / 2
+        emerging(presence, x + (viewWidth + gap + textWidth) / 2, cy) {
+            if (!maneuverView.draw(vg, maneuver, x, cy - viewHeight / 2, viewWidth, viewHeight, sharpHeight)) {
+                arrow(maneuver.typeCode, x + (viewWidth - arrowSize) / 2, cy - arrowSize / 2, arrowSize)
+            }
+            val tx = x + viewWidth + gap
+            var y = cy - blockHeight / 2
+            for (line in lines) {
+                y += line.size * line.spacing / 2
+                text(fit(line.text, textWidth, line.size, line.font), tx, y, line.size, line.rgb, line.font, NVG_ALIGN_LEFT)
+                y += line.size * line.spacing / 2
+            }
         }
+    }
+
+    /** The renderer's picture in a block: as tall as the block allows but no more than half its width. */
+    private fun maneuverSize(left: Float, right: Float, top: Float, bottom: Float, h: Float): Pair<Float, Float> {
+        var viewHeight = min(MANEUVER_HEIGHT * h, bottom - top)
+        var viewWidth = viewHeight * ManeuverPlacement.ASPECT
+        if (viewWidth > (right - left) / 2) {
+            viewWidth = (right - left) / 2
+            viewHeight = viewWidth / ManeuverPlacement.ASPECT
+        }
+        return viewWidth to viewHeight
     }
 
     /** One line of a text block: [spacing] is the height it takes, in multiples of its [size]. */
     private class Line(val text: String, val size: Float, val rgb: Int, val font: String, val spacing: Float)
 
     /**
-     * A simple arrow for the maneuver until the MHI2Q project's animation takes its place: a stem from the bottom,
+     * A simple arrow for when the MHI2Q project's renderer cannot run or draws nothing for the maneuver: a stem from the bottom,
      * bending toward the turn's angle; a ring with the exit for roundabouts, a dot for arriving.
      */
     private fun arrow(typeCode: Int?, x: Float, y: Float, size: Float) {
@@ -265,13 +341,17 @@ class HudPainter(private val view: () -> HudView, private val log: (String) -> U
         fill(BLUE)
     }
 
-    private fun callCard(call: String, left: Float, top: Float, right: Float, bottom: Float, h: Float) {
+    private fun callCard(call: String, w: Float, h: Float, presence: Float) {
+        val left = HUD_PAD * h
+        val right = w - left
         val height = 0.30f * h
-        val y = (top + bottom) / 2 - height / 2
-        nvgBeginPath(vg)
-        nvgRoundedRect(vg, left, y, right - left, height, height * 0.2f)
-        fill(CALL_GROUND)
-        centred(fit(call, right - left - 0.1f * h, 0.09f * h, BOLD), (left + right) / 2, y + height / 2, 0.09f * h, GREEN, BOLD)
+        val y = h / 2 - height / 2
+        emerging(presence, w / 2, h / 2) {
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, left, y, right - left, height, height * 0.2f)
+            fill(CALL_GROUND)
+            centred(fit(call, right - left - 0.1f * h, 0.09f * h, BOLD), w / 2, y + height / 2, 0.09f * h, GREEN, BOLD)
+        }
     }
 
     // --- text and colour helpers ---
@@ -289,6 +369,15 @@ class HudPainter(private val view: () -> HudView, private val log: (String) -> U
 
     private fun centred(text: String, x: Float, y: Float, size: Float, rgb: Int, font: String = REGULAR) {
         text(text, x, y, size, rgb, font, NVG_ALIGN_CENTER)
+    }
+
+    /** The largest size from [size] down to [smallest] at which [text] fits [width]; [smallest] if none does. */
+    private fun fitSize(text: String, width: Float, size: Float, smallest: Float, font: String): Float {
+        if (!fonts || text.isEmpty()) return size
+        nvgFontFace(vg, font)
+        nvgFontSize(vg, size)
+        val measured = nvgTextBounds(vg, 0f, 0f, text, null as java.nio.FloatBuffer?)
+        return if (measured <= width) size else (size * width / measured).coerceAtLeast(smallest)
     }
 
     /** [text] cut with an ellipsis to [width] at [size]. */
@@ -325,7 +414,12 @@ class HudPainter(private val view: () -> HudView, private val log: (String) -> U
         const val REGULAR = "regular"
         const val BOLD = "bold"
         const val WIDE = "wide"
-        const val PAD = 0.06f
+        /** About 60 frames a second while a part rises or fades; the parts move by elapsed time. */
+        const val FRAME_MILLIS = 16L
+        /** The size a part starts rising from, and fades down to, in its full size. */
+        const val EMERGE_SCALE = 0.94f
+        /** The maneuver picture's height in the window's. */
+        const val MANEUVER_HEIGHT = 0.72f
         const val WHITE = 0xFFFFFFFF.toInt()
         const val GREY = 0xFF9A9AA0.toInt()
         const val DIM = 0xFF2C2C2E.toInt()
