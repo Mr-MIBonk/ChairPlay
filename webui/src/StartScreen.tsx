@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { AppState, Backend } from './api'
-import { Card, Note } from './components'
+import { CarPlayButton, Card, Note } from './components'
 import { describe, errorHint } from './status'
 import { WifiForm } from './WifiForm'
 
@@ -9,6 +9,18 @@ export function StartScreen({ state, backend }: { state: AppState; backend: Back
   const status = describe(state)
   const running = state.phase !== 'setup' && state.phase !== 'idle'
   const [actionError, setActionError] = useState<string | null>(null)
+  // In a browser CarPlay shows in ChairPlay's own window, which the page cannot bring up.
+  const showable = state.canShowCarPlay && state.embedded
+
+  // Escape brings CarPlay back, like its button.
+  useEffect(() => {
+    if (!showable) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') backend.show('carplay')
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [backend, showable])
 
   async function connect() {
     setActionError(await backend.connect())
@@ -16,7 +28,8 @@ export function StartScreen({ state, backend }: { state: AppState; backend: Back
 
   return (
     <div className="screen">
-      <header className="topbar topbar-end">
+      <header className={showable ? 'topbar' : 'topbar topbar-end'}>
+        {showable && <CarPlayButton onClick={() => backend.show('carplay')} />}
         <button type="button" className="button-quiet" onClick={() => backend.show('settings')}>
           Settings
         </button>
@@ -38,11 +51,6 @@ export function StartScreen({ state, backend }: { state: AppState; backend: Back
         )}
         {actionError && <Note tone="warn">{actionError}</Note>}
         <div className="actions">
-          {state.canShowCarPlay && state.embedded && (
-            <button type="button" className="button" onClick={() => backend.show('carplay')}>
-              Show CarPlay
-            </button>
-          )}
           {state.phase === 'idle' && (
             <button type="button" className="button" onClick={connect}>
               Connect

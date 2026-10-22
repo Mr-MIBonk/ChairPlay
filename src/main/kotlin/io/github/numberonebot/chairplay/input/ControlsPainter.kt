@@ -174,6 +174,8 @@ class ControlsPainter(private val log: (String) -> Unit = {}) : WindowOverlay {
             ControlAction.SIRI to "Siri",
             ControlAction.CALL_ANSWER to "Answer",
             ControlAction.CALL_END to "End",
+            ControlAction.ALTSCREEN_CONTENT to "View",
+            ControlAction.ALTSCREEN_CARDS to "Cards",
             ControlAction.ALTSCREEN_ZOOM_OUT to "−",
             ControlAction.ALTSCREEN_ZOOM_IN to "+",
         )

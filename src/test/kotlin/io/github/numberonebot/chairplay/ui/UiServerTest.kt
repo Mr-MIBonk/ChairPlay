@@ -97,6 +97,12 @@ class UiServerTest {
         assertEquals(409, post("/api/screen", """{"screen":"carplay"}""").statusCode())
         assertEquals(listOf("connect", "reconnect", "show settings", "show carplay"), api.calls)
 
+        // The settings screen's window triggers.
+        assertEquals(200, post("/api/window", """{"name":"controls","visible":false}""").statusCode())
+        assertEquals(404, post("/api/window", """{"name":"altscreen","visible":true}""").statusCode())
+        assertEquals(400, post("/api/window", """{"name":"controls"}""").statusCode())
+        assertEquals(listOf("window controls false", "window altscreen true"), api.calls.drop(4))
+
         api.connectError = "Enter the Wi-Fi network first"
         val refused = post("/api/connect", "{}")
         assertEquals(409, refused.statusCode())
@@ -162,6 +168,10 @@ class UiServerTest {
         override fun show(screen: String): Boolean {
             calls += "show $screen"
             return screen != "carplay"
+        }
+        override fun window(name: String, visible: Boolean): Boolean {
+            calls += "window $name $visible"
+            return name == "controls"
         }
         override fun awaitChange(seen: Long, timeoutMillis: Long): Long = synchronized(lock) {
             if (version == seen) lock.wait(timeoutMillis)

@@ -29,8 +29,8 @@ object EditableSettings {
         "ui.autoconnect" to Setting(Applies.RESTART, ::checkBoolean),
         "ui.autoshow" to Setting(Applies.NOW, ::checkBoolean),
         "altscreen.enabled" to Setting(Applies.RESTART, ::checkBoolean),
-        "window.width" to Setting(Applies.RESTART, ::checkOptionalPositive),
-        "window.height" to Setting(Applies.RESTART, ::checkOptionalPositive),
+        "window.width" to Setting(Applies.RESTART) { checkOptionalSize(it, MAIN_WINDOW_MIN_SIZE.width) },
+        "window.height" to Setting(Applies.RESTART) { checkOptionalSize(it, MAIN_WINDOW_MIN_SIZE.height) },
         "altscreen.width" to Setting(Applies.RESTART, ::checkPositiveEven),
         "altscreen.height" to Setting(Applies.RESTART, ::checkPositiveEven),
     )
@@ -90,11 +90,15 @@ object EditableSettings {
     private fun checkBoolean(value: String): String? =
         if (value.trim().lowercase() in setOf("true", "false")) null else "Must be true or false"
 
-    private fun checkOptionalPositive(value: String): String? {
+    private fun checkOptionalSize(value: String, min: Int): String? {
         if (value.isBlank()) return null
         val number = value.trim().toIntOrNull()
-        return if (number != null && number in 1..MAX_PIXELS) null
-            else "Enter a positive whole number of pixels (at most $MAX_PIXELS), or leave it blank"
+        return when {
+            number == null || number < 1 -> "Enter a positive whole number of pixels, or leave it blank"
+            number < min -> "The main window is at least $min pixels"
+            number > MAX_PIXELS -> "The main window is at most $MAX_PIXELS pixels"
+            else -> null
+        }
     }
 
     private fun checkPositiveEven(value: String): String? {

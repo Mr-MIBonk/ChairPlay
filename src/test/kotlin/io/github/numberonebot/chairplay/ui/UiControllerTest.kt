@@ -22,6 +22,7 @@ class UiControllerTest {
         settings: String = "wifi.ssid=Home\nwifi.passphrase=secret123\nwifi.security=WPA_WPA2\nui.autoconnect=true\n" +
             "ui.autoshow=true\naltscreen.enabled=false\nwindow.width=\nwindow.height=\naltscreen.width=1440\naltscreen.height=542\n",
         autoconnect: Boolean = true,
+        windows: Map<String, UiWindow> = emptyMap(),
     ): UiController {
         Files.writeString(file, settings)
         val values = SettingsFile(file).read()
@@ -35,7 +36,14 @@ class UiControllerTest {
             override fun reconnect() {
                 reconnects.incrementAndGet()
             }
-        }, logged::add, autoconnect)
+        }, logged::add, autoconnect, windows)
+    }
+
+    /** A window that only records what it was asked. */
+    private class FakeWindow(override var visible: Boolean) : UiWindow {
+        override fun setShown(shown: Boolean) {
+            visible = shown
+        }
     }
 
     // The page and the log may be seen by others: the stored password is only ever "set" or "not set".
@@ -177,6 +185,42 @@ class UiControllerTest {
         ui.model.sessionActive()
         assertTrue(ui.show("carplay"))
         assertFalse(ui.show("elsewhere"))
+    }
+
+    // The settings screen's triggers: the AltScreen's and the controls' windows, shown or hidden, or not there at all.
+    @Test
+    fun `the state says which windows there are and which show`() {
+        val ui = controller(windows = mapOf("controls" to FakeWindow(visible = false)))
+
+        assertEquals(
+            mapOf(
+                "altscreen" to mapOf("available" to false, "visible" to false),
+                "controls" to mapOf("available" to true, "visible" to false),
+            ),
+            ui.state()["windows"],
+        )
+    }
+
+    @Test
+    fun `a trigger shows or hides its window, if there is one`() {
+        val controls = FakeWindow(visible = true)
+        val ui = controller(windows = mapOf("controls" to controls))
+
+        assertTrue(ui.window("controls", visible = false))
+        assertFalse(controls.visible)
+        assertFalse(ui.window("altscreen", visible = true))
+        assertFalse(ui.window("elsewhere", visible = true))
+    }
+
+    // A window hides itself with its close button: the page hears of it.
+    @Test
+    fun `a window shown or hidden moves the version on`() {
+        val ui = controller(windows = mapOf("controls" to FakeWindow(visible = true)))
+        val before = ui.version
+
+        ui.windowsChanged()
+
+        assertTrue(ui.version > before)
     }
 
     @Test

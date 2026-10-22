@@ -4,6 +4,14 @@ export type Phase = 'setup' | 'idle' | 'starting' | 'calling' | 'joining' | 'act
 export type Screen = 'start' | 'settings' | 'carplay'
 export type Firewall = 'present' | 'missing' | 'blocked' | 'unknown'
 export type Applies = 'now' | 'reconnect' | 'restart'
+/** The app's windows besides the main one: the AltScreen and the on-screen car controls. */
+export type WindowName = 'altscreen' | 'controls'
+
+/** A window is available while its feature is on; only then can it be shown or hidden. */
+export interface WindowState {
+  available: boolean
+  visible: boolean
+}
 
 export interface AppState {
   version: number
@@ -18,6 +26,7 @@ export interface AppState {
   wifi: { ssid: string; security: string; passphraseSet: boolean }
   reconnectPending: string[]
   restartPending: string[]
+  windows: Record<WindowName, WindowState>
   setup: {
     mfiFolder: string
     mfiPresent: boolean
@@ -47,6 +56,8 @@ export interface Backend {
   connect(): Promise<string | null>
   reconnect(): Promise<void>
   show(screen: Screen): Promise<boolean>
+  /** Shows or hides a window; false when it is not available. Its new state comes with the next app state. */
+  window(name: WindowName, visible: boolean): Promise<boolean>
 }
 
 export class ApiError extends Error {}
@@ -94,6 +105,10 @@ export class Api implements Backend {
 
   async show(screen: Screen): Promise<boolean> {
     return (await this.request('POST', 'screen', { screen })).status === 200
+  }
+
+  async window(name: WindowName, visible: boolean): Promise<boolean> {
+    return (await this.request('POST', 'window', { name, visible })).status === 200
   }
 
   /**

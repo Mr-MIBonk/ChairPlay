@@ -13,6 +13,18 @@ import kotlin.io.path.writeText
  */
 data class WindowPlacement(val x: Int, val y: Int, val width: Int, val height: Int, val maximized: Boolean)
 
+/** The main window is never smaller: its screens are laid out to fit this, in the web view's pixels. */
+val MAIN_WINDOW_MIN_SIZE = WindowSize(800, 480)
+
+/** The AltScreen window is never narrower; its height follows the picture's shape. */
+const val ALTSCREEN_MIN_WIDTH = 800
+
+/** This size in screen pixels at Windows' display [scale] (1.5 at 150 %); a scale unknown (0) leaves it. */
+fun WindowSize.scaledBy(scale: Float): WindowSize {
+    val factor = scale.takeIf { it > 0f } ?: 1f
+    return WindowSize(Math.round(width * factor), Math.round(height * factor))
+}
+
 /** This size with the shape of [aspect], keeping its width. */
 fun WindowSize.fittedTo(aspect: WindowSize): WindowSize =
     WindowSize(width, Math.round(width.toDouble() * aspect.height / aspect.width).toInt().coerceAtLeast(1))
@@ -107,6 +119,21 @@ class AltscreenViewStore(private val dir: Path) {
         const val CONTENT = "altscreen.view.content"
         const val CARDS = "altscreen.view.cards"
         const val SETTINGS = "altscreen.view.settings"
+    }
+}
+
+/**
+ * Remembers whether the controls window was shown or hidden (its close button, or the settings screen's trigger) in
+ * window.properties, so it opens that way; before it was ever left, window.controls decides.
+ */
+class ControlsWindowStore(private val dir: Path) {
+    fun load(default: Boolean): Boolean =
+        readWindowState(dir)?.getProperty(VISIBLE)?.trim()?.toBooleanStrictOrNull() ?: default
+
+    fun save(visible: Boolean) = writeWindowState(dir, listOf(VISIBLE to visible.toString()))
+
+    private companion object {
+        const val VISIBLE = "controls.visible"
     }
 }
 

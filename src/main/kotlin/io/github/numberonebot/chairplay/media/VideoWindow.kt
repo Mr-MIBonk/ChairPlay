@@ -5,6 +5,7 @@ import io.github.numberonebot.chairplay.config.WindowPlacement
 import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.config.fittedTo
 import io.github.numberonebot.chairplay.config.isVisibleOn
+import io.github.numberonebot.chairplay.config.scaledBy
 import io.github.numberonebot.chairplay.input.PointerEvent
 import io.github.numberonebot.chairplay.input.Size
 import io.github.numberonebot.chairplay.input.toFramebuffer
@@ -39,12 +40,36 @@ class VideoWindow(
     private val title: String = "ChairPlay",
     /** The picture's shape: the window keeps it while resized and opens with it; null resizes freely. */
     private val aspect: WindowSize? = null,
+    /** False keeps the window at its size: no resizing by its edges, no maximize button. */
+    private val resizable: Boolean = true,
+    /** The smallest size its edges can be dragged to, before Windows' display scale; null leaves it to Windows. */
+    private val minSize: WindowSize? = null,
+    /** True makes the close button hide the window, which [setShown] brings back, instead of closing it. */
+    private val hideOnClose: Boolean = false,
+    /** Whether the window shows as it opens; one that does not waits for [setShown]. */
+    shown: Boolean = true,
 ) : Closeable {
     private val latest = AtomicReference<DecodedFrame?>()
     private val closing = AtomicBoolean()
     private val minimizing = AtomicBoolean()
     private val screenshotRequest = AtomicReference<((BufferedImage) -> Unit)?>()
     private val newTitle = AtomicReference<String?>()
+    private val shownRequest = AtomicReference<Boolean?>()
+
+    /** Whether the window is on screen rather than hidden by its close button or by [setShown]. */
+    @Volatile
+    var visible = shown
+        private set
+
+    /** Runs on the GL thread when the window shows or hides. */
+    @Volatile
+    var onVisibility: (Boolean) -> Unit = {}
+
+    /** Safe from any thread: shows or hides the window on the next loop pass; a shown one comes to the front. */
+    fun setShown(shown: Boolean) {
+        shownRequest.set(shown)
+        wake()
+    }
 
     /** Shows [overlay] on black instead of the picture: the AltScreen's HUD. */
     @Volatile
@@ -162,6 +187,7 @@ class VideoWindow(
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
         // Hidden until it is in place, so it does not flash at the default position first.
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
+        glfwWindowHint(GLFW_RESIZABLE, if (resizable) GLFW_TRUE else GLFW_FALSE)
         val restore = placement?.takeIf { it.isVisibleOn(workAreas()) }
         val remembered = WindowSize(restore?.width ?: width, restore?.height ?: height)
         val size = aspect?.let { remembered.fittedTo(it) } ?: remembered
@@ -172,9 +198,23 @@ class VideoWindow(
         aspect?.let { glfwSetWindowAspectRatio(window, it.width, it.height) }
         if (restore != null) glfwSetWindowPos(window, restore.x, restore.y)
         TitleBar.paintBlack(glfwGetWin32Window(window))
+        // A remembered or configured size below it grows to it here. It scales with the monitor, as the web view's
+        // pages do, and follows the window to a monitor of another scale.
+        minSize?.let { min ->
+            limitSize(window, min)
+            glfwSetWindowContentScaleCallback(window) { handle, _, _ -> limitSize(handle, min) }
+        }
+        if (hideOnClose) {
+            glfwSetWindowCloseCallback(window) { handle ->
+                glfwSetWindowShouldClose(handle, false)
+                applyShown(handle, false)
+            }
+        }
         WindowIcon.apply(window)
         tracker = PlacementTracker(window, restore?.maximized ?: false)
-        if (restore?.maximized == true) glfwMaximizeWindow(window) else glfwShowWindow(window)
+        if (visible) {
+            if (restore?.maximized == true) glfwMaximizeWindow(window) else glfwShowWindow(window)
+        }
         glfwMakeContextCurrent(window)
         // Draw as soon as a frame is ready instead of waiting for vertical blank, which would add up to a frame.
         glfwSwapInterval(0)
@@ -206,6 +246,26 @@ class VideoWindow(
         child?.attach(glfwGetWin32Window(window))
     }
 
+    private fun limitSize(window: Long, min: WindowSize) {
+        val scale = FloatArray(1)
+        glfwGetWindowContentScale(window, scale, null)
+        val size = min.scaledBy(scale[0])
+        glfwSetWindowSizeLimits(window, size.width, size.height, GLFW_DONT_CARE, GLFW_DONT_CARE)
+    }
+
+    private fun applyShown(window: Long, shown: Boolean) {
+        if (shown) {
+            glfwShowWindow(window)
+            glfwFocusWindow(window)
+        } else {
+            glfwHideWindow(window)
+        }
+        if (shown != visible) {
+            visible = shown
+            onVisibility(shown)
+        }
+    }
+
     /** One pass of the event loop for this window; false once it should close. */
     internal fun step(): Boolean {
         val window = handle
@@ -213,6 +273,7 @@ class VideoWindow(
         glfwMakeContextCurrent(window)
         GL.setCapabilities(capabilities)
         if (minimizing.getAndSet(false)) glfwIconifyWindow(window)
+        shownRequest.getAndSet(null)?.let { applyShown(window, it) }
         newTitle.getAndSet(null)?.let { glfwSetWindowTitle(window, it) }
         val fresh = latest.getAndSet(null)
         if (fresh != null) {

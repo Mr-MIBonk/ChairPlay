@@ -15,8 +15,8 @@ class ControlsLayoutTest {
             ControlAction.SELECT, ControlAction.KNOB_UP, ControlAction.KNOB_DOWN, ControlAction.KNOB_LEFT,
             ControlAction.KNOB_RIGHT, ControlAction.KNOB_PREVIOUS, ControlAction.KNOB_NEXT, ControlAction.BACK,
             ControlAction.HOME, ControlAction.SIRI, ControlAction.MEDIA_PREVIOUS, ControlAction.MEDIA_PLAY_PAUSE,
-            ControlAction.MEDIA_NEXT, ControlAction.CALL_ANSWER, ControlAction.CALL_END, ControlAction.ALTSCREEN_ZOOM_OUT,
-            ControlAction.ALTSCREEN_ZOOM_IN,
+            ControlAction.MEDIA_NEXT, ControlAction.CALL_ANSWER, ControlAction.CALL_END, ControlAction.ALTSCREEN_CONTENT,
+            ControlAction.ALTSCREEN_CARDS, ControlAction.ALTSCREEN_ZOOM_OUT, ControlAction.ALTSCREEN_ZOOM_IN,
         )
         assertEquals(expected, buttons.map { it.action }.toSet())
         assertEquals(expected.size, buttons.size)
@@ -37,6 +37,18 @@ class ControlsLayoutTest {
     fun `a point hits the button under it`() {
         for (button in buttons) assertEquals(button.action, controlAt(buttons, button.centreX, button.centreY))
         assertNull(controlAt(buttons, -10f, -10f))
+    }
+
+    // The AltScreen's controls share the bottom row, left to right as F11, Shift+F11 and the zoom keys.
+    @Test
+    fun `the AltScreen row switches its view and cards and zooms it`() {
+        val row = buttons.filter { it.action.name.startsWith("ALTSCREEN_") }
+        assertEquals(1, row.map { it.top }.toSet().size)
+        assertEquals(
+            listOf(ControlAction.ALTSCREEN_CONTENT, ControlAction.ALTSCREEN_CARDS, ControlAction.ALTSCREEN_ZOOM_OUT, ControlAction.ALTSCREEN_ZOOM_IN),
+            row.sortedBy { it.left }.map { it.action },
+        )
+        assertTrue(row.all { it.top > buttons.single { b -> b.action == ControlAction.CALL_ANSWER }.top })
     }
 
     @Test

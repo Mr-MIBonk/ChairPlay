@@ -1,0 +1,17 @@
+CouchPlay Android TV / Google TV assets
+
+couchplay-icon-1280x720.png: 16:9 artwork with the original sofa at 75% of the canvas width.
+couchplay-banner-1280x720.png: banner master with the CouchPlay name included.
+couchplay-banner-640x360.png: higher-density banner export.
+couchplay-banner-320x180.png: xhdpi launcher banner, ready to copy as drawable-xhdpi/couchplay_banner.png and reference with android:banner="@drawable/couchplay_banner".
+
+All images are opaque RGB PNGs with the original vertical grey gradient and charcoal glyph.
+The sofa is scaled uniformly from ../glyph.png, with its original proportions preserved.
+The banner name uses the project's Inter SemiBold font; its licence is in notices/Inter-OFL.txt.
+Regenerate all CouchPlay assets with: python packaging/couchplay/export_icons.py
+
+Android TV requires both a square launcher icon and a 16:9 banner containing the app name.
+The existing ../couchplay-square-1024.png remains available for the square icon.
+Guidance checked on 2026-10-22:
+https://developer.android.com/design/ui/tv/guides/system/tv-app-icon-guidelines
+https://developer.android.com/training/tv/get-started/create

@@ -64,6 +64,16 @@ class WindowPlacementTest {
         assertEquals(WindowSize(1000, 375), WindowSize(1000, 900).fittedTo(WindowSize(1280, 480)))
     }
 
+    // A minimum is in the web view's pixels: at 150 % display scale 800x480 takes 1200x720 screen pixels.
+    @Test
+    fun `a minimum size grows with the display scale`() {
+        assertEquals(WindowSize(1200, 720), MAIN_WINDOW_MIN_SIZE.scaledBy(1.5f))
+        assertEquals(WindowSize(1000, 600), MAIN_WINDOW_MIN_SIZE.scaledBy(1.25f))
+        assertEquals(MAIN_WINDOW_MIN_SIZE, MAIN_WINDOW_MIN_SIZE.scaledBy(0f))
+        // The AltScreen's keeps the picture's shape.
+        assertEquals(WindowSize(800, 301), WindowSize(ALTSCREEN_MIN_WIDTH, 1).fittedTo(WindowSize(1440, 542)))
+    }
+
     // The AltScreen opens on the content and card layout it was left on, beside the windows' places in the file.
     @Test
     fun `the AltScreen view is remembered unless the settings changed`() {
@@ -85,6 +95,22 @@ class WindowPlacementTest {
             AltscreenContent.MAP to AltscreenCards.TOP,
             AltscreenViewStore(Files.createTempDirectory("chairplay-window")).load(AltscreenContent.MAP, AltscreenCards.TOP),
         )
+    }
+
+    // The controls window opens shown or hidden as it was left; before it was ever left, window.controls decides.
+    @Test
+    fun `the controls window's visibility is remembered`() {
+        val dir = Files.createTempDirectory("chairplay-window")
+        val store = ControlsWindowStore(dir)
+        assertTrue(store.load(default = true))
+        assertFalse(store.load(default = false))
+        WindowPlacementStore(dir).save(WindowPlacement(10, 20, 1280, 720, maximized = false), configured)
+        store.save(visible = false)
+        assertFalse(store.load(default = true))
+        store.save(visible = true)
+        assertTrue(store.load(default = false))
+        // The windows' places stay beside it.
+        assertEquals(WindowPlacement(10, 20, 1280, 720, maximized = false), WindowPlacementStore(dir).load(configured))
     }
 
     @Test

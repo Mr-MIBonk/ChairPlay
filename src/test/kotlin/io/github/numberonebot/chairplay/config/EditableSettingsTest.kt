@@ -78,6 +78,10 @@ class EditableSettingsTest {
     fun `sizes must be numbers the windows can have`() {
         assertTrue("positive whole number" in errors("window.width" to "0").getValue("window.width"))
         assertTrue("positive whole number" in errors("window.height" to "big").getValue("window.height"))
+        // The main window is never smaller than 800x480.
+        assertTrue("at least 800" in errors("window.width" to "799").getValue("window.width"))
+        assertTrue("at least 480" in errors("window.height" to "479").getValue("window.height"))
+        assertTrue(errors("window.width" to "800", "window.height" to "480").isEmpty())
         assertTrue("even" in errors("altscreen.width" to "1441").getValue("altscreen.width"))
         assertTrue("even" in errors("altscreen.height" to "").getValue("altscreen.height"))
     }

@@ -40,22 +40,23 @@ def gradient(size):
     return Image.fromarray(np.repeat(rows, size, axis=1), "RGB").convert("RGBA")
 
 
-def render(round_corners=True):
+def render(round_corners=True, *, glyph_path=None, glyph_fraction=GLYPH_FRACTION):
     icon = gradient(SIZE)
     if round_corners:
         icon.putalpha(squircle(SIZE))
-    alpha = Image.open(HERE / "glyph.png").convert("RGBA").split()[3]
+    with Image.open(glyph_path or HERE / "glyph.png") as source:
+        alpha = source.convert("RGBA").getchannel("A")
     # Ignore nearly transparent stray pixels when centring the generated source glyph.
     bounds = alpha.point(lambda value: 255 if value >= 128 else 0).getbbox()
     if bounds is None:
         raise ValueError("glyph.png must contain a visible glyph")
     left, top, right, bottom = bounds
     alpha = alpha.crop((max(0, left - 2), max(0, top - 2), min(alpha.width, right + 2), min(alpha.height, bottom + 2)))
-    scale = SIZE * GLYPH_FRACTION / max(alpha.size)
+    scale = SIZE * glyph_fraction / max(alpha.size)
     alpha = alpha.resize((round(alpha.size[0] * scale), round(alpha.size[1] * scale)), Image.LANCZOS)
     glyph = Image.new("RGBA", alpha.size, GLYPH + (255,))
     glyph.putalpha(alpha)
-    # The armchair is balanced on both sides and sits at the centre of the tile.
+    # The furniture glyph is balanced on both sides and sits at the centre of the tile.
     x = (SIZE - alpha.size[0]) // 2
     y = (SIZE - alpha.size[1]) // 2
     icon.alpha_composite(glyph, (x, y))

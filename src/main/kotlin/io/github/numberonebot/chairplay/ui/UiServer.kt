@@ -20,8 +20,9 @@ import java.util.concurrent.Executors
  * Requests naming another host are refused, so a web page cannot reach the API through a name of its own that
  * resolves to 127.0.0.1. The page itself holds no secret and is served to anyone on this PC.
  *
- * API: GET state and settings, POST settings ({"changes": {key: value}}), connect, reconnect and screen
- * ({"screen": "start" | "settings" | "carplay"}), and GET events, a stream of the state on every change.
+ * API: GET state and settings, POST settings ({"changes": {key: value}}), connect, reconnect, screen
+ * ({"screen": "start" | "settings" | "carplay"}) and window ({"name": "altscreen" | "controls", "visible": bool}), and
+ * GET events, a stream of the state on every change.
  */
 class UiServer(
     private val api: UiApi,
@@ -91,7 +92,7 @@ class UiServer(
             return
         }
         val method = exchange.requestMethod
-        val posts = setOf("settings", "connect", "reconnect", "screen")
+        val posts = setOf("settings", "connect", "reconnect", "screen", "window")
         val gets = setOf("state", "settings", "events")
         when {
             method == "GET" && route in gets -> when (route) {
@@ -147,6 +148,15 @@ class UiServer(
                     screen == null -> json(exchange, 400, mapOf("error" to "screen missing"))
                     api.show(screen) -> json(exchange, 200, mapOf("ok" to true))
                     else -> json(exchange, 409, mapOf("error" to "cannot show $screen now"))
+                }
+            }
+            "window" -> {
+                val name = body["name"] as? String
+                val visible = body["visible"] as? Boolean
+                when {
+                    name == null || visible == null -> json(exchange, 400, mapOf("error" to "name and visible missing"))
+                    api.window(name, visible) -> json(exchange, 200, mapOf("ok" to true))
+                    else -> json(exchange, 404, mapOf("error" to "no window $name"))
                 }
             }
         }

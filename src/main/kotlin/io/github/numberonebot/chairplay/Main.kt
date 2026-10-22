@@ -18,6 +18,11 @@ import io.github.numberonebot.chairplay.data.CarPlayData
 import io.github.numberonebot.chairplay.data.CarPlayDataLog
 import io.github.numberonebot.chairplay.input.Control
 import io.github.numberonebot.chairplay.input.ControlPad
+import io.github.numberonebot.chairplay.config.ControlsWindowStore
+import io.github.numberonebot.chairplay.config.MAIN_WINDOW_MIN_SIZE
+import io.github.numberonebot.chairplay.config.ALTSCREEN_MIN_WIDTH
+import io.github.numberonebot.chairplay.config.fittedTo
+import io.github.numberonebot.chairplay.ui.UiWindow
 import io.github.numberonebot.chairplay.input.ControlsConfig
 import io.github.numberonebot.chairplay.input.ControlsPainter
 import io.github.numberonebot.chairplay.input.KeyControls
@@ -148,6 +153,12 @@ private fun probeBluetooth(address: String?): Boolean {
  * Wireless CarPlay with the screen shown in a window and its sound played through Java Sound. Runs until the window
  * is closed or the process is stopped; every session end or failure restarts the bring-up.
  */
+/** A window as the settings screen's triggers see it. */
+private fun VideoWindow.asUiWindow() = object : UiWindow {
+    override val visible get() = this@asUiWindow.visible
+    override fun setShown(shown: Boolean) = this@asUiWindow.setShown(shown)
+}
+
 private fun runCarPlay() {
     val dir = dataDirectory()
     val config = DesktopConfig(dir)
@@ -160,17 +171,24 @@ private fun runCarPlay() {
         config.window.width, config.window.height, placements.load(config.window),
         mainWindowTitle(WindowSize(config.displayWidth, config.displayHeight), CONNECTING),
         aspect = WindowSize(config.displayWidth, config.displayHeight).takeIf { config.keepAspect },
+        minSize = MAIN_WINDOW_MIN_SIZE,
     )
     window.onPlacement = { placement ->
         runCatching { placements.save(placement, config.window) }.onFailure { log("window place not saved: $it") }
     }
     // The altscreen (altscreen.enabled) gets a window of its own beside the main one; it takes no input.
-    // window.controls: the car's controls as buttons in a window of their own, shaped freely.
-    val controlsPainter = if (config.controlsWindow) ControlsPainter(::log) else null
-    val controlsWindow = controlsPainter?.let { painter ->
+    // The car's controls as buttons in a window of their own, at a fixed size. Its close button and the settings
+    // screen's trigger hide and show it, and it opens as it was left; until then window.controls decides.
+    val controlsPainter = ControlsPainter(::log)
+    val controlsShown = ControlsWindowStore(dir)
+    val controlsWindow = run {
         val placements = WindowPlacementStore(dir, prefix = "controls.")
-        VideoWindow(CONTROLS_SIZE.width, CONTROLS_SIZE.height, placements.load(CONTROLS_SIZE), "ChairPlay Controls").also {
-            it.overlay = painter
+        VideoWindow(
+            CONTROLS_SIZE.width, CONTROLS_SIZE.height, placements.load(CONTROLS_SIZE), "ChairPlay Controls",
+            resizable = false, hideOnClose = true,
+            shown = runCatching { controlsShown.load(default = config.controlsWindow) }.getOrDefault(config.controlsWindow),
+        ).also {
+            it.overlay = controlsPainter
             it.hud = true
             it.onPlacement = { placement ->
                 runCatching { placements.save(placement, CONTROLS_SIZE) }.onFailure { error -> log("controls window place not saved: $error") }
@@ -180,9 +198,11 @@ private fun runCarPlay() {
     val altscreen = config.altscreen?.let { alt ->
         log("altscreen ${alt.size.width}x${alt.size.height} px, starting with ${alt.content.key}")
         val altPlacements = WindowPlacementStore(dir, prefix = "altscreen.")
+        // Its close button hides it, and the settings screen's trigger shows it again; it opens at every start.
         VideoWindow(
             alt.size.width, alt.size.height, altPlacements.load(alt.size), altscreenTitle(alt.size, alt.content, alt.cards),
-            aspect = alt.size.takeIf { config.keepAspect },
+            aspect = alt.size.takeIf { config.keepAspect }, hideOnClose = true,
+            minSize = WindowSize(ALTSCREEN_MIN_WIDTH, 1).fittedTo(alt.size),
         ).also {
             it.onPlacement = { placement ->
                 runCatching { altPlacements.save(placement, alt.size) }.onFailure { log("altscreen place not saved: $it") }
@@ -196,7 +216,7 @@ private fun runCarPlay() {
     fun screenshots() {
         window.screenshot { image -> saveScreenshot(image, dir, ::log) }
         altscreen?.screenshot { image -> saveScreenshot(image, dir, ::log, "altscreen") }
-        controlsWindow?.screenshot { image -> saveScreenshot(image, dir, ::log, "controls") }
+        controlsWindow.screenshot { image -> saveScreenshot(image, dir, ::log, "controls") }
     }
     // A device name matching nothing stops here, before any connection, with the devices listed.
     val output = AudioDevices.output(config.audioOutput)
@@ -276,15 +296,23 @@ private fun runCarPlay() {
             startBootstrap.get()()
         }, "connect").apply { isDaemon = true }.start()
         override fun reconnect() = send(Control.Reconnect)
-    }, window::repaint, ::log)
+    }, window::repaint, ::log, buildMap {
+        altscreen?.let { put("altscreen", it.asUiWindow()) }
+        put("controls", controlsWindow.asUiWindow())
+    })
+    altscreen?.onVisibility = { ui.windowsChanged() }
+    controlsWindow.onVisibility = { shown ->
+        runCatching { controlsShown.save(shown) }.onFailure { log("controls window state not saved: $it") }
+        ui.windowsChanged()
+    }
     window.child = ui.view
     // While the page covers the window, the keys and the wheel are its own.
     window.keyHandler = { key, action, mods -> if (!ui.coversWindow) send(controls.key(key, action, mods)) }
     // The same keys work while the altscreen window has the focus; both windows run on the one GL thread.
     altscreen?.keyHandler = window.keyHandler
     // A button held with the mouse holds its control until the release, wherever the cursor goes meanwhile.
-    controlsWindow?.let { buttons ->
-        val painter = controlsPainter!!
+    controlsWindow.let { buttons ->
+        val painter = controlsPainter
         val pad = ControlPad()
         buttons.keyHandler = window.keyHandler
         buttons.setInputHandler { event ->

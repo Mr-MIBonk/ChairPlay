@@ -25,7 +25,7 @@ data class ControlButton(
 /**
  * The controls window's buttons for a [width] x [height] framebuffer: on the left a car's knob, select in the
  * middle, tilts around it and the turns above its corners; on the right rows of back, home and Siri, the media
- * keys, and the call keys with the AltScreen's zoom. Everything scales with the window.
+ * keys, the call keys, and the AltScreen's view, cards and zoom. Everything scales with the window.
  */
 fun controlsLayout(width: Float, height: Float): List<ControlButton> {
     val pad = 0.05f * min(width, height)
@@ -49,7 +49,9 @@ fun controlsLayout(width: Float, height: Float): List<ControlButton> {
     val rows = listOf(
         listOf(ControlAction.BACK, ControlAction.HOME, ControlAction.SIRI),
         listOf(ControlAction.MEDIA_PREVIOUS, ControlAction.MEDIA_PLAY_PAUSE, ControlAction.MEDIA_NEXT),
-        listOf(ControlAction.CALL_ANSWER, ControlAction.CALL_END, ControlAction.ALTSCREEN_ZOOM_OUT, ControlAction.ALTSCREEN_ZOOM_IN),
+        listOf(ControlAction.CALL_ANSWER, ControlAction.CALL_END),
+        // The AltScreen: its next view (F11), where its cards go (Shift+F11), and its map's zoom.
+        listOf(ControlAction.ALTSCREEN_CONTENT, ControlAction.ALTSCREEN_CARDS, ControlAction.ALTSCREEN_ZOOM_OUT, ControlAction.ALTSCREEN_ZOOM_IN),
     )
     val gap = pad * 0.6f
     val left = pad + knob + pad

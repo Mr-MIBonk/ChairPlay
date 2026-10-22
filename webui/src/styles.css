@@ -453,6 +453,148 @@ select:focus {
   outline-offset: 2px;
 }
 
+/* The settings screen: a sidebar listing the sections, the selected one beside it; on a narrow page, above it. */
+.settings-layout {
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* The buttons that show and hide the AltScreen and controls windows: blue while the window is shown. */
+.window-toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.window-toggle {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 92px;
+  padding: 14px;
+  border: none;
+  border-radius: var(--radius);
+  background: var(--card);
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+  text-align: left;
+}
+
+.window-toggle-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--card-raised);
+}
+
+.window-toggle svg {
+  width: 22px;
+  height: 22px;
+}
+
+.window-toggle:active {
+  background: var(--card-raised);
+}
+
+.window-toggle[aria-pressed='true'] {
+  background: var(--accent);
+}
+
+.window-toggle[aria-pressed='true']:active {
+  background: var(--accent-pressed);
+}
+
+.window-toggle[aria-pressed='true'] .window-toggle-icon {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.window-toggle:disabled {
+  background: var(--card);
+  color: var(--muted);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.window-toggle:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.section-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 6px;
+  background: var(--card);
+  border-radius: var(--radius);
+}
+
+.section-tab {
+  min-height: 48px;
+  padding: 0 14px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text);
+  font-size: 17px;
+  text-align: left;
+}
+
+.section-tab:active {
+  background: var(--card-raised);
+}
+
+.section-tab[aria-selected='true'] {
+  background: var(--card-raised);
+  box-shadow: inset 3px 0 0 var(--accent);
+  font-weight: 600;
+}
+
+.section-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+@media (max-width: 760px) {
+  .settings-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 16px;
+  }
+  .window-toggle {
+    flex-direction: row;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 60px;
+    padding: 10px 14px;
+  }
+  .section-list {
+    flex-direction: row;
+  }
+  .section-tab {
+    flex: 1;
+    padding: 0 8px;
+    font-size: 15px;
+    text-align: center;
+  }
+  .section-tab[aria-selected='true'] {
+    box-shadow: inset 0 -3px 0 var(--accent);
+  }
+}
+
 .size-form {
   display: flex;
   flex-direction: column;
@@ -467,7 +609,8 @@ select:focus {
 }
 
 .size-inputs input {
-  width: 110px;
+  flex: 0 1 110px;
+  min-width: 0;
   text-align: center;
   font-family: var(--wide);
   font-weight: 600;
@@ -524,4 +667,28 @@ code {
   padding: 10px 12px;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
+}
+
+/* The round CarPlay button in the top bar's left corner, on both screens. */
+.button-carplay {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--card-raised);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.button-carplay:active {
+  background: var(--separator);
+}
+
+.button-carplay svg {
+  width: 22px;
+  height: 22px;
 }

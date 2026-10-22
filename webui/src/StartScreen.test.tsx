@@ -16,20 +16,37 @@ describe('StartScreen', () => {
     expect(screen.queryByText('Reconnect now')).toBeNull()
   })
 
-  it('offers Show CarPlay once a session is active', () => {
+  // A round button with CarPlay's own icon, never a text button, brings CarPlay back.
+  it('offers the CarPlay button once a session is active', () => {
     const backend = new FakeBackend()
     render(<StartScreen state={appState({ phase: 'active', canShowCarPlay: true, autoshow: false })} backend={backend} />)
 
-    fireEvent.click(screen.getByText('Show CarPlay'))
+    fireEvent.click(screen.getByRole('button', { name: 'CarPlay' }))
+
+    expect(backend.shown).toEqual(['carplay'])
+    expect(screen.queryByText(/Show CarPlay/)).toBeNull()
+  })
+
+  it('goes back to CarPlay on Escape while a session can be shown', () => {
+    const backend = new FakeBackend()
+    const { unmount } = render(<StartScreen state={appState({ phase: 'active', canShowCarPlay: true })} backend={backend} />)
+    fireEvent.keyDown(window, { key: 'Escape' })
+    unmount()
+
+    render(<StartScreen state={appState({ phase: 'idle' })} backend={backend} />)
+    fireEvent.keyDown(window, { key: 'Escape' })
 
     expect(backend.shown).toEqual(['carplay'])
   })
 
   // In a browser CarPlay shows in ChairPlay's own window, which the page cannot bring up.
-  it('offers no Show CarPlay in a browser', () => {
-    render(<StartScreen state={appState({ phase: 'active', canShowCarPlay: true, embedded: false })} backend={new FakeBackend()} />)
+  it('offers no CarPlay button in a browser', () => {
+    const backend = new FakeBackend()
+    render(<StartScreen state={appState({ phase: 'active', canShowCarPlay: true, embedded: false })} backend={backend} />)
 
-    expect(screen.queryByText('Show CarPlay')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'CarPlay' })).toBeNull()
+    fireEvent.keyDown(window, { key: 'Escape' })
+    expect(backend.shown).toEqual([])
   })
 
   it('shows the last error with a hint', () => {

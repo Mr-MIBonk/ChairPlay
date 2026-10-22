@@ -62,3 +62,18 @@ export function Note({ children, tone = 'info' }: { children: ReactNode; tone?: 
     </div>
   )
 }
+
+/**
+ * The round button that brings CarPlay back: CarPlay's icon, a rounded square with a play triangle, in a circle.
+ * It is named CarPlay for screen readers; the screens show no text button for going back to CarPlay.
+ */
+export function CarPlayButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button type="button" className="button-carplay" aria-label="CarPlay" title="CarPlay" onClick={onClick}>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <rect x="3" y="3" width="18" height="18" rx="5" fill="currentColor" />
+        <path d="M10 8.2v7.6l6-3.8z" fill="var(--card-raised)" />
+      </svg>
+    </button>
+  )
+}

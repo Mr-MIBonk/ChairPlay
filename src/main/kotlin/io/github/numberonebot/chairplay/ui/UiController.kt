@@ -16,6 +16,14 @@ interface UiActions {
     fun reconnect()
 }
 
+/** A window of the app the settings screen shows and hides: the AltScreen's, the controls'. */
+interface UiWindow {
+    val visible: Boolean
+
+    /** Safe from any thread: the window shows or hides on its own thread soon after. */
+    fun setShown(shown: Boolean)
+}
+
 /** Whether Windows Firewall lets the iPhone in, as read at start. */
 enum class FirewallStatus { PRESENT, MISSING, BLOCKED, UNKNOWN }
 
@@ -48,6 +56,9 @@ interface UiApi {
     /** Shows the screen named "start", "settings" or "carplay"; false when it cannot be shown. */
     fun show(screen: String): Boolean
 
+    /** Shows or hides the window named "altscreen" or "controls"; false when there is no such window. */
+    fun window(name: String, visible: Boolean): Boolean
+
     /** Waits up to [timeoutMillis] for [version] to differ from [seen], and returns it. */
     fun awaitChange(seen: Long, timeoutMillis: Long): Long
 }
@@ -64,6 +75,8 @@ class UiController(
     private val log: (String) -> Unit,
     /** ui.autoconnect as the app started: the first Wi-Fi network saved then starts the connection. */
     private val autoconnect: Boolean = true,
+    /** The windows the settings screen's triggers show and hide, by name; one left out is not there. */
+    private val windows: Map<String, UiWindow> = emptyMap(),
 ) : UiApi {
     /** The settings as the app started with them, against which a change waits for the next start. */
     private val startup: Map<String, String> = settings.read()
@@ -84,6 +97,15 @@ class UiController(
 
     init {
         model.addListener { changed() }
+    }
+
+    /** Tells the page that a window was shown or hidden, by its trigger or by its own close button. */
+    fun windowsChanged() = changed()
+
+    override fun window(name: String, visible: Boolean): Boolean {
+        val window = windows[name] ?: return false
+        window.setShown(visible)
+        return true
     }
 
     private fun changed() {
@@ -122,6 +144,10 @@ class UiController(
                 "security" to (values["wifi.security"]?.trim()?.ifEmpty { null } ?: "WPA_WPA2"),
                 "passphraseSet" to !values["wifi.passphrase"].isNullOrEmpty(),
             ),
+            "windows" to WINDOWS.associateWith { name ->
+                val window = windows[name]
+                mapOf("available" to (window != null), "visible" to (window?.visible ?: false))
+            },
             "reconnectPending" to state.reconnectPending.sorted(),
             "restartPending" to state.restartPending.sorted(),
             "setup" to linkedMapOf(
@@ -200,5 +226,7 @@ class UiController(
         const val PASSPHRASE = "wifi.passphrase"
         val MFI_FILES = listOf("identity.pk8", "certificate.p7b")
         val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
+        /** The windows the page has triggers for, each in the state whether it is there or not. */
+        val WINDOWS = listOf("altscreen", "controls")
     }
 }

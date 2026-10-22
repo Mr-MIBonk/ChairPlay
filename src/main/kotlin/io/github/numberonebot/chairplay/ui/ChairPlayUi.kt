@@ -22,6 +22,8 @@ class ChairPlayUi(
     actions: UiActions,
     wake: () -> Unit,
     private val log: (String) -> Unit,
+    /** The windows the settings screen's triggers show and hide, by name ("altscreen", "controls"). */
+    windows: Map<String, UiWindow> = emptyMap(),
 ) : Closeable {
     val model = UiModel(config.wifi != null, config.autoconnect, config.autoshow)
 
@@ -39,7 +41,11 @@ class ChairPlayUi(
         actions,
         log,
         config.autoconnect,
+        windows,
     )
+
+    /** Tells the page that a window was shown or hidden. */
+    fun windowsChanged() = controller.windowsChanged()
 
     private val server = UiServer(controller, pageAssets(), System.getenv("CHAIRPLAY_UI_PORT")?.toIntOrNull() ?: 0, log = log)
 

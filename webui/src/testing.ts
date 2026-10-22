@@ -1,5 +1,5 @@
 // Fakes for the tests: an app state and a backend that records what the screens ask for.
-import type { AppState, Backend, SaveOutcome, Screen, SettingsData } from './api'
+import type { AppState, Backend, SaveOutcome, Screen, SettingsData, WindowName } from './api'
 
 export function appState(overrides: Partial<AppState> = {}): AppState {
   return {
@@ -14,6 +14,7 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     wifi: { ssid: 'Home', security: 'WPA_WPA2', passphraseSet: true },
     reconnectPending: [],
     restartPending: [],
+    windows: { altscreen: { available: true, visible: true }, controls: { available: true, visible: true } },
     setup: {
       mfiFolder: 'C:\\ChairPlay\\offline-mfi',
       mfiPresent: true,
@@ -28,6 +29,7 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
 export class FakeBackend implements Backend {
   saved: Record<string, string>[] = []
   shown: Screen[] = []
+  windows: { name: WindowName; visible: boolean }[] = []
   connects = 0
   reconnects = 0
   nextOutcome: SaveOutcome | null = null
@@ -82,6 +84,11 @@ export class FakeBackend implements Backend {
 
   async show(screen: Screen) {
     this.shown.push(screen)
+    return true
+  }
+
+  async window(name: WindowName, visible: boolean) {
+    this.windows.push({ name, visible })
     return true
   }
 }

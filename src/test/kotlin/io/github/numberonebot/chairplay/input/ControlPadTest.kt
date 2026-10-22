@@ -29,4 +29,12 @@ class ControlPadTest {
         assertNull(pad.release(ControlAction.KNOB_NEXT))
         assertNull(pad.release(ControlAction.SIRI))
     }
+
+    // As F11 and Shift+F11.
+    @Test
+    fun `the AltScreen buttons switch its view and its cards`() {
+        assertEquals(Control.NextAltscreenContent, pad.press(ControlAction.ALTSCREEN_CONTENT))
+        assertEquals(Control.NextAltscreenCards, pad.press(ControlAction.ALTSCREEN_CARDS))
+        assertNull(pad.release(ControlAction.ALTSCREEN_CONTENT))
+    }
 }
