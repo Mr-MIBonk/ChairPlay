@@ -34,6 +34,7 @@ import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.nio.file.Files
+import java.nio.file.StandardOpenOption
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.LinkedBlockingQueue
@@ -96,6 +97,21 @@ class WirelessBootstrapTest {
         // The start-up check looks for this name; Windows names its own prompt rules after the exe.
         assertTrue(hint, "name=\"DiPlayDesktop CarPlay inbound\" dir=in" in hint)
         assertEquals(3, Regex("name=\"$FIREWALL_RULE\"").findAll(hint).count())
+    }
+
+    // A new iPhone needs time for the driver to accept CarPlay on it; one that paired before only has to join
+    // the Wi-Fi, so a phone that lost the Wi-Fi meanwhile gets the network again after seconds, not minutes.
+    @Test(timeout = 30_000)
+    fun `the Bluetooth bootstrap waits minutes for a new iPhone and seconds for a known one`() {
+        Harness().use { harness ->
+            assertEquals(5 * 60_000L, harness.parts.take().bootstrapTimeout.poll(10, TimeUnit.SECONDS))
+        }
+        Harness(knownIphone = true).use { harness ->
+            assertEquals(30_000L, harness.parts.take().bootstrapTimeout.poll(10, TimeUnit.SECONDS))
+        }
+        Harness(knownIphone = true, settings = "iphone.join.seconds=20").use { harness ->
+            assertEquals(20_000L, harness.parts.take().bootstrapTimeout.poll(10, TimeUnit.SECONDS))
+        }
     }
 
     @Test(timeout = 30_000)
@@ -213,7 +229,11 @@ class WirelessBootstrapTest {
     }
 
     /** A bootstrap over fakes on 127.0.0.1; each stack's parts and advertised port are recorded. */
-    private inner class Harness(tap: CarPlayDataTap = CarPlayDataTap.NONE) : Closeable {
+    private inner class Harness(
+        tap: CarPlayDataTap = CarPlayDataTap.NONE,
+        knownIphone: Boolean = false,
+        settings: String = "",
+    ) : Closeable {
         val loopback: InetAddress = InetAddress.getByName("127.0.0.1")
         val stacks = AtomicInteger()
         val parts = LinkedBlockingDeque<FakeParts>()
@@ -222,6 +242,9 @@ class WirelessBootstrapTest {
         private val advertisedPorts = LinkedBlockingQueue<Int>()
         private val bootstrap = Files.createTempDirectory("diplay-bootstrap").let { dir ->
             writeTestSettings(dir)
+            if (settings.isNotEmpty()) Files.writeString(dir.resolve("settings.properties"), "\n$settings\n", StandardOpenOption.APPEND)
+            // An AirPlay pairing record, as the first session with this iPhone leaves.
+            if (knownIphone) Files.createDirectories(dir.resolve("pairings")).resolve("6970686f6e65").let { Files.writeString(it, "00") }
             WirelessBootstrap(DesktopConfig(dir), object : MediaSink {}, object : AirPlaySessionListener {}, tap) {
                 if (stacks.incrementAndGet() > 1) previousPortFree.set(bindable(loopback, previousPort.get()))
                 FakeParts(info(listOf(loopback))) { port ->
@@ -311,6 +334,7 @@ class WirelessBootstrapTest {
         val link = SilentStream()
         val tunnelHandler = AtomicReference<((BlockingDuplexByteStream) -> Boolean)?>()
         val readyRuns = AtomicInteger()
+        val bootstrapTimeout = LinkedBlockingQueue<Long>()
         override val mfi: MfiAuthenticator? = null
 
         override fun network() = object : WirelessHotspotManager {
@@ -346,6 +370,7 @@ class WirelessBootstrapTest {
             keepAliveAfterDeadline: () -> Boolean,
             onIncoming: (Iap2Frame) -> Unit,
         ): Iap2WirelessControlResult {
+            if (timeoutMillis != Iap2WirelessControlClient.NO_TIMEOUT_MILLIS) bootstrapTimeout.add(timeoutMillis)
             onIncoming(Iap2Frame(POWER_UPDATE, ByteArray(0)))
             // Only the tunnel runs without a deadline.
             if (timeoutMillis == Iap2WirelessControlClient.NO_TIMEOUT_MILLIS) {

@@ -7,6 +7,7 @@ import com.shilapi.xcertplay.desktop.bluetooth.selectIphone
 import com.shilapi.xcertplay.desktop.config.DesktopConfig
 import com.shilapi.xcertplay.desktop.config.Theme
 import com.shilapi.xcertplay.desktop.config.AltscreenCards
+import com.shilapi.xcertplay.desktop.config.AltscreenContent
 import com.shilapi.xcertplay.desktop.config.WindowPlacementStore
 import com.shilapi.xcertplay.desktop.config.altscreenTitle
 import com.shilapi.xcertplay.desktop.config.mainWindowTitle
@@ -25,6 +26,9 @@ import com.shilapi.xcertplay.desktop.media.DesktopMediaSink
 import com.shilapi.xcertplay.desktop.media.VideoWindow
 import com.shilapi.xcertplay.desktop.media.nightMode
 import com.shilapi.xcertplay.desktop.media.runWindows
+import com.shilapi.xcertplay.desktop.hud.HudPainter
+import com.shilapi.xcertplay.desktop.hud.HudView
+import com.shilapi.xcertplay.desktop.hud.hudState
 import com.shilapi.xcertplay.desktop.media.saveScreenshot
 import com.shilapi.xcertplay.desktop.media.windowsAppsDark
 import com.shilapi.xcertplay.desktop.session.FIREWALL_RULE
@@ -45,6 +49,7 @@ import java.nio.file.Path
 import java.time.LocalTime
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
 import kotlin.system.exitProcess
@@ -61,6 +66,14 @@ fun main(args: Array<String>) {
 private fun log(message: String) = println("${LocalTime.now()} $message")
 
 /** How often display.theme=windows looks at the Windows theme. */
+private const val CONNECTING = "connecting…"
+private const val CLOSING_PREVIOUS = "closing previous run…"
+private const val PREVIOUS_RUN_WAIT_MILLIS = 15_000L
+private const val FADE_OUT_MILLIS = 1_000L
+
+/** Held for the life of the process; the system lets go of it when the process ends. */
+private val instanceLock = AtomicReference<InstanceLock?>()
+private const val RECONNECTING = "reconnecting…"
 private const val THEME_POLL_SECONDS = 5L
 
 /** The app folder, where the settings, keys and pairings live. */
@@ -133,7 +146,7 @@ private fun runCarPlay() {
     val placements = WindowPlacementStore(dir)
     val window = VideoWindow(
         config.window.width, config.window.height, placements.load(config.window),
-        mainWindowTitle(WindowSize(config.displayWidth, config.displayHeight)),
+        mainWindowTitle(WindowSize(config.displayWidth, config.displayHeight), CONNECTING),
         aspect = WindowSize(config.displayWidth, config.displayHeight).takeIf { config.keepAspect },
     )
     window.onPlacement = { placement ->
@@ -153,6 +166,7 @@ private fun runCarPlay() {
         }
     }
     var altscreenContent = config.altscreen?.content
+    altscreen?.hud = altscreenContent == AltscreenContent.HUD
     var altscreenCards = config.altscreen?.cards ?: AltscreenCards.AUTO
     // F12 saves both screens, each at the size the iPhone draws it.
     fun screenshots() {
@@ -179,10 +193,24 @@ private fun runCarPlay() {
     }
     // Keys and the wheel go through the touch thread too, so a tap and a key press reach the iPhone in order.
     val controls = KeyControls(controlsConfig)
+    // The main window's title says when there is no session to show, and why.
+    val stream = WindowSize(config.displayWidth, config.displayHeight)
+    val reconnecting = AtomicBoolean()
+    // Ctrl+R: set once the bootstrap exists; closing a session talks to the network, so not on the GL thread.
+    val restartBootstrap = AtomicReference<() -> Unit> {}
+    fun reconnect() = Thread({ restartBootstrap.get()() }, "reconnect").apply { isDaemon = true }.start()
     fun send(control: Control?) {
         control ?: return
         if (control == Control.Screenshot) {
             screenshots()
+            return
+        }
+        if (control == Control.Reconnect) {
+            log("reconnecting at the user's request")
+            reconnecting.set(true)
+            window.setTitle(mainWindowTitle(stream, RECONNECTING))
+            sink.fadeOut(FADE_OUT_MILLIS)
+            reconnect()
             return
         }
         touchSender.execute {
@@ -199,13 +227,14 @@ private fun runCarPlay() {
                     val content = altscreenContent ?: return@execute
                     if (control == Control.NextAltscreenContent) altscreenContent = content.next()
                     else altscreenCards = altscreenCards.next()
+                    altscreen?.hud = altscreenContent == AltscreenContent.HUD
                     val url = altscreenUrl(altscreenContent!!, altscreenCards)
                     val sent = session.setClusterUrl(url, send = true)
                     log("altscreen ${altscreenContent!!.key}, cards ${altscreenCards.key}: $url sent=$sent")
                     val size = config.altscreen!!.size
                     altscreen?.setTitle(altscreenTitle(size, altscreenContent!!, altscreenCards) + if (sent) "" else " (not sent)")
                 }
-                Control.Screenshot -> Unit
+                Control.Screenshot, Control.Reconnect -> Unit
             }
         }
     }
@@ -243,17 +272,30 @@ private fun runCarPlay() {
     }
     // The iPhone's route, song, call and battery messages, for later screens and, with log.carplay.data, a file.
     val carPlayData = CarPlayData(if (config.logCarPlayData) CarPlayDataLog(dir.resolve("logs"), log = ::log) else null)
+    // The AltScreen's HUD shows the bus's data, drawn again when it changes.
+    altscreen?.let { alt ->
+        alt.overlay = HudPainter({
+            val snapshot = carPlayData.bus.snapshot()
+            HudView(active.get() != null, hudState(snapshot), snapshot.artwork)
+        }, ::log)
+        carPlayData.bus.addListener { if (alt.hud) alt.repaint() }
+    }
     val bootstrap = WirelessBootstrap(config, sink, object : AirPlaySessionListener {
         override fun onSessionActive(session: AirPlaySession) {
             active.set(session)
             sessionChanged()
             log("AirPlay session active")
+            reconnecting.set(false)
+            window.setTitle(mainWindowTitle(stream))
             sendTheme(session)
         }
         override fun onSessionEnded(session: AirPlaySession) {
             // /info probes and pairing retries end too; resetting for them would cut a drag on the live session
             // short, and its release would never reach the iPhone.
-            if (active.compareAndSet(session, null)) sessionChanged()
+            if (active.compareAndSet(session, null)) {
+                sessionChanged()
+                window.setTitle(mainWindowTitle(stream, if (reconnecting.get()) RECONNECTING else CONNECTING))
+            }
             log("AirPlay session ended")
         }
         // The driver tapped the Windows icon on the CarPlay home screen: give the screen back to Windows.
@@ -264,14 +306,25 @@ private fun runCarPlay() {
         override fun onTransportError(message: String) = log("AirPlay transport error: $message")
         override fun onDebugLog(message: String) = log(message)
     }, carPlayData)
+    restartBootstrap.set(bootstrap::restart)
     Runtime.getRuntime().addShutdownHook(Thread {
+        // The window is gone at once; the sound fades over the seconds the session takes to end.
+        sink.fadeOut(FADE_OUT_MILLIS)
         themeWatch.shutdownNow()
         bootstrap.close()
         carPlayData.close()
         sink.close()
         touchSender.shutdownNow()
     })
-    bootstrap.start()
+    // A previous run that is still ending its session holds the iPhone's Bluetooth channel: wait for it first.
+    Thread({
+        instanceLock.set(InstanceLock.acquire(dir, PREVIOUS_RUN_WAIT_MILLIS) {
+            log("the previous run is still closing; waiting for it")
+            window.setTitle(mainWindowTitle(stream, CLOSING_PREVIOUS))
+        })
+        window.setTitle(mainWindowTitle(stream, CONNECTING))
+        bootstrap.start()
+    }, "instance-lock").apply { isDaemon = true }.start()
     // GLFW needs its windows and event loop on this, the main, thread; the bring-up runs on its own.
     if (altscreen == null) window.run() else runWindows(window, altscreen)
     exitProcess(0)

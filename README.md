@@ -85,6 +85,7 @@ settings and keys there on later builds. To install it elsewhere, pass `-Pdiplay
 | F3 / F4 | answer / end a call |
 | S | Siri |
 | F12 | screenshots of the CarPlay screen and the AltScreen, at the iPhone's resolution, into `screenshots` |
+| Ctrl+R | end the session gracefully and connect again |
 | F11 | AltScreen: map, turn card, map with turn card |
 | Shift+F11 | AltScreen: move the ETA and turn card (auto, left, right, top, off) |
 | Mouse wheel over the AltScreen, + / − (either keyboard) | zoom the AltScreen map |

@@ -18,6 +18,11 @@ JNA, JNA platform                 5.15.0         Apache-2.0 OR LGPL-2.1+; used  
                                                  under Apache-2.0 (in jar: META-INF/LICENSE; Apache-2.0.txt)
 LWJGL core, GLFW, OpenGL          3.3.4          BSD-3-Clause (LWJGL-BSD-3-Clause.txt)  https://www.lwjgl.org/
   + natives-windows jars          3.3.4          BSD-3-Clause; the GLFW native is zlib/libpng-licensed (https://www.glfw.org/license.html)
+LWJGL NanoVG (+ natives-windows) 3.3.4          BSD-3-Clause for the bindings; NanoVG itself (the HUD's drawing)
+                                                 is zlib-licensed (NanoVG-zlib.txt)  https://github.com/memononen/nanovg
+Inter (HUD text)                  4.1            SIL OFL 1.1 (Inter-OFL.txt)      https://github.com/rsms/inter
+Roboto Flex Wide (HUD numbers)    instance of    SIL OFL 1.1 (RobotoFlex-OFL.txt); a static instance of Roboto Flex
+                                  Roboto Flex    (wdth 151, wght 600), renamed  https://github.com/googlefonts/roboto-flex
 JavaCPP                           1.5.11         Apache-2.0 OR GPL-2.0 with Classpath Exception; used under
   (+ windows-x86_64 natives)                     Apache-2.0 (JavaCPP-LICENSE.txt)  https://github.com/bytedeco/javacpp
 JavaCPP Presets for FFmpeg        7.1-1.5.11     Apache-2.0 for the bindings      https://github.com/bytedeco/javacpp-presets

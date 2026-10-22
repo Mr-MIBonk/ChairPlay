@@ -16,6 +16,8 @@ sealed interface Control {
     data object Siri : Control
     /** Saves what is on the CarPlay screen; nothing goes to the iPhone. */
     data object Screenshot : Control
+    /** Ends the session as closing the window does and starts the connection over. */
+    data object Reconnect : Control
     /** Zooms the altscreen's map [steps] times, in when positive (AirPlaySession.changeMapZoomLevel). */
     data class MapZoom(val steps: Int) : Control
     /** Asks the iPhone for the altscreen's next content (AirPlaySession.setClusterUrl). */
@@ -120,6 +122,7 @@ class KeyControls(private val config: ControlsConfig = ControlsConfig.DEFAULT) {
         ControlAction.CALL_END -> Control.Telephony(TELEPHONY_HANG_UP)
         ControlAction.SIRI -> Control.Siri
         ControlAction.SCREENSHOT -> Control.Screenshot
+        ControlAction.RECONNECT -> Control.Reconnect
         ControlAction.ALTSCREEN_CONTENT -> Control.NextAltscreenContent
         ControlAction.ALTSCREEN_CARDS -> Control.NextAltscreenCards
         else -> null

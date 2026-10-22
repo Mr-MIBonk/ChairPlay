@@ -105,6 +105,6 @@ class ControlsConfigTest {
 
     @Test
     fun `the summary counts bound actions and names the wheel mode`() {
-        assertEquals("controls: 20 actions, wheel=knob", ControlsConfig.DEFAULT.summary())
+        assertEquals("controls: 21 actions, wheel=knob", ControlsConfig.DEFAULT.summary())
     }
 }

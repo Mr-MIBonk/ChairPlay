@@ -45,6 +45,21 @@ class VideoWindow(
     private val minimizing = AtomicBoolean()
     private val screenshotRequest = AtomicReference<((BufferedImage) -> Unit)?>()
     private val newTitle = AtomicReference<String?>()
+
+    /** Shows [overlay] on black instead of the picture: the AltScreen's HUD. */
+    @Volatile
+    var hud = false
+        set(value) {
+            field = value
+            wake()
+        }
+
+    /** What [hud] shows; set before [runWindows]. */
+    var overlay: WindowOverlay? = null
+    private var overlayOpen = false
+
+    /** Safe from any thread: draws the window again, as the HUD does when its data changes. */
+    fun repaint() = wake()
     // GLFW rejects glfwPostEmptyEvent outside init..terminate, which frames and close() can fall outside of.
     private val running = AtomicBoolean()
 
@@ -128,6 +143,7 @@ class VideoWindow(
     private var capabilities: GLCapabilities? = null
     private var tracker: PlacementTracker? = null
     private var program = 0
+    private var sourceUniform = -1
     private var vao = 0
     private val textures = IntArray(3)
     private val planeSizes = IntArray(6)
@@ -177,6 +193,8 @@ class VideoWindow(
             glUniform1i(glGetUniformLocation(program, arrayOf("planeY", "planeU", "planeV")[plane]), plane)
         }
         glBindVertexArray(vao)
+        sourceUniform = glGetUniformLocation(program, "source")
+        glUniform4f(sourceUniform, 0f, 0f, 1f, 1f)
         // Black from the start, like the title bar, instead of the system's white until the first frame.
         glfwGetFramebufferSize(window, w, h)
         clear(w[0], h[0])
@@ -205,15 +223,54 @@ class VideoWindow(
         glfwGetFramebufferSize(window, w, h)
         framebufferSize = Size(w[0], h[0])
         val shown = picture
-        if (shown == null) clear(w[0], h[0]) else draw(shown, w[0], h[0])
+        val layer = overlay
+        when {
+            hud -> {
+                clear(w[0], h[0])
+                if (layer != null) {
+                    if (!overlayOpen) {
+                        layer.open()
+                        overlayOpen = true
+                    }
+                    layer.paint(w[0], h[0])
+                    // The overlay changes GL state; the picture's own is set again for the next pass.
+                    restoreVideoState()
+                }
+            }
+            shown == null -> clear(w[0], h[0])
+            else -> draw(shown, w[0], h[0])
+        }
+        val shot = screenshotRequest.getAndSet(null)
+        if (shot != null && hud) {
+            // The HUD is ours, not the iPhone's picture: save what the window shows.
+            val pixels = readFramebuffer(w[0], h[0])
+            val (fw, fh) = w[0] to h[0]
+            Thread({ shot(screenshotImage(fw, fh, pixels)) }, "screenshot").apply { isDaemon = true }.start()
+        }
         glfwSwapBuffers(window)
         if (fresh != null) onFrameShown()
-        val shot = screenshotRequest.getAndSet(null)
-        if (shot != null && shown != null) {
+        if (shot != null && !hud && shown != null) {
             val pixels = readPicture(shown)
             Thread({ shot(screenshotImage(shown.width, shown.height, pixels)) }, "screenshot").apply { isDaemon = true }.start()
         }
         return true
+    }
+
+    /** The program, vertex array, plane textures and blending the picture is drawn with. */
+    private fun restoreVideoState() {
+        glUseProgram(program)
+        glBindVertexArray(vao)
+        for (plane in 0 until 3) {
+            glActiveTexture(GL_TEXTURE0 + plane)
+            glBindTexture(GL_TEXTURE_2D, textures[plane])
+        }
+        glActiveTexture(GL_TEXTURE0)
+        glDisable(GL_BLEND)
+        glDisable(GL_CULL_FACE)
+        glDisable(GL_STENCIL_TEST)
+        glDisable(GL_SCISSOR_TEST)
+        glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
+        glUniform4f(sourceUniform, 0f, 0f, 1f, 1f)
     }
 
     /** Hands over the place, frees the GL objects and destroys the window. */
@@ -225,12 +282,23 @@ class VideoWindow(
         tracker?.let { runCatching { onPlacement(it.placement()) } }
         glfwMakeContextCurrent(window)
         GL.setCapabilities(capabilities)
+        if (overlayOpen) runCatching { overlay?.close() }
+        overlayOpen = false
         glDeleteTextures(textures)
         glDeleteVertexArrays(vao)
         glDeleteProgram(program)
         glfwMakeContextCurrent(0)
         glfwDestroyWindow(window)
         handle = 0L
+    }
+
+    /** The window's back buffer as drawn, bottom row first. */
+    private fun readFramebuffer(width: Int, height: Int): ByteBuffer {
+        val pixels = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.nativeOrder())
+        glBindFramebuffer(GL_FRAMEBUFFER, 0)
+        glPixelStorei(GL_PACK_ALIGNMENT, 1)
+        glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels)
+        return pixels
     }
 
     /** Draws the current picture at its own size into an offscreen texture and reads it back, bottom row first. */
@@ -400,10 +468,13 @@ out vec4 color;
 uniform sampler2D planeY;
 uniform sampler2D planeU;
 uniform sampler2D planeV;
+// The part of the picture drawn, in texture coordinates (left, top, right, bottom); all of it by default.
+uniform vec4 source;
 void main() {
-    float y = (texture(planeY, uv).r - 16.0 / 255.0) * (255.0 / 219.0);
-    float u = (texture(planeU, uv).r - 128.0 / 255.0) * (255.0 / 224.0);
-    float v = (texture(planeV, uv).r - 128.0 / 255.0) * (255.0 / 224.0);
+    vec2 at = vec2(mix(source.x, source.z, uv.x), mix(source.y, source.w, uv.y));
+    float y = (texture(planeY, at).r - 16.0 / 255.0) * (255.0 / 219.0);
+    float u = (texture(planeU, at).r - 128.0 / 255.0) * (255.0 / 224.0);
+    float v = (texture(planeV, at).r - 128.0 / 255.0) * (255.0 / 224.0);
     color = vec4(y + 1.5748 * v, y - 0.1873 * u - 0.4681 * v, y + 1.8556 * u, 1.0);
 }"""
     }

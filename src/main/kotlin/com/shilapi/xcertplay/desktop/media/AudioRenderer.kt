@@ -45,6 +45,32 @@ fun lpcmBigEndianToLittle(payload: ByteArray): ByteArray {
 }
 
 /** Where decoded 16-bit little-endian PCM ends up; a seam so tests never touch a sound device. */
+/** No fade-out in progress. */
+internal const val NO_FADE = Long.MIN_VALUE
+
+/** The gain of a fade-out begun at [startNs] and lasting [durationNs]: 1 until it starts, 0 once over, 1 with none. */
+internal fun fadeGain(startNs: Long, nowNs: Long, durationNs: Long): Float {
+    if (startNs == NO_FADE) return 1f
+    val elapsed = nowNs - startNs
+    return when {
+        elapsed <= 0 -> 1f
+        elapsed >= durationNs -> 0f
+        else -> 1f - elapsed.toFloat() / durationNs
+    }
+}
+
+/** Multiplies the first [length] bytes of little-endian 16-bit PCM by [gain], in place. */
+internal fun scaleSamples(pcm: ByteArray, length: Int, gain: Float) {
+    var at = 0
+    while (at + 1 < length) {
+        val sample = ((pcm[at + 1].toInt() shl 8) or (pcm[at].toInt() and 0xFF)).toShort()
+        val scaled = (sample * gain).toInt()
+        pcm[at] = scaled.toByte()
+        pcm[at + 1] = (scaled shr 8).toByte()
+        at += 2
+    }
+}
+
 internal interface PcmLine : Closeable {
     fun start()
     fun write(data: ByteArray, length: Int)
@@ -228,6 +254,15 @@ class AudioRenderer internal constructor(
         streams[id]?.push(rtp, sample)
     }
 
+    /**
+     * Fades every playing stream out over [durationMillis], for a reconnect or a close that ends the session
+     * gracefully, which takes seconds. Streams started afterwards, by the next session, play at full volume.
+     */
+    fun fadeOut(durationMillis: Long) {
+        val now = clock()
+        streams.values.forEach { it.fadeOut(now, durationMillis * 1_000_000) }
+    }
+
     fun stop(id: AudioStreamId) {
         streams.remove(id)?.close()
     }
@@ -252,6 +287,13 @@ class AudioRenderer internal constructor(
         @Volatile private var running = true
         private var playhead: Int? = null
         private val frameBytes = 2 * format.channels
+        @Volatile private var fadeStartNs = NO_FADE
+        @Volatile private var fadeNs = 0L
+
+        fun fadeOut(startNs: Long, durationNs: Long) {
+            fadeNs = durationNs
+            fadeStartNs = startNs
+        }
         private val jitterBytes =
             format.sampleRate * frameBytes * (if (id.audioType == "media") MEDIA_JITTER_MS else JITTER_MS) / 1000
 
@@ -315,6 +357,8 @@ class AudioRenderer internal constructor(
                 var lastPacketAt = clock()
                 var writtenFrames = 0L
                 fun play(pcm: ByteArray, length: Int) {
+                    val gain = fadeGain(fadeStartNs, clock(), fadeNs)
+                    if (gain < 1f) scaleSamples(pcm, length, gain)
                     opened.start()
                     opened.write(pcm, length)
                     writtenFrames += length / frameBytes

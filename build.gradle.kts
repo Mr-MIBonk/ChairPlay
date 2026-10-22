@@ -126,9 +126,11 @@ dependencies {
     implementation("org.lwjgl:lwjgl:3.3.4")
     implementation("org.lwjgl:lwjgl-glfw:3.3.4")
     implementation("org.lwjgl:lwjgl-opengl:3.3.4")
+    implementation("org.lwjgl:lwjgl-nanovg:3.3.4")
     runtimeOnly("org.lwjgl:lwjgl:3.3.4:natives-windows")
     runtimeOnly("org.lwjgl:lwjgl-glfw:3.3.4:natives-windows")
     runtimeOnly("org.lwjgl:lwjgl-opengl:3.3.4:natives-windows")
+    runtimeOnly("org.lwjgl:lwjgl-nanovg:3.3.4:natives-windows")
     testImplementation("junit:junit:4.13.2")
 }
 

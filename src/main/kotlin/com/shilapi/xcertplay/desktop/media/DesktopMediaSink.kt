@@ -148,6 +148,12 @@ class DesktopMediaSink(
         microphones.remove(id)?.close()
     }
 
+    /**
+     * Fades the sound out over [durationMillis], for a reconnect or a close: the graceful end of the session waits
+     * seconds for the iPhone. The next session's streams play at full volume.
+     */
+    fun fadeOut(durationMillis: Long) = audio.fadeOut(durationMillis)
+
     override fun close() {
         screens.values.forEach { it.stop() }
         recoveryExecutor.shutdownNow()

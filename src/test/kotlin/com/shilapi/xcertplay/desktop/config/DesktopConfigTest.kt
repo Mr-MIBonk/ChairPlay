@@ -240,10 +240,25 @@ class DesktopConfigTest {
     @Test
     fun `the window titles name the stream size, and the AltScreen its content and card layout`() {
         assertEquals("DiPlayDesktop · 1280×720", mainWindowTitle(WindowSize(1280, 720)))
+        // Closing a session gracefully takes seconds, so the title says what the window waits for.
+        assertEquals("DiPlayDesktop · 1280×720 · reconnecting…", mainWindowTitle(WindowSize(1280, 720), "reconnecting…"))
         assertEquals(
             "DiPlayDesktop AltScreen · 1440×542 · map-card · cards right",
             altscreenTitle(WindowSize(1440, 542), AltscreenContent.MAP_CARD, AltscreenCards.RIGHT),
         )
+    }
+
+    // The HUD shows the turn card cut out of the iPhone's card-only stream, which costs next to no bandwidth.
+    @Test
+    fun `the HUD asks the iPhone for the turn card and is the fourth content`() {
+        assertEquals(
+            "maps:/car/instrumentcluster/instructioncard",
+            configWith("altscreen.enabled=true", "altscreen.content=hud").airPlay.cluster!!.initialUrl,
+        )
+        // F11 goes map, map-card, hud, card.
+        assertEquals(AltscreenContent.HUD, AltscreenContent.MAP_CARD.next())
+        assertEquals(AltscreenContent.CARD, AltscreenContent.HUD.next())
+        assertEquals(AltscreenContent.MAP, AltscreenContent.CARD.next())
     }
 
     // Room for an overlay of our own, such as the maneuver layer on the right.
@@ -257,7 +272,7 @@ class DesktopConfigTest {
     @Test
     fun `an unknown altscreen content stops the start with the setting named`() {
         val error = assertThrows(IllegalArgumentException::class.java) {
-            configWith("altscreen.enabled=true", "altscreen.content=hud")
+            configWith("altscreen.enabled=true", "altscreen.content=radio")
         }
         assertTrue(error.message, error.message!!.contains("altscreen.content"))
     }

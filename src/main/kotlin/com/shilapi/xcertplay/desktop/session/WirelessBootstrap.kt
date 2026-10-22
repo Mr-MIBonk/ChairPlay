@@ -232,11 +232,14 @@ class WirelessBootstrap internal constructor(
             stack.own(AutoCloseable { media.setIapTunnelHandler(null) })
 
             network.validateReady()
+            val known = config.iphoneKnown()
+            val joinTimeout = if (known) config.iphoneJoinSeconds * 1_000L else CONTROL_LOOP_TIMEOUT_MILLIS
+            log("waiting up to ${joinTimeout / 1_000} s for the ${if (known) "known" else "new"} iPhone to join the Wi-Fi")
             val result = parts.control(
                 bootstrap,
                 identification.forWirelessLink(Iap2WirelessLinkRole.BLUETOOTH_BOOTSTRAP, wireless),
                 endpoint,
-                CONTROL_LOOP_TIMEOUT_MILLIS,
+                joinTimeout,
                 onReady = {},
                 // keepBluetoothControlAlive: until a handoff, Bluetooth is the only iAP2 channel.
                 keepAliveAfterDeadline = { stack.rendered && stack.active.isNotEmpty() },
@@ -440,7 +443,8 @@ class WirelessBootstrap internal constructor(
         const val NETWORK_TIMEOUT_MILLIS = 10_000L
         /**
          * Upstream CONTROL_LOOP_TIMEOUT_MILLIS (CarPlayController.kt:3143): identification, the user's
-         * first-time consent on the iPhone and its Wi-Fi join must all fit in the Bluetooth bootstrap.
+         * first-time consent on the iPhone and its Wi-Fi join must all fit in the Bluetooth bootstrap. A known
+         * iPhone gets DesktopConfig.iphoneJoinSeconds instead.
          */
         const val CONTROL_LOOP_TIMEOUT_MILLIS = 5 * 60_000L
         const val RETRY_DELAY_MILLIS = 5_000L

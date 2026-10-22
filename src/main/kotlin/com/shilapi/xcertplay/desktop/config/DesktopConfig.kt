@@ -41,8 +41,10 @@ enum class Theme { WINDOWS, LIGHT, DARK, PHONE }
 /** What the altscreen shows: one of the cluster contents the iPhone lists in its altScreenURLs. */
 enum class AltscreenContent(val key: String, val cluster: CarPlayClusterDisplay.Content) {
     MAP("map", CarPlayClusterDisplay.Content.MAP),
-    CARD("card", CarPlayClusterDisplay.Content.TURN_CARD),
-    MAP_CARD("map-card", CarPlayClusterDisplay.Content.INSTRUMENTS);
+    MAP_CARD("map-card", CarPlayClusterDisplay.Content.INSTRUMENTS),
+    /** Our HUD: the iPhone sends the turn card, the window shows the HUD's own data. */
+    HUD("hud", CarPlayClusterDisplay.Content.TURN_CARD),
+    CARD("card", CarPlayClusterDisplay.Content.TURN_CARD);
 
     fun next(): AltscreenContent = entries[(ordinal + 1) % entries.size]
 }
@@ -66,8 +68,9 @@ enum class AltscreenCards(val key: String, val query: String) {
 fun altscreenUrl(content: AltscreenContent, cards: AltscreenCards): String =
     if (cards.query.isEmpty()) content.cluster.url else "${content.cluster.url}?${cards.query}"
 
-/** The main window's title, with the size the iPhone draws the CarPlay screen at. */
-fun mainWindowTitle(stream: WindowSize): String = "DiPlayDesktop · ${stream.width}×${stream.height}"
+/** The main window's title, with the size the iPhone draws the CarPlay screen at and, without a session, [status]. */
+fun mainWindowTitle(stream: WindowSize, status: String? = null): String =
+    "DiPlayDesktop · ${stream.width}×${stream.height}" + (status?.let { " · $it" } ?: "")
 
 /**
  * The AltScreen window's title, with its stream size; without a route every mode looks alike, so the title says
@@ -84,6 +87,16 @@ class DesktopConfig(private val dir: Path) {
     val identity: AirPlayIdentity = loadIdentity()
     val pairings: PairingStore = loadPairings()
     val iphoneAddress: String? = settings.getProperty("iphone.address")?.trim()?.ifEmpty { null }
+
+    /**
+     * iphone.join.seconds: how long an iPhone that paired before has to join the Wi-Fi after the Bluetooth start
+     * before the app starts over. It joins within a second or two; one that lost the Wi-Fi meanwhile gets the network
+     * again this soon instead of after the five minutes a new iPhone has to accept CarPlay.
+     */
+    val iphoneJoinSeconds: Int = positiveSetting("iphone.join.seconds") ?: 30
+
+    /** True once an iPhone has paired with this app: its AirPlay pairing record is in pairings/. */
+    fun iphoneKnown(): Boolean = Files.list(dir.resolve("pairings")).use { it.findAny().isPresent }
     val wifi = SavedWifi(
         ssid = settings.getProperty("wifi.ssid")?.ifBlank { null } ?: error("Set wifi.ssid in ${dir.resolve(SETTINGS_FILE)}"),
         passphrase = settings.getProperty("wifi.passphrase").orEmpty(),
@@ -396,6 +409,10 @@ class DesktopConfig(private val dir: Path) {
             SettingBlock("Wi-Fi network shared by this PC and the iPhone.", "wifi.ssid" to "", "wifi.passphrase" to ""),
             SettingBlock("'NONE', 'WEP', 'WPA_WPA2', 'WPA3_TRANSITION' or 'WPA3_ONLY'", "wifi.security" to "WPA_WPA2"),
             SettingBlock("Paired iPhone's Bluetooth address, needed only when several phones are paired.", "iphone.address" to ""),
+            SettingBlock(
+                "Seconds an iPhone that paired before has to join the Wi-Fi before the app starts over (a new one has five minutes).",
+                "iphone.join.seconds" to "30",
+            ),
             SettingBlock("The car's name on the iPhone (CarPlay settings, the network); blank is 'DiPlayDesktop'.", "device.name" to ""),
             SettingBlock(
                 "The car button on the CarPlay home screen: its label, and a square image in this folder\n" +
@@ -439,7 +456,7 @@ class DesktopConfig(private val dir: Path) {
             SettingBlock(
                 "Altscreen (experimental): the car's instrument cluster as a second CarPlay screen in a window of its\n" +
                     "own, 'true' or 'false' (the iPhone learns of it when it connects); its size in pixels (positive even\n" +
-                    "numbers); what it starts with: 'map', 'card' (the turn card) or 'map-card'.",
+                    "numbers); what it starts with: 'map', 'map-card', 'hud' or 'card' (the turn card).",
                 "altscreen.enabled" to "false", "altscreen.width" to "1440", "altscreen.height" to "542",
                 "altscreen.content" to "map",
             ),

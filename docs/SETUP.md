@@ -74,6 +74,10 @@ The files below live in the app folder, next to `DiPlayDesktop.exe`.
    - `wifi.ssid` (required) and `wifi.passphrase`: the Wi-Fi network shared by the PC and the iPhone;
    - `wifi.security`: `NONE`, `WEP`, `WPA_WPA2` (default), `WPA3_TRANSITION` or `WPA3_ONLY`;
    - `iphone.address`: the iPhone's Bluetooth address, only needed when several phones are paired;
+   - `iphone.join.seconds` (default 30): how long an iPhone that paired before has to join the Wi-Fi after the
+     Bluetooth start before the app starts over and gives it the network again. It joins within a second or two,
+     so this only matters when it lost the Wi-Fi meanwhile; a new iPhone always has five minutes, to accept CarPlay.
+     Ctrl+R (`key.reconnect`) starts over at once, ending a running session as closing the window does;
    - `device.name`: the name the iPhone shows for the PC, in its CarPlay settings and on the network (default
      DiPlayDesktop, at most 63 bytes); the window title stays DiPlayDesktop;
    - `car.label` and `car.icon`: the label and the image of the car button on the CarPlay home screen (default

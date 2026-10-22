@@ -116,6 +116,13 @@ class KeyControlsTest {
         assertEquals(listOf(10, 20), repeats.withIndex().filter { it.value != null }.map { it.index + 1 })
     }
 
+    // Starts the connection over without closing the app: a session that stalls, a phone that lost the Wi-Fi.
+    @Test
+    fun `ctrl R reconnects`() {
+        assertEquals(Control.Reconnect, press(GLFW_KEY_R, GLFW_MOD_CONTROL))
+        assertNull(press(GLFW_KEY_R))
+    }
+
     @Test
     fun `the mouse wheel turns the knob a step per notch`() {
         assertEquals(Control.Knob(AirPlayKnobState(wheel = 1), true), controls.scroll(-1.0))

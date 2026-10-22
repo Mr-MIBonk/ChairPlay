@@ -126,6 +126,43 @@ class AudioRendererTest {
         renderer.stop(id)
     }
 
+    // A reconnect or a close fades the sound out over a second instead of cutting it.
+    @Test
+    fun `the fade gain falls from one to zero over its duration`() {
+        assertEquals(1f, fadeGain(startNs = 100, nowNs = 100, durationNs = 1_000), 0f)
+        assertEquals(0.5f, fadeGain(startNs = 100, nowNs = 600, durationNs = 1_000), 0.001f)
+        assertEquals(0f, fadeGain(startNs = 100, nowNs = 5_000, durationNs = 1_000), 0f)
+        assertEquals(1f, fadeGain(startNs = NO_FADE, nowNs = 5_000, durationNs = 1_000), 0f)
+    }
+
+    @Test
+    fun `a gain scales little-endian 16-bit samples`() {
+        val pcm = byteArrayOf(0x00, 0x10, 0x00, 0xf0.toByte(), 0x11, 0x22)
+        scaleSamples(pcm, 4, 0.5f)
+        // 0x1000 halves to 0x0800, -0x1000 to -0x0800; bytes past the length stay.
+        assertEquals(listOf<Byte>(0x00, 0x08, 0x00, 0xf8.toByte(), 0x11, 0x22), pcm.toList())
+    }
+
+    @Test
+    fun `a faded stream writes silence`() {
+        val line = RecordingLine()
+        val renderer = AudioRenderer(lineFactory = { _, _, _ -> line })
+        val id = AudioStreamId(100, "alert")
+        renderer.start(id, AudioFormat(AudioCodecKind.LPCM, 48_000, 1, 100, "alert"))
+        val tenMs = ByteArray(480 * 2) { if (it % 2 == 0) 0x10 else 0 }
+        repeat(4) { renderer.push(id, header(sample = it * 480) + tenMs, it * 480) }
+        awaitTrue("playback") { line.size() == 4 * tenMs.size }
+
+        renderer.fadeOut(durationMillis = 1)
+        Thread.sleep(20)
+        renderer.push(id, header(sample = 4 * 480) + tenMs, 4 * 480)
+        awaitTrue("the faded packet") { line.size() == 5 * tenMs.size }
+
+        val bytes = synchronized(line) { line.written.toByteArray() }
+        assertTrue(bytes.copyOfRange(4 * tenMs.size, 5 * tenMs.size).all { it == 0.toByte() })
+        renderer.stop(id)
+    }
+
     @Test
     fun `playback starts after the jitter buffer fills`() {
         val line = RecordingLine()
