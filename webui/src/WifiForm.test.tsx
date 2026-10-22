@@ -28,7 +28,7 @@ describe('WifiForm', () => {
     render(<WifiForm wifi={wifi} backend={backend} running={true} />)
 
     fireEvent.change(screen.getByLabelText('Network name'), { target: { value: 'Garage' } })
-    fireEvent.click(screen.getByText('Save Wi-Fi'))
+    fireEvent.click(screen.getByText('Save'))
 
     expect(await screen.findByText('Saved. Applies with the next connection.')).toBeTruthy()
     expect(backend.saved).toEqual([{ 'wifi.ssid': 'Garage' }])
@@ -40,7 +40,7 @@ describe('WifiForm', () => {
     const password = screen.getByLabelText('Password') as HTMLInputElement
 
     fireEvent.change(password, { target: { value: 'correct horse' } })
-    fireEvent.click(screen.getByText('Save Wi-Fi'))
+    fireEvent.click(screen.getByText('Save'))
 
     expect(await screen.findByText('Saved.')).toBeTruthy()
     expect(backend.saved).toEqual([{ 'wifi.passphrase': 'correct horse' }])
@@ -53,7 +53,7 @@ describe('WifiForm', () => {
     render(<WifiForm wifi={wifi} backend={backend} running={false} />)
 
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'short' } })
-    fireEvent.click(screen.getByText('Save Wi-Fi'))
+    fireEvent.click(screen.getByText('Save'))
 
     expect((await screen.findByRole('alert')).textContent).toBe('A WPA password is 8 to 63 characters')
   })
@@ -61,6 +61,6 @@ describe('WifiForm', () => {
   it('has nothing to save until something changes', () => {
     render(<WifiForm wifi={wifi} backend={new FakeBackend()} running={false} />)
 
-    expect((screen.getByText('Save Wi-Fi') as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByText('Save') as HTMLButtonElement).disabled).toBe(true)
   })
 })

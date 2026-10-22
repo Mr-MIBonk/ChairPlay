@@ -1,19 +1,44 @@
-/* Dark, like CarPlay: black ground, grouped cards, one blue accent, large controls for a car's screen. */
+/*
+ * Dark like the HUD (HudPainter.kt): black ground, grey cards, its blue and green, large controls for a car's
+ * screen. Text is in Inter, the few figures that should stand out in the wide Roboto Flex, from the same files.
+ */
+@font-face {
+  font-family: 'Inter';
+  font-weight: 400;
+  font-display: block;
+  src: url('@fonts/Inter-Regular.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Inter';
+  font-weight: 600;
+  font-display: block;
+  src: url('@fonts/Inter-SemiBold.ttf') format('truetype');
+}
+
+@font-face {
+  font-family: 'Roboto Flex Wide';
+  font-weight: 600;
+  font-display: block;
+  src: url('@fonts/RobotoFlexWide-SemiBold.ttf') format('truetype');
+}
+
 :root {
   --bg: #000;
   --card: #1c1c1e;
   --card-raised: #2c2c2e;
   --separator: #38383a;
   --text: #fff;
-  --muted: rgba(235, 235, 245, 0.6);
+  --muted: #9a9aa0;
   --accent: #0a84ff;
   --accent-pressed: #0060df;
   --green: #30d158;
   --orange: #ff9f0a;
   --red: #ff453a;
   --radius: 14px;
+  --wide: 'Roboto Flex Wide', 'Inter', sans-serif;
   color-scheme: dark;
-  font-family: -apple-system, 'SF Pro Text', 'Segoe UI Variable Text', 'Segoe UI', system-ui, sans-serif;
+  font-family: 'Inter', sans-serif;
   font-size: 16px;
   line-height: 1.4;
   color: var(--text);
@@ -72,15 +97,13 @@ code {
   min-height: 48px;
 }
 
-.brand {
-  margin: 0;
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+.topbar-end {
+  justify-content: flex-end;
 }
 
 .topbar-title {
   margin: 0;
+  font-family: var(--wide);
   font-size: 20px;
   font-weight: 600;
 }
@@ -146,9 +169,9 @@ code {
 
 .status-title {
   margin: 0;
+  font-family: var(--wide);
   font-size: 26px;
-  font-weight: 650;
-  letter-spacing: -0.01em;
+  font-weight: 600;
 }
 
 .status-detail {
@@ -274,7 +297,6 @@ button {
   width: 96px;
   text-align: left;
   padding-left: 4px;
-  font-weight: 500;
 }
 
 .link {
@@ -447,6 +469,8 @@ select:focus {
 .size-inputs input {
   width: 110px;
   text-align: center;
+  font-family: var(--wide);
+  font-weight: 600;
 }
 
 .times {

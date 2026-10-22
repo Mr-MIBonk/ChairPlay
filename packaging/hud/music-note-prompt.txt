@@ -1,0 +1,12 @@
+Selected by the user: exec-e2d3e735-3efd-458c-a1ee-6e294e580a5c.png.
+The original ImageGen output is preserved unchanged as music-note-source.png.
+Generated using the built-in image_gen tool with this prompt:
+
+Use case: precise-object-edit.
+Edit target: the supplied transparent grey musical eighth-note glyph. Make ONLY TWO small contour corrections; preserve the exact overall shape, size, position, stem thickness, and all other curves.
+
+1. The outer edge near the TOP of the flag has an unintended angular kink a short distance below the sharp top apex (around x=660,y=190 in the 1254x1254 source). Smooth that LOCAL transition into a flowing curve with continuous tangent. KEEP the original sharp apex at the very top where the left vertical stem meets the start of the flag. There must be no second corner below the apex.
+
+2. The oval notehead's TOP contour has an unintended angular kink just BEFORE it meets the left edge of the straight stem (around x=535,y=843). Restore a smooth natural elliptical arc all the way to the stem. The oval must meet the vertical stem directly: their natural intersection forms the sharp inward corner. Do NOT round off that intersection, and do NOT add any straight diagonal notch, triangular cutout, protrusion, extra vertex or faceted section in the oval. The head is one smooth plump tilted oval with no corners on the oval itself; the only inward corner here is precisely where it intersects the straight vertical stem.
+
+KEEP the flag's lower-right sharp pointed tip unchanged. KEEP both stem edges perfectly vertical and parallel. KEEP the entire remaining silhouette unchanged. Output the same single flat grey #9A9AA0 filled glyph on a genuinely transparent background, same square framing. No gradients, texture, shadows, outlines, annotations, circles, arrows, or text. High-fidelity surgical edit, not a new design.

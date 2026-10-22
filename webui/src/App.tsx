@@ -15,16 +15,14 @@ export function App() {
   if (!api) {
     return (
       <div className="screen centered">
-        <h1 className="brand">ChairPlay</h1>
-        <p className="muted">Open the address ChairPlay writes to its console as it starts; it carries the key to this page.</p>
+        <p className="muted">No key in the address. Open the address printed in the console.</p>
       </div>
     )
   }
   if (!state) {
     return (
       <div className="screen centered">
-        <h1 className="brand">ChairPlay</h1>
-        <p className="muted">{lost ? 'ChairPlay is not answering.' : 'Loading…'}</p>
+        <p className="muted">{lost ? 'The app is not answering.' : 'Loading…'}</p>
       </div>
     )
   }
@@ -32,7 +30,7 @@ export function App() {
     <>
       {lost && (
         <div className="lost">
-          <Note tone="warn">Lost contact with ChairPlay; trying again.</Note>
+          <Note tone="warn">Lost contact with the app; retrying.</Note>
         </div>
       )}
       {state.screen === 'settings' ? <SettingsScreen state={state} backend={api} /> : <StartScreen state={state} backend={api} />}

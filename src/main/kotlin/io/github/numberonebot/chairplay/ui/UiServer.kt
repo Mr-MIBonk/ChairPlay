@@ -248,6 +248,7 @@ class UiServer(
             "png" -> "image/png"
             "ico" -> "image/x-icon"
             "woff2" -> "font/woff2"
+            "ttf" -> "font/ttf"
             "txt" -> "text/plain; charset=utf-8"
             else -> "application/octet-stream"
         }

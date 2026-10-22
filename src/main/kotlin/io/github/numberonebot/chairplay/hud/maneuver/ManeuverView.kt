@@ -112,6 +112,7 @@ class ManeuverView(private val frames: RepaintTimer?, private val log: (String) 
             }
             textureWidth = place.textureWidth
             textureHeight = place.textureHeight
+            if (!ManeuverNative.loadFlagAtlas()) log("HUD: the destination flag's pictures are missing; the renderer draws a placeholder square for it")
         } else if (abs(place.textureWidth - textureWidth) > RESIZE_SLACK || abs(place.textureHeight - textureHeight) > RESIZE_SLACK) {
             ManeuverNative.resize(place.textureWidth, place.textureHeight)
             textureWidth = place.textureWidth

@@ -64,7 +64,7 @@ export class Api implements Backend {
       body: body === undefined ? undefined : JSON.stringify(body),
     })
     const data = await response.json().catch(() => ({}))
-    if (response.status === 401) throw new ApiError('ChairPlay refused the token; open the address from its log again.')
+    if (response.status === 401) throw new ApiError('Token refused. Open the address printed in the console again.')
     return { status: response.status, data }
   }
 

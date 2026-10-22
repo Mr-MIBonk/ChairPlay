@@ -25,10 +25,36 @@ class HudDemoTest {
         assertEquals(1, second.index)
         assertEquals(ManeuverType.ROUNDABOUT_EXIT_2.code, second.typeCode)
 
-        val again = demo.snapshot(HudDemo.STEP_MILLIS * demo.steps).route!!.nextManeuver!!
+        val again = demo.snapshot(demo.lapMillis).route!!.nextManeuver!!
         assertEquals(ManeuverType.LEFT_TURN.code, again.typeCode)
         // A new lap has new indexes, so the renderer pushes the maneuver again.
         assertEquals(demo.steps, again.index)
+    }
+
+    @Test
+    fun `the demo slows down toward each maneuver, so the arrow blinks for a while`() {
+        val demo = HudDemo(withMedia = false)
+        // Fast far away...
+        assertTrue(demo.snapshot(1_000).route!!.distanceToManeuverMeters!! > 280)
+        // ...and the blink's last 45 metres take the last two seconds and more.
+        val near = demo.snapshot(HudDemo.STEP_MILLIS - 2_000).route!!.distanceToManeuverMeters!!
+        assertTrue("$near m two seconds before", near in 1..44)
+    }
+
+    @Test
+    fun `after the arrival the guidance goes, and the route starts over after a pause`() {
+        val demo = HudDemo(withMedia = true)
+        val arrived = HudDemo.STEP_MILLIS * demo.steps
+        // The flag stays a while at the destination...
+        val holding = demo.snapshot(arrived + 500)
+        assertEquals(ManeuverType.ARRIVE_AT_DESTINATION.code, holding.route!!.nextManeuver!!.typeCode)
+        assertEquals(0L, holding.route!!.distanceToManeuverMeters)
+        // ...then guidance ends while the song plays on...
+        val gap = demo.snapshot(demo.lapMillis - 500)
+        assertNull(gap.route)
+        assertNotNull(gap.nowPlaying)
+        // ...and the next lap starts.
+        assertNotNull(demo.snapshot(demo.lapMillis).route)
     }
 
     @Test

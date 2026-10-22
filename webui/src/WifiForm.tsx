@@ -3,11 +3,11 @@ import type { AppState, Backend } from './api'
 import { appliesText, FieldError, Note } from './components'
 
 export const SECURITY_CHOICES: [string, string][] = [
-  ['WPA_WPA2', 'WPA2 (most networks)'],
+  ['WPA_WPA2', 'WPA2'],
   ['WPA3_TRANSITION', 'WPA2 / WPA3'],
   ['WPA3_ONLY', 'WPA3 only'],
   ['WEP', 'WEP'],
-  ['NONE', 'Open (no password)'],
+  ['NONE', 'Open'],
 ]
 
 /**
@@ -76,7 +76,7 @@ export function WifiForm({ wifi, backend, running }: { wifi: AppState['wifi']; b
           value={ssid}
           autoComplete="off"
           spellCheck={false}
-          placeholder="The Wi-Fi network's name (SSID)"
+          placeholder="SSID"
           onChange={(event) => edit(() => setSsid(event.target.value))}
         />
         <FieldError message={errors['wifi.ssid']} />
@@ -90,7 +90,7 @@ export function WifiForm({ wifi, backend, running }: { wifi: AppState['wifi']; b
             value={password}
             autoComplete="new-password"
             spellCheck={false}
-            placeholder={wifi.passphraseSet ? 'Saved; type a new one to replace it' : 'Not set'}
+            placeholder={wifi.passphraseSet ? 'Saved. Type to replace.' : 'Not set'}
             onChange={(event) => edit(() => setPassword(event.target.value))}
           />
           <button type="button" className="button-quiet" onClick={() => setReveal(!reveal)}>
@@ -113,7 +113,7 @@ export function WifiForm({ wifi, backend, running }: { wifi: AppState['wifi']; b
       <FieldError message={errors.form} />
       <div className="actions">
         <button type="submit" className="button" disabled={!changed || busy}>
-          Save Wi-Fi
+          Save
         </button>
         {note && <Note tone="ok">{note}</Note>}
       </div>

@@ -18,7 +18,7 @@ SUPERSAMPLE = 4
 BACKGROUND_TOP = (226, 226, 231)
 BACKGROUND_BOTTOM = (176, 176, 182)
 GLYPH = (28, 28, 30)            # iOS label, dark
-GLYPH_FRACTION = 0.60           # the glyph's longer side relative to the icon
+GLYPH_FRACTION = 0.75           # the glyph's longer side relative to the icon
 SQUIRCLE_EXPONENT = 5.0         # superellipse close to Apple's continuous-corner icon shape
 
 

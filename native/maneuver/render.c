@@ -1701,6 +1701,20 @@ int render_get_flag_frame_count(void) {
     return g_flag_frame_count;
 }
 
+/* ChairPlay: the point (x, y, z) through the current MVP into normalized device coordinates; 0 behind the eye. */
+static int project_ndc(float x, float y, float z, float out[3]) {
+    const float *m = g_mvp_current;
+    float cx = m[0] * x + m[4] * y + m[8] * z + m[12];
+    float cy = m[1] * x + m[5] * y + m[9] * z + m[13];
+    float cz = m[2] * x + m[6] * y + m[10] * z + m[14];
+    float cw = m[3] * x + m[7] * y + m[11] * z + m[15];
+    if (cw <= 1e-6f) return 0;
+    out[0] = cx / cw;
+    out[1] = cy / cw;
+    out[2] = cz / cw;
+    return 1;
+}
+
 void render_sprite_flag_ex(float x, float y, float size, int frame, int flip_x) {
     /* Camera-facing billboard quad anchored at pole base.
      * Pole base in sprite UV: u=0.22, v=0.88 (from top).
@@ -1759,20 +1773,33 @@ void render_sprite_flag_ex(float x, float y, float size, int frame, int flip_x) 
         float ul = flip_x ? u1 : u0;
         float ur = flip_x ? u0 : u1;
 
+        /* ChairPlay: the quad goes to the GPU already projected, as w = 1 vertices under an identity matrix.
+         * Drawn as a 3D quad inside ChairPlay's OpenGL 3.3 core context, its texture coordinates reached the
+         * fragments divided by w after some frames, and the flag showed the top left quarter of its picture.
+         * The geometry is the same; only the picture now runs straight across the projected quad instead of in
+         * perspective, which the flag, facing the camera, does not show. */
+        static const float k_identity[16] = { 1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1 };
+        float bl[3], br[3], tr[3], tl[3];
+        if (!project_ndc(lx0, bot_y, lz0, bl) || !project_ndc(rx0, bot_y, rz0, br) ||
+            !project_ndc(rx1, top_y, rz1, tr) || !project_ndc(lx1, top_y, lz1, tl)) {
+            glEnable(GL_DEPTH_TEST);
+            return;
+        }
+
         glActiveTexture(GL_TEXTURE0);
         glBindTexture(GL_TEXTURE_2D, g_flag_tex);
         use_flat_program(4.0f);
-        glUniformMatrix4fv(g_flat_mvp,1,GL_FALSE,g_mvp_current);
+        glUniformMatrix4fv(g_flat_mvp,1,GL_FALSE,k_identity);
         glUniform1f(g_flat_zbias,0.0f);
         glUniform1i(g_flat_tex,0);
 
         vb_reset();
-        vb_v(lx0, bot_y, lz0,  ul, 1.0f, 0);
-        vb_v(rx0, bot_y, rz0,  ur, 1.0f, 0);
-        vb_v(rx1, top_y, rz1,  ur, 0.0f, 0);
-        vb_v(lx0, bot_y, lz0,  ul, 1.0f, 0);
-        vb_v(rx1, top_y, rz1,  ur, 0.0f, 0);
-        vb_v(lx1, top_y, lz1,  ul, 0.0f, 0);
+        vb_v(bl[0], bl[1], bl[2],  ul, 1.0f, 0);
+        vb_v(br[0], br[1], br[2],  ur, 1.0f, 0);
+        vb_v(tr[0], tr[1], tr[2],  ur, 0.0f, 0);
+        vb_v(bl[0], bl[1], bl[2],  ul, 1.0f, 0);
+        vb_v(tr[0], tr[1], tr[2],  ur, 0.0f, 0);
+        vb_v(tl[0], tl[1], tl[2],  ul, 0.0f, 0);
 
         glVertexAttribPointer(g_flat_attr_pos,3,GL_FLOAT,GL_FALSE,24,g_vbuf);
         glVertexAttribPointer(g_flat_attr_uv,3,GL_FLOAT,GL_FALSE,24,g_vbuf+3);

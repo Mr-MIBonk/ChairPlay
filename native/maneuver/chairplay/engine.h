@@ -18,6 +18,9 @@
  * with premultiplied alpha. */
 unsigned cr_engine_init(int width, int height, const char **error);
 void cr_engine_resize(int width, int height);
+/* Replaces the destination flag's pictures: frame_count frames of frame_w x frame_h RGBA, side by side in one
+ * row, top row first; returns 0 before init or for a bad size. */
+int cr_engine_flag_atlas(const unsigned char *rgba, int frame_w, int frame_h, int frame_count);
 /* Queues one 48-byte command (protocol.h) for the next frame; returns 0 if it was not taken. */
 int cr_engine_command(const unsigned char *packet, int length);
 /* Applies the queued commands and draws if anything changed; now is a monotonic time in seconds. */

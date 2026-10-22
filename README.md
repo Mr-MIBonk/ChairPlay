@@ -37,6 +37,11 @@ endorsed by DiPlay's authors or by Apple.
   corner style.
 - **AltScreen** (experimental): the car's instrument cluster as a second CarPlay screen in its own window,
   1440x542 like Audi's Virtual Cockpit by default, with the map, the turn card or both, switched on the fly.
+- **HUD** in the AltScreen window (`altscreen.content=hud`): the next maneuver, the distance to it, the arrival
+  and the song on black, drawn by the app itself rather than by the iPhone. The animated 3D maneuvers (turns,
+  roundabouts with their roads, the arrow filling toward the turn, the destination flag) are LuKa's maneuver
+  renderer from the [MHI2Q CarPlay project](https://github.com/luka-dev/mib2q-carplay-rgi), ported to run
+  inside the app's window.
 - **On-screen car controls** (`window.controls=true`): a window of buttons for the knob, back, home, media, calls,
   Siri and the AltScreen's zoom, held as long as the mouse holds them.
 - **Graceful reconnection**: close the window and start again, and the iPhone reconnects by itself.
@@ -147,8 +152,10 @@ repository, and the git hooks that keep keys out of commits.
 
 ## Licence and credits
 
-GPL-3.0, as DiPlay; see [LICENSE](LICENSE). The CarPlay protocol work is DiPlay's; the bundled libraries' notices
-are in `THIRD_PARTY_NOTICES` and travel with the app.
+GPL-3.0, as DiPlay; see [LICENSE](LICENSE). The CarPlay protocol work is DiPlay's. The HUD's maneuver renderer and
+its destination flag are LuKa's, from [mib2q-carplay-rgi](https://github.com/luka-dev/mib2q-carplay-rgi) (GPL-3.0
+or later); [native/maneuver/README.md](native/maneuver/README.md) lists what was taken and what was changed. The
+bundled libraries' notices are in `THIRD_PARTY_NOTICES` and travel with the app.
 
 CarPlay, iPhone, AirPlay and Siri are trademarks of Apple Inc. This project is not affiliated with Apple and does
 not include any Apple MFi identity.

@@ -33,6 +33,16 @@ JNIEXPORT void JNICALL FN(resize)(JNIEnv *env, jclass cls, jint width, jint heig
     cr_engine_resize(width, height);
 }
 
+JNIEXPORT jboolean JNICALL FN(flagAtlas)(JNIEnv *env, jclass cls, jobject buffer, jint frameWidth, jint frameHeight,
+                                         jint frames) {
+    void *pixels;
+    (void)cls;
+    if (!buffer || frameWidth <= 0 || frameHeight <= 0 || frames <= 0) return JNI_FALSE;
+    pixels = (*env)->GetDirectBufferAddress(env, buffer);
+    if (!pixels || (*env)->GetDirectBufferCapacity(env, buffer) < (jlong)frameWidth * frames * frameHeight * 4) return JNI_FALSE;
+    return cr_engine_flag_atlas((const unsigned char *)pixels, frameWidth, frameHeight, frames) ? JNI_TRUE : JNI_FALSE;
+}
+
 JNIEXPORT jboolean JNICALL FN(command)(JNIEnv *env, jclass cls, jbyteArray packet) {
     jbyte bytes[64];
     jsize length;

@@ -48,6 +48,14 @@ describe('StartScreen', () => {
     expect(screen.getByText('Not found yet.')).toBeTruthy()
   })
 
+  it('shows no app name and no intro, only status, forms and steps', () => {
+    render(<StartScreen state={appState()} backend={new FakeBackend()} />)
+
+    expect(screen.queryByText('ChairPlay')).toBeNull()
+    expect(screen.queryByText(/joins for CarPlay/)).toBeNull()
+    expect(screen.getByRole('heading', { name: 'Wi-Fi' })).toBeTruthy()
+  })
+
   it('opens the settings', () => {
     const backend = new FakeBackend()
     render(<StartScreen state={appState()} backend={backend} />)

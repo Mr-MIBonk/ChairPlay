@@ -16,8 +16,7 @@ export function StartScreen({ state, backend }: { state: AppState; backend: Back
 
   return (
     <div className="screen">
-      <header className="topbar">
-        <h1 className="brand">ChairPlay</h1>
+      <header className="topbar topbar-end">
         <button type="button" className="button-quiet" onClick={() => backend.show('settings')}>
           Settings
         </button>
@@ -56,13 +55,12 @@ export function StartScreen({ state, backend }: { state: AppState; backend: Back
           )}
         </div>
         {state.reconnectPending.length > 0 && (
-          <Note>The Wi-Fi change applies with the next connection; Reconnect now applies it at once.</Note>
+          <Note>The Wi-Fi change applies with the next connection.</Note>
         )}
       </Card>
 
       <div className="columns">
-        <Card title="Wi-Fi network" className={state.phase === 'setup' ? 'attention' : ''}>
-          <p className="card-text">The network this PC is on and the iPhone joins for CarPlay.</p>
+        <Card title="Wi-Fi" className={state.phase === 'setup' ? 'attention' : ''}>
           <WifiForm wifi={state.wifi} backend={backend} running={running} />
         </Card>
         <SetupSteps state={state} />
@@ -80,16 +78,16 @@ function SetupSteps({ state }: { state: AppState }) {
   }
   const firewallText = {
     present: 'The rule is in place.',
-    missing: 'No rule lets the iPhone in yet. Run these commands from an administrator prompt:',
+    missing: 'No rule lets the iPhone in. Run in an administrator prompt:',
     blocked:
-      'A Windows Firewall rule blocks ChairPlay. Delete it, or set it to Allow, in Windows Defender Firewall › Advanced settings › Inbound Rules.',
-    unknown: 'The rules could not be read. If the iPhone cannot connect, run these from an administrator prompt:',
+      'A rule blocks ChairPlay.exe. Delete it or set it to Allow in Windows Defender Firewall › Advanced settings › Inbound Rules.',
+    unknown: 'The rules could not be read. If the iPhone cannot connect, run in an administrator prompt:',
   }[setup.firewall]
   return (
-    <Card title="Setting up">
+    <Card title="Setup">
       <ol className="steps">
         <li>
-          <strong>Pair the iPhone</strong> with this PC in Windows Settings › Bluetooth &amp; devices.
+          <strong>Pair the iPhone</strong> in Windows Settings › Bluetooth &amp; devices.
         </li>
         <li>
           <strong>MFi identity:</strong> put <code>identity.pk8</code> and <code>certificate.p7b</code> into{' '}
@@ -109,11 +107,11 @@ function SetupSteps({ state }: { state: AppState }) {
           )}
         </li>
         <li>
-          <strong>Accept CarPlay</strong> on the iPhone when it asks, the first time it connects.
+          <strong>Accept CarPlay</strong> on the iPhone when it asks.
         </li>
       </ol>
       <p className="card-text muted">
-        Every setting is in <code className="path">{setup.settingsFile}</code>.
+        Settings file: <code className="path">{setup.settingsFile}</code>
       </p>
     </Card>
   )

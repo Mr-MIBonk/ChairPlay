@@ -23,7 +23,7 @@ describe('SettingsScreen', () => {
     fireEvent.change(await screen.findByLabelText('Main window width'), { target: { value: '1600' } })
     fireEvent.click(screen.getAllByText('Save')[1])
 
-    expect(await screen.findByText('Saved. Applies when ChairPlay starts again.')).toBeTruthy()
+    expect(await screen.findByText('Saved. Applies after restart.')).toBeTruthy()
     expect(backend.saved).toEqual([{ 'window.width': '1600' }])
   })
 
@@ -35,7 +35,7 @@ describe('SettingsScreen', () => {
       />,
     )
 
-    expect(screen.getByText('Applies when ChairPlay starts again: Main window size, AltScreen.')).toBeTruthy()
+    expect(screen.getByText('Applies after restart: Main window size, AltScreen.')).toBeTruthy()
   })
 
   it('goes back to CarPlay when there is a session, else to the start screen', () => {

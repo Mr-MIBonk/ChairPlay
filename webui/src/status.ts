@@ -12,29 +12,29 @@ export interface Status {
 export function describe(state: Pick<AppState, 'phase' | 'knownIphone'>): Status {
   switch (state.phase) {
     case 'setup':
-      return { title: 'Wi-Fi network needed', detail: 'Enter the Wi-Fi network this PC and the iPhone share.', tone: 'warn' }
+      return { title: 'Wi-Fi network needed', detail: 'Enter the network this PC and the iPhone share.', tone: 'warn' }
     case 'idle':
       return { title: 'Not connected', detail: 'Press Connect when the iPhone is nearby.', tone: 'idle' }
     case 'starting':
-      return { title: 'Starting', detail: 'Preparing the Wi-Fi network and the CarPlay service.', tone: 'busy' }
+      return { title: 'Starting', detail: 'Preparing the Wi-Fi and the CarPlay service.', tone: 'busy' }
     case 'calling':
       return {
         title: 'Waiting for the iPhone',
-        detail: 'Calling the paired iPhone over Bluetooth. Keep its Bluetooth and Wi-Fi on.',
+        detail: 'Calling it over Bluetooth. Keep its Bluetooth and Wi-Fi on.',
         tone: 'busy',
       }
     case 'joining':
       return {
         title: 'Connecting',
         detail: state.knownIphone
-          ? 'The iPhone answered and is joining the Wi-Fi network.'
-          : 'The iPhone answered. Accept CarPlay on the iPhone if it asks; it then joins the Wi-Fi network.',
+          ? 'The iPhone is joining the Wi-Fi.'
+          : 'Accept CarPlay on the iPhone if it asks.',
         tone: 'busy',
       }
     case 'active':
       return { title: 'Connected', detail: 'CarPlay is running.', tone: 'ok' }
     case 'retrying':
-      return { title: 'Trying again', detail: 'The last attempt failed; the next one starts in a few seconds.', tone: 'warn' }
+      return { title: 'Trying again', detail: 'Next attempt in a few seconds.', tone: 'warn' }
   }
 }
 

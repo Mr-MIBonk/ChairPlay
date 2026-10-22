@@ -44,7 +44,7 @@ export function SettingsScreen({ state, backend }: { state: AppState; backend: B
         <span className="topbar-spacer" />
       </header>
 
-      {restart.length > 0 && <Note tone="warn">Applies when ChairPlay starts again: {restart.join(', ')}.</Note>}
+      {restart.length > 0 && <Note tone="warn">Applies after restart: {restart.join(', ')}.</Note>}
       {state.reconnectPending.length > 0 && (
         <Note>
           The Wi-Fi change applies with the next connection.{' '}
@@ -100,13 +100,13 @@ function SettingsForms({
       <Card title="Connection">
         <SwitchRow
           label="Connect automatically"
-          detail="When ChairPlay starts. Off: press Connect on the start screen."
+          detail="At start. Off: press Connect."
           checked={value('ui.autoconnect') !== 'false'}
           onChange={toggle('connection', 'ui.autoconnect')}
         />
         <SwitchRow
           label="Show CarPlay automatically"
-          detail="As soon as the iPhone connects. Off: stay on the start screen until Show CarPlay."
+          detail="When the iPhone connects. Off: press Show CarPlay."
           checked={value('ui.autoshow') !== 'false'}
           onChange={toggle('connection', 'ui.autoshow')}
         />
@@ -116,7 +116,7 @@ function SettingsForms({
       <Card title="AltScreen">
         <SwitchRow
           label="AltScreen"
-          detail="The car's instrument cluster as a second CarPlay screen, in a window of its own."
+          detail="Instrument cluster screen, in its own window."
           checked={value('altscreen.enabled') === 'true'}
           onChange={toggle('altscreen', 'altscreen.enabled')}
         />
@@ -126,7 +126,7 @@ function SettingsForms({
           keys={['altscreen.width', 'altscreen.height']}
           values={[value('altscreen.width'), value('altscreen.height')]}
           placeholders={['1440', '542']}
-          help="In pixels, even numbers."
+          help="Pixels, even numbers."
           errors={errors}
           onSave={(changes) => save('altscreen', changes)}
         />
@@ -140,7 +140,7 @@ function SettingsForms({
           keys={['window.width', 'window.height']}
           values={[value('window.width'), value('window.height')]}
           placeholders={[String(settings.display.width), String(settings.display.height)]}
-          help={`In pixels. Blank uses the CarPlay screen's size, ${settings.display.width} × ${settings.display.height}.`}
+          help={`Pixels. Blank: the CarPlay screen's ${settings.display.width} × ${settings.display.height}.`}
           errors={errors}
           onSave={(changes) => save('window', changes)}
         />

@@ -15,6 +15,7 @@ class UiServerTest {
     private val assets = mapOf(
         "index.html" to "<!doctype html><title>ChairPlay</title>",
         "assets/app.js" to "console.log(1)",
+        "assets/Inter-Regular-abc123.ttf" to "font",
     )
     private val server = UiServer(api, { assets[it]?.toByteArray() }, token = "t0ken").also { it.start() }
     private val client = HttpClient.newHttpClient()
@@ -112,6 +113,7 @@ class UiServerTest {
         val script = get("/assets/app.js", token = null)
         assertEquals("text/javascript; charset=utf-8", script.headers().firstValue("Content-Type").get())
         assertEquals("console.log(1)", script.body())
+        assertEquals("font/ttf", get("/assets/Inter-Regular-abc123.ttf", token = null).headers().firstValue("Content-Type").get())
 
         // The page's own routes fall back to it; a missing file does not.
         assertEquals(index.body(), get("/settings", token = null).body())

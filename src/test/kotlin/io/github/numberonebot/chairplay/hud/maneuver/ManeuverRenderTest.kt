@@ -51,6 +51,7 @@ class ManeuverRenderTest {
             GL.createCapabilities()
             texture = ManeuverNative.init(WIDTH, HEIGHT)
             assertNotEquals("init: ${ManeuverNative.lastError()}", 0, texture)
+            assertTrue("the destination flag", ManeuverNative.loadFlagAtlas())
         }
 
         @AfterClass
@@ -206,6 +207,45 @@ class ManeuverRenderTest {
         save("arrive", pixels())
     }
 
+    // Each frame of this atlas is a gradient, red across and green down: the flag drawn from it must show both to
+    // their ends. Drawn as a 3D quad in this context, the flag's texture coordinates reached the fragments divided
+    // by w after some frames, and it showed the top left quarter of its picture.
+    @Test
+    fun `the flag's picture covers its whole sprite`() {
+        val frames = ManeuverNative.FLAG_FRAMES
+        val size = ManeuverNative.FLAG_FRAME
+        val atlas = ByteBuffer.allocateDirect(size * frames * size * 4)
+        for (y in 0 until size) for (x in 0 until size * frames) {
+            atlas.put(((x % size) * 255 / (size - 1)).toByte()).put((y * 255 / (size - 1)).toByte()).put(0).put(-1)
+        }
+        atlas.flip()
+        assertTrue(ManeuverNative.flagAtlas(atlas, size, size, frames))
+        try {
+            ManeuverNative.command(ManeuverPackets.clear())
+            run(0.2)
+            show(maneuver(ManeuverType.ARRIVE_AT_DESTINATION, index = 70))
+            run(4.0)
+            val frame = pixels()
+            save("flag-coordinates", frame)
+            var across = 0
+            var down = 0
+            for (i in 0 until WIDTH * HEIGHT) {
+                val r = frame[i * 4].toInt() and 0xFF
+                val g = frame[i * 4 + 1].toInt() and 0xFF
+                val b = frame[i * 4 + 2].toInt() and 0xFF
+                // The gradient has no blue; the road's greys and the progress blue do.
+                if (maxOf(r, g) > 60 && b * 3 < maxOf(r, g)) {
+                    across = maxOf(across, r)
+                    down = maxOf(down, g)
+                }
+            }
+            assertTrue("the flag's picture reaches across to $across of 255", across > 220)
+            assertTrue("the flag's picture reaches down to $down of 255", down > 220)
+        } finally {
+            assertTrue(ManeuverNative.loadFlagAtlas())
+        }
+    }
+
     // The HUD's whole path, from the bus snapshot through hudState and ManeuverFeed, at 60 frames a second.
     @Test
     fun `the demo route plays through the feed and every maneuver ends up on screen`() {
@@ -217,8 +257,8 @@ class ManeuverRenderTest {
         while (millis < HudDemo.STEP_MILLIS * demo.steps) {
             for (packet in feed.update(hudState(demo.snapshot(millis)).maneuver, millis)) ManeuverNative.command(packet)
             val status = ManeuverNative.frame(clock + millis / 1000.0)
-            // Late in each step, once the maneuver has settled.
-            if (millis % HudDemo.STEP_MILLIS in 6_000L until 6_016L) {
+            // Once the maneuver has settled, and before the arrow blinks blue over the last metres.
+            if (millis % HudDemo.STEP_MILLIS in 4_000L until 4_016L) {
                 val step = millis / HudDemo.STEP_MILLIS + 1
                 val frame = pixels()
                 save("demo-$step", frame)

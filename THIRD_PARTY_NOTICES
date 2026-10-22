@@ -11,8 +11,9 @@ Concentus (Opus, in chairplay.jar)  -       BSD-3-Clause (LICENSE-concentus) htt
 SpeexDSP echo canceller           1.2.1          BSD-3-Clause (LICENSE-speexdsp)  https://github.com/xiph/speexdsp
   (speex_echo.dll, built from DiPlay's copy of the sources)
 MHI2Q CarPlay maneuver renderer   commit 0ae41e3 GPL-3.0-or-later (LICENSE)       https://github.com/luka-dev/mib2q-carplay-rgi
-  (chairplay_maneuver.dll: maneuver_render by LuKa, the HUD's animated maneuvers; the copied files and
-  ChairPlay's changes are listed in native/maneuver/README.md in ChairPlay's source)
+  (chairplay_maneuver.dll: maneuver_render by LuKa, the HUD's animated maneuvers, and its destination flag's
+  pictures in chairplay.jar, hud/destination-flag.rgba; the copied files and ChairPlay's changes are listed in
+  native/maneuver/README.md in ChairPlay's source)
 Bouncy Castle bcprov-jdk18on      1.79           MIT-style (Bouncy-Castle-LICENSE.txt)  https://www.bouncycastle.org/
 JmDNS                             3.6.3          Apache-2.0 (Apache-2.0.txt)      https://github.com/jmdns/jmdns
 SLF4J API                         2.0.7          MIT (SLF4J-LICENSE.txt; in jar)  https://www.slf4j.org/
@@ -24,9 +25,10 @@ LWJGL core, GLFW, OpenGL          3.3.4          BSD-3-Clause (LWJGL-BSD-3-Claus
   + natives-windows jars          3.3.4          BSD-3-Clause; the GLFW native is zlib/libpng-licensed (https://www.glfw.org/license.html)
 LWJGL NanoVG (+ natives-windows) 3.3.4          BSD-3-Clause for the bindings; NanoVG itself (the HUD's drawing)
                                                  is zlib-licensed (NanoVG-zlib.txt)  https://github.com/memononen/nanovg
-Inter (HUD text)                  4.1            SIL OFL 1.1 (Inter-OFL.txt)      https://github.com/rsms/inter
-Roboto Flex Wide (HUD numbers)    instance of    SIL OFL 1.1 (RobotoFlex-OFL.txt); a static instance of Roboto Flex
+Inter (text)                      4.1            SIL OFL 1.1 (Inter-OFL.txt)      https://github.com/rsms/inter
+Roboto Flex Wide (display)        instance of    SIL OFL 1.1 (RobotoFlex-OFL.txt); a static instance of Roboto Flex
                                   Roboto Flex    (wdth 151, wght 600), renamed  https://github.com/googlefonts/roboto-flex
+  (both in chairplay.jar: fonts/ for the HUD, the same files in ui/assets/ for the start and settings screens)
 JavaCPP                           1.5.11         Apache-2.0 OR GPL-2.0 with Classpath Exception; used under
   (+ windows-x86_64 natives)                     Apache-2.0 (JavaCPP-LICENSE.txt)  https://github.com/bytedeco/javacpp
 JavaCPP Presets for FFmpeg        7.1-1.5.11     Apache-2.0 for the bindings      https://github.com/bytedeco/javacpp-presets

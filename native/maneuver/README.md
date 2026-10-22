@@ -18,12 +18,21 @@ Copied unchanged: `maneuver.c`, `maneuver.h`, `route_path.c`, `route_path.h`, `r
 `maneuver_command.h`, `protocol.h`, `visual_style.h` and `scene/` (`scene.cpp`, `geometry.cpp`, `layout.cpp`,
 `lane_panel.cpp`, `scene.h`, `scene_internal.hpp`, `style.hpp`).
 
+The destination flag's pictures, `resources/flag_atlas.rgba` (14 frames of 128 x 128 RGBA built from the
+project's `resources/animated_destination_flag/Flagge65x65_*.png`), ship unchanged as the app's resource
+`src/main/resources/hud/destination-flag.rgba`; the HUD hands them to the renderer after starting it. Beside
+it, `destination-flag-chairplay.rgba` keeps the chequered flag ChairPlay drew before taking the project's, in the
+same shape, to compare (`ManeuverNative.loadFlagAtlas(FLAG_ATLAS_CHAIRPLAY)`).
+
 Changed, each change marked "ChairPlay" in the file:
 
 - `gl_compat.h`: a third platform, `PLATFORM_CHAIRPLAY`, beside macOS and QNX: its GL comes from
   `chairplay/gl_core.h`, shaders get no precision line, and the depth buffer is a sized 24-bit format.
 - `render.c`, `render.h`: `render_upload_flag_atlas` takes the destination flag's frames from memory
   (`render_load_flag_atlas` now reads the file and calls it).
+- `render.c`: `render_sprite_flag_ex` sends the flag's quad already projected (w = 1 under an identity matrix).
+  Drawn in 3D inside ChairPlay's OpenGL 3.3 core context, its texture coordinates reached the fragments divided
+  by w after some frames, and the flag showed the top left quarter of its picture; the cause is not known.
 
 The renderer's road masks cover the whole area of a transition at the framebuffer's density: 3.5 times its
 size each way, twice. At the HUD's default size (a 720 x 398 texture, supersampled 1.6 times) that is two masks
@@ -31,8 +40,8 @@ of 4033 x 2231 pixels, about 72 MB of video memory, redrawn on every frame of an
 texture at 800 pixels wide. Masks at 0.6 of that density were tried and showed stairs on the roundabouts' curves.
 
 Not taken: `main.c` (its engine is in `chairplay/engine.c`), `server.c`/`server.h` (TCP), `platform_*.c`,
-`platform.h`, `test_harness.c`, the build files, and `resources/`: the Audi fonts (the renderer draws no
-text) and the flag pictures and `flag_atlas.rgba`, whose origin is unclear. ChairPlay draws its own flag.
+`platform.h`, `test_harness.c`, the build files, and the rest of `resources/`: the Audi fonts (the renderer
+draws no text), the background picture and the flag's source PNGs.
 
 ## ChairPlay's part (`chairplay/`)
 
@@ -47,7 +56,6 @@ text) and the flag pictures and `flag_atlas.rgba`, whose origin is unclear. Chai
   `wglGetProcAddress`.
 - `gl_program_cache.h`: stands in for the original's `common/gl_program_cache.h` (a shader binary cache on the
   head unit's flash); it always compiles, as that header's macOS build does.
-- `flag.c`, `flag.h`: the chequered destination flag, drawn frame by frame at start-up.
 - `jni.c`: the entry points of `io.github.numberonebot.chairplay.hud.maneuver.ManeuverNative`.
 
 ## Taking a newer version

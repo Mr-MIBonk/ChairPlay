@@ -8,12 +8,14 @@ import io.github.numberonebot.chairplay.data.ManeuverType
 import io.github.numberonebot.chairplay.data.NowPlaying
 import io.github.numberonebot.chairplay.data.RouteGuidance
 import io.github.numberonebot.chairplay.data.RouteGuidanceState
+import kotlin.math.roundToLong
 
 /**
  * A made-up route for watching the HUD's maneuvers without an iPhone: CHAIRPLAY_HUD_DEMO=1 in the environment shows
  * it in the AltScreen's HUD instead of the bus's data, CHAIRPLAY_HUD_DEMO=media with a song beside it. Each maneuver
- * is approached from [START_METERS] in [STEP_MILLIS], so the arrow fills and blinks before the next one slides in;
- * the route starts over after the last. CHAIRPLAY_HUD_DEMO=cycle plays the HUD's own animations instead, over and
+ * is approached from [START_METERS] in [STEP_MILLIS], slowing down toward it, so the arrow fills and blinks before
+ * the next one slides in; after the last the flag waves at the destination, guidance ends, and after a pause the
+ * route starts over ([lapMillis]). CHAIRPLAY_HUD_DEMO=cycle plays the HUD's own animations instead, over and
  * over in [CYCLE_MILLIS]: the song alone, guidance coming beside it, the song alone again and nothing. With
  * CHAIRPLAY_HUD_DEMO_SHOTS=1 the first lap saves screenshots too.
  */
@@ -32,23 +34,37 @@ class HudDemo(val withMedia: Boolean, val takeShots: Boolean = false, val cycle:
         )
     }
 
+    /** One lap: every maneuver, the flag held at the destination, and a spell without guidance before the next. */
+    val lapMillis: Long get() = STEP_MILLIS * ROUTE.size + ARRIVED_MILLIS + GAP_MILLIS
+
     private fun route(elapsedMillis: Long): CarPlayDataSnapshot {
-        val step = (elapsedMillis.coerceAtLeast(0) / STEP_MILLIS).toInt()
-        val into = elapsedMillis.coerceAtLeast(0) % STEP_MILLIS
-        val (road, maneuver) = ROUTE[step % ROUTE.size]
-        val meters = START_METERS * (STEP_MILLIS - into) / STEP_MILLIS
+        val elapsed = elapsedMillis.coerceAtLeast(0)
+        val lap = (elapsed / lapMillis).toInt()
+        val inLap = elapsed % lapMillis
+        val driving = STEP_MILLIS * ROUTE.size
+        val song = NowPlaying(title = "Demo song", artist = "ChairPlay", album = "Maneuvers", playing = true, appName = "Demo")
+            .takeIf { withMedia }
+        if (inLap >= driving + ARRIVED_MILLIS) return CarPlayDataSnapshot(route = null, nowPlaying = song)
+        val inRoute = minOf(inLap / STEP_MILLIS, ROUTE.size - 1L).toInt()
+        // Arrived: the distance stays at zero while the flag waves.
+        val into = if (inLap >= driving) STEP_MILLIS else inLap % STEP_MILLIS
+        val step = lap * ROUTE.size + inRoute
+        val (road, maneuver) = ROUTE[inRoute]
+        // A car slowing down toward the turn: the distance falls with the square of the time left, so the arrow's
+        // blink over the last metres lasts a couple of seconds, as it does in town.
+        val left = (STEP_MILLIS - into).toDouble() / STEP_MILLIS
+        val meters = (START_METERS * left * left).roundToLong()
         val route = RouteGuidance(
             state = RouteGuidanceState.ROUTE_SET,
             currentRoad = "Demo Street",
             destination = "Demo destination",
-            remainingSeconds = (ROUTE.size - step % ROUTE.size) * 60L,
-            remainingMeters = (ROUTE.size - step % ROUTE.size) * START_METERS,
+            remainingSeconds = (ROUTE.size - inRoute) * 60L,
+            remainingMeters = (ROUTE.size - inRoute) * START_METERS,
             distanceToManeuverMeters = meters,
             nextManeuver = maneuver.copy(index = step, afterRoad = road, description = road),
             sourceName = "ChairPlay demo",
         )
-        val song = NowPlaying(title = "Demo song", artist = "ChairPlay", album = "Maneuvers", playing = true, appName = "Demo")
-        return CarPlayDataSnapshot(route = route, nowPlaying = song.takeIf { withMedia })
+        return CarPlayDataSnapshot(route = route, nowPlaying = song)
     }
 
     /** When, within each step of the first lap, a screenshot shows the transition, the filling arrow and the blink. */
@@ -87,6 +103,9 @@ class HudDemo(val withMedia: Boolean, val takeShots: Boolean = false, val cycle:
     companion object {
         const val STEP_MILLIS = 7_000L
         const val START_METERS = 400L
+        /** After the last maneuver: the flag at the destination, then no guidance, before the route starts over. */
+        const val ARRIVED_MILLIS = 3_000L
+        const val GAP_MILLIS = 3_000L
         /** How often the demo's distance is drawn again. */
         const val FRAME_MILLIS = 100L
         /** The cycle's length: the song from its start to [CYCLE_SONG_END], guidance over [CYCLE_ROUTE]. */

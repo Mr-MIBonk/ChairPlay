@@ -376,6 +376,9 @@ val syncApp by tasks.registering(Sync::class) {
         // Keep the optional Windows-style CarPlay icon alongside the active one.
         include("carplay-icon-windows.png")
     }
+    // jpackage leaves ChairPlay.exe read-only, and Windows refuses to replace a read-only file: the copies stay
+    // writable, so the next deploy can replace them.
+    filePermissions { user { write = true } }
     // Sync deletes whatever else is there, so a mistyped folder must not be one with other files in it.
     val home = appHome.map { file(it) }
     doFirst {
@@ -385,6 +388,8 @@ val syncApp by tasks.registering(Sync::class) {
         check(entries.isEmpty() || entries.any { it in known }) {
             "$target has files but no ChairPlay.exe or app data; refusing to replace its contents"
         }
+        // A read-only exe left by an earlier deploy.
+        target.resolve("ChairPlay.exe").takeIf { it.isFile && !it.canWrite() }?.setWritable(true)
     }
 }
 
@@ -517,9 +522,10 @@ val npmCi by tasks.registering(Exec::class) {
     outputs.file(webui.file("node_modules/.package-lock.json"))
 }
 
+// The page draws with the HUD's font files, which Vite copies from the app's resources.
 val webuiSources = files(
     webui.dir("src"), webui.file("index.html"), webui.file("vite.config.ts"), webui.file("tsconfig.json"),
-    webui.file("package-lock.json"),
+    webui.file("package-lock.json"), layout.projectDirectory.dir("src/main/resources/fonts"),
 )
 
 val webuiTypecheck by tasks.registering(Exec::class) {
@@ -657,7 +663,7 @@ distributions.main {
 // chairplay_maneuver.dll. It goes wherever speex_echo.dll goes: build/native for tests and run, bin/ of the
 // distribution, the app image's root. The C++ part links zig's static libc++, so the DLL needs only Windows' UCRT.
 val maneuverCSources = listOf("render.c", "maneuver.c", "route_path.c") +
-    listOf("engine.c", "gl_core.c", "flag.c", "jni.c").map { "chairplay/$it" }
+    listOf("engine.c", "gl_core.c", "jni.c").map { "chairplay/$it" }
 val maneuverCxxSources = listOf("scene.cpp", "geometry.cpp", "layout.cpp", "lane_panel.cpp").map { "scene/$it" }
 // Upstream's flags (maneuver_render/Makefile).
 val maneuverDefines = listOf("-DPLATFORM_CHAIRPLAY")

@@ -43,6 +43,26 @@ internal object ManeuverNative {
 
     @JvmStatic external fun resize(width: Int, height: Int)
 
+    /**
+     * Replaces the destination flag's pictures: [frames] frames of [frameWidth] x [frameHeight] RGBA in a direct
+     * buffer, side by side in one row, top row first. False before [init] or for a buffer too small.
+     */
+    @JvmStatic external fun flagAtlas(pixels: ByteBuffer, frameWidth: Int, frameHeight: Int, frames: Int): Boolean
+
+    /** The MHI2Q project's destination flag (its flag_atlas.rgba): [FLAG_FRAMES] frames of [FLAG_FRAME] square. */
+    const val FLAG_ATLAS = "/hud/destination-flag.rgba"
+    /** ChairPlay's own chequered flag of the same shape, drawn before the project's was taken; kept to compare. */
+    const val FLAG_ATLAS_CHAIRPLAY = "/hud/destination-flag-chairplay.rgba"
+    const val FLAG_FRAME = 128
+    const val FLAG_FRAMES = 14
+
+    /** Gives the renderer the destination flag [atlas] from the app's resources; false when it is missing or refused. */
+    fun loadFlagAtlas(atlas: String = FLAG_ATLAS): Boolean {
+        val bytes = ManeuverNative::class.java.getResourceAsStream(atlas)?.use { it.readBytes() } ?: return false
+        val pixels = ByteBuffer.allocateDirect(bytes.size).put(bytes).flip()
+        return flagAtlas(pixels, FLAG_FRAME, FLAG_FRAME, FLAG_FRAMES)
+    }
+
     /** Queues one 48-byte command ([ManeuverPackets]) for the next [frame]. */
     @JvmStatic external fun command(packet: ByteArray): Boolean
 

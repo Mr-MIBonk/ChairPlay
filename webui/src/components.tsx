@@ -50,7 +50,7 @@ export function FieldError({ message }: { message?: string }) {
 
 /** What the screen says after a save: the latest moment any of the saved settings takes effect. */
 export function appliesText(applies: Applies[]): string {
-  if (applies.includes('restart')) return 'Saved. Applies when ChairPlay starts again.'
+  if (applies.includes('restart')) return 'Saved. Applies after restart.'
   if (applies.includes('reconnect')) return 'Saved. Applies with the next connection.'
   return 'Saved.'
 }

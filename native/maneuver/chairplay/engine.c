@@ -25,11 +25,8 @@
 #include "../lane_guidance.h"
 #include "../lane_panel.h"
 #include "engine.h"
-#include "flag.h"
 
 #define TARGET_FPS 30
-#define FLAG_FRAME 128
-#define FLAG_FRAMES 14
 
 /* ================================================================
  * Engine state machine (maneuver_render/main.c)
@@ -335,7 +332,6 @@ static void restore_gl(const gl_saved_t *s) {
 unsigned cr_engine_init(int width, int height, const char **error) {
     gl_saved_t saved;
     const char *missing = NULL;
-    unsigned char *flag;
     if (g_ready) return g_out_tex;
     if (width < 16 || height < 16) { if (error) *error = "size too small"; return 0; }
     if (!cr_gl_load(&missing)) { if (error) *error = missing; return 0; }
@@ -367,11 +363,7 @@ unsigned cr_engine_init(int width, int height, const char **error) {
         if (error) *error = "render_init failed (shader compile or link; see the console)";
         return 0;
     }
-    flag = cr_flag_atlas(FLAG_FRAME, FLAG_FRAMES);
-    if (flag) {
-        render_upload_flag_atlas(flag, FLAG_FRAME, FLAG_FRAME, FLAG_FRAMES);
-        free(flag);
-    }
+    /* The destination flag's pictures come from the app (cr_engine_flag_atlas). */
 
     memset(&g_engine, 0, sizeof(g_engine));
     g_engine.current_scene=cr_scene_create();g_engine.next_scene=cr_scene_create();
@@ -398,6 +390,16 @@ void cr_engine_resize(int width, int height) {
     render_set_viewport(width, height);
     restore_gl(&saved);
     g_needs_render = 1;
+}
+
+int cr_engine_flag_atlas(const unsigned char *rgba, int frame_w, int frame_h, int frame_count) {
+    gl_saved_t saved;
+    if (!g_ready || !rgba || frame_w <= 0 || frame_h <= 0 || frame_count <= 0) return 0;
+    save_gl(&saved);
+    render_upload_flag_atlas(rgba, frame_w, frame_h, frame_count);
+    restore_gl(&saved);
+    g_needs_render = 1;
+    return 1;
 }
 
 int cr_engine_command(const unsigned char *packet, int length) {

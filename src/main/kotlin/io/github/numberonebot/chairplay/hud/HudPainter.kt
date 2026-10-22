@@ -47,6 +47,7 @@ class HudPainter(
     private val fontData = mutableListOf<ByteBuffer>()
     private var cover = -1
     private var coverId: Int? = null
+    private var emptyCoverNote = -1
     private val color = NVGColor.create()
     private val paint = NVGPaint.create()
     private val frames = repaint?.let { RepaintTimer(it) }
@@ -69,11 +70,18 @@ class HudPainter(
         }
         fonts = font(REGULAR, "Inter-Regular.ttf") && font(BOLD, "Inter-SemiBold.ttf") && font(WIDE, "RobotoFlexWide-SemiBold.ttf")
         if (fonts) nvgAddFallbackFont(vg, WIDE, BOLD) else log("HUD: the fonts are missing from the app; the HUD draws no text")
+        HudPainter::class.java.getResourceAsStream("/icons/music-note.png")?.use { it.readBytes() }
+            ?.let(::coverPixels)?.let { pixels ->
+                emptyCoverNote = nvgCreateImageRGBA(vg, pixels.width, pixels.height, NVG_IMAGE_GENERATE_MIPMAPS, pixels.rgba)
+            }
+        if (emptyCoverNote < 0) log("HUD: the empty-cover music note could not be loaded")
     }
 
     override fun close() {
         if (vg != 0L) maneuverView.close(vg)
         if (cover >= 0) nvgDeleteImage(vg, cover)
+        if (emptyCoverNote >= 0) nvgDeleteImage(vg, emptyCoverNote)
+        emptyCoverNote = -1
         if (vg != 0L) nvgDelete(vg)
         vg = 0L
         fontData.clear()
@@ -209,8 +217,21 @@ class HudPainter(
             nvgFill(vg)
         } else {
             fill(DIM)
-            centred("♪", x + size / 2, y + size / 2, size * 0.4f, GREY)
+            note(x, y, size)
         }
+    }
+
+    /** The soft, filled note from packaging/hud, centred on the empty cover and uploaded once per GL context. */
+    private fun note(x: Float, y: Float, size: Float) {
+        if (emptyCoverNote < 0) return
+        val s = size * 0.70f
+        val left = x + (size - s) / 2
+        val top = y + (size - s) / 2
+        nvgBeginPath(vg)
+        nvgRect(vg, left, top, s, s)
+        nvgImagePattern(vg, left, top, s, s, 0f, emptyCoverNote, 1f, paint)
+        nvgFillPaint(vg, paint)
+        nvgFill(vg)
     }
 
     /**
