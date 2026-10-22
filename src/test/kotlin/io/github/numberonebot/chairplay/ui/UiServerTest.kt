@@ -103,6 +103,25 @@ class UiServerTest {
         assertEquals(400, post("/api/window", """{"name":"controls"}""").statusCode())
         assertEquals(listOf("window controls false", "window altscreen true"), api.calls.drop(4))
 
+        // The controls window's buttons, pressed and released, and its AltScreen modes.
+        assertEquals(200, post("/api/control", """{"action":"knob.select","down":true}""").statusCode())
+        assertEquals(200, post("/api/control", """{"action":"knob.select","down":false}""").statusCode())
+        assertEquals(404, post("/api/control", """{"action":"eject","down":true}""").statusCode())
+        assertEquals(400, post("/api/control", """{"action":"knob.select"}""").statusCode())
+        assertEquals(200, post("/api/altscreen", """{"content":"hud"}""").statusCode())
+        assertEquals(409, post("/api/altscreen", """{"content":"radar"}""").statusCode())
+        assertEquals(400, post("/api/altscreen", "{}").statusCode())
+        assertEquals(
+            listOf("control knob.select true", "control knob.select false", "control eject true", "altscreen hud", "altscreen radar"),
+            api.calls.drop(6),
+        )
+
+        // A link to a Windows page.
+        assertEquals(200, post("/api/open", """{"place":"bluetooth"}""").statusCode())
+        assertEquals(404, post("/api/open", """{"place":"cmd.exe"}""").statusCode())
+        assertEquals(400, post("/api/open", "{}").statusCode())
+        assertEquals(listOf("open bluetooth", "open cmd.exe"), api.calls.drop(11))
+
         api.connectError = "Enter the Wi-Fi network first"
         val refused = post("/api/connect", "{}")
         assertEquals(409, refused.statusCode())
@@ -172,6 +191,18 @@ class UiServerTest {
         override fun window(name: String, visible: Boolean): Boolean {
             calls += "window $name $visible"
             return name == "controls"
+        }
+        override fun control(action: String, down: Boolean): Boolean {
+            calls += "control $action $down"
+            return action != "eject"
+        }
+        override fun altscreenContent(content: String): Boolean {
+            calls += "altscreen $content"
+            return content == "hud"
+        }
+        override fun open(place: String): Boolean {
+            calls += "open $place"
+            return place == "bluetooth"
         }
         override fun awaitChange(seen: Long, timeoutMillis: Long): Long = synchronized(lock) {
             if (version == seen) lock.wait(timeoutMillis)

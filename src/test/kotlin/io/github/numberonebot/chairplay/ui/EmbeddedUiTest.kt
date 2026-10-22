@@ -94,6 +94,26 @@ class EmbeddedUiTest {
         assertEquals(listOf("focus view"), calls)
     }
 
+    // The controls window's page: the window keeps the keyboard, so the keys stay CarPlay's; a click on the page takes
+    // it, and the window gets it back once the button is released.
+    @Test
+    fun `a page that leaves the keys to the window gives them back after a click`() {
+        val ui = EmbeddedUi("http://127.0.0.1:1/controls?token=t", { true }, { backend }, { opened += it }, { logged += it }, { embedded = it },
+            takesKeyboard = false)
+        ui.attach(42)
+        ui.layout(720, 320)
+        assertEquals(listOf("create 42", "navigate http://127.0.0.1:1/controls?token=t", "bounds 720x320", "show"), calls)
+        calls.clear()
+
+        parentFocused = true
+        ui.layout(720, 320)
+        ui.giveKeysBack()
+        ui.layout(720, 320)
+        ui.layout(720, 320)
+
+        assertEquals(listOf("focus window"), calls)
+    }
+
     @Test
     fun `without WebView2 the page opens in the browser`() {
         val ui = ui { throw WebViewUnavailable("WebView2 is unavailable") }
@@ -106,6 +126,18 @@ class EmbeddedUiTest {
         assertEquals(false, embedded)
         assertTrue(logged.single(), "WebView2 is unavailable" in logged.single() && "browser" in logged.single())
         assertEquals(emptyList<String>(), calls)
+    }
+
+    // The controls window has no browser to fall back to: it says why and stays empty.
+    @Test
+    fun `a page with no browser to fall back to says why`() {
+        val ui = EmbeddedUi("http://127.0.0.1:1/controls?token=t", { true }, { throw WebViewUnavailable("WebView2 is unavailable") },
+            openBrowser = null, log = { logged += it }, onEmbedded = { embedded = it }, takesKeyboard = false)
+
+        ui.attach(42)
+
+        assertEquals(emptyList<String>(), opened)
+        assertTrue(logged.single(), "WebView2 is unavailable" in logged.single() && "browser" !in logged.single())
     }
 
     // A missing DLL is an Error, not an Exception, and must not take the window down.

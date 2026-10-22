@@ -25,6 +25,16 @@ fun WindowSize.scaledBy(scale: Float): WindowSize {
     return WindowSize(Math.round(width * factor), Math.round(height * factor))
 }
 
+/** The smallest size with the shape of [aspect] that is at least this big, so a minimum gives a picture no bars. */
+fun WindowSize.grownTo(aspect: WindowSize): WindowSize =
+    if (width.toLong() * aspect.height >= height.toLong() * aspect.width) {
+        WindowSize(width, ceilDiv(width.toLong() * aspect.height, aspect.width.toLong()))
+    } else {
+        WindowSize(ceilDiv(height.toLong() * aspect.width, aspect.height.toLong()), height)
+    }
+
+private fun ceilDiv(a: Long, b: Long): Int = ((a + b - 1) / b).toInt()
+
 /** This size with the shape of [aspect], keeping its width. */
 fun WindowSize.fittedTo(aspect: WindowSize): WindowSize =
     WindowSize(width, Math.round(width.toDouble() * aspect.height / aspect.width).toInt().coerceAtLeast(1))
@@ -119,6 +129,23 @@ class AltscreenViewStore(private val dir: Path) {
         const val CONTENT = "altscreen.view.content"
         const val CARDS = "altscreen.view.cards"
         const val SETTINGS = "altscreen.view.settings"
+    }
+}
+
+/** Remembers the app's volume and mute in window.properties, as a car keeps its volume; a first start plays at full. */
+class VolumeStore(private val dir: Path) {
+    /** The level (0 to 100) and whether it is muted. */
+    fun load(): Pair<Int, Boolean> {
+        val state = readWindowState(dir)
+        val level = state?.getProperty(LEVEL)?.trim()?.toIntOrNull()?.coerceIn(0, 100) ?: 100
+        return level to (state?.getProperty(MUTED)?.trim()?.toBooleanStrictOrNull() ?: false)
+    }
+
+    fun save(level: Int, muted: Boolean) = writeWindowState(dir, listOf(LEVEL to level.toString(), MUTED to muted.toString()))
+
+    private companion object {
+        const val LEVEL = "volume.level"
+        const val MUTED = "volume.muted"
     }
 }
 

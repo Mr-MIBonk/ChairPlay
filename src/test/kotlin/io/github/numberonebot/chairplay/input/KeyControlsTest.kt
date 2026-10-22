@@ -32,6 +32,18 @@ class KeyControlsTest {
         assertNull(release(GLFW_KEY_TAB))
     }
 
+    // The app's volume, as a car's volume knob: a held key keeps stepping, as a held turn does.
+    @Test
+    fun `ctrl up and down step the volume and ctrl m mutes`() {
+        assertEquals(Control.VolumeStep(1), press(GLFW_KEY_UP, GLFW_MOD_CONTROL))
+        assertEquals(Control.VolumeStep(-1), press(GLFW_KEY_DOWN, GLFW_MOD_CONTROL))
+        assertEquals(Control.MuteToggle, press(GLFW_KEY_M, GLFW_MOD_CONTROL))
+        assertNull(release(GLFW_KEY_M))
+        val held = (1..3).map { controls.key(GLFW_KEY_DOWN, GLFW_REPEAT, GLFW_MOD_CONTROL) }
+        assertEquals(listOf(null, null, Control.VolumeStep(-1)), held)
+        assertNull(release(GLFW_KEY_DOWN))
+    }
+
     @Test
     fun `a held tab steps on every third repeat`() {
         val sent = listOf(press(GLFW_KEY_TAB)) + (1..6).map { controls.key(GLFW_KEY_TAB, GLFW_REPEAT, 0) }

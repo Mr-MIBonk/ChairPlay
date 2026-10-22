@@ -30,4 +30,21 @@ describe('Api', () => {
 
     expect(await new Api('key').window('altscreen', true)).toBe(false)
   })
+
+  // A link to a Windows page names the place; the app knows what to start for it.
+  it('asks the app to open a Windows page', async () => {
+    const requests = answer(200)
+
+    expect(await new Api('key').open('bluetooth')).toBe(true)
+
+    expect(requests[0].url).toBe('/api/open')
+    expect(requests[0].init.method).toBe('POST')
+    expect(JSON.parse(String(requests[0].init.body))).toEqual({ place: 'bluetooth' })
+  })
+
+  it('tells when a Windows page did not open', async () => {
+    answer(404)
+
+    expect(await new Api('key').open('firewall-rules')).toBe(false)
+  })
 })

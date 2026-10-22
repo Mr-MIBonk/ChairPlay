@@ -24,6 +24,21 @@ interface UiWindow {
     fun setShown(shown: Boolean)
 }
 
+/** The controls window's page: the car's buttons, and what it shows beside them. Safe from any thread. */
+interface UiControls {
+    /**
+     * Presses ([down]) or releases the button [action] names: a key of controls.properties without its "key."
+     * ("knob.select", "volume.up"). False when there is no such button.
+     */
+    fun control(action: String, down: Boolean): Boolean
+
+    /** Shows [content] ("hud", "map", "map-card", "card") on the AltScreen; false when it cannot be shown. */
+    fun altscreenContent(content: String): Boolean
+
+    /** What the page shows beside the buttons: their keys, the volume, the AltScreen's content, whether Alt is held. */
+    fun state(): Map<String, Any?>
+}
+
 /** Whether Windows Firewall lets the iPhone in, as read at start. */
 enum class FirewallStatus { PRESENT, MISSING, BLOCKED, UNKNOWN }
 
@@ -59,6 +74,15 @@ interface UiApi {
     /** Shows or hides the window named "altscreen" or "controls"; false when there is no such window. */
     fun window(name: String, visible: Boolean): Boolean
 
+    /** A button of the controls window pressed or released ([UiControls.control]); false when there is none. */
+    fun control(action: String, down: Boolean): Boolean
+
+    /** The controls window's AltScreen modes ([UiControls.altscreenContent]); false when it cannot be shown. */
+    fun altscreenContent(content: String): Boolean
+
+    /** Opens the Windows page or folder [place] names ([UiController.open]); false when there is none or it failed. */
+    fun open(place: String): Boolean
+
     /** Waits up to [timeoutMillis] for [version] to differ from [seen], and returns it. */
     fun awaitChange(seen: Long, timeoutMillis: Long): Long
 }
@@ -77,6 +101,10 @@ class UiController(
     private val autoconnect: Boolean = true,
     /** The windows the settings screen's triggers show and hide, by name; one left out is not there. */
     private val windows: Map<String, UiWindow> = emptyMap(),
+    /** The controls window's buttons; null when there is no such window. */
+    private val controls: UiControls? = null,
+    /** Starts a program with its arguments, for [open]. */
+    private val launch: (List<String>) -> Unit = { ProcessBuilder(it).start() },
 ) : UiApi {
     /** The settings as the app started with them, against which a change waits for the next start. */
     private val startup: Map<String, String> = settings.read()
@@ -106,6 +134,35 @@ class UiController(
         val window = windows[name] ?: return false
         window.setShown(visible)
         return true
+    }
+
+    /** Tells the page that what the controls window shows changed: the volume, the AltScreen's content, Alt held. */
+    fun controlsChanged() = changed()
+
+    override fun control(action: String, down: Boolean): Boolean = controls?.control(action, down) ?: false
+
+    override fun altscreenContent(content: String): Boolean = controls?.altscreenContent(content) ?: false
+
+    /**
+     * Opens a Windows page the screens link to, by the name of one the app knows ([PLACES]): Bluetooth or Wi-Fi in
+     * Settings, the firewall in Windows Security or its console with the rules, the MFi folder (made first if it is
+     * missing). Each goes through explorer.exe, which hands it to the shell: a Settings address opens its page, and the
+     * console asks for the administrator's consent it needs. False for a name the app does not know, or when Windows
+     * did not start it.
+     */
+    override fun open(place: String): Boolean {
+        if (place !in PLACES) return false
+        return runCatching { launch(listOf("explorer.exe", target(place))) }
+            .onFailure { log("could not open $place: $it") }
+            .isSuccess
+    }
+
+    private fun target(place: String): String = when (place) {
+        "bluetooth" -> "ms-settings:bluetooth"
+        "wifi" -> "ms-settings:network-wifi"
+        "firewall" -> "windowsdefender://network/"
+        "firewall-rules" -> Path.of(System.getenv("SystemRoot") ?: "C:/Windows", "System32", "wf.msc").toString()
+        else -> Files.createDirectories(setup.mfiDirectory).toString()
     }
 
     private fun changed() {
@@ -148,6 +205,7 @@ class UiController(
                 val window = windows[name]
                 mapOf("available" to (window != null), "visible" to (window?.visible ?: false))
             },
+            "controls" to controls?.state(),
             "reconnectPending" to state.reconnectPending.sorted(),
             "restartPending" to state.restartPending.sorted(),
             "setup" to linkedMapOf(
@@ -228,5 +286,7 @@ class UiController(
         val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
         /** The windows the page has triggers for, each in the state whether it is there or not. */
         val WINDOWS = listOf("altscreen", "controls")
+        /** The Windows pages and folder the screens may open, by the name the page gives ([open]). */
+        val PLACES = listOf("bluetooth", "wifi", "firewall", "firewall-rules", "mfi-folder")
     }
 }

@@ -19,20 +19,21 @@ import io.github.numberonebot.chairplay.data.CarPlayDataLog
 import io.github.numberonebot.chairplay.input.Control
 import io.github.numberonebot.chairplay.input.ControlPad
 import io.github.numberonebot.chairplay.config.ControlsWindowStore
+import io.github.numberonebot.chairplay.config.VolumeStore
 import io.github.numberonebot.chairplay.config.MAIN_WINDOW_MIN_SIZE
 import io.github.numberonebot.chairplay.config.ALTSCREEN_MIN_WIDTH
 import io.github.numberonebot.chairplay.config.fittedTo
 import io.github.numberonebot.chairplay.ui.UiWindow
 import io.github.numberonebot.chairplay.input.ControlsConfig
-import io.github.numberonebot.chairplay.input.ControlsPainter
 import io.github.numberonebot.chairplay.input.KeyControls
 import io.github.numberonebot.chairplay.input.TouchQueue
 import io.github.numberonebot.chairplay.input.TouchTracker
-import io.github.numberonebot.chairplay.input.controlAt
+import io.github.numberonebot.chairplay.input.ControlAction
 import io.github.numberonebot.chairplay.media.AudioDevices
 import io.github.numberonebot.chairplay.media.AudioRenderer
 import io.github.numberonebot.chairplay.media.DesktopMediaSink
 import io.github.numberonebot.chairplay.media.VideoWindow
+import io.github.numberonebot.chairplay.media.Volume
 import io.github.numberonebot.chairplay.media.nightMode
 import io.github.numberonebot.chairplay.media.runWindows
 import io.github.numberonebot.chairplay.hud.HudDemo
@@ -51,6 +52,10 @@ import io.github.numberonebot.chairplay.session.redactTrace
 import io.github.numberonebot.chairplay.ui.ChairPlayUi
 import io.github.numberonebot.chairplay.ui.FirewallStatus
 import io.github.numberonebot.chairplay.ui.UiActions
+import io.github.numberonebot.chairplay.ui.UiControls
+import org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT
+import org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_ALT
+import org.lwjgl.glfw.GLFW.GLFW_RELEASE
 import com.shilapi.xcertplay.iap2.session.Iap2Session
 import com.shilapi.xcertplay.mfi.Iap2MfiAuthenticationClient
 import com.shilapi.xcertplay.mfi.LocalMfiAuthenticationClient
@@ -81,7 +86,7 @@ private fun log(message: String) = println("${LocalTime.now()} $message")
 
 /** How often display.theme=windows looks at the Windows theme. */
 private const val CONNECTING = "connecting…"
-private val CONTROLS_SIZE = WindowSize(720, 320)
+private val CONTROLS_SIZE = WindowSize(518, 218)
 private const val SCREENSHOT_PICTURE_WAIT_NANOS = 30_000_000_000L
 private const val CLOSING_PREVIOUS = "closing previous run…"
 private const val PREVIOUS_RUN_WAIT_MILLIS = 15_000L
@@ -177,9 +182,9 @@ private fun runCarPlay() {
         runCatching { placements.save(placement, config.window) }.onFailure { log("window place not saved: $it") }
     }
     // The altscreen (altscreen.enabled) gets a window of its own beside the main one; it takes no input.
-    // The car's controls as buttons in a window of their own, at a fixed size. Its close button and the settings
-    // screen's trigger hide and show it, and it opens as it was left; until then window.controls decides.
-    val controlsPainter = ControlsPainter(::log)
+    // The car's controls as buttons in a window of their own, at a fixed size: the web UI's controls page. Its close
+    // button and the settings screen's trigger hide and show it, and it opens as it was left; until then
+    // window.controls decides.
     val controlsShown = ControlsWindowStore(dir)
     val controlsWindow = run {
         val placements = WindowPlacementStore(dir, prefix = "controls.")
@@ -188,8 +193,6 @@ private fun runCarPlay() {
             resizable = false, hideOnClose = true,
             shown = runCatching { controlsShown.load(default = config.controlsWindow) }.getOrDefault(config.controlsWindow),
         ).also {
-            it.overlay = controlsPainter
-            it.hud = true
             it.onPlacement = { placement ->
                 runCatching { placements.save(placement, CONTROLS_SIZE) }.onFailure { error -> log("controls window place not saved: $error") }
             }
@@ -216,13 +219,23 @@ private fun runCarPlay() {
     fun screenshots() {
         window.screenshot { image -> saveScreenshot(image, dir, ::log) }
         altscreen?.screenshot { image -> saveScreenshot(image, dir, ::log, "altscreen") }
-        controlsWindow.screenshot { image -> saveScreenshot(image, dir, ::log, "controls") }
     }
     // A device name matching nothing stops here, before any connection, with the devices listed.
     val output = AudioDevices.output(config.audioOutput)
     val input = AudioDevices.input(config.audioInput)
     log("audio output: ${output?.name ?: "Windows default"}; microphone: ${input?.name ?: "Windows default"}")
-    val sink = DesktopMediaSink(window, AudioRenderer(::log, output), ::log, input, config.echoCancellation, altscreen)
+    // Set once the UI exists: the controls window's page hears of what it shows changing.
+    val controlsChanged = AtomicReference<() -> Unit> {}
+    // The app's own volume (Ctrl+Up, Ctrl+Down, Ctrl+M), kept from the last run.
+    val volumeStore = VolumeStore(dir)
+    val volume = runCatching { volumeStore.load() }.getOrDefault(Volume.MAX to false).let { (level, muted) -> Volume(level, muted) }
+    log("volume ${volume.level}%${if (volume.muted) ", muted" else ""}")
+    volume.onChange = {
+        log("volume ${volume.level}%${if (volume.muted) ", muted" else ""}")
+        runCatching { volumeStore.save(volume.level, volume.muted) }.onFailure { log("volume not saved: $it") }
+        controlsChanged.get()()
+    }
+    val sink = DesktopMediaSink(window, AudioRenderer(::log, output, volume::gain), ::log, input, config.echoCancellation, altscreen)
     val active = AtomicReference<AirPlaySession?>()
     // sendTouch writes to the iPhone's socket and can block; the GL thread only maps and enqueues.
     // One thread keeps the press, moves and release in order.
@@ -250,6 +263,14 @@ private fun runCarPlay() {
             screenshots()
             return
         }
+        if (control is Control.VolumeStep) {
+            volume.change(control.steps)
+            return
+        }
+        if (control == Control.MuteToggle) {
+            volume.toggleMute()
+            return
+        }
         if (control == Control.Reconnect) {
             log("reconnecting at the user's request")
             reconnecting.set(true)
@@ -268,10 +289,13 @@ private fun runCarPlay() {
                 is Control.MapZoom -> repeat(abs(control.steps)) {
                     session.changeMapZoomLevel(zoomIn = control.steps > 0)
                 }
-                Control.NextAltscreenContent, Control.NextAltscreenCards -> {
+                Control.NextAltscreenContent, Control.NextAltscreenCards, is Control.ShowAltscreenContent -> {
                     val content = altscreenContent ?: return@execute
-                    if (control == Control.NextAltscreenContent) altscreenContent = content.next()
-                    else altscreenCards = altscreenCards.next()
+                    when (control) {
+                        Control.NextAltscreenContent -> altscreenContent = content.next()
+                        is Control.ShowAltscreenContent -> altscreenContent = control.content
+                        else -> altscreenCards = altscreenCards.next()
+                    }
                     altscreen?.hud = altscreenContent == AltscreenContent.HUD
                     val url = altscreenUrl(altscreenContent!!, altscreenCards)
                     val sent = session.setClusterUrl(url, send = true)
@@ -280,13 +304,41 @@ private fun runCarPlay() {
                     altscreen?.setTitle(altscreenTitle(size, altscreenContent!!, altscreenCards) + if (sent) "" else " (not sent)")
                     runCatching { AltscreenViewStore(dir).save(altscreenContent!!, altscreenCards, config.altscreen!!.configured) }
                         .onFailure { log("AltScreen view not saved: $it") }
+                    controlsChanged.get()()
                 }
-                Control.Screenshot, Control.Reconnect -> Unit
+                Control.Screenshot, Control.Reconnect, is Control.VolumeStep, Control.MuteToggle -> Unit
             }
         }
     }
     // The start and settings screens (ui/): a page over the picture, served by a local HTTP server. Connect waits,
     // as the start does, for a previous run to let go of the iPhone.
+    // The controls window's page: a button pressed and released there makes the Controls a key does, through ControlPad.
+    // Its window keeps the keyboard; set once the UI exists, the page hands it back after each click.
+    val pad = ControlPad()
+    val altHeld = AtomicBoolean()
+    val giveKeysBack = AtomicReference<() -> Unit> {}
+    val pageControls = object : UiControls {
+        override fun control(action: String, down: Boolean): Boolean {
+            val button = ControlAction.entries.firstOrNull { it.key == "key.$action" } ?: return false
+            send(if (down) pad.press(button) else pad.release(button))
+            if (!down) giveKeysBack.get()()
+            return true
+        }
+
+        override fun altscreenContent(content: String): Boolean {
+            val target = AltscreenContent.entries.firstOrNull { it.key == content } ?: return false
+            if (altscreenContent == null || active.get() == null) return false
+            send(Control.ShowAltscreenContent(target))
+            return true
+        }
+
+        override fun state(): Map<String, Any?> = linkedMapOf(
+            "keys" to ControlAction.entries.associate { it.key.removePrefix("key.") to controlsConfig.firstKey(it) },
+            "volume" to mapOf("level" to volume.level, "muted" to volume.muted),
+            "altscreen" to altscreenContent?.key,
+            "altHeld" to altHeld.get(),
+        )
+    }
     val lockReady = CountDownLatch(1)
     val startBootstrap = AtomicReference<() -> Unit> {}
     val ui = ChairPlayUi(dir, config, firewall, object : UiActions {
@@ -299,36 +351,31 @@ private fun runCarPlay() {
     }, window::repaint, ::log, buildMap {
         altscreen?.let { put("altscreen", it.asUiWindow()) }
         put("controls", controlsWindow.asUiWindow())
-    })
+    }, pageControls)
+    controlsChanged.set { ui.controlsChanged() }
+    giveKeysBack.set {
+        ui.controlsView?.giveKeysBack()
+        controlsWindow.repaint()
+    }
     altscreen?.onVisibility = { ui.windowsChanged() }
     controlsWindow.onVisibility = { shown ->
         runCatching { controlsShown.save(shown) }.onFailure { log("controls window state not saved: $it") }
         ui.windowsChanged()
     }
     window.child = ui.view
-    // While the page covers the window, the keys and the wheel are its own.
-    window.keyHandler = { key, action, mods -> if (!ui.coversWindow) send(controls.key(key, action, mods)) }
-    // The same keys work while the altscreen window has the focus; both windows run on the one GL thread.
-    altscreen?.keyHandler = window.keyHandler
-    // A button held with the mouse holds its control until the release, wherever the cursor goes meanwhile.
-    controlsWindow.let { buttons ->
-        val painter = controlsPainter
-        val pad = ControlPad()
-        buttons.keyHandler = window.keyHandler
-        buttons.setInputHandler { event ->
-            val held = painter.pressed
-            if (event.down && held == null) {
-                val action = controlAt(painter.buttons, event.x.toFloat(), event.y.toFloat()) ?: return@setInputHandler
-                painter.pressed = action
-                send(pad.press(action))
-                buttons.repaint()
-            } else if (!event.down && held != null) {
-                painter.pressed = null
-                send(pad.release(held))
-                buttons.repaint()
-            }
+    controlsWindow.child = ui.controlsView
+    // While the page covers the window, the keys and the wheel are its own. Alt held shows the keys on the controls
+    // window's buttons, as Windows shows access keys; GLFW releases it when a window loses the focus.
+    window.keyHandler = { key, action, mods ->
+        if (key == GLFW_KEY_LEFT_ALT || key == GLFW_KEY_RIGHT_ALT) {
+            val held = action != GLFW_RELEASE
+            if (altHeld.getAndSet(held) != held) ui.controlsChanged()
         }
+        if (!ui.coversWindow) send(controls.key(key, action, mods))
     }
+    // The same keys work while the altscreen or the controls window has the focus; all run on the one GL thread.
+    altscreen?.keyHandler = window.keyHandler
+    controlsWindow.keyHandler = window.keyHandler
     // Diagnostics: CHAIRPLAY_SCREENSHOT_AFTER=<seconds> saves one screenshot that long after the first picture, or
     // after half a minute without one, so the windows the app draws itself can be looked at without an iPhone.
     System.getenv("CHAIRPLAY_SCREENSHOT_AFTER")?.toLongOrNull()?.let { seconds ->

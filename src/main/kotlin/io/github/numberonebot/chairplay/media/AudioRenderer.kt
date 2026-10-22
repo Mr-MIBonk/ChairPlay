@@ -233,9 +233,12 @@ class AudioRenderer internal constructor(
     private val lineFactory: PcmLineFactory = javaSoundLines(null),
     private val clock: () -> Long = System::nanoTime,
     private val pollMillis: Long = POLL_MILLIS,
+    /** The app's volume ([Volume.gain]), read for every block written. */
+    private val volume: () -> Float = { 1f },
 ) : Closeable {
-    /** Plays on [output], or on the Windows default output when it is null (audio.output). */
-    constructor(log: (String) -> Unit, output: Mixer.Info? = null) : this(log, javaSoundLines(output))
+    /** Plays on [output], or on the Windows default output when it is null (audio.output), at [volume]. */
+    constructor(log: (String) -> Unit, output: Mixer.Info? = null, volume: () -> Float = { 1f }) :
+        this(log, javaSoundLines(output), volume = volume)
 
     private val streams = ConcurrentHashMap<AudioStreamId, Stream>()
 
@@ -357,7 +360,7 @@ class AudioRenderer internal constructor(
                 var lastPacketAt = clock()
                 var writtenFrames = 0L
                 fun play(pcm: ByteArray, length: Int) {
-                    val gain = fadeGain(fadeStartNs, clock(), fadeNs)
+                    val gain = fadeGain(fadeStartNs, clock(), fadeNs) * volume()
                     if (gain < 1f) scaleSamples(pcm, length, gain)
                     opened.start()
                     opened.write(pcm, length)

@@ -6,6 +6,7 @@ import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.config.fittedTo
 import io.github.numberonebot.chairplay.config.isVisibleOn
 import io.github.numberonebot.chairplay.config.scaledBy
+import io.github.numberonebot.chairplay.config.grownTo
 import io.github.numberonebot.chairplay.input.PointerEvent
 import io.github.numberonebot.chairplay.input.Size
 import io.github.numberonebot.chairplay.input.toFramebuffer
@@ -200,7 +201,9 @@ class VideoWindow(
         TitleBar.paintBlack(glfwGetWin32Window(window))
         // A remembered or configured size below it grows to it here. It scales with the monitor, as the web view's
         // pages do, and follows the window to a monitor of another scale.
-        minSize?.let { min ->
+        // A window that keeps the picture's shape stops at the smallest size of that shape covering the minimum, so
+        // the picture fills it there too.
+        minSize?.let { aspect?.let(it::grownTo) ?: it }?.let { min ->
             limitSize(window, min)
             glfwSetWindowContentScaleCallback(window) { handle, _, _ -> limitSize(handle, min) }
         }

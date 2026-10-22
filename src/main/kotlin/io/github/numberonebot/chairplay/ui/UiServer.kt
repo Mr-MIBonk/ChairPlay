@@ -21,8 +21,10 @@ import java.util.concurrent.Executors
  * resolves to 127.0.0.1. The page itself holds no secret and is served to anyone on this PC.
  *
  * API: GET state and settings, POST settings ({"changes": {key: value}}), connect, reconnect, screen
- * ({"screen": "start" | "settings" | "carplay"}) and window ({"name": "altscreen" | "controls", "visible": bool}), and
- * GET events, a stream of the state on every change.
+ * ({"screen": "start" | "settings" | "carplay"}), window ({"name": "altscreen" | "controls", "visible": bool}), control
+ * ({"action": "knob.select", "down": bool}, a button of the controls window), altscreen ({"content": "hud"}) and open
+ * ({"place": "bluetooth"}, a Windows page by a name the app knows), and GET events, a stream of the state on every
+ * change.
  */
 class UiServer(
     private val api: UiApi,
@@ -92,7 +94,7 @@ class UiServer(
             return
         }
         val method = exchange.requestMethod
-        val posts = setOf("settings", "connect", "reconnect", "screen", "window")
+        val posts = setOf("settings", "connect", "reconnect", "screen", "window", "control", "altscreen", "open")
         val gets = setOf("state", "settings", "events")
         when {
             method == "GET" && route in gets -> when (route) {
@@ -157,6 +159,31 @@ class UiServer(
                     name == null || visible == null -> json(exchange, 400, mapOf("error" to "name and visible missing"))
                     api.window(name, visible) -> json(exchange, 200, mapOf("ok" to true))
                     else -> json(exchange, 404, mapOf("error" to "no window $name"))
+                }
+            }
+            "control" -> {
+                val action = body["action"] as? String
+                val down = body["down"] as? Boolean
+                when {
+                    action == null || down == null -> json(exchange, 400, mapOf("error" to "action and down missing"))
+                    api.control(action, down) -> json(exchange, 200, mapOf("ok" to true))
+                    else -> json(exchange, 404, mapOf("error" to "no button $action"))
+                }
+            }
+            "altscreen" -> {
+                val content = body["content"] as? String
+                when {
+                    content == null -> json(exchange, 400, mapOf("error" to "content missing"))
+                    api.altscreenContent(content) -> json(exchange, 200, mapOf("ok" to true))
+                    else -> json(exchange, 409, mapOf("error" to "cannot show $content on the AltScreen now"))
+                }
+            }
+            "open" -> {
+                val place = body["place"] as? String
+                when {
+                    place == null -> json(exchange, 400, mapOf("error" to "place missing"))
+                    api.open(place) -> json(exchange, 200, mapOf("ok" to true))
+                    else -> json(exchange, 404, mapOf("error" to "cannot open $place"))
                 }
             }
         }

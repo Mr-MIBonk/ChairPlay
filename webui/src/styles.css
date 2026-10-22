@@ -60,9 +60,18 @@ html {
   scrollbar-color: #48484a transparent;
 }
 
-/* Text stays put on a touch screen: no accidental selection while tapping. */
+/*
+ * Text stays put on a touch screen: no accidental selection while tapping. The pointer stays an arrow over text, as
+ * over a Windows dialog's; only a field to type in shows the text cursor.
+ */
 body {
   user-select: none;
+  cursor: default;
+}
+
+input:not([type='checkbox']):not([type='radio']),
+textarea {
+  cursor: text;
 }
 
 input,
@@ -691,4 +700,422 @@ code {
 .button-carplay svg {
   width: 22px;
   height: 22px;
+}
+
+/*
+ * The controls window (ControlsScreen), 518x218 and not resizable, after the desktop mockups: the knob a puck with a
+ * knurled bezel, keys lit from above and lifted off the window, the AltScreen's modes sunk into a track. Labels are
+ * in the HUD's wide Roboto Flex, the keys bound to them in Segoe UI.
+ */
+.controls-screen {
+  --ui: 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
+  --raised: #1c1c1f;
+  --panel: #111113;
+  --edge: #3a3a3f;
+  --line: #2a2a2e;
+  --dim: #5c5c63;
+  --accent-tint: rgba(10, 132, 255, 0.16);
+  --accent-fill: linear-gradient(180deg, #3897ff, #0a84ff 55%, #0a6fd8);
+  --chosen-fill: linear-gradient(180deg, #1c78dc, #0a6bd2 60%, #0960c0);
+  box-sizing: border-box;
+  height: 100vh;
+  overflow: hidden;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: 81px 206px 1fr;
+  gap: 12px;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.controls-screen button {
+  font: 600 12px var(--wide);
+  color: var(--text);
+  cursor: default;
+}
+
+/* Keys: stacked icon and label, lit from above, a shadow under them */
+.controls-screen .key {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 0;
+  border: 1px solid #2c2c31;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #26262a, var(--raised) 50%, #151517);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.controls-screen .key svg {
+  width: 16px;
+  height: 16px;
+  flex: none;
+}
+
+.controls-screen .key:hover:not(:disabled) {
+  border-color: #3c3c42;
+  background: linear-gradient(180deg, #36363c, #26262b 50%, #19191c);
+}
+
+.controls-screen .key.down,
+.controls-screen .key[aria-pressed='true'] {
+  border-color: #0a6fd8;
+  background: var(--accent-fill);
+  color: #fff;
+}
+
+.controls-screen .key.answer svg {
+  color: var(--green);
+}
+
+.controls-screen .key.end svg {
+  color: var(--red);
+}
+
+/* A button's key, in its top corner while Alt is held */
+.controls-screen .kb {
+  position: absolute;
+  top: 1px;
+  right: 3px;
+  font: 400 9.5px/10px var(--ui);
+  color: var(--dim);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* While the keys show, a key's icon and label move down clear of the one in its corner */
+.controls-screen.show-keys .key-row .key {
+  padding-top: 8px;
+}
+
+/* The AltScreen's column: + over − as one bar, the modes as a track; it greys out while there is no AltScreen */
+.controls-screen .alt-column {
+  display: grid;
+  grid-template-rows: 2fr 4fr;
+  gap: 6px;
+}
+
+.controls-screen .alt-column.off {
+  opacity: 0.4;
+}
+
+.controls-screen .zoom-group {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #2c2c31;
+  border-radius: 4px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
+.controls-screen .zoom-group .key {
+  flex: 1;
+  border: 0;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
+.controls-screen .zoom-group .key svg {
+  width: 15px;
+  height: 15px;
+}
+
+.controls-screen .zoom-group .key + .key {
+  border-top: 1px solid #0c0c0e;
+}
+
+.controls-screen .mode-group {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  padding: 2px;
+  border: 1px solid #26262a;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #0b0b0d, #141416);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.75), 0 1px 0 rgba(255, 255, 255, 0.04);
+}
+
+.controls-screen .mode-group button {
+  position: relative;
+  flex: 1;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+/* Short separators between the modes that stop short of the track's sides and drop away beside the chosen one */
+.controls-screen .mode-group button + button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 16px;
+  right: 16px;
+  height: 1px;
+  background: var(--edge);
+}
+
+.controls-screen .mode-group button.on::before,
+.controls-screen .mode-group button.on + button::before {
+  display: none;
+}
+
+.controls-screen .mode-group button:hover:not(:disabled):not(.on) {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+}
+
+/* The chosen mode: a softer, darker plate than a pressed key, as it stays lit */
+.controls-screen .mode-group button.on {
+  background: var(--chosen-fill);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/*
+ * The knob, drawn at 230 px and zoomed to the window's inner height (206 px), so all its geometry scales together;
+ * its type is set larger by as much, so Select shows at 12 px and the keys at 10.
+ */
+.controls-screen .knob {
+  position: relative;
+  width: 230px;
+  height: 230px;
+  align-self: center;
+  zoom: 0.8957;
+}
+
+/* The bezel: fine ridges round the pad, lit from the top left */
+.controls-screen .knob .ring {
+  position: absolute;
+  inset: 18px;
+  border-radius: 50%;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.4)),
+    repeating-conic-gradient(var(--edge) 0deg 1deg, var(--panel) 1deg 3deg);
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.7), 0 0 0 1px #000;
+}
+
+/* The pad inside it, lit from above */
+.controls-screen .knob .ring::before {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 50% 28%, #29292d, var(--raised) 62%, var(--panel));
+  box-shadow: 0 0 0 1px #000, inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 -10px 24px rgba(0, 0, 0, 0.35);
+}
+
+/* Faint diagonals cutting the pad in four */
+.controls-screen .knob .ring::after {
+  content: '';
+  position: absolute;
+  inset: 9px;
+  border-radius: 50%;
+  background:
+    linear-gradient(45deg, transparent calc(50% - 0.5px), var(--line) 50%, transparent calc(50% + 0.5px)),
+    linear-gradient(-45deg, transparent calc(50% - 0.5px), var(--line) 50%, transparent calc(50% + 0.5px));
+}
+
+.controls-screen .knob .kb {
+  padding: 0 3px;
+  border-radius: 3px;
+  background: var(--bg);
+  font-size: 11.15px;
+  line-height: 13px;
+}
+
+/*
+ * Each tilt is a quarter of the pad: a disc as large as the pad, cut to the wedge between two diagonals, so hover and
+ * press light the whole quarter; Select, above them, takes the middle. Its chevron sits at the quarter's outer part.
+ */
+.controls-screen .key.tilt {
+  position: absolute;
+  left: 27px;
+  top: 27px;
+  width: 176px;
+  height: 176px;
+  padding: 6px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  box-shadow: none;
+}
+
+.controls-screen .key.tilt svg {
+  width: 19px;
+  height: 19px;
+  opacity: 0.8;
+}
+
+.controls-screen .key.tilt:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.controls-screen .key.tilt:hover svg,
+.controls-screen .key.tilt.down svg {
+  opacity: 1;
+}
+
+.controls-screen .key.tilt.down {
+  background: var(--accent-tint);
+  color: var(--accent);
+}
+
+.controls-screen .tilt-up { clip-path: polygon(50% 50%, 0 0, 100% 0); justify-content: flex-start; }
+.controls-screen .tilt-down { clip-path: polygon(50% 50%, 100% 100%, 0 100%); justify-content: flex-end; }
+.controls-screen .tilt-left { clip-path: polygon(50% 50%, 0 100%, 0 0); align-items: flex-start; }
+.controls-screen .tilt-right { clip-path: polygon(50% 50%, 100% 0, 100% 100%); align-items: flex-end; }
+
+/* A tilt's key just inside its chevron, toward Select */
+.controls-screen .tilt .kb { right: auto; transform: translateX(-50%); }
+.controls-screen .tilt-up .kb { top: 22px; left: 50%; }
+.controls-screen .tilt-down .kb { top: auto; bottom: 22px; left: 50%; }
+.controls-screen .tilt-left .kb { top: calc(50% + 11px); left: 16px; }
+.controls-screen .tilt-right .kb { top: calc(50% + 11px); left: calc(100% - 16px); }
+
+/* Select: a dome sunk in a groove */
+.controls-screen .key.select {
+  position: absolute;
+  left: 70px;
+  top: 70px;
+  width: 90px;
+  height: 90px;
+  gap: 0;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-size: 13.4px;
+  background: radial-gradient(circle at 50% 22%, #2e2e33, var(--raised) 58%, #161618);
+  box-shadow: 0 0 0 7px var(--bg), 0 0 0 8px var(--line), 0 4px 10px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.controls-screen .key.select:hover {
+  border-color: var(--line);
+  background: radial-gradient(circle at 50% 22%, #38383e, #27272c 58%, #1b1b1e);
+}
+
+.controls-screen .key.select.down {
+  border-color: var(--line);
+  background: radial-gradient(circle at 50% 22%, #3897ff, #0a84ff 58%, #0a6fd8);
+}
+
+.controls-screen .key.select .kb {
+  position: static;
+  padding: 0;
+  background: none;
+  font-size: 11.05px;
+}
+
+/*
+ * The turns as wings over the knob's top corners: a straight top and side, a rounded outer corner, and an inner edge
+ * following the bezel 5 px clear of it (a circle of 102 round the knob's centre). The box starts 16 px into the knob
+ * and is as wide as where its top meets that circle, so both ends taper to a point; the centres are in its own
+ * coordinates. The wing is drawn on a layer under the icon and key, so its mask cuts neither, and the button answers
+ * the mouse only in the triangle of its corner whose long side stays off the bezel.
+ */
+.controls-screen .key.turn {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  width: 75px;
+  height: 75px;
+  padding: 8px;
+  border: 0;
+  border-radius: 0;
+  align-items: flex-start;
+  justify-content: flex-start;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.controls-screen .key.turn-forward {
+  left: 139px;
+  align-items: flex-end;
+}
+
+.controls-screen .key.turn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px 0 0 0;
+  background: linear-gradient(150deg, #2e2e33, var(--raised) 50%, var(--panel));
+  -webkit-mask: radial-gradient(circle at 99px 99px, transparent 102px, #000 102.5px);
+  mask: radial-gradient(circle at 99px 99px, transparent 102px, #000 102.5px);
+}
+
+.controls-screen .key.turn-forward::before {
+  border-radius: 0 16px 0 0;
+  -webkit-mask: radial-gradient(circle at -24px 99px, transparent 102px, #000 102.5px);
+  mask: radial-gradient(circle at -24px 99px, transparent 102px, #000 102.5px);
+}
+
+.controls-screen .key.turn::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  clip-path: polygon(0 0, 54px 0, 0 54px);
+}
+
+.controls-screen .key.turn-forward::after {
+  clip-path: polygon(21px 0, 75px 0, 75px 54px);
+}
+
+.controls-screen .key.turn svg {
+  position: relative;
+  width: 15px;
+  height: 15px;
+}
+
+/* Each arrow turned so its arc runs along the bezel at its wing, pointing the way the knob turns */
+.controls-screen .turn-back svg { transform: rotate(-76deg); }
+.controls-screen .turn-forward svg { transform: rotate(76deg); }
+
+.controls-screen .key.turn:hover {
+  color: var(--text);
+  background: transparent;
+}
+
+.controls-screen .key.turn:hover::before {
+  background: linear-gradient(150deg, #3a3a40, #27272c 50%, #1a1a1d);
+}
+
+.controls-screen .key.turn.down {
+  color: #fff;
+  background: transparent;
+}
+
+.controls-screen .key.turn.down::before {
+  background: var(--accent-fill);
+}
+
+/* A wing's key under its icon */
+.controls-screen .turn .kb { top: 28px; left: 4px; right: auto; }
+.controls-screen .turn-forward .kb { left: auto; right: 4px; }
+
+/* The CarPlay, media, volume and call keys */
+.controls-screen .key-rows {
+  display: grid;
+  grid-template-rows: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.controls-screen .key-row {
+  display: grid;
+  gap: 6px;
+}
+
+.controls-screen .key-row.three {
+  grid-template-columns: repeat(3, 1fr);
+}
+
+.controls-screen .key-row.two {
+  grid-template-columns: repeat(2, 1fr);
 }

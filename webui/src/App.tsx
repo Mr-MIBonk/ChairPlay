@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Api, tokenFrom, type AppState } from './api'
 import { Note } from './components'
+import { ControlsScreen } from './ControlsScreen'
 import { SettingsScreen } from './SettingsScreen'
 import { StartScreen } from './StartScreen'
 
@@ -18,6 +19,11 @@ export function App() {
         <p className="muted">No key in the address. Open the address printed in the console.</p>
       </div>
     )
+  }
+  // The controls window opens /controls; everything else is the main window's start and settings screens.
+  const controlsPage = window.location.pathname === '/controls'
+  if (controlsPage) {
+    return state ? <ControlsScreen state={state} backend={api} /> : <div className="controls-screen" />
   }
   if (!state) {
     return (

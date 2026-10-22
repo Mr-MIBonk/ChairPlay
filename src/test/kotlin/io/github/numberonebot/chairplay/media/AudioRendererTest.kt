@@ -163,6 +163,24 @@ class AudioRendererTest {
         renderer.stop(id)
     }
 
+    // The app's volume (Ctrl+Up and Ctrl+Down) scales every stream; Windows' own volume is left alone.
+    @Test
+    fun `the app's volume scales what a stream writes`() {
+        val line = RecordingLine()
+        val renderer = AudioRenderer(lineFactory = { _, _, _ -> line }, volume = { 0.5f })
+        val id = AudioStreamId(100, "alert")
+        renderer.start(id, AudioFormat(AudioCodecKind.LPCM, 48_000, 1, 100, "alert"))
+        // 10 ms of mono big-endian LPCM, every sample 0x1000; four fill the 40 ms jitter buffer.
+        val tenMs = ByteArray(480 * 2) { if (it % 2 == 0) 0x10 else 0 }
+        repeat(4) { renderer.push(id, header(sample = it * 480) + tenMs, it * 480) }
+        awaitTrue("playback") { line.size() == 4 * tenMs.size }
+
+        val bytes = synchronized(line) { line.written.toByteArray() }
+        // 0x1000 halves to 0x0800, little-endian.
+        assertTrue(bytes.toList().chunked(2).all { it == listOf<Byte>(0x00, 0x08) })
+        renderer.stop(id)
+    }
+
     @Test
     fun `playback starts after the jitter buffer fills`() {
         val line = RecordingLine()

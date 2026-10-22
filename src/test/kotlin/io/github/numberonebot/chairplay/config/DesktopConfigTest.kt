@@ -244,7 +244,7 @@ class DesktopConfigTest {
 
         val cluster = config.airPlay.cluster!!
         assertEquals(1440, cluster.widthPixels)
-        assertEquals(542, cluster.heightPixels)
+        assertEquals(540, cluster.heightPixels)
         assertEquals(292, cluster.widthPhysicalMm)
         assertEquals(110, cluster.heightPhysicalMm)
         // Nothing covers a window on a PC, so the iPhone keeps its UI (attribution, car marker) to the panel's edges.
@@ -378,14 +378,14 @@ class DesktopConfigTest {
 
     // The iPhone shows deviceName as the car and the icon, with oemLabel under it, on the CarPlay home screen.
     @Test
-    fun `names the car ChairPlay and gives CarPlay a Windows icon`() {
+    fun `names the car and the CarPlay button ChairPlay`() {
         val dir = Files.createTempDirectory("chairplay-config")
         writeTestSettings(dir)
 
         val airPlay = DesktopConfig(dir).airPlay
 
         assertEquals("ChairPlay", airPlay.deviceName)
-        assertEquals("Windows", airPlay.oemLabel)
+        assertEquals("ChairPlay", airPlay.oemLabel)
         val icon = airPlay.icons.single()
         assertEquals(192, icon.widthPixels)
         assertEquals(192, icon.heightPixels)

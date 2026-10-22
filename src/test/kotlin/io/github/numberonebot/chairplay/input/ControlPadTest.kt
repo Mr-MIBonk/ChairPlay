@@ -30,6 +30,14 @@ class ControlPadTest {
         assertNull(pad.release(ControlAction.SIRI))
     }
 
+    @Test
+    fun `the volume buttons step the volume and mute`() {
+        assertEquals(Control.VolumeStep(1), pad.press(ControlAction.VOLUME_UP))
+        assertEquals(Control.VolumeStep(-1), pad.press(ControlAction.VOLUME_DOWN))
+        assertEquals(Control.MuteToggle, pad.press(ControlAction.VOLUME_MUTE))
+        assertNull(pad.release(ControlAction.VOLUME_UP))
+    }
+
     // As F11 and Shift+F11.
     @Test
     fun `the AltScreen buttons switch its view and its cards`() {

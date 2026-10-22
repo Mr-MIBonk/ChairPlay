@@ -224,7 +224,7 @@ function SettingsForms({
           name="AltScreen"
           keys={['altscreen.width', 'altscreen.height']}
           values={[value('altscreen.width'), value('altscreen.height')]}
-          placeholders={['1440', '542']}
+          placeholders={['1440', '540']}
           help="Pixels, even numbers."
           errors={errors}
           onSave={(changes) => save('altscreen', changes)}

@@ -175,8 +175,8 @@ class DesktopConfig(private val dir: Path) {
         Altscreen(size, viewContent, viewCards, configured = content to cards)
     }
     /**
-     * DiPlay rounds its cluster stream to multiples of 8; Audi's 1440x542 panel goes out as it is, as the MHI2Q
-     * CarPlay project declares it. Nothing covers a window on a PC, so the safe area (where Apple Maps keeps its
+     * DiPlay rounds its cluster stream to multiples of 8; the AltScreen goes out at the size set, 1440x540 by
+     * default for Audi's panel (the MHI2Q CarPlay project declares it as 1440x542). Nothing covers a window on a PC, so the safe area (where Apple Maps keeps its
      * attribution and car marker) is the whole panel unless altscreen.safe.* leave room for an overlay.
      */
     private val altscreenDisplay = altscreen?.let {
@@ -261,7 +261,7 @@ class DesktopConfig(private val dir: Path) {
 
     /**
      * DiPlay's production values (CarPlayHostActivity.airPlayConfig); btMac is replaced by the radio's. The
-     * CarPlay home screen shows the Windows icon where a car shows its maker's; tapping it opens the settings screen.
+     * CarPlay home screen shows the receiver's icon where a car shows its maker's; tapping it opens the settings screen.
      */
     val airPlay = AirPlayConfig(
         deviceName = deviceName,
@@ -444,7 +444,7 @@ class DesktopConfig(private val dir: Path) {
             SettingBlock(
                 "The car button on the CarPlay home screen: its label, and a square image in this folder\n" +
                     "(sent at 192 pixels at most). carplay-icon.png is written with the Windows icon to replace.",
-                "car.label" to "Windows", "car.icon" to "carplay-icon.png",
+                "car.label" to DEFAULT_CAR_LABEL, "car.icon" to "carplay-icon.png",
             ),
             SettingBlock(
                 "Sound devices: 'default' (the Windows default) or a part of a device name that\n" +
@@ -489,7 +489,7 @@ class DesktopConfig(private val dir: Path) {
                 "Altscreen (experimental): the car's instrument cluster as a second CarPlay screen in a window of its\n" +
                     "own, 'true' or 'false' (the iPhone learns of it when it connects); its size in pixels (positive even\n" +
                     "numbers); what it starts with: 'map', 'map-card', 'hud' or 'card' (the turn card).",
-                "altscreen.enabled" to "false", "altscreen.width" to "1440", "altscreen.height" to "542",
+                "altscreen.enabled" to "false", "altscreen.width" to "1440", "altscreen.height" to "540",
                 "altscreen.content" to "map",
             ),
             SettingBlock(
@@ -526,12 +526,12 @@ class DesktopConfig(private val dir: Path) {
 
         const val DEFAULT_DEVICE_NAME = "ChairPlay"
         const val DEFAULT_ICON_FILE = "carplay-icon.png"
-        private const val DEFAULT_CAR_LABEL = "Windows"
+        private const val DEFAULT_CAR_LABEL = DEFAULT_DEVICE_NAME
         private const val MAX_ICON_PIXELS = 192
         const val SETTINGS_FILE = "settings.properties"
         // The Audi Virtual Cockpit's 12.3-inch Kombi panel; DiPlay's cluster display reports the same 292 mm.
         private const val DEFAULT_ALTSCREEN_WIDTH = 1440
-        private const val DEFAULT_ALTSCREEN_HEIGHT = 542
+        private const val DEFAULT_ALTSCREEN_HEIGHT = 540
         private const val ALTSCREEN_WIDTH_MM = 292
         private const val MM_PER_INCH = 25.4
         /** Upstream AirPlayDisplaySettings.DEFAULT_WIDTH_PHYSICAL_MM. */

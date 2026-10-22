@@ -7,6 +7,23 @@ export type Applies = 'now' | 'reconnect' | 'restart'
 /** The app's windows besides the main one: the AltScreen and the on-screen car controls. */
 export type WindowName = 'altscreen' | 'controls'
 
+/** What the AltScreen shows (AltscreenContent in DesktopConfig.kt). */
+export type AltscreenContent = 'hud' | 'map' | 'map-card' | 'card'
+
+/** The Windows pages and folder a link can open (UiController.PLACES). */
+export type WindowsPlace = 'bluetooth' | 'wifi' | 'firewall' | 'firewall-rules' | 'mfi-folder'
+
+/** What the controls window shows beside its buttons (UiControls in Main.kt). */
+export interface ControlsState {
+  /** Each action's first key as controls.properties names it, by its name there without "key."; null when unbound. */
+  keys: Record<string, string | null>
+  volume: { level: number; muted: boolean }
+  /** What the AltScreen shows; null without an AltScreen. */
+  altscreen: AltscreenContent | null
+  /** Alt is held in one of ChairPlay's windows: the buttons show their keys. */
+  altHeld: boolean
+}
+
 /** A window is available while its feature is on; only then can it be shown or hidden. */
 export interface WindowState {
   available: boolean
@@ -27,6 +44,8 @@ export interface AppState {
   reconnectPending: string[]
   restartPending: string[]
   windows: Record<WindowName, WindowState>
+  /** Null when the app has no controls window. */
+  controls: ControlsState | null
   setup: {
     mfiFolder: string
     mfiPresent: boolean
@@ -58,6 +77,12 @@ export interface Backend {
   show(screen: Screen): Promise<boolean>
   /** Shows or hides a window; false when it is not available. Its new state comes with the next app state. */
   window(name: WindowName, visible: boolean): Promise<boolean>
+  /** Presses ([down]) or releases a controls window button: a key of controls.properties without "key.". */
+  control(action: string, down: boolean): Promise<void>
+  /** Shows [content] on the AltScreen; false when it cannot be shown now. */
+  altscreen(content: AltscreenContent): Promise<boolean>
+  /** Opens a Windows page or the MFi folder; false when Windows did not open it. */
+  open(place: WindowsPlace): Promise<boolean>
 }
 
 export class ApiError extends Error {}
@@ -109,6 +134,18 @@ export class Api implements Backend {
 
   async window(name: WindowName, visible: boolean): Promise<boolean> {
     return (await this.request('POST', 'window', { name, visible })).status === 200
+  }
+
+  async control(action: string, down: boolean): Promise<void> {
+    await this.request('POST', 'control', { action, down })
+  }
+
+  async altscreen(content: AltscreenContent): Promise<boolean> {
+    return (await this.request('POST', 'altscreen', { content })).status === 200
+  }
+
+  async open(place: WindowsPlace): Promise<boolean> {
+    return (await this.request('POST', 'open', { place })).status === 200
   }
 
   /**

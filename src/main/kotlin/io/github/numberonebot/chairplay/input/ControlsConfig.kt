@@ -31,6 +31,9 @@ enum class ControlAction(val key: String, val defaults: String, val description:
     ALTSCREEN_ZOOM_IN("key.altscreen.zoom.in", "Equal, Shift+Equal, KP_Add", "zoom the AltScreen map in"),
     ALTSCREEN_ZOOM_OUT("key.altscreen.zoom.out", "Minus, KP_Subtract", "zoom the AltScreen map out"),
     ALTSCREEN_CARDS("key.altscreen.cards", "Shift+F11", "move the altscreen's ETA and turn card: auto, left, right, top, off"),
+    VOLUME_UP("key.volume.up", "Ctrl+Up", "turn ChairPlay's own volume up (Windows' volume stays)"),
+    VOLUME_DOWN("key.volume.down", "Ctrl+Down", "turn ChairPlay's own volume down"),
+    VOLUME_MUTE("key.volume.mute", "Ctrl+M", "mute or unmute ChairPlay"),
 }
 
 /** A GLFW key code with the Shift, Ctrl and Alt bits that must be held. */
@@ -51,7 +54,12 @@ class ControlsConfig(
     val wheel: WheelAction = WheelAction.KNOB,
     val wheelInvert: Boolean = false,
     val notchesPerStep: Int = 1,
+    /** Each action's keys as the file names them, in its order. */
+    private val keyNames: Map<ControlAction, List<String>> = emptyMap(),
 ) {
+    /** The first key bound to [action], as the file names it ("Escape", "Ctrl+Up"), for a button's label; null for none. */
+    fun firstKey(action: ControlAction): String? = keyNames[action]?.firstOrNull()
+
     fun summary(): String =
         "controls: ${bindings.values.toSet().size} actions, wheel=${if (wheel == WheelAction.NONE) "none" else "knob"}"
 
@@ -86,9 +94,12 @@ class ControlsConfig(
             }
             val bindings = LinkedHashMap<KeyBinding, ControlAction>()
             val names = HashMap<KeyBinding, String>()
+            val keyNames = LinkedHashMap<ControlAction, List<String>>()
             for (action in ControlAction.entries) {
                 val value = settings.getProperty(action.key) ?: action.defaults
-                for (name in value.split(',').map(String::trim).filter(String::isNotEmpty)) {
+                val keys = value.split(',').map(String::trim).filter(String::isNotEmpty)
+                keyNames[action] = keys
+                for (name in keys) {
                     val binding = parseBinding(name) ?: throw IllegalArgumentException(
                         "$FILE: ${action.key} = $value: \"$name\" is not a key; use a name such as F5, Ctrl+S or #290",
                     )
@@ -117,6 +128,7 @@ class ControlsConfig(
                     else -> throw IllegalArgumentException("$FILE: $INVERT must be true or false, not $invert")
                 },
                 notchesPerStep = positive(settings, NOTCHES, 1),
+                keyNames = keyNames,
             )
         }
 

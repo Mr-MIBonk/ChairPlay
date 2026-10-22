@@ -107,7 +107,7 @@ The files below live in the app folder, next to `ChairPlay.exe`.
    - `device.name`: the name the iPhone shows for the PC, in its CarPlay settings and on the network (default
      ChairPlay, at most 63 bytes); the window title stays ChairPlay;
    - `car.label` and `car.icon`: the label and the image of the car button on the CarPlay home screen (default
-     `Windows` and `carplay-icon.png`, a Windows window written into the app folder on the first start). Replace the
+     `ChairPlay` and `carplay-icon.png`, a Windows window written into the app folder on the first start). Replace the
      image with any square PNG, JPEG, BMP or GIF; it is sent at 192 pixels at most;
    - `audio.output` and `audio.input`: the sound device CarPlay plays on and the microphone, `default` (the Windows
      default, as before) or a part of a device name; `ChairPlay.exe devices` lists the names;
@@ -137,17 +137,18 @@ The files below live in the app folder, next to `ChairPlay.exe`.
      remembered size. A window left on a monitor that is no longer connected opens where Windows puts it. Delete
      `window.properties` to forget the place;
    - `window.controls` (default `false`): `true` opens a window of on-screen car controls beside CarPlay's: the knob
-     (select in the middle, tilts around it, turns above its corners), back, home, Siri, the media keys, the call
-     keys and the AltScreen's zoom. A button held with the mouse holds its control until the release, as a held
-     key does, so CarPlay tells a long press. The window keeps its place and size under `controls.` in
-     `window.properties`, and F12 saves it as `controls-<time>.png`;
+     (select in the middle, tilts around it, turns above its corners, the wheel over it turns it), back, home, Siri,
+     the media keys, the volume, the call keys, and the AltScreen's zoom and modes. A button held with the mouse
+     holds its control until the release, as a held key does, so CarPlay tells a long press, and the keys of
+     `controls.properties` work while the window has the focus; holding Alt shows each button its key. The window
+     is a page of the web UI (WebView2) and keeps its place under `controls.` in `window.properties`;
    - `window.keep.aspect` (default `true`): the windows resize only with the shape of their picture, the
      main window's that of `display.width` x `display.height` and the AltScreen's that of its size; a maximized
      window still fills the screen. `false` lets them take any shape;
    - `altscreen.enabled` (experimental, default `false`): `true` declares a second CarPlay screen, the car's
      instrument cluster, and shows it in a window of its own (place and size remembered under `altscreen.` in
      `window.properties`). The iPhone learns of it when it connects, so a change applies at the next connection.
-     `altscreen.width` and `altscreen.height` set its size in pixels (default 1440 x 542, Audi's Virtual Cockpit
+     `altscreen.width` and `altscreen.height` set its size in pixels (default 1440 x 540, Audi's Virtual Cockpit
      panel), and `altscreen.content` what it starts with: `map`, `card` (the turn card) or `map-card`. F11
      (`key.altscreen.content`) switches between them without reconnecting, and the mouse wheel over the window
      or + and − on either keyboard (`key.altscreen.zoom.in`/`out`) zoom the map, as a car's zoom control does. `altscreen.cards` places the navigation app's ETA and turn

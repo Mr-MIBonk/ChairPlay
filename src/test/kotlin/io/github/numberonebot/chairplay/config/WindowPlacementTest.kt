@@ -64,6 +64,16 @@ class WindowPlacementTest {
         assertEquals(WindowSize(1000, 375), WindowSize(1000, 900).fittedTo(WindowSize(1280, 480)))
     }
 
+    // A window that keeps its picture's shape must not stop at a minimum of another shape, or the picture gets bars:
+    // 800x480 is 5:3, so a 16:9 picture's window stops at 854x480 and a 4:3 one's at 800x600.
+    @Test
+    fun `a minimum grows to the picture's shape`() {
+        assertEquals(WindowSize(854, 480), MAIN_WINDOW_MIN_SIZE.grownTo(WindowSize(1280, 720)))
+        assertEquals(WindowSize(800, 600), MAIN_WINDOW_MIN_SIZE.grownTo(WindowSize(1024, 768)))
+        assertEquals(WindowSize(800, 480), MAIN_WINDOW_MIN_SIZE.grownTo(WindowSize(1000, 600)))
+        assertEquals(WindowSize(1280, 480), MAIN_WINDOW_MIN_SIZE.grownTo(WindowSize(1920, 720)))
+    }
+
     // A minimum is in the web view's pixels: at 150 % display scale 800x480 takes 1200x720 screen pixels.
     @Test
     fun `a minimum size grows with the display scale`() {
@@ -111,6 +121,19 @@ class WindowPlacementTest {
         assertTrue(store.load(default = false))
         // The windows' places stay beside it.
         assertEquals(WindowPlacement(10, 20, 1280, 720, maximized = false), WindowPlacementStore(dir).load(configured))
+    }
+
+    // The volume stays where it was left, as a car's does; a first start plays at full volume.
+    @Test
+    fun `the volume and mute are remembered`() {
+        val dir = Files.createTempDirectory("chairplay-window")
+        val store = VolumeStore(dir)
+        assertEquals(100 to false, store.load())
+        ControlsWindowStore(dir).save(visible = false)
+        store.save(level = 35, muted = true)
+        assertEquals(35 to true, store.load())
+        // The controls window's state stays beside it.
+        assertFalse(ControlsWindowStore(dir).load(default = true))
     }
 
     @Test

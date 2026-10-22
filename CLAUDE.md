@@ -44,12 +44,33 @@ submodule; its `AGENTS.md` and CI command are for the Android app and do not app
 
 ## Editing files
 
-- Do not put Kotlin or Markdown that contains backslash escapes (`"\n"`, `\\`, Windows paths) through a shell
-  heredoc into a Python string: the tool layer turns `\n` into real line breaks and breaks the code. Use the
-  Edit tool for such lines, or build the backslash with `chr(92)` in Python.
+- Never put a script or file content longer than one line into a Bash command: no heredoc (`<<'EOF'`), no
+  multi-line `python -c`, no `echo … >`. Quotes, backticks, `${…}` and backslashes in it break the shell or are
+  rewritten by the tool layer (`\n` turns into a real line break), and this has wasted time about 20 times. Write
+  the script with the Write tool into the scratchpad and run it by path (`python <scratchpad>/edit.py <args>`), or
+  change the file with Edit or Write. This holds for every language and for "simple" content too.
 - Avoid `sed` on lines with backslashes or Windows paths; use the Edit tool.
 - Kotlin initialises properties top to bottom. A property (or companion `val`) that calls code using a
   property declared further down gets null: declare in order, or make it `by lazy`.
+
+## Interface texts
+
+Every text the app shows (web UI, controls window, window titles, messages) follows the Microsoft Writing Style
+Guide:
+
+- Sentence case everywhere: tabs, labels, buttons, choices, checkboxes, statuses, tooltips and group headers
+  (written "Safe area"; CSS may show them in capitals). Names keep their spelling: ChairPlay, CarPlay, AltScreen,
+  iPhone, Siri, Wi-Fi, Bluetooth, DiPlay. So do acronyms (HUD, ETA) and key names as Windows writes them (Enter,
+  Esc, Shift+Tab, Num Enter). Units are lower case: px, fps, mm, ppi, s.
+- One word, one spelling: choices side by side do not show the same word in two cases ("Turn card", not "Card"
+  beside "Map + card").
+- No full stop after a label, button, choice or one-sentence tooltip; a text of several sentences has them.
+- Tooltips on actions are imperative ("End the session and connect again (Ctrl+R)"); a disabled control's
+  tooltip says what enables it ("Connect the iPhone first").
+- A message names the problem, then what to do: "MFi files not found. Put identity.pk8 and certificate.p7b in
+  this folder:".
+- US English (License, color), and a comma before the last "and" of a list.
+- No caption explains what happens when a switch is off or a field is blank: hover explains a field.
 
 ## Running the app and background work
 

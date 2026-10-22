@@ -31,6 +31,16 @@ class ControlsConfigTest {
         assertEquals(ControlAction.KNOB_NEXT, loaded.bindings[KeyBinding(GLFW_KEY_TAB, 0)])
     }
 
+    // The controls window labels each button with its first key, as the file names it.
+    @Test
+    fun `each action's first key is kept for the buttons' labels`() {
+        assertEquals("Escape", ControlsConfig.DEFAULT.firstKey(ControlAction.BACK))
+        assertEquals("Ctrl+Up", ControlsConfig.DEFAULT.firstKey(ControlAction.VOLUME_UP))
+        val loaded = ControlsConfig.load(dirWith("key.back = Backspace, Escape", "key.siri ="))
+        assertEquals("Backspace", loaded.firstKey(ControlAction.BACK))
+        assertNull(loaded.firstKey(ControlAction.SIRI))
+    }
+
     @Test
     fun `keys are named with modifiers, raw codes, or left empty to disable`() {
         val loaded = ControlsConfig.load(dirWith("key.siri = Ctrl+S, f10", "key.home =", "key.media.next = #290", "key.select = kp_enter"))
@@ -105,6 +115,6 @@ class ControlsConfigTest {
 
     @Test
     fun `the summary counts bound actions and names the wheel mode`() {
-        assertEquals("controls: 21 actions, wheel=knob", ControlsConfig.DEFAULT.summary())
+        assertEquals("controls: 24 actions, wheel=knob", ControlsConfig.DEFAULT.summary())
     }
 }

@@ -24,6 +24,8 @@ class ChairPlayUi(
     private val log: (String) -> Unit,
     /** The windows the settings screen's triggers show and hide, by name ("altscreen", "controls"). */
     windows: Map<String, UiWindow> = emptyMap(),
+    /** The controls window's buttons; with them, [controlsView] is the page that shows them. */
+    controls: UiControls? = null,
 ) : Closeable {
     val model = UiModel(config.wifi != null, config.autoconnect, config.autoshow)
 
@@ -42,15 +44,25 @@ class ChairPlayUi(
         log,
         config.autoconnect,
         windows,
+        controls,
     )
 
     /** Tells the page that a window was shown or hidden. */
     fun windowsChanged() = controller.windowsChanged()
 
+    /** Tells the controls window's page that what it shows changed: the volume, the AltScreen's content, Alt held. */
+    fun controlsChanged() = controller.controlsChanged()
+
     private val server = UiServer(controller, pageAssets(), System.getenv("CHAIRPLAY_UI_PORT")?.toIntOrNull() ?: 0, log = log)
 
     /** The page in the main window; give it to the window before it opens. */
     val view: EmbeddedUi
+
+    /**
+     * The controls window's page, when there are [controls]; give it to that window before it opens. The window keeps
+     * the keyboard, and without WebView2 the window stays empty rather than opening a second browser tab.
+     */
+    val controlsView: EmbeddedUi?
 
     init {
         server.start()
@@ -68,6 +80,17 @@ class ChairPlayUi(
                 if (embedded) log("UI in the main window (WebView2)")
             },
         )
+        controlsView = controls?.let {
+            EmbeddedUi(
+                server.url.replaceFirst("/?", "/controls?"),
+                showsUi = { true },
+                backend = { WebView2(userData, debug) },
+                openBrowser = null,
+                log = { message -> log("controls window: $message") },
+                onEmbedded = {},
+                takesKeyboard = false,
+            )
+        }
         model.addListener { wake() }
     }
 

@@ -33,14 +33,19 @@ class WebViewUnavailable(message: String) : Exception(message)
  * so, and hides otherwise, so that CarPlay's picture shows and takes the keys. [backend] is made in [attach], on the
  * window's thread; when it cannot be (no WebView2 runtime, no DLL), [url] opens in the default browser instead and
  * the log says why. [onEmbedded] hears which of the two it is.
+ *
+ * Without [takesKeyboard] (the controls window) the window keeps the keyboard, so its keys stay CarPlay's: a click on
+ * the page takes it, and [giveKeysBack] returns it to the window at the next layout.
  */
 class EmbeddedUi(
     private val url: String,
     private val showsUi: () -> Boolean,
     private val backend: () -> WebViewBackend,
-    private val openBrowser: (String) -> Unit,
+    /** Opens [url] when there is no web view to have; null leaves the window empty. */
+    private val openBrowser: ((String) -> Unit)?,
     private val log: (String) -> Unit,
     private val onEmbedded: (Boolean) -> Unit,
+    private val takesKeyboard: Boolean = true,
 ) : WindowChild {
     private var web: WebViewBackend? = null
     private var parent = 0L
@@ -48,6 +53,10 @@ class EmbeddedUi(
     private var width = -1
     private var height = -1
     private var visible = false
+    private val keysBack = java.util.concurrent.atomic.AtomicBoolean()
+
+    /** Safe from any thread: the window takes the keyboard back from the page at its next layout. */
+    fun giveKeysBack() = keysBack.set(true)
 
     override fun attach(nativeWindow: Long) {
         parent = nativeWindow
@@ -59,9 +68,15 @@ class EmbeddedUi(
         } catch (error: Throwable) {
             // A missing DLL is an UnsatisfiedLinkError; nothing here may take the window down.
             if (error is VirtualMachineError) throw error
-            log("the UI cannot show in the window (${error.message ?: error.javaClass.simpleName}); opening it in the default browser: $url")
+            val reason = error.message ?: error.javaClass.simpleName
             onEmbedded(false)
-            runCatching { openBrowser(url) }.onFailure { log("could not open the browser: $it") }
+            val browser = openBrowser
+            if (browser == null) {
+                log("the page cannot show in the window ($reason)")
+                return
+            }
+            log("the UI cannot show in the window ($reason); opening it in the default browser: $url")
+            runCatching { browser(url) }.onFailure { log("could not open the browser: $it") }
             return
         }
         onEmbedded(true)
@@ -75,6 +90,14 @@ class EmbeddedUi(
             made.setBounds(view, width, height)
         }
         val show = showsUi()
+        if (!takesKeyboard) {
+            if (show != visible) {
+                visible = show
+                made.setVisible(view, show)
+            }
+            if (keysBack.getAndSet(false)) made.focusParent(parent)
+            return
+        }
         if (show != visible) {
             visible = show
             made.setVisible(view, show)

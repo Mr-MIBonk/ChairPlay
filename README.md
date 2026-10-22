@@ -4,7 +4,7 @@
 Bluetooth first, then over Wi-Fi. CarPlay opens in a window, and you drive it with the mouse and the keyboard,
 hear it through the PC's speakers and talk to Siri through its microphone.
 
-![CarPlay home screen in the ChairPlay window, with the Windows car button](docs/images/carplay-window.png)
+![CarPlay home screen in the ChairPlay window, with the ChairPlay car button](docs/images/carplay-window.png)
 
 Useful for developing and testing CarPlay apps and navigation without sitting in a car, for demos, or simply for
 CarPlay on a desk.
@@ -36,14 +36,16 @@ endorsed by DiPlay's authors or by Apple.
   fits on the screen), frame rate, light or dark theme following Windows, driving side, dock position, safe area,
   corner style.
 - **AltScreen** (experimental): the car's instrument cluster as a second CarPlay screen in its own window,
-  1440x542 like Audi's Virtual Cockpit by default, with the map, the turn card or both, switched on the fly.
+  1440x540 like Audi's Virtual Cockpit by default, with the map, the turn card or both, switched on the fly.
 - **HUD** in the AltScreen window (`altscreen.content=hud`): the next maneuver, the distance to it, the arrival
   and the song on black, drawn by the app itself rather than by the iPhone. The animated 3D maneuvers (turns,
   roundabouts with their roads, the arrow filling toward the turn, the destination flag) are LuKa's maneuver
   renderer from the [MHI2Q CarPlay project](https://github.com/luka-dev/mib2q-carplay-rgi), ported to run
   inside the app's window.
-- **On-screen car controls** (`window.controls=true`): a window of buttons for the knob, back, home, media, calls,
-  Siri and the AltScreen's zoom, held as long as the mouse holds them.
+- **On-screen car controls** (`window.controls=true`): a window of buttons for the knob, back, home, Siri, media,
+  volume, calls and the AltScreen's zoom and modes, held as long as the mouse holds them; Alt shows their keys.
+- **Volume of its own**: Ctrl+Up, Ctrl+Down and Ctrl+M turn ChairPlay up, down or mute it, leaving Windows' volume
+  alone.
 - **Graceful reconnection**: close the window and start again, and the iPhone reconnects by itself.
 
 Tested on Windows 11 with an iPhone 15 (iOS 18.6).

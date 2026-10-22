@@ -2,6 +2,7 @@ package io.github.numberonebot.chairplay.input
 
 import com.shilapi.xcertplay.airplay.AirPlayKnobState
 import com.shilapi.xcertplay.airplay.CarPlayMediaButton
+import io.github.numberonebot.chairplay.config.AltscreenContent
 import org.lwjgl.glfw.GLFW.*
 
 /**
@@ -24,6 +25,12 @@ sealed interface Control {
     data object NextAltscreenContent : Control
     /** Asks the iPhone for the altscreen's next card layout, through the cluster URL. */
     data object NextAltscreenCards : Control
+    /** Asks the iPhone for [content] on the altscreen, as the controls window's modes do. */
+    data class ShowAltscreenContent(val content: AltscreenContent) : Control
+    /** Turns the app's volume [steps] steps up, or down when negative; nothing goes to the iPhone. */
+    data class VolumeStep(val steps: Int) : Control
+    /** Mutes or unmutes the app; nothing goes to the iPhone. */
+    data object MuteToggle : Control
 }
 
 /**
@@ -56,6 +63,8 @@ class KeyControls(private val config: ControlsConfig = ControlsConfig.DEFAULT) {
             ControlAction.KNOB_PREVIOUS -> turn(key, action, -1)
             ControlAction.ALTSCREEN_ZOOM_IN -> if (steps(key, action, config.zoomRepeatEvery)) Control.MapZoom(1) else null
             ControlAction.ALTSCREEN_ZOOM_OUT -> if (steps(key, action, config.zoomRepeatEvery)) Control.MapZoom(-1) else null
+            ControlAction.VOLUME_UP -> if (steps(key, action)) Control.VolumeStep(1) else null
+            ControlAction.VOLUME_DOWN -> if (steps(key, action)) Control.VolumeStep(-1) else null
             else -> knobHold(bound)?.let { state ->
                 when (action) {
                     GLFW_PRESS -> Control.Knob(state, false)
@@ -139,5 +148,6 @@ internal fun pressControl(action: ControlAction): Control? = when (action) {
     ControlAction.RECONNECT -> Control.Reconnect
     ControlAction.ALTSCREEN_CONTENT -> Control.NextAltscreenContent
     ControlAction.ALTSCREEN_CARDS -> Control.NextAltscreenCards
+    ControlAction.VOLUME_MUTE -> Control.MuteToggle
     else -> null
 }

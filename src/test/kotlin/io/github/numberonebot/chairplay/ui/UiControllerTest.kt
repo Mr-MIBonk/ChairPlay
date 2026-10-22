@@ -17,12 +17,15 @@ class UiControllerTest {
     private val connects = AtomicInteger()
     private val reconnects = AtomicInteger()
     private val logged = mutableListOf<String>()
+    private val launched = mutableListOf<List<String>>()
 
     private fun controller(
         settings: String = "wifi.ssid=Home\nwifi.passphrase=secret123\nwifi.security=WPA_WPA2\nui.autoconnect=true\n" +
             "ui.autoshow=true\naltscreen.enabled=false\nwindow.width=\nwindow.height=\naltscreen.width=1440\naltscreen.height=542\n",
         autoconnect: Boolean = true,
         windows: Map<String, UiWindow> = emptyMap(),
+        controls: UiControls? = null,
+        launch: (List<String>) -> Unit = { launched += it },
     ): UiController {
         Files.writeString(file, settings)
         val values = SettingsFile(file).read()
@@ -36,7 +39,15 @@ class UiControllerTest {
             override fun reconnect() {
                 reconnects.incrementAndGet()
             }
-        }, logged::add, autoconnect, windows)
+        }, logged::add, autoconnect, windows, controls, launch)
+    }
+
+    /** Controls that record what the page asked of them. */
+    private class FakeControls : UiControls {
+        val calls = mutableListOf<String>()
+        override fun control(action: String, down: Boolean) = (action != "eject").also { calls += "$action $down" }
+        override fun altscreenContent(content: String) = (content == "hud").also { calls += "altscreen $content" }
+        override fun state(): Map<String, Any?> = mapOf("volume" to mapOf("level" to 60, "muted" to false))
     }
 
     /** A window that only records what it was asked. */
@@ -221,6 +232,83 @@ class UiControllerTest {
         ui.windowsChanged()
 
         assertTrue(ui.version > before)
+    }
+
+    // The controls window's page: its buttons reach the app, and the state carries what they show.
+    @Test
+    fun `the controls window's buttons reach the app and its state reaches the page`() {
+        val controls = FakeControls()
+        val ui = controller(controls = controls)
+
+        assertTrue(ui.control("knob.select", down = true))
+        assertFalse(ui.control("eject", down = true))
+        assertTrue(ui.altscreenContent("hud"))
+
+        assertEquals(listOf("knob.select true", "eject true", "altscreen hud"), controls.calls)
+        assertEquals(mapOf("volume" to mapOf("level" to 60, "muted" to false)), ui.state()["controls"])
+        val before = ui.version
+        ui.controlsChanged()
+        assertTrue(ui.version > before)
+    }
+
+    @Test
+    fun `without controls the buttons reach nothing`() {
+        val ui = controller()
+
+        assertFalse(ui.control("knob.select", down = true))
+        assertFalse(ui.altscreenContent("hud"))
+        assertNull(ui.state()["controls"])
+    }
+
+    // The screens' links open Windows' own pages; the page names a place the app knows, never a command of its own.
+    @Test
+    fun `a link opens the Windows page it names, and nothing else`() {
+        val ui = controller()
+
+        assertTrue(ui.open("bluetooth"))
+        assertTrue(ui.open("wifi"))
+        assertTrue(ui.open("firewall"))
+        assertFalse(ui.open("calc.exe"))
+        assertFalse(ui.open("ms-settings:bluetooth"))
+
+        assertEquals(
+            listOf(
+                listOf("explorer.exe", "ms-settings:bluetooth"),
+                listOf("explorer.exe", "ms-settings:network-wifi"),
+                listOf("explorer.exe", "windowsdefender://network/"),
+            ),
+            launched,
+        )
+    }
+
+    // Its rules are in the firewall's own console; the shell asks for the administrator's consent it needs.
+    @Test
+    fun `the firewall's rules open in its console through the shell`() {
+        val ui = controller()
+
+        assertTrue(ui.open("firewall-rules"))
+
+        assertEquals("explorer.exe", launched.single()[0])
+        assertTrue(launched.single()[1], launched.single()[1].endsWith("wf.msc"))
+    }
+
+    @Test
+    fun `the MFi folder opens in File Explorer, made first if it is missing`() {
+        val ui = controller()
+
+        assertTrue(ui.open("mfi-folder"))
+
+        assertTrue(Files.isDirectory(dir.resolve("offline-mfi")))
+        assertEquals(listOf(listOf("explorer.exe", dir.resolve("offline-mfi").toString())), launched)
+    }
+
+    @Test
+    fun `a page Windows does not open is logged`() {
+        val ui = controller(launch = { throw java.io.IOException("explorer.exe not found") })
+
+        assertFalse(ui.open("bluetooth"))
+
+        assertTrue(logged.joinToString(), logged.any { "bluetooth" in it && "explorer.exe not found" in it })
     }
 
     @Test
