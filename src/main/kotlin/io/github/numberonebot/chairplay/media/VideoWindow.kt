@@ -62,6 +62,17 @@ class VideoWindow(
     private val screenshotRequest = AtomicReference<((BufferedImage) -> Unit)?>()
     private val newTitle = AtomicReference<String?>()
     private val shownRequest = AtomicReference<Boolean?>()
+    private val resizeRequest = AtomicReference<WindowSize?>()
+
+    /** Runs on the GL thread when the client area takes another size, minimized aside. */
+    @Volatile
+    var onResize: (Size) -> Unit = {}
+
+    /** Safe from any thread: gives the client area [width] x [height] screen pixels, a maximized window restored first. */
+    fun resizeTo(width: Int, height: Int) {
+        resizeRequest.set(WindowSize(width, height))
+        wake()
+    }
 
     /** Whether the window is on screen rather than hidden by its close button or by [setShown]. */
     @Volatile
@@ -286,6 +297,11 @@ class VideoWindow(
         if (minimizing.getAndSet(false)) glfwIconifyWindow(window)
         shownRequest.getAndSet(null)?.let { applyShown(window, it) }
         newTitle.getAndSet(null)?.let { glfwSetWindowTitle(window, it) }
+        resizeRequest.getAndSet(null)?.let { size ->
+            // A maximized window keeps filling the screen whatever size it is given.
+            if (glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE) glfwRestoreWindow(window)
+            glfwSetWindowSize(window, size.width, size.height)
+        }
         val fresh = latest.getAndSet(null)
         if (fresh != null) {
             // glTexImage2D and glTexSubImage2D have read client memory by the time they return.
@@ -297,7 +313,9 @@ class VideoWindow(
         }
         // A resize repaints the last picture even when no new one has arrived, or black before the first.
         glfwGetFramebufferSize(window, w, h)
+        val resized = Size(w[0], h[0]).takeIf { it != framebufferSize && it.width > 0 && it.height > 0 }
         framebufferSize = Size(w[0], h[0])
+        resized?.let(onResize)
         child?.layout(w[0], h[0])
         val shown = picture
         val layer = overlay

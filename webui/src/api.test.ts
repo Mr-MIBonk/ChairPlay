@@ -40,6 +40,15 @@ describe('Api', () => {
     expect(requests[0].init.method).toBe('POST')
   })
 
+  it('asks the app to bring the main window to the actual size', async () => {
+    const requests = answer(200)
+
+    expect(await new Api('key').actualSize()).toBe(true)
+
+    expect(requests[0].url).toBe('/api/window-size')
+    expect(JSON.parse(String(requests[0].init.body))).toEqual({ actual: true })
+  })
+
   // A link to a Windows page names the place; the app knows what to start for it.
   it('asks the app to open a Windows page', async () => {
     const requests = answer(200)

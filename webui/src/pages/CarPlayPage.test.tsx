@@ -1,0 +1,155 @@
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
+import { Shell } from '../shell/Shell'
+import { appState, FakeBackend } from '../testing'
+
+afterEach(cleanup)
+
+/** The shell on the CarPlay page, once the settings are in. */
+async function carplay(backend = new FakeBackend(), state = appState({ phase: 'active', canShowCarPlay: true })) {
+  render(<Shell state={state} backend={backend} />)
+  await screen.findByRole('textbox', { name: 'Network' })
+  fireEvent.click(screen.getByRole('tab', { name: 'CarPlay' }))
+  return backend
+}
+
+const textbox = (name: string) => screen.getByRole('textbox', { name }) as HTMLInputElement
+const radio = (group: string, name: string) => within(screen.getByRole('radiogroup', { name: group })).getByRole('radio', { name })
+const chosen = (group: string) =>
+  within(screen.getByRole('radiogroup', { name: group }))
+    .getAllByRole('radio')
+    .filter((button) => button.getAttribute('aria-checked') === 'true')
+    .map((button) => button.textContent)
+
+describe('CarPlay page, display', () => {
+  // display.width and display.height are blank in the file: the size the app runs at is the one chosen.
+  it('picks the preset of the size the app runs at, and saves a preset as both numbers', async () => {
+    const backend = await carplay()
+    expect(chosen('Size')).toEqual(['1280×720'])
+    expect(textbox('Width').placeholder).toBe('1280')
+    expect(textbox('Height').placeholder).toBe('720')
+
+    fireEvent.click(radio('Size', '1920×720'))
+
+    await waitFor(() => expect(backend.saved).toEqual([{ 'display.width': '1920', 'display.height': '720' }]))
+    expect(chosen('Size')).toEqual(['1920×720'])
+    expect(textbox('Width').value).toBe('1920')
+  })
+
+  it('saves a width typed in, or keeps it with the reason', async () => {
+    const backend = await carplay()
+
+    fireEvent.change(textbox('Width'), { target: { value: '1024' } })
+    fireEvent.keyDown(textbox('Width'), { key: 'Enter' })
+    await waitFor(() => expect(backend.saved).toEqual([{ 'display.width': '1024' }]))
+
+    backend.nextOutcome = { ok: false, errors: { 'display.width': 'Enter an even number of pixels' } }
+    fireEvent.change(textbox('Width'), { target: { value: '1025' } })
+    fireEvent.keyDown(textbox('Width'), { key: 'Enter' })
+
+    expect(await screen.findByText('Enter an even number of pixels')).toBeTruthy()
+    expect(textbox('Width').value).toBe('1025')
+    expect(chosen('Size')).toEqual([])
+  })
+
+  // The window was resized: Actual size brings it back to one screen pixel per picture pixel.
+  it('offers Actual size while the window differs from the picture', async () => {
+    const mainWindow = { width: 1024, height: 576, pictureWidth: 1280, pictureHeight: 720 }
+    const backend = await carplay(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
+
+    const actual = screen.getByRole('button', { name: 'Actual size' })
+    expect(actual.title).toBe('Resize the window to 1280×720, one screen pixel per picture pixel')
+    fireEvent.click(actual)
+
+    expect(backend.actualSizes).toBe(1)
+  })
+
+  it('has no Actual size while the window is at it', async () => {
+    const mainWindow = { width: 1280, height: 720, pictureWidth: 1280, pictureHeight: 720 }
+    await carplay(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
+
+    expect(screen.queryByRole('button', { name: 'Actual size' })).toBeNull()
+  })
+
+  it('saves the frame rate, 60 until one is set', async () => {
+    const backend = await carplay()
+    expect(chosen('Frame rate')).toEqual(['60'])
+
+    fireEvent.click(radio('Frame rate', '30'))
+
+    await waitFor(() => expect(backend.saved).toEqual([{ 'display.fps': '30' }]))
+  })
+
+  it('saves the physical size in millimetres or pixels per inch', async () => {
+    const backend = await carplay()
+    expect(textbox('Physical width').placeholder).toBe('200')
+    expect(textbox('Physical height').placeholder).toBe('auto')
+    expect(textbox('Pixels per inch').placeholder).toBe('auto')
+
+    for (const [name, value] of [['Physical width', '310'], ['Physical height', '175'], ['Pixels per inch', '160']]) {
+      fireEvent.change(textbox(name), { target: { value } })
+      fireEvent.blur(textbox(name))
+    }
+
+    await waitFor(() =>
+      expect(backend.saved).toEqual([
+        { 'display.physical.width.mm': '310' },
+        { 'display.physical.height.mm': '175' },
+        { 'display.ppi': '160' },
+      ]),
+    )
+  })
+})
+
+describe('CarPlay page, look', () => {
+  it("shows the app's defaults while nothing is set", async () => {
+    await carplay()
+
+    expect(chosen('Theme')).toEqual(['Windows'])
+    expect(chosen('Dock')).toEqual(['Auto'])
+    expect(chosen('Driving side')).toEqual(['Left-hand'])
+    expect(chosen('Screen edges')).toEqual(['Wallpaper'])
+    expect(chosen('Corners')).toEqual(['Square'])
+  })
+
+  it('saves each choice under its key', async () => {
+    const backend = await carplay()
+
+    fireEvent.click(radio('Theme', 'Dark'))
+    fireEvent.click(radio('Dock', 'Driver side'))
+    fireEvent.click(radio('Driving side', 'Right-hand'))
+    fireEvent.click(radio('Screen edges', 'Black'))
+    fireEvent.click(radio('Corners', 'Rounded'))
+
+    await waitFor(() =>
+      expect(backend.saved).toEqual([
+        { 'display.theme': 'dark' },
+        { 'display.dock': 'driver' },
+        { 'display.right.hand.drive': 'true' },
+        { 'display.safe.draw.outside': 'false' },
+        { 'display.corners': 'rounded' },
+      ]),
+    )
+  })
+})
+
+describe('CarPlay page, safe area', () => {
+  it('saves each edge, and gives a refused one its reason under the frame', async () => {
+    const backend = await carplay()
+    expect(textbox('Top').placeholder).toBe('0')
+
+    fireEvent.change(textbox('Top'), { target: { value: '40' } })
+    fireEvent.blur(textbox('Top'))
+    await waitFor(() => expect(backend.saved).toEqual([{ 'display.safe.top': '40' }]))
+
+    backend.nextOutcome = {
+      ok: false,
+      errors: { 'display.safe.left': 'The left and right safe areas together must be less than the width (1280 px)' },
+    }
+    fireEvent.change(textbox('Left'), { target: { value: '1400' } })
+    fireEvent.blur(textbox('Left'))
+
+    expect(await screen.findByText('The left and right safe areas together must be less than the width (1280 px)')).toBeTruthy()
+    expect(textbox('Left').className).toContain('err')
+  })
+})

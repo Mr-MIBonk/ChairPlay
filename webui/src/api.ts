@@ -44,6 +44,8 @@ export interface AppState {
   reconnectPending: string[]
   restartPending: string[]
   windows: Record<WindowName, WindowState>
+  /** The main window's client area and the picture's size, in screen pixels; null without a main window. */
+  mainWindow: { width: number; height: number; pictureWidth: number; pictureHeight: number } | null
   /** Null when the app has no controls window. */
   controls: ControlsState | null
   setup: {
@@ -61,6 +63,8 @@ export interface SettingsData {
   passphraseSet: boolean
   applies: Record<string, Applies>
   display: { width: number; height: number }
+  /** The sound devices Java Sound lists, by name; empty when it fails. */
+  audio: { outputs: string[]; inputs: string[] }
 }
 
 export type SaveOutcome =
@@ -85,6 +89,8 @@ export interface Backend {
   altscreen(content: AltscreenContent): Promise<boolean>
   /** Opens a Windows page or the MFi folder; false when Windows did not open it. */
   open(place: WindowsPlace): Promise<boolean>
+  /** Resizes the main window to one screen pixel per picture pixel; false without a main window. */
+  actualSize(): Promise<boolean>
 }
 
 export class ApiError extends Error {}
@@ -152,6 +158,10 @@ export class Api implements Backend {
 
   async open(place: WindowsPlace): Promise<boolean> {
     return (await this.request('POST', 'open', { place })).status === 200
+  }
+
+  async actualSize(): Promise<boolean> {
+    return (await this.request('POST', 'window-size', { actual: true })).status === 200
   }
 
   /**

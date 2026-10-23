@@ -124,6 +124,13 @@ class UiServerTest {
         assertEquals(400, post("/api/open", "{}").statusCode())
         assertEquals(listOf("open bluetooth", "open cmd.exe"), api.calls.drop(11))
 
+        // The CarPlay page's Actual size.
+        assertEquals(200, post("/api/window-size", """{"actual":true}""").statusCode())
+        assertEquals(400, post("/api/window-size", "{}").statusCode())
+        api.mainWindow = false
+        assertEquals(404, post("/api/window-size", """{"actual":true}""").statusCode())
+        assertEquals(listOf("actual size", "actual size"), api.calls.drop(13))
+
         api.connectError = "Enter the Wi-Fi network first"
         val refused = post("/api/connect", "{}")
         assertEquals(409, refused.statusCode())
@@ -208,6 +215,11 @@ class UiServerTest {
         override fun open(place: String): Boolean {
             calls += "open $place"
             return place == "bluetooth"
+        }
+        var mainWindow = true
+        override fun actualSize(): Boolean {
+            calls += "actual size"
+            return mainWindow
         }
         override fun awaitChange(seen: Long, timeoutMillis: Long): Long = synchronized(lock) {
             if (version == seen) lock.wait(timeoutMillis)

@@ -1,5 +1,5 @@
 import { describe as group, expect, it } from 'vitest'
-import { describe, errorHint } from './status'
+import { describe, errorHint, errorKind } from './status'
 
 group('describe', () => {
   it('names each phase of the connection', () => {
@@ -13,6 +13,21 @@ group('describe', () => {
   it('asks a new iPhone to accept CarPlay, and not a known one', () => {
     expect(describe({ phase: 'joining', knownIphone: false }).detail).toContain('Accept CarPlay')
     expect(describe({ phase: 'joining', knownIphone: true }).detail).not.toContain('Accept CarPlay')
+  })
+})
+
+group('errorKind', () => {
+  it('tells what a bring-up error is about', () => {
+    expect(errorKind('Offline MFi directory is missing or invalid')).toBe('mfi')
+    expect(errorKind('RFCOMM connect failed: 10060')).toBe('bluetooth')
+    expect(errorKind('no paired iPhone found')).toBe('bluetooth')
+    expect(errorKind('Wi-Fi adapter has no usable address')).toBe('wifi')
+    expect(errorKind('Connection reset')).toBe('other')
+  })
+
+  // The iPhone answered over Bluetooth and then did not come onto the network: a Wi-Fi problem, most often the password.
+  it('takes a join that timed out for a Wi-Fi problem, though it names Bluetooth', () => {
+    expect(errorKind('Bluetooth control ended TIMEOUT before the iPhone joined over Wi-Fi')).toBe('join')
   })
 })
 

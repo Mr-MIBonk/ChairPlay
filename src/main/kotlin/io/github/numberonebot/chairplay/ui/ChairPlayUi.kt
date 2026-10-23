@@ -26,6 +26,8 @@ class ChairPlayUi(
     windows: Map<String, UiWindow> = emptyMap(),
     /** The controls window's buttons; with them, [controlsView] is the page that shows them. */
     controls: UiControls? = null,
+    /** The main window, for the CarPlay page's Actual size. */
+    mainWindow: UiMainWindow? = null,
 ) : Closeable {
     val model = UiModel(config.wifi != null, config.autoconnect, config.autoshow)
 
@@ -45,9 +47,10 @@ class ChairPlayUi(
         config.autoconnect,
         windows,
         controls,
+        mainWindow = mainWindow,
     )
 
-    /** Tells the page that a window was shown or hidden. */
+    /** Tells the page that a window was shown, hidden, or resized. */
     fun windowsChanged() = controller.windowsChanged()
 
     /** Tells the controls window's page that what it shows changed: the volume, the AltScreen's content, Alt held. */

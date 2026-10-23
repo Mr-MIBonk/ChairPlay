@@ -52,6 +52,7 @@ import io.github.numberonebot.chairplay.session.redactTrace
 import io.github.numberonebot.chairplay.ui.ChairPlayUi
 import io.github.numberonebot.chairplay.ui.FirewallStatus
 import io.github.numberonebot.chairplay.ui.UiActions
+import io.github.numberonebot.chairplay.ui.UiMainWindow
 import io.github.numberonebot.chairplay.ui.UiControls
 import org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT
 import org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_ALT
@@ -162,6 +163,12 @@ private fun probeBluetooth(address: String?): Boolean {
 private fun VideoWindow.asUiWindow() = object : UiWindow {
     override val visible get() = this@asUiWindow.visible
     override fun setShown(shown: Boolean) = this@asUiWindow.setShown(shown)
+}
+
+private fun VideoWindow.asUiMainWindow() = object : UiMainWindow {
+    override val width get() = framebufferSize.width
+    override val height get() = framebufferSize.height
+    override fun resizeTo(width: Int, height: Int) = this@asUiMainWindow.resizeTo(width, height)
 }
 
 private fun runCarPlay() {
@@ -359,7 +366,9 @@ private fun runCarPlay() {
     }, window::repaint, ::log, buildMap {
         altscreen?.let { put("altscreen", it.asUiWindow()) }
         put("controls", controlsWindow.asUiWindow())
-    }, pageControls)
+    }, pageControls, window.asUiMainWindow())
+    // The CarPlay page offers Actual size while the window's size differs from the picture's.
+    window.onResize = { ui.windowsChanged() }
     controlsChanged.set { ui.controlsChanged() }
     giveKeysBack.set {
         ui.controlsView?.giveKeysBack()

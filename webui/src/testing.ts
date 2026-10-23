@@ -15,6 +15,7 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     reconnectPending: [],
     restartPending: [],
     windows: { altscreen: { available: true, visible: true }, controls: { available: true, visible: true } },
+    mainWindow: null,
     controls: {
       keys: {
         'knob.left': 'Left', 'knob.right': 'Right', 'knob.up': 'Up', 'knob.down': 'Down', 'knob.next': 'Tab',
@@ -71,6 +72,7 @@ export class FakeBackend implements Backend {
       'altscreen.height': 'restart',
     },
     display: { width: 1280, height: 720 },
+    audio: { outputs: ['Speakers (Realtek Audio)', 'Headphones (USB Audio)'], inputs: ['Microphone (Realtek Audio)'] },
   }
 
   async settings() {
@@ -127,6 +129,13 @@ export class FakeBackend implements Backend {
 
   async open(place: WindowsPlace) {
     this.opened.push(place)
+    return true
+  }
+
+  actualSizes = 0
+
+  async actualSize() {
+    this.actualSizes++
     return true
   }
 }

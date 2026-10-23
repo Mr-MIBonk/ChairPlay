@@ -1,9 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Api, tokenFrom, type AppState } from './api'
-import { Note } from './components'
 import { ControlsScreen } from './ControlsScreen'
-import { SettingsScreen } from './SettingsScreen'
-import { StartScreen } from './StartScreen'
+import { Shell } from './shell/Shell'
 
 export function App() {
   const token = tokenFrom(window.location.search)
@@ -14,32 +12,24 @@ export function App() {
   useEffect(() => (api ? api.subscribe(setState, setLost) : undefined), [api])
 
   if (!api) {
-    return (
-      <div className="screen centered">
-        <p className="muted">No key in the address. Open the address printed in the console.</p>
-      </div>
-    )
+    return <p className="app-message">No key in the address. Open the address printed in the console.</p>
   }
-  // The controls window opens /controls; everything else is the main window's start and settings screens.
+  // The controls window opens /controls; everything else is the main window's settings.
   const controlsPage = window.location.pathname === '/controls'
   if (controlsPage) {
     return state ? <ControlsScreen state={state} backend={api} /> : <div className="controls-screen" />
   }
   if (!state) {
-    return (
-      <div className="screen centered">
-        <p className="muted">{lost ? 'The app is not answering.' : 'Loading…'}</p>
-      </div>
-    )
+    return <p className="app-message">{lost ? 'The app is not answering.' : 'Loading…'}</p>
   }
   return (
     <>
+      <Shell state={state} backend={api} />
       {lost && (
-        <div className="lost">
-          <Note tone="warn">Lost contact with the app; retrying.</Note>
+        <div className="lost" role="status">
+          Lost contact with the app. Trying again…
         </div>
       )}
-      {state.screen === 'settings' ? <SettingsScreen state={state} backend={api} /> : <StartScreen state={state} backend={api} />}
     </>
   )
 }

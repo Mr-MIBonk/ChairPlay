@@ -1,0 +1,59 @@
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { afterEach, describe, expect, it } from 'vitest'
+import { Shell } from '../shell/Shell'
+import { appState, FakeBackend } from '../testing'
+
+afterEach(cleanup)
+
+/** The shell on the Audio page, once the settings are in. */
+async function audio(backend = new FakeBackend()) {
+  render(<Shell state={appState({ phase: 'active', canShowCarPlay: true })} backend={backend} />)
+  await screen.findByRole('textbox', { name: 'Network' })
+  fireEvent.click(screen.getByRole('tab', { name: 'Audio' }))
+  return backend
+}
+
+const select = (name: string) => screen.getByRole('combobox', { name }) as HTMLSelectElement
+const options = (name: string) => within(select(name)).getAllByRole('option').map((option) => option.textContent)
+
+describe('Audio page', () => {
+  it('lists the devices after the Windows default, which is chosen while none is set', async () => {
+    await audio()
+
+    expect(options('Output')).toEqual(['Windows default', 'Speakers (Realtek Audio)', 'Headphones (USB Audio)'])
+    expect(options('Microphone')).toEqual(['Windows default', 'Microphone (Realtek Audio)'])
+    expect(select('Output').value).toBe('default')
+  })
+
+  it('saves a device by its name, and the Windows default as default', async () => {
+    const backend = await audio()
+
+    fireEvent.change(select('Output'), { target: { value: 'Headphones (USB Audio)' } })
+    fireEvent.change(select('Microphone'), { target: { value: 'default' } })
+
+    await waitFor(() =>
+      expect(backend.saved).toEqual([{ 'audio.output': 'Headphones (USB Audio)' }, { 'audio.input': 'default' }]),
+    )
+  })
+
+  // A device unplugged, or a part of a name written in the file, stays chosen rather than turning into the default.
+  it('keeps a saved device the list does not have', async () => {
+    const backend = new FakeBackend()
+    backend.data = { ...backend.data, values: { ...backend.data.values, 'audio.output': 'Car stereo' } }
+    await audio(backend)
+
+    expect(select('Output').value).toBe('Car stereo')
+    expect(options('Output')).toContain('Car stereo (not found)')
+  })
+
+  it('saves echo cancellation, marked as experimental', async () => {
+    const backend = await audio()
+    const echo = screen.getByRole('checkbox', { name: 'Echo cancellation for calls through speakers' }) as HTMLInputElement
+    expect(echo.checked).toBe(false)
+    expect(screen.getByText('Experimental')).toBeTruthy()
+
+    fireEvent.click(echo)
+
+    await waitFor(() => expect(backend.saved).toEqual([{ 'audio.echo.cancellation': 'true' }]))
+  })
+})

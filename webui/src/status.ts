@@ -38,17 +38,33 @@ export function describe(state: Pick<AppState, 'phase' | 'knownIphone'>): Status
   }
 }
 
+/**
+ * What a bring-up error is about: the MFi files, an iPhone that answered over Bluetooth but did not join the Wi-Fi
+ * (most often a wrong password), Bluetooth, the Wi-Fi, or something else.
+ */
+export type ErrorKind = 'mfi' | 'join' | 'bluetooth' | 'wifi' | 'other'
+
+export function errorKind(message: string): ErrorKind {
+  const text = message.toLowerCase()
+  if (text.includes('mfi') || text.includes('identity.pk8') || text.includes('certificate.p7b')) return 'mfi'
+  // WirelessBootstrap's "Bluetooth control ended … before the iPhone joined over Wi-Fi": checked before Bluetooth.
+  if (text.includes('before the iphone joined')) return 'join'
+  if (text.includes('rfcomm') || text.includes('bluetooth') || text.includes('paired')) return 'bluetooth'
+  if (text.includes('wi-fi') || text.includes('wlan') || text.includes('network') || text.includes('ssid')) return 'wifi'
+  return 'other'
+}
+
 /** A hint for an error the bring-up reported, or null when there is none to give. */
 export function errorHint(message: string, setup: Pick<AppState['setup'], 'mfiFolder'>): string | null {
-  const text = message.toLowerCase()
-  if (text.includes('mfi') || text.includes('identity.pk8') || text.includes('certificate.p7b')) {
-    return `Put the MFi identity files (identity.pk8 and certificate.p7b) into ${setup.mfiFolder}.`
+  switch (errorKind(message)) {
+    case 'mfi':
+      return `Put the MFi identity files (identity.pk8 and certificate.p7b) into ${setup.mfiFolder}.`
+    case 'bluetooth':
+      return 'Check that the iPhone is paired in Windows Bluetooth settings, nearby, and has Bluetooth on.'
+    case 'join':
+    case 'wifi':
+      return 'Check the Wi-Fi network below, and that this PC is connected to it.'
+    case 'other':
+      return null
   }
-  if (text.includes('rfcomm') || text.includes('bluetooth') || text.includes('paired')) {
-    return 'Check that the iPhone is paired in Windows Bluetooth settings, nearby, and has Bluetooth on.'
-  }
-  if (text.includes('wi-fi') || text.includes('wlan') || text.includes('network') || text.includes('ssid')) {
-    return 'Check the Wi-Fi network below, and that this PC is connected to it.'
-  }
-  return null
 }

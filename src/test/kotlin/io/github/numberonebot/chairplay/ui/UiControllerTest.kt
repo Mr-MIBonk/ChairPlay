@@ -28,6 +28,7 @@ class UiControllerTest {
         controls: UiControls? = null,
         launch: (List<String>) -> Unit = { launched += it },
         audio: () -> AudioDeviceNames = { AudioDeviceNames(listOf("Speakers (Realtek)"), listOf("Microphone Array")) },
+        mainWindow: UiMainWindow? = null,
     ): UiController {
         Files.writeString(file, settings)
         val values = SettingsFile(file).read()
@@ -45,7 +46,45 @@ class UiControllerTest {
             override fun reconnect() {
                 reconnects.incrementAndGet()
             }
-        }, logged::add, autoconnect, windows, controls, launch, audio)
+        }, logged::add, autoconnect, windows, controls, launch, audio, mainWindow)
+    }
+
+    /** A main window at [width] x [height] that records the sizes it was asked for. */
+    private class FakeMainWindow(override var width: Int, override var height: Int) : UiMainWindow {
+        val asked = mutableListOf<String>()
+        override fun resizeTo(width: Int, height: Int) {
+            asked += "${width}x$height"
+        }
+    }
+
+    // The CarPlay page offers Actual size while the window's client area differs from the picture the app asked for.
+    @Test
+    fun `the state carries the main window's size and the picture's`() {
+        val ui = controller(mainWindow = FakeMainWindow(1024, 576))
+
+        assertEquals(mapOf("width" to 1024, "height" to 576, "pictureWidth" to 1280, "pictureHeight" to 720), ui.state()["mainWindow"])
+        assertNull(controller().state()["mainWindow"])
+    }
+
+    @Test
+    fun `Actual size resizes the main window to one screen pixel per picture pixel`() {
+        val window = FakeMainWindow(1024, 576)
+        val ui = controller(mainWindow = window)
+
+        assertTrue(ui.actualSize())
+
+        assertEquals(listOf("1280x720"), window.asked)
+        assertFalse(controller().actualSize())
+    }
+
+    @Test
+    fun `a main window resized moves the version on`() {
+        val ui = controller(mainWindow = FakeMainWindow(1024, 576))
+        val before = ui.version
+
+        ui.windowsChanged()
+
+        assertTrue(ui.version > before)
     }
 
     /** Controls that record what the page asked of them. */

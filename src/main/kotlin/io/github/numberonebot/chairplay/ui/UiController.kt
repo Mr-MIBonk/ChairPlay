@@ -28,6 +28,16 @@ interface UiWindow {
     fun setShown(shown: Boolean)
 }
 
+/** The main window, for the CarPlay page's Actual size. */
+interface UiMainWindow {
+    /** The client area, in screen pixels. */
+    val width: Int
+    val height: Int
+
+    /** Safe from any thread: resizes the client area to [width] x [height] screen pixels soon after. */
+    fun resizeTo(width: Int, height: Int)
+}
+
 /** The controls window's page: the car's buttons, and what it shows beside them. Safe from any thread. */
 interface UiControls {
     /**
@@ -91,6 +101,9 @@ interface UiApi {
     /** Opens the Windows page or folder [place] names ([UiController.open]); false when there is none or it failed. */
     fun open(place: String): Boolean
 
+    /** Resizes the main window to one screen pixel per picture pixel; false when there is no main window. */
+    fun actualSize(): Boolean
+
     /** Waits up to [timeoutMillis] for [version] to differ from [seen], and returns it. */
     fun awaitChange(seen: Long, timeoutMillis: Long): Long
 }
@@ -117,6 +130,8 @@ class UiController(
     private val audioDevices: () -> AudioDeviceNames = {
         AudioDeviceNames(AudioDevices.outputs().map { it.name }, AudioDevices.inputs().map { it.name })
     },
+    /** The main window, whose size the CarPlay page compares with the picture's; null in tests without one. */
+    private val mainWindow: UiMainWindow? = null,
 ) : UiApi {
     /** The settings as the app started with them, against which a change waits for the next start. */
     private val startup: Map<String, String> = settings.read()
@@ -139,8 +154,15 @@ class UiController(
         model.addListener { changed() }
     }
 
-    /** Tells the page that a window was shown or hidden, by its trigger or by its own close button. */
+    /** Tells the page that a window was shown or hidden, by its trigger or by its own close button, or resized. */
     fun windowsChanged() = changed()
+
+    /** The picture is the display size the app started with, which a change of display.width waits a restart for. */
+    override fun actualSize(): Boolean {
+        val window = mainWindow ?: return false
+        window.resizeTo(setup.displayWidth, setup.displayHeight)
+        return true
+    }
 
     override fun window(name: String, visible: Boolean): Boolean {
         val window = windows[name] ?: return false
@@ -216,6 +238,9 @@ class UiController(
             "windows" to WINDOWS.associateWith { name ->
                 val window = windows[name]
                 mapOf("available" to (window != null), "visible" to (window?.visible ?: false))
+            },
+            "mainWindow" to mainWindow?.let {
+                mapOf("width" to it.width, "height" to it.height, "pictureWidth" to setup.displayWidth, "pictureHeight" to setup.displayHeight)
             },
             "controls" to controls?.state(),
             "reconnectPending" to state.reconnectPending.sorted(),

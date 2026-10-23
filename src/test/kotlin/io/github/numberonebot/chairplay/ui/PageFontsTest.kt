@@ -4,7 +4,10 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/** The built page (the Vite build in the jar's ui/ folder) draws its text with the HUD's own font files. */
+/**
+ * The built page (the Vite build in the jar's ui/ folder) draws its accents with the HUD's own font file; its text is
+ * in Windows' Segoe UI, which it loads no file for.
+ */
 class PageFontsTest {
     private val page = classpathAssets()
 
@@ -25,12 +28,8 @@ class PageFontsTest {
     }
 
     @Test
-    fun `the page loads the HUD's fonts and no others`() {
-        val hud = mapOf(
-            ("Inter" to "400") to "Inter-Regular.ttf",
-            ("Inter" to "600") to "Inter-SemiBold.ttf",
-            ("Roboto Flex Wide" to "600") to "RobotoFlexWide-SemiBold.ttf",
-        )
+    fun `the page loads the HUD's accent font and no others`() {
+        val hud = mapOf(("Roboto Flex Wide" to "600") to "RobotoFlexWide-SemiBold.ttf")
         val faces = faces()
         assertEquals(hud.keys, faces.keys)
         for ((face, file) in hud) {

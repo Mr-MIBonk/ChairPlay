@@ -1,0 +1,162 @@
+// The toolbar's and the section list's icons, drawn as in desktop-docs/mockups/desktop-ui.html.
+import { useId } from 'react'
+
+/** A mask id of the icon's own: two copies of one icon on a page must not share one. */
+function useMaskId(name: string) {
+  return `${name}-${useId().replace(/[^a-zA-Z0-9_-]/g, '')}`
+}
+
+/** CarPlay's own home button: a light disc with a rounded square drawn out of it. */
+export function CarPlayIcon() {
+  const mask = useMaskId('carplay')
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <defs>
+        <mask id={mask}>
+          <rect width="16" height="16" fill="#fff" />
+          <rect x="5.1" y="5.1" width="5.8" height="5.8" rx="1.6" fill="none" stroke="#000" strokeWidth="1.1" />
+        </mask>
+      </defs>
+      <circle cx="8" cy="8" r="7.3" fill="currentColor" mask={`url(#${mask})`} />
+    </svg>
+  )
+}
+
+/** An instrument cluster: a long filled panel with the speedometer and the rev counter cut out at its ends. */
+export function AltScreenIcon() {
+  const mask = useMaskId('alt')
+  return (
+    <svg className="wide" viewBox="0 0 26 16" aria-hidden="true">
+      <defs>
+        <mask id={mask}>
+          <rect width="26" height="16" fill="#fff" />
+          <circle cx="6.2" cy="8" r="4.3" fill="#000" />
+          <circle cx="19.8" cy="8" r="4.3" fill="#000" />
+        </mask>
+      </defs>
+      <rect x="0.2" y="1.6" width="25.6" height="12.8" rx="4" fill="currentColor" mask={`url(#${mask})`} />
+    </svg>
+  )
+}
+
+/** A filled knob with its pointer cut out, inside a scale: the controls window. */
+export function ControlsIcon() {
+  const mask = useMaskId('pad')
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <defs>
+        <mask id={mask}>
+          <rect width="16" height="16" fill="#fff" />
+          <path d="M8 5.6V8.8" stroke="#000" strokeWidth="1.3" strokeLinecap="round" />
+        </mask>
+      </defs>
+      <path d="M2.7 13.4A6.9 6.9 0 1 1 13.3 13.4" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <circle cx="8" cy="9" r="4.6" fill="currentColor" mask={`url(#${mask})`} />
+    </svg>
+  )
+}
+
+export function ReconnectIcon() {
+  return (
+    <svg viewBox="0 0 14 14" aria-hidden="true">
+      <path d="M11.5 7A4.5 4.5 0 1 1 9.8 3.5" fill="none" stroke="currentColor" strokeWidth="1.4" />
+      <path d="M9 1.5l2 2.2-2.6.9z" fill="currentColor" />
+    </svg>
+  )
+}
+
+/** Power off, in the manner of Material's PowerOff: a filled plug struck through by a diagonal with a gap round it. */
+export function DisconnectIcon() {
+  const mask = useMaskId('unplug')
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <defs>
+        <mask id={mask}>
+          <rect width="16" height="16" fill="#fff" />
+          <path d="M2.2 1.4 14.6 13.8" stroke="#000" strokeWidth="4.4" />
+        </mask>
+      </defs>
+      <g mask={`url(#${mask})`}>
+        <path d="M5.6 1.4v3M10.4 1.4v3" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+        <path d="M3.6 4.4h8.8v2.8a4.4 4.4 0 0 1-3.4 4.3v3.1H7v-3.1A4.4 4.4 0 0 1 3.6 7.2z" fill="currentColor" />
+      </g>
+      <path d="M2.2 1.4 14.6 13.8" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+export function WifiIcon() {
+  return (
+    <svg viewBox="0 0 14 14" aria-hidden="true">
+      <path d="M1.5 5.5a8 8 0 0 1 11 0M3.5 7.8a5 5 0 0 1 7 0M5.5 10a2 2 0 0 1 3 0" fill="none" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  )
+}
+
+/** The CarPlay home button in lines, like the other section icons. */
+export function CarPlayLineIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="8" cy="8" r="6.6" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      <rect x="5.2" y="5.2" width="5.6" height="5.6" rx="1.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  )
+}
+
+/** The cluster in lines for the section list; the toolbar's has filled gauges. */
+export function AltScreenLineIcon() {
+  return (
+    <svg className="wide" viewBox="0 0 26 16" aria-hidden="true">
+      <rect x="0.8" y="2.2" width="24.4" height="11.6" rx="3.6" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      <circle cx="5.7" cy="8" r="3.3" fill="none" stroke="currentColor" strokeWidth="1.2" />
+      <circle cx="20.3" cy="8" r="3.3" fill="none" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  )
+}
+
+export function KeyboardIcon() {
+  return (
+    <svg viewBox="0 0 14 14" aria-hidden="true">
+      <rect x="1" y="3.5" width="12" height="7" rx="1" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M3.5 6h1M6.5 6h1M9.5 6h1M4.5 8.3h5" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  )
+}
+
+export function AudioIcon() {
+  return (
+    <svg viewBox="0 0 14 14" aria-hidden="true">
+      <path d="M2 5h2.5L8 2v10L4.5 9H2z" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M10 5a3 3 0 0 1 0 4" fill="none" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  )
+}
+
+export function AboutIcon() {
+  return (
+    <svg viewBox="0 0 14 14" aria-hidden="true">
+      <circle cx="7" cy="7" r="5.5" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path d="M7 6.2v4" stroke="currentColor" strokeWidth="1.4" />
+      <circle cx="7" cy="4.2" r=".9" fill="currentColor" />
+    </svg>
+  )
+}
+
+export function EyeIcon() {
+  return (
+    <svg viewBox="0 0 16 16" aria-hidden="true">
+      <path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <circle cx="8" cy="8" r="2" fill="currentColor" />
+    </svg>
+  )
+}
+
+/** Windows' shield, on a button that asks for the administrator's consent: blue and yellow quarters. */
+export function ShieldIcon() {
+  return (
+    <svg className="shield" viewBox="0 0 12 14" aria-hidden="true">
+      <path d="M6 .8 11 2.6V6.6c0 3.2-2.1 5.6-5 6.6C3.1 12.2 1 9.8 1 6.6V2.6z" fill="#2f6fd6" />
+      <path d="M6 .8V7H1V2.6zM6 7h5c-.2 2.9-2.2 5.2-5 6.2z" fill="#f5c400" />
+    </svg>
+  )
+}

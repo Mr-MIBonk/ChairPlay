@@ -529,10 +529,11 @@ val npmCi by tasks.registering(Exec::class) {
     outputs.file(webui.file("node_modules/.package-lock.json"))
 }
 
-// The page draws with the HUD's font files, which Vite copies from the app's resources.
+// The page draws with the HUD's font files and shows the window's icon, which Vite copies from the app's resources.
 val webuiSources = files(
     webui.dir("src"), webui.file("index.html"), webui.file("vite.config.ts"), webui.file("tsconfig.json"),
     webui.file("package-lock.json"), layout.projectDirectory.dir("src/main/resources/fonts"),
+    layout.projectDirectory.dir("src/main/resources/icons"),
 )
 
 val webuiTypecheck by tasks.registering(Exec::class) {

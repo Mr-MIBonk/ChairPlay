@@ -1,21 +1,7 @@
 /*
- * Dark like the HUD (HudPainter.kt): black ground, grey cards, its blue and green, large controls for a car's
- * screen. Text is in Inter, the few figures that should stand out in the wide Roboto Flex, from the same files.
+ * Dark like the HUD (HudPainter.kt): black ground, its blue, green, orange, and red. Text is in Windows' own Segoe UI,
+ * the accents in the HUD's wide Roboto Flex, from the same file.
  */
-@font-face {
-  font-family: 'Inter';
-  font-weight: 400;
-  font-display: block;
-  src: url('@fonts/Inter-Regular.ttf') format('truetype');
-}
-
-@font-face {
-  font-family: 'Inter';
-  font-weight: 600;
-  font-display: block;
-  src: url('@fonts/Inter-SemiBold.ttf') format('truetype');
-}
-
 @font-face {
   font-family: 'Roboto Flex Wide';
   font-weight: 600;
@@ -25,25 +11,17 @@
 
 :root {
   --bg: #000;
-  --card: #1c1c1e;
-  --card-raised: #2c2c2e;
-  --separator: #38383a;
   --text: #fff;
   --muted: #9a9aa0;
   --accent: #0a84ff;
-  --accent-pressed: #0060df;
   --green: #30d158;
   --orange: #ff9f0a;
   --red: #ff453a;
-  --radius: 14px;
-  --wide: 'Roboto Flex Wide', 'Inter', sans-serif;
+  --wide: 'Roboto Flex Wide', 'Segoe UI', sans-serif;
   color-scheme: dark;
-  font-family: 'Inter', sans-serif;
-  font-size: 16px;
-  line-height: 1.4;
+  font: 13px/18px 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
   color: var(--text);
   background: var(--bg);
-  -webkit-font-smoothing: antialiased;
 }
 
 * {
@@ -116,624 +94,26 @@ code {
   user-select: text;
 }
 
-.screen {
-  max-width: 1100px;
-  margin: 0 auto;
-  padding: 20px 24px 32px;
+/* What the page says before the app's state is in, or without the key in its address */
+.app-message {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.centered {
+  align-items: center;
+  justify-content: center;
   min-height: 100vh;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-}
-
-.topbar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 48px;
-}
-
-.topbar-end {
-  justify-content: flex-end;
-}
-
-.topbar-title {
-  margin: 0;
-  font-family: var(--wide);
-  font-size: 20px;
-  font-weight: 600;
-}
-
-.topbar-spacer {
-  width: 96px;
-}
-
-.columns {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 16px;
-  align-items: start;
-}
-
-@media (max-width: 760px) {
-  .columns {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .screen {
-    padding: 16px;
-  }
-}
-
-.card {
-  background: var(--card);
-  border-radius: var(--radius);
-  padding: 18px 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  border: 1px solid transparent;
-}
-
-.card.attention {
-  border-color: var(--orange);
-}
-
-.card-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--muted);
-}
-
-.card-text {
   margin: 0;
   color: var(--muted);
 }
 
-.muted {
-  color: var(--muted);
-}
-
-/* The status card */
-.status-line {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.status-title {
-  margin: 0;
-  font-family: var(--wide);
-  font-size: 26px;
-  font-weight: 600;
-}
-
-.status-detail {
-  margin: 0;
-  color: var(--muted);
-  font-size: 17px;
-}
-
-.dot {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  flex: none;
-}
-
-.dot-ok {
-  background: var(--green);
-}
-
-.dot-busy {
-  background: var(--accent);
-  animation: pulse 1.4s ease-in-out infinite;
-}
-
-.dot-warn {
-  background: var(--orange);
-}
-
-.dot-idle {
-  background: var(--muted);
-}
-
-@keyframes pulse {
-  50% {
-    opacity: 0.35;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .dot-busy {
-    animation: none;
-  }
-}
-
-.status-error {
-  background: var(--card-raised);
-  border-radius: 10px;
-  padding: 10px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  overflow-wrap: anywhere;
-}
-
-.hint {
-  color: var(--orange);
-}
-
-/* Controls */
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px;
-}
-
-.actions:empty {
-  display: none;
-}
-
-button {
-  font: inherit;
-  cursor: pointer;
-}
-
-.button,
-.button-secondary {
-  min-height: 44px;
-  padding: 0 20px;
-  border-radius: 12px;
-  border: none;
-  font-weight: 600;
-  font-size: 17px;
-}
-
-.button {
-  background: var(--accent);
-  color: #fff;
-}
-
-.button:active {
-  background: var(--accent-pressed);
-}
-
-.button:disabled {
-  background: var(--card-raised);
-  color: var(--muted);
-  cursor: default;
-}
-
-.button-secondary {
-  background: var(--card-raised);
-  color: var(--accent);
-}
-
-.button-quiet,
-.button-back {
-  min-height: 44px;
-  padding: 0 14px;
-  border-radius: 12px;
-  border: none;
-  background: transparent;
-  color: var(--accent);
-  font-size: 17px;
-}
-
-.button-quiet:active,
-.button-back:active {
-  background: var(--card-raised);
-}
-
-.button-back {
-  width: 96px;
-  text-align: left;
-  padding-left: 4px;
-}
-
-.link {
-  border: none;
-  background: none;
-  padding: 0;
-  color: var(--accent);
-  font-weight: 600;
-}
-
-/* Forms */
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.field label {
-  font-size: 14px;
-  color: var(--muted);
-}
-
-input,
-select {
-  font: inherit;
-  font-size: 17px;
-  color: var(--text);
-  background: var(--card-raised);
-  border: 1px solid transparent;
-  border-radius: 10px;
-  min-height: 44px;
-  padding: 0 12px;
-  width: 100%;
-}
-
-input::placeholder {
-  color: rgba(235, 235, 245, 0.3);
-}
-
-input:focus,
-select:focus {
-  outline: none;
-  border-color: var(--accent);
-}
-
-.input-with-button {
-  display: flex;
-  gap: 8px;
-}
-
-.field-error {
-  color: var(--red);
-  font-size: 14px;
-}
-
-.note {
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 15px;
-  background: var(--card-raised);
-}
-
-.note-ok {
-  color: var(--green);
-  background: transparent;
-  padding: 0;
-}
-
-.note-warn {
-  color: var(--orange);
-}
-
+/* Lost contact with the app: a strip over the window's bottom edge until it answers again */
 .lost {
-  position: sticky;
-  top: 0;
-  z-index: 1;
-  padding: 8px 24px 0;
-  background: var(--bg);
-}
-
-/* Settings rows */
-.row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  min-height: 52px;
-  padding: 4px 0;
-  border-bottom: 1px solid var(--separator);
-}
-
-.row:last-of-type {
-  border-bottom: none;
-}
-
-.row-text {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.row-label {
-  font-size: 17px;
-}
-
-.row-detail {
-  font-size: 14px;
-  color: var(--muted);
-}
-
-.switch {
-  appearance: none;
-  flex: none;
-  width: 51px;
-  min-height: 31px;
-  height: 31px;
-  padding: 0;
-  border-radius: 16px;
-  background: #39393d;
-  position: relative;
-  cursor: pointer;
-  transition: background 0.2s;
-  border: none;
-}
-
-.switch::after {
-  content: '';
-  position: absolute;
-  top: 2px;
-  left: 2px;
-  width: 27px;
-  height: 27px;
-  border-radius: 50%;
-  background: #fff;
-  transition: transform 0.2s;
-}
-
-.switch:checked {
-  background: var(--green);
-}
-
-.switch:checked::after {
-  transform: translateX(20px);
-}
-
-.switch:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-/* The settings screen: a sidebar listing the sections, the selected one beside it; on a narrow page, above it. */
-.settings-layout {
-  display: grid;
-  grid-template-columns: 280px minmax(0, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-
-.sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-/* The buttons that show and hide the AltScreen and controls windows: blue while the window is shown. */
-.window-toggles {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.window-toggle {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-  min-height: 92px;
-  padding: 14px;
-  border: none;
-  border-radius: var(--radius);
-  background: var(--card);
-  color: var(--text);
-  font-size: 15px;
-  font-weight: 600;
-  text-align: left;
-}
-
-.window-toggle-icon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--card-raised);
-}
-
-.window-toggle svg {
-  width: 22px;
-  height: 22px;
-}
-
-.window-toggle:active {
-  background: var(--card-raised);
-}
-
-.window-toggle[aria-pressed='true'] {
-  background: var(--accent);
-}
-
-.window-toggle[aria-pressed='true']:active {
-  background: var(--accent-pressed);
-}
-
-.window-toggle[aria-pressed='true'] .window-toggle-icon {
-  background: rgba(255, 255, 255, 0.2);
-}
-
-.window-toggle:disabled {
-  background: var(--card);
-  color: var(--muted);
-  opacity: 0.45;
-  cursor: default;
-}
-
-.window-toggle:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.section-list {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 6px;
-  background: var(--card);
-  border-radius: var(--radius);
-}
-
-.section-tab {
-  min-height: 48px;
-  padding: 0 14px;
-  border: none;
-  border-radius: 10px;
-  background: transparent;
-  color: var(--text);
-  font-size: 17px;
-  text-align: left;
-}
-
-.section-tab:active {
-  background: var(--card-raised);
-}
-
-.section-tab[aria-selected='true'] {
-  background: var(--card-raised);
-  box-shadow: inset 3px 0 0 var(--accent);
-  font-weight: 600;
-}
-
-.section-tab:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: -2px;
-}
-
-@media (max-width: 760px) {
-  .settings-layout {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 16px;
-  }
-  .window-toggle {
-    flex-direction: row;
-    align-items: center;
-    justify-content: flex-start;
-    min-height: 60px;
-    padding: 10px 14px;
-  }
-  .section-list {
-    flex-direction: row;
-  }
-  .section-tab {
-    flex: 1;
-    padding: 0 8px;
-    font-size: 15px;
-    text-align: center;
-  }
-  .section-tab[aria-selected='true'] {
-    box-shadow: inset 0 -3px 0 var(--accent);
-  }
-}
-
-.size-form {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding-top: 4px;
-}
-
-.size-inputs {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.size-inputs input {
-  flex: 0 1 110px;
-  min-width: 0;
-  text-align: center;
-  font-family: var(--wide);
-  font-weight: 600;
-}
-
-.times {
-  color: var(--muted);
-}
-
-/* Setup steps */
-.steps {
-  margin: 0;
-  padding-left: 22px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.steps li {
-  overflow-wrap: anywhere;
-}
-
-code {
-  font-family: 'Cascadia Mono', Consolas, ui-monospace, monospace;
-  font-size: 0.9em;
-  background: var(--card-raised);
-  border-radius: 6px;
-  padding: 1px 6px;
-}
-
-.ok {
-  color: var(--green);
-}
-
-.warn {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 6px 12px;
+  background: #3a2a10;
   color: var(--orange);
-}
-
-.commands {
-  margin-top: 8px;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-}
-
-.commands pre {
-  margin: 0;
-  width: 100%;
-  font-family: 'Cascadia Mono', Consolas, ui-monospace, monospace;
-  font-size: 12px;
-  background: var(--card-raised);
-  border-radius: 10px;
-  padding: 10px 12px;
-  white-space: pre-wrap;
-  overflow-wrap: anywhere;
-}
-
-/* The round CarPlay button in the top bar's left corner, on both screens. */
-.button-carplay {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  border: none;
-  border-radius: 50%;
-  background: var(--card-raised);
-  color: var(--text);
-  cursor: pointer;
-}
-
-.button-carplay:active {
-  background: var(--separator);
-}
-
-.button-carplay svg {
-  width: 22px;
-  height: 22px;
 }
 
 /*
@@ -1159,4 +539,741 @@ code {
 
 .controls-screen .key-row.two {
   grid-template-columns: repeat(2, 1fr);
+}
+
+/*
+ * The settings shell (shell/), as desktop-docs/mockups/desktop-ui.html draws it: a toolbar over a section list and the
+ * chosen page, dense for a mouse and fitting 800x480. Text in Windows' own Segoe UI; the accents (toolbar buttons,
+ * group headers, message heads) in the HUD's wide Roboto Flex. The page scrolls on its own, so its scrollbar runs
+ * from the toolbar to the window's bottom edge, and the window itself never does.
+ */
+html:has(.shell) {
+  overflow-y: hidden;
+}
+
+.shell {
+  --panel: #111113;
+  --raised: #1c1c1f;
+  --bar: #212125;
+  --field: #08080a;
+  /* A light ground in the fields and under the segmented groups, so they read as places to type and choose */
+  --ground: #121214;
+  --line: #2a2a2e;
+  --edge: #3a3a3f;
+  --text: #e9e9eb;
+  --muted: #8b8b92;
+  --dim: #5c5c63;
+  --accent-bg: rgba(10, 132, 255, 0.18);
+  /* Hover lightens a control's own colours with a thin white layer, so a button on an amber message stays amber */
+  --lighten: linear-gradient(rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.09));
+  --ui: 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
+  display: grid;
+  grid-template-rows: 58px minmax(0, 1fr);
+  height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/18px var(--ui);
+}
+
+.shell button {
+  color: inherit;
+  font: inherit;
+}
+
+/* Toolbar: 38 px buttons in a 58 px bar, 10 px round them as between them */
+.shell .tb {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding: 10px;
+  background: var(--bar);
+}
+
+.shell .tb .grow {
+  flex: 1;
+}
+
+.shell .tb .sep {
+  flex: none;
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: #3a3a40;
+}
+
+.shell .chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  overflow: hidden;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.shell .chip b {
+  color: var(--text);
+  font-weight: 400;
+}
+
+.shell .dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
+.shell .dot.ok { background: var(--green); }
+.shell .dot.warn { background: var(--orange); }
+.shell .dot.bad { background: var(--red); }
+.shell .dot.busy { background: var(--accent); }
+
+.shell .pending {
+  color: var(--orange);
+  white-space: nowrap;
+  cursor: help;
+}
+
+.shell .pending::before {
+  content: '⟳ ';
+}
+
+/* Buttons; background-color, not background, so the hover's layer stays on top of every variant */
+.shell .btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  background-color: var(--raised);
+  color: var(--text);
+  font: 13px var(--ui);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.shell .btn svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+.shell .btn.on {
+  border-color: var(--accent);
+  background-color: var(--accent-bg);
+}
+
+.shell .btn.primary {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.shell .btn:disabled {
+  opacity: 0.45;
+}
+
+.shell .btn:not(:disabled):hover {
+  background-image: var(--lighten);
+}
+
+.shell .tb .btn {
+  gap: 8px;
+  height: 38px;
+  padding: 0 15px;
+  font: 600 13.5px var(--wide);
+}
+
+.shell .tb .btn:not(.on):not(.primary) {
+  border-color: #3e3e44;
+  background-color: #2c2c31;
+}
+
+.shell .tb .btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.shell .tb .btn svg.wide {
+  width: 32px;
+}
+
+/* A button with its icon alone: square, as tall as the others */
+.shell .tb .btn.icon {
+  justify-content: center;
+  width: 38px;
+  padding: 0;
+}
+
+/*
+ * Buttons side by side 10 px apart, as far as a button is from a separator (the bar's 7 px gap and the separator's
+ * 3 px margin). Connect takes the place of Reconnect and Disconnect, two squares and that gap, so nothing shifts.
+ */
+.shell .tb > .btn + .btn {
+  margin-left: 3px;
+}
+
+.shell .tb .btn.primary {
+  justify-content: center;
+  width: 86px;
+  padding: 0;
+}
+
+/* Connect when Get started's last step points to it: a ring and a glow in the accent colour */
+.shell .tb .btn.primary.lit {
+  box-shadow: 0 0 0 2px var(--bar), 0 0 0 4px rgba(10, 132, 255, 0.55), 0 0 16px 4px rgba(10, 132, 255, 0.45);
+}
+
+/* The section list and the page */
+.shell .body {
+  display: grid;
+  grid-template-columns: 168px minmax(0, 1fr);
+  min-height: 0;
+}
+
+.shell .nav {
+  padding: 8px;
+  background: var(--panel);
+}
+
+.shell .nav button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  height: 34px;
+  margin-bottom: 3px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 4px;
+  background: none;
+  color: var(--muted);
+  text-align: left;
+  cursor: default;
+}
+
+/* Every icon in a slot as wide as the widest (the AltScreen's), so the names line up */
+.shell .nav svg {
+  flex: none;
+  width: 27px;
+  height: 17px;
+  opacity: 0.8;
+}
+
+.shell .nav button.sel {
+  background: var(--accent-bg);
+  color: #fff;
+}
+
+.shell .nav button.sel::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+
+.shell .nav button:not(.sel):hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.shell .nav .badge {
+  margin-left: auto;
+  color: var(--orange);
+  font-size: 12px;
+}
+
+/* The scrollbar always there, its track empty while nothing scrolls, so the page keeps its width as it grows */
+.shell .page {
+  position: relative;
+  padding: 12px 18px 10px;
+  overflow-y: scroll;
+}
+
+/* In a larger window the grid keeps its widths */
+.shell .page-inner {
+  max-width: 824px;
+}
+
+/* Property grid: groups under a header, rows of a label and its controls */
+.shell .grp {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 4px;
+  padding: 16px 0 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+  font: 600 11px/15px var(--wide);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  /* Heavier than the font's one weight: its strokes thickened with an outline of their own colour */
+  -webkit-text-stroke: 0.35px currentColor;
+}
+
+.shell .grp:first-child {
+  padding-top: 0;
+}
+
+.shell .grp span {
+  margin-left: auto;
+  color: var(--dim);
+  font: 400 11px/15px var(--ui);
+  letter-spacing: 0;
+  text-transform: none;
+  -webkit-text-stroke: 0;
+}
+
+.shell .row {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  align-items: center;
+  min-height: 34px;
+}
+
+.shell .row > label {
+  padding-right: 14px;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.shell .ctl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.shell .x,
+.shell .unit {
+  color: var(--dim);
+}
+
+.shell .hint {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.shell .errtext {
+  color: var(--red);
+  font-size: 12px;
+}
+
+.shell .mono {
+  color: #c9c9cf;
+  font: 12px Consolas, monospace;
+}
+
+.shell a {
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.shell .exp {
+  padding: 0 4px;
+  border: 1px solid rgba(255, 159, 10, 0.5);
+  border-radius: 2px;
+  color: var(--orange);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* A setting that applies only after a restart or the next connection */
+.shell .later {
+  color: var(--orange);
+  font-size: 14px;
+  line-height: 1;
+  cursor: help;
+}
+
+/* Buttons on a page as tall as a field and with its corners; the toolbar's keep their own */
+.shell .page .btn {
+  height: 24px;
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+.shell .btn.small {
+  padding: 0 9px;
+}
+
+.shell .btn.actual {
+  margin-left: 8px;
+}
+
+.shell .btn .shield {
+  width: 12px;
+  height: 14px;
+}
+
+/* Fields */
+.shell input.t {
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--edge);
+  border-radius: 2px;
+  outline: 0;
+  background: var(--ground);
+  color: var(--text);
+  font: 12px var(--ui);
+}
+
+.shell input.t::placeholder {
+  color: var(--dim);
+}
+
+.shell input.t:hover {
+  border-color: #5a5a62;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.03));
+}
+
+.shell input.t:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.shell input.t.err {
+  border-color: var(--red);
+}
+
+.shell .t.n { width: 60px; text-align: right; }
+.shell .t.n3 { width: 46px; text-align: right; }
+.shell .t.w120 { width: 120px; }
+.shell .t.w160 { width: 160px; }
+.shell .t.w200 { width: 200px; }
+.shell .t.w280 { width: 280px; }
+
+/* A drop-down list drawn as a field, with a small caret at its right end */
+.shell select.t {
+  appearance: none;
+  height: 24px;
+  padding: 0 20px 0 6px;
+  border: 1px solid var(--edge);
+  border-radius: 2px;
+  outline: 0;
+  background: var(--ground) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M0 0h8L4 4z' fill='%238b8b92'/%3E%3C/svg%3E") no-repeat right 7px center;
+  color: var(--text);
+  font: 12px var(--ui);
+  cursor: default;
+}
+
+.shell select.t:hover {
+  border-color: #5a5a62;
+}
+
+.shell select.t:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* The reason beside a refused value may run to two lines */
+.shell .errtext {
+  min-width: 0;
+  line-height: 15px;
+}
+
+/* About: the app's icon, then its name over what it is, on the property grid */
+.shell .about-head {
+  display: grid;
+  grid-template-columns: 140px minmax(0, 1fr);
+  align-items: center;
+  padding: 2px 0 4px;
+}
+
+.shell .about-head img {
+  grid-row: 1 / 3;
+  justify-self: end;
+  width: 44px;
+  height: 44px;
+  margin-right: 14px;
+}
+
+.shell .about-head .hint {
+  line-height: 16px;
+}
+
+.shell .about-name {
+  color: #fff;
+  font: 600 20px/26px var(--wide);
+}
+
+.shell .about .ctl {
+  display: block;
+}
+
+.shell .trademarks {
+  margin-top: 8px;
+}
+
+/* Safe-area cross: four numbers round a little frame */
+.shell .safe-row {
+  padding-top: 4px;
+}
+
+.shell .safe {
+  display: grid;
+  grid-template-columns: 50px 80px 50px;
+  grid-template-rows: 24px 26px 24px;
+  align-items: center;
+  justify-items: center;
+  gap: 2px 6px;
+}
+
+.shell .safe .frame {
+  width: 80px;
+  height: 26px;
+  border: 1px dashed var(--edge);
+  border-radius: 2px;
+}
+
+/* Top and bottom centred; the side numbers sit against the frame: left one to the right, right one to the left */
+.shell .safe input.c { text-align: center; }
+.shell .safe input.l { text-align: left; }
+
+/* A password field: dots for a saved one, and the eye that shows what is typed */
+.shell .pw {
+  position: relative;
+  display: inline-flex;
+}
+
+.shell .pw input {
+  padding-right: 28px;
+}
+
+.shell .pw input.set::placeholder {
+  color: var(--text);
+}
+
+.shell .eye {
+  position: absolute;
+  right: 5px;
+  top: 4px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 2px;
+  background: none;
+  color: var(--muted);
+  cursor: default;
+}
+
+.shell .eye svg {
+  display: block;
+  width: 16px;
+  height: 16px;
+}
+
+/* It brightens on a small plate of its own, a pixel or two round the icon */
+.shell .eye:hover {
+  background: rgba(255, 255, 255, 0.09);
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.09);
+  color: var(--text);
+}
+
+/*
+ * Segmented groups: one rounded frame on the fields' ground; the chosen item a lit plate inside it, the others with
+ * short separators between them that stop short of the frame and drop away beside the plate
+ */
+.shell .seg {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--edge);
+  border-radius: 2px;
+  background: var(--ground);
+}
+
+/* As wide as the widest choice ("Right-hand"), so segments line up from row to row */
+.shell .seg button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 90px;
+  height: 20px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 1px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: default;
+}
+
+.shell .seg.compact button {
+  min-width: 56px;
+}
+
+/* Short figures: the group half as long as two ordinary choices */
+.shell .seg.half button {
+  min-width: 43px;
+  padding: 0 6px;
+}
+
+.shell .seg button + button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 1px;
+  background: var(--edge);
+}
+
+.shell .seg button.on::before,
+.shell .seg button.on + button::before {
+  display: none;
+}
+
+.shell .seg button.on {
+  z-index: 1;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.shell .seg button:not(.on):not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+}
+
+.shell .seg:has(button:disabled) {
+  opacity: 0.45;
+}
+
+/* Checkboxes */
+.shell .chk {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.shell .chk input {
+  appearance: none;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  border: 1px solid var(--edge);
+  border-radius: 2px;
+  background: var(--field);
+  cursor: default;
+}
+
+.shell .chk input:not(:disabled):hover {
+  border-color: #5a5a62;
+}
+
+.shell .chk input:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.shell .chk input:checked::after {
+  content: '';
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+.shell .chk:has(input:disabled) {
+  opacity: 0.45;
+}
+
+/*
+ * What is wrong, shown only while it is: the problem in the message's colour, the cause and what to do under it in
+ * one light grey, then its actions; a command field and its buttons drawn in the message's own colour
+ */
+.shell .alert {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 3px 10px;
+  margin: 0 0 10px;
+  padding: 8px 12px;
+  border-radius: 4px;
+}
+
+.shell .alert.bad { background: #3a1716; }
+.shell .alert.warn { background: #3a2a10; }
+
+.shell .alert .head {
+  font: 600 13px/18px var(--wide);
+}
+
+.shell .alert.bad .head { color: var(--red); }
+.shell .alert.warn .head { color: var(--orange); }
+
+.shell .alert .head span {
+  display: block;
+  color: #d2d2d6;
+  font: 400 13px/18px var(--ui);
+}
+
+.shell .alert .when {
+  align-self: start;
+  color: var(--dim);
+}
+
+.shell .alert .acts {
+  grid-column: 1 / 3;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #d2d2d6;
+}
+
+.shell .code {
+  grid-column: 1 / 2;
+  overflow: hidden;
+  padding: 3px 6px;
+  border: 1px solid var(--line);
+  border-radius: 2px;
+  background: var(--field);
+  color: #b8b8be;
+  font: 12px/16px Consolas, monospace;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  user-select: text;
+}
+
+.shell .alert.bad .code { border-color: #5a2421; background: #240e0d; color: #e6c4c1; }
+.shell .alert.warn .code { border-color: #5c4318; background: #241a09; color: #e8d6b8; }
+
+/* A message's buttons one width, so the fields beside them end on one line */
+.shell .alert .btn {
+  justify-content: center;
+  min-width: 52px;
+}
+
+.shell .alert.bad .btn { border-color: #7a3430; background-color: #552220; }
+.shell .alert.warn .btn { border-color: #7a5b22; background-color: #553f17; }
+
+/* A link in a message: in its text colour, underlined, so it sits in the tinted block */
+.shell .alert a {
+  color: var(--text);
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.4);
+  text-underline-offset: 2px;
+}
+
+.shell .alert a:hover {
+  text-decoration-color: var(--text);
 }

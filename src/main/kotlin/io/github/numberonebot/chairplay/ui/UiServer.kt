@@ -94,7 +94,7 @@ class UiServer(
             return
         }
         val method = exchange.requestMethod
-        val posts = setOf("settings", "connect", "reconnect", "disconnect", "screen", "window", "control", "altscreen", "open")
+        val posts = setOf("settings", "connect", "reconnect", "disconnect", "screen", "window", "control", "altscreen", "open", "window-size")
         val gets = setOf("state", "settings", "events")
         when {
             method == "GET" && route in gets -> when (route) {
@@ -189,6 +189,11 @@ class UiServer(
                     api.open(place) -> json(exchange, 200, mapOf("ok" to true))
                     else -> json(exchange, 404, mapOf("error" to "cannot open $place"))
                 }
+            }
+            "window-size" -> when {
+                body["actual"] != true -> json(exchange, 400, mapOf("error" to "actual missing"))
+                api.actualSize() -> json(exchange, 200, mapOf("ok" to true))
+                else -> json(exchange, 404, mapOf("error" to "no main window"))
             }
         }
     }

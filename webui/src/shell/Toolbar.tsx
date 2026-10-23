@@ -1,0 +1,108 @@
+import type { ReactNode } from 'react'
+import type { AppState, Backend, WindowName } from '../api'
+import { describe } from '../status'
+import { AltScreenIcon, CarPlayIcon, ControlsIcon, DisconnectIcon, ReconnectIcon } from './icons'
+import { SECTIONS, sectionsOf } from './sections'
+
+const DOT = { ok: 'ok', busy: 'busy', warn: 'warn', idle: '' } as const
+
+/**
+ * The bar over every page: CarPlay and the app's other windows at the left; at the right what waits for a restart,
+ * where the connection stands, and Connect, or Reconnect and Disconnect once connecting has begun.
+ */
+export function Toolbar({ state, backend }: { state: AppState; backend: Backend }) {
+  const status = describe(state)
+  const session = state.canShowCarPlay
+  const restart = sectionsOf(state.restartPending).map((id) => SECTIONS.find((section) => section.id === id)!.title)
+  const idle = state.phase === 'setup' || state.phase === 'idle'
+  return (
+    <header className="tb">
+      <button
+        type="button"
+        className="btn"
+        disabled={!session || !state.embedded}
+        title={!session ? 'Connect the iPhone first' : state.embedded ? 'Show CarPlay (Esc)' : "CarPlay shows in ChairPlay's window"}
+        onClick={() => backend.show('carplay')}
+      >
+        <CarPlayIcon />
+        CarPlay
+      </button>
+      <WindowButton state={state} backend={backend} name="altscreen" label="AltScreen" icon={<AltScreenIcon />} />
+      <WindowButton state={state} backend={backend} name="controls" label="Controls" icon={<ControlsIcon />} />
+      <span className="grow" />
+      {restart.length > 0 && (
+        <>
+          <span className="pending" title={`Restart ChairPlay to apply: ${restart.join(', ')}`}>
+            Restart needed
+          </span>
+          <span className="sep" />
+        </>
+      )}
+      <span className="chip" title={status.detail}>
+        <span className={`dot ${DOT[status.tone]}`} />
+        <b>{status.title}</b>
+      </span>
+      <span className="sep" />
+      {idle ? (
+        <button
+          type="button"
+          className="btn primary"
+          disabled={state.phase === 'setup'}
+          title={state.phase === 'setup' ? 'Enter the Wi-Fi network first' : 'Connect to the iPhone'}
+          onClick={() => backend.connect()}
+        >
+          Connect
+        </button>
+      ) : (
+        <>
+          <button
+            type="button"
+            className="btn icon"
+            aria-label="Reconnect"
+            title="Reconnect: end the session and connect again (Ctrl+R)"
+            onClick={() => backend.reconnect()}
+          >
+            <ReconnectIcon />
+          </button>
+          <button
+            type="button"
+            className="btn icon"
+            aria-label="Disconnect"
+            title="Disconnect: end the CarPlay session; connect again with Connect"
+            onClick={() => backend.disconnect()}
+          >
+            <DisconnectIcon />
+          </button>
+        </>
+      )}
+    </header>
+  )
+}
+
+/**
+ * Shows or hides one of the app's other windows, lit while it is shown; off without a session, or while its feature
+ * is turned off. It changes only when the app's state says the window did, not on the click.
+ */
+function WindowButton(props: { state: AppState; backend: Backend; name: WindowName; label: string; icon: ReactNode }) {
+  const { available, visible } = props.state.windows[props.name]
+  const session = props.state.canShowCarPlay
+  const shown = session && available && visible
+  const title = !session
+    ? 'Connect the iPhone first'
+    : !available
+      ? `Turn on the ${props.label} on its page first`
+      : `Show or hide the ${props.name === 'controls' ? 'controls' : props.label} window`
+  return (
+    <button
+      type="button"
+      className={`btn ${shown ? 'on' : ''}`}
+      aria-pressed={shown}
+      disabled={!session || !available}
+      title={title}
+      onClick={() => props.backend.window(props.name, !visible)}
+    >
+      {props.icon}
+      {props.label}
+    </button>
+  )
+}

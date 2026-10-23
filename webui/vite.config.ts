@@ -9,11 +9,13 @@ const appPort = process.env.CHAIRPLAY_UI_PORT ?? '47800'
 // The HUD's font files (HudPainter.kt), which the stylesheet takes as @fonts/<file>: the build copies them into
 // its assets, so the page and the HUD draw with the same files and the repository holds them once.
 const fonts = fileURLToPath(new URL('../src/main/resources/fonts', import.meta.url))
+// The window icons, which the About page shows as @icons/<file>, for the same reason.
+const icons = fileURLToPath(new URL('../src/main/resources/icons', import.meta.url))
 
 export default defineConfig({
   plugins: [react()],
   resolve: {
-    alias: { '@fonts': fonts },
+    alias: { '@fonts': fonts, '@icons': icons },
   },
   build: {
     // Gradle passes --outDir build/webui/resources/ui, which goes into the jar.
@@ -24,8 +26,8 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
-    // The fonts live outside webui/, which the dev server otherwise keeps to.
-    fs: { allow: ['.', fonts] },
+    // The fonts and icons live outside webui/, which the dev server otherwise keeps to.
+    fs: { allow: ['.', fonts, icons] },
     proxy: {
       // changeOrigin sends the app its own host name, which it insists on.
       '/api': { target: `http://127.0.0.1:${appPort}`, changeOrigin: true },
