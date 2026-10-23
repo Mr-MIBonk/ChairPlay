@@ -25,6 +25,7 @@ import com.shilapi.xcertplay.transport.Iap2WirelessControlClient
 import com.shilapi.xcertplay.transport.Iap2WirelessControlResult
 import com.shilapi.xcertplay.transport.Iap2WirelessSecurity
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.Closeable
@@ -246,6 +247,28 @@ class WirelessBootstrapTest {
             assertEquals(BringUpStatus.Starting, statuses.poll(10, TimeUnit.SECONDS))
             val failed = statuses.poll(10, TimeUnit.SECONDS)
             assertEquals(BringUpStatus.Failed("Offline MFi directory is missing or invalid", 5_000L), failed)
+        }
+    }
+
+    // Disconnect: a failed bring-up retries after 5 s, but not once stopped; Connect starts it again.
+    @Test(timeout = 30_000)
+    fun `a stopped bring-up stays stopped until it is started`() {
+        val dir = Files.createTempDirectory("chairplay-bootstrap")
+        writeTestSettings(dir)
+        val statuses = LinkedBlockingQueue<BringUpStatus>()
+        WirelessBootstrap(DesktopConfig(dir), object : MediaSink {}, object : AirPlaySessionListener {}, CarPlayDataTap.NONE) {
+            throw IllegalArgumentException("no MFi files")
+        }.use { bootstrap ->
+            bootstrap.onStatus = statuses::add
+            bootstrap.start()
+            assertEquals(BringUpStatus.Starting, statuses.poll(10, TimeUnit.SECONDS))
+            assertTrue(statuses.poll(10, TimeUnit.SECONDS) is BringUpStatus.Failed)
+
+            bootstrap.stop()
+
+            assertNull("no retry after the stop", statuses.poll(7, TimeUnit.SECONDS))
+            bootstrap.start()
+            assertEquals(BringUpStatus.Starting, statuses.poll(10, TimeUnit.SECONDS))
         }
     }
 

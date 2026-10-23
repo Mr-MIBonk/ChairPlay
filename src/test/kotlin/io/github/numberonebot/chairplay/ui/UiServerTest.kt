@@ -96,6 +96,8 @@ class UiServerTest {
         assertEquals(200, post("/api/screen", """{"screen":"settings"}""").statusCode())
         assertEquals(409, post("/api/screen", """{"screen":"carplay"}""").statusCode())
         assertEquals(listOf("connect", "reconnect", "show settings", "show carplay"), api.calls)
+        assertEquals(200, post("/api/disconnect", "{}").statusCode())
+        assertEquals("disconnect", api.calls.removeLast())
 
         // The settings screen's window triggers.
         assertEquals(200, post("/api/window", """{"name":"controls","visible":false}""").statusCode())
@@ -183,6 +185,9 @@ class UiServerTest {
         override fun connect(): String? = connectError ?: null.also { calls += "connect" }
         override fun reconnect() {
             calls += "reconnect"
+        }
+        override fun disconnect() {
+            calls += "disconnect"
         }
         override fun show(screen: String): Boolean {
             calls += "show $screen"

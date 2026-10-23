@@ -155,6 +155,8 @@ class WirelessBootstrap internal constructor(
     private val lock = Any()
     @Volatile private var current: Stack? = null
     private var closed = false
+    // Counts [stop]s: a failed bring-up's retry runs only if none came while it waited.
+    private var stops = 0
 
     fun start() {
         synchronized(lock) {
@@ -177,6 +179,14 @@ class WirelessBootstrap internal constructor(
         }
     }
 
+    /** Disconnect: ends the session or bring-up, and a failed one's retry with it, until the next [start]. */
+    fun stop() {
+        synchronized(lock) {
+            stops++
+            current?.let(::retire)
+        }
+    }
+
     override fun close() {
         synchronized(lock) {
             closed = true
@@ -194,14 +204,15 @@ class WirelessBootstrap internal constructor(
 
     /** Unlike a session end, a failure waits before retrying: most recur at once (Wi-Fi, pairing, MFi). */
     private fun failed(stack: Stack, error: Exception) {
-        synchronized(lock) {
+        val stopsBefore = synchronized(lock) {
             if (current !== stack) return
             log("wireless bring-up failed: ${error.javaClass.simpleName}: ${error.message}")
             retire(stack)
             onStatus(BringUpStatus.Failed(error.message ?: error.javaClass.simpleName, RETRY_DELAY_MILLIS))
+            stops
         }
         Thread.sleep(RETRY_DELAY_MILLIS)
-        synchronized(lock) { if (current == null) start() }
+        synchronized(lock) { if (current == null && stops == stopsBefore) start() }
     }
 
     private fun retire(stack: Stack) {
@@ -243,10 +254,11 @@ class WirelessBootstrap internal constructor(
             network.validateReady()
             stack.own(parts.advertise(advertised, config.identity, info.hostAddresses))
 
-            onStatus(BringUpStatus.CallingIphone)
+            // A stack stopped meanwhile says nothing more: the app shows it idle.
+            if (!stack.closed) onStatus(BringUpStatus.CallingIphone)
             val rfcomm = stack.own(parts.connectIphone())
             val known = config.iphoneKnown()
-            onStatus(BringUpStatus.Joining(known))
+            if (!stack.closed) onStatus(BringUpStatus.Joining(known))
             val bootstrap = stack.handOver(rfcomm,
                 Iap2Session.openWireless(rfcomm, traceContext = "wireless-rfcomm", onTrace = ::trace,
                     onArtwork = { if (!stack.closed) data.onArtwork(DataLink.BLUETOOTH, it) }))

@@ -24,7 +24,7 @@ endorsed by DiPlay's authors or by Apple.
 - **A settings screen**, from the start screen or the car button on the CarPlay home screen, over CarPlay: the
   switches, the AltScreen and the window sizes, each saved into `settings.properties` in place, saying when it
   applies, with Reconnect now where a reconnect is enough.
-- **Video** in a resizable window, 1280×720 at 60 fps by default, H.264 decoded in software.
+- **Video** in a resizable window, 800×480 at 60 fps by default, H.264 decoded in software.
 - **Touch** with the mouse: taps, drags, scrolling lists and the map.
 - **Car controls on the keyboard**: arrows tilt CarPlay's knob, Tab turns it, Enter selects, Esc goes back, plus
   media keys, call keys and Siri. Every binding can be changed.
@@ -125,7 +125,6 @@ Everything lives next to the exe, in plain text:
   side, dock, safe area, corners) and window size. The start and settings screens change some of these in place,
   keeping the file's comments and the other lines.
 - `controls.properties`: key bindings and mouse-wheel behaviour.
-- `carplay-icon.png`: the car button's icon; replace it with any square image.
 - `window.properties`: where you left the window and its size, written by the app when it closes.
 
 A wrong value stops the start with the setting named, and the console prints what the iPhone was told.

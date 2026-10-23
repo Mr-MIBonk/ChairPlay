@@ -84,6 +84,17 @@ class WindowPlacementTest {
         assertEquals(WindowSize(800, 301), WindowSize(ALTSCREEN_MIN_WIDTH, 1).fittedTo(WindowSize(1440, 542)))
     }
 
+    // The controls window's size is its page's, in the web view's pixels, which GLFW scales to the monitor; a size it
+    // was left at is in screen pixels already, scaled once, so only its place is taken back.
+    @Test
+    fun `a window sized by its page opens at its page's size wherever it was left`() {
+        val left = WindowPlacement(2247, 1036, 960, 444, maximized = false)
+
+        assertEquals(WindowSize(518, 218), openingSize(WindowSize(518, 218), left, pageSized = true))
+        assertEquals(WindowSize(960, 444), openingSize(WindowSize(518, 218), left, pageSized = false))
+        assertEquals(WindowSize(1280, 720), openingSize(configured, null, pageSized = false))
+    }
+
     // The AltScreen opens on the content and card layout it was left on, beside the windows' places in the file.
     @Test
     fun `the AltScreen view is remembered unless the settings changed`() {

@@ -56,8 +56,42 @@ body {
   background: var(--bg);
 }
 
+/*
+ * The scrollbar always there, its track empty while nothing scrolls: a classic scrollbar takes width in WebView2, so
+ * one that came and went would shift the page sideways as its content grew past the window.
+ */
 html {
-  scrollbar-color: #48484a transparent;
+  overflow-y: scroll;
+}
+
+/*
+ * Thin and barely there: a dark grey thumb on no track, and no arrow buttons, which Chromium draws on Windows even for
+ * scrollbar-width: thin, and even on a track with nothing to scroll. These pseudo-elements are what hides them; they
+ * are ignored on an element that sets scrollbar-width or scrollbar-color, so neither is set.
+ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: #38383c padding-box;
+}
+
+/* The controls window's page fits its window and never scrolls. */
+html:has(.controls-screen) {
+  overflow-y: hidden;
 }
 
 /*
@@ -755,7 +789,11 @@ code {
   flex: none;
 }
 
-.controls-screen .key:hover:not(:disabled) {
+/*
+ * Not on a pressed key: the pointer is over it while it is held, and the press must show. Not on the knob's parts
+ * either, which have hovers of their own: a wing's button is the square its mask cuts the wing from.
+ */
+.controls-screen .key:hover:not(:disabled):not(.down):not([aria-pressed='true']):not(.tilt):not(.turn):not(.select) {
   border-color: #3c3c42;
   background: linear-gradient(180deg, #36363c, #26262b 50%, #19191c);
 }
@@ -1087,13 +1125,16 @@ code {
   background: linear-gradient(150deg, #3a3a40, #27272c 50%, #1a1a1d);
 }
 
+/* A wing pressed as a quarter of the pad is: its surface tinted blue, its arrow blue */
 .controls-screen .key.turn.down {
-  color: #fff;
+  color: var(--accent);
   background: transparent;
 }
 
 .controls-screen .key.turn.down::before {
-  background: var(--accent-fill);
+  background:
+    linear-gradient(var(--accent-tint), var(--accent-tint)),
+    linear-gradient(150deg, #2e2e33, var(--raised) 50%, var(--panel));
 }
 
 /* A wing's key under its icon */

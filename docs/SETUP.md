@@ -107,7 +107,7 @@ The files below live in the app folder, next to `ChairPlay.exe`.
    - `device.name`: the name the iPhone shows for the PC, in its CarPlay settings and on the network (default
      ChairPlay, at most 63 bytes); the window title stays ChairPlay;
    - `car.label` and `car.icon`: the label and the image of the car button on the CarPlay home screen (default
-     `ChairPlay` and `carplay-icon.png`, a Windows window written into the app folder on the first start). Replace the
+     `ChairPlay` and `carplay-icon.png`, ChairPlay's armchair written into the app folder on the first start). Replace the
      image with any square PNG, JPEG, BMP or GIF; it is sent at 192 pixels at most;
    - `audio.output` and `audio.input`: the sound device CarPlay plays on and the microphone, `default` (the Windows
      default, as before) or a part of a device name; `ChairPlay.exe devices` lists the names;
@@ -118,7 +118,7 @@ The files below live in the app folder, next to `ChairPlay.exe`.
    - `log.carplay.data` (default `false`): `true` writes every message the iPhone sends about the route, the song,
      calls and its battery to a file in `logs\` (see [The CarPlay data log](#the-carplay-data-log));
    - `display.width` and `display.height`: the CarPlay screen size in pixels, positive even numbers
-     (default 1280 x 720), and `display.fps`, 30 to 60 (default 60). The size alone decides how iOS draws:
+     (default 800 x 480, the smallest window), and `display.fps`, 30 to 60 (default 60). The size alone decides how iOS draws:
      at @3x when both sides are at least about 1280 x 720, at @2x below that (the switch lies between 1200 x 676
      and 1280 x 720; 960 x 720 and 1280 x 540 are still @2x). Above the switch more pixels give room for more,
      not sharper: at 1920 x 1080 the home screen holds 5 x 3 icons of the same size instead of 4 x 2. Tested on
@@ -166,7 +166,7 @@ The files below live in the app folder, next to `ChairPlay.exe`.
 
    The settings apply at the next start (the Wi-Fi network with the next connection, `ui.autoshow` at once); the
    console prints what the iPhone was told, for example
-   `display 1280x720 px, 200x113 mm (163 ppi), 60 fps; window 1280x720`.
+   `display 800x480 px, 200x120 mm (102 ppi), 60 fps; window 800x480`.
 4. **Firewall.** Windows Firewall drops the iPhone's inbound connections. From an administrator Command Prompt, add
    these rules once (the paths are those of the packaged exe; adjust them if you move the folder). The app does not
    change the firewall itself and prints the same commands at start when no rule named `ChairPlay CarPlay inbound`
@@ -196,7 +196,7 @@ With no arguments the launcher runs `run`. Passing any argument replaces that de
 and `ChairPlay.exe probe-bt [iphone-address]` run those commands instead. The app is a console program: it logs
 to the console window, and the CarPlay screen opens in its own window, titled ChairPlay.
 
-The iPhone lists the PC as **ChairPlay** (or `device.name`). The CarPlay home screen shows a Windows icon (`car.icon`) where a car shows its maker's;
+The iPhone lists the PC as **ChairPlay** (or `device.name`). The CarPlay home screen shows ChairPlay's armchair (`car.icon`) where a car shows its maker's;
 tapping it opens the settings screen over CarPlay and leaves CarPlay running.
 
 Besides touch with the mouse, the keyboard and the mouse wheel work as a car's controls. These are the defaults;

@@ -192,6 +192,7 @@ private fun runCarPlay() {
             CONTROLS_SIZE.width, CONTROLS_SIZE.height, placements.load(CONTROLS_SIZE), "ChairPlay Controls",
             resizable = false, hideOnClose = true,
             shown = runCatching { controlsShown.load(default = config.controlsWindow) }.getOrDefault(config.controlsWindow),
+            pageSized = true,
         ).also {
             it.onPlacement = { placement ->
                 runCatching { placements.save(placement, CONTROLS_SIZE) }.onFailure { error -> log("controls window place not saved: $error") }
@@ -341,6 +342,7 @@ private fun runCarPlay() {
     }
     val lockReady = CountDownLatch(1)
     val startBootstrap = AtomicReference<() -> Unit> {}
+    val stopBootstrap = AtomicReference<() -> Unit> {}
     val ui = ChairPlayUi(dir, config, firewall, object : UiActions {
         override fun connect() = Thread({
             lockReady.await()
@@ -348,6 +350,12 @@ private fun runCarPlay() {
             startBootstrap.get()()
         }, "connect").apply { isDaemon = true }.start()
         override fun reconnect() = send(Control.Reconnect)
+        override fun disconnect() {
+            log("disconnecting at the user's request")
+            reconnecting.set(false)
+            sink.fadeOut(FADE_OUT_MILLIS)
+            Thread({ stopBootstrap.get()() }, "disconnect").apply { isDaemon = true }.start()
+        }
     }, window::repaint, ::log, buildMap {
         altscreen?.let { put("altscreen", it.asUiWindow()) }
         put("controls", controlsWindow.asUiWindow())
@@ -443,11 +451,12 @@ private fun runCarPlay() {
             }
             log("AirPlay session ended")
         }
-        // The driver tapped the car button (the Windows icon) on the CarPlay home screen: the settings screen covers
-        // CarPlay. With the page in a browser instead, the window gives the screen back to Windows, as before.
+        // CarPlay asked for the car's own screen: the driver tapped the car button on its home screen, or pressed Back
+        // with nothing left to go back to there, as a car's Back leaves CarPlay for the car's menu. The settings screen
+        // covers CarPlay. With the page in a browser instead, the window gives the screen back to Windows, as before.
         override fun onHostUiRequested(session: AirPlaySession) {
             if (ui.carButton()) {
-                log("CarPlay's car button: showing the settings")
+                log("CarPlay asked for ChairPlay's screen (the car button, or Back on its home screen): showing the settings")
             } else {
                 log("CarPlay asked for the Windows screen; minimizing the window")
                 window.minimize()
@@ -458,6 +467,12 @@ private fun runCarPlay() {
     }, carPlayData)
     restartBootstrap.set(bootstrap::restart)
     startBootstrap.set(bootstrap::start)
+    // A retired stack's session ends unheard (onSessionEnded above stays quiet), so Disconnect clears it here.
+    stopBootstrap.set {
+        bootstrap.stop()
+        if (active.getAndSet(null) != null) sessionChanged()
+        window.setTitle(mainWindowTitle(stream, NOT_CONNECTED))
+    }
     bootstrap.onStatus = ui::bringUp
     Runtime.getRuntime().addShutdownHook(Thread {
         // The window is gone at once; the sound fades over the seconds the session takes to end.

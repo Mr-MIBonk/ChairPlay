@@ -74,6 +74,8 @@ export interface Backend {
   /** Null when connecting started, else why not. */
   connect(): Promise<string | null>
   reconnect(): Promise<void>
+  /** Ends the session or the bring-up; the app then waits for Connect. */
+  disconnect(): Promise<void>
   show(screen: Screen): Promise<boolean>
   /** Shows or hides a window; false when it is not available. Its new state comes with the next app state. */
   window(name: WindowName, visible: boolean): Promise<boolean>
@@ -126,6 +128,10 @@ export class Api implements Backend {
 
   async reconnect(): Promise<void> {
     await this.request('POST', 'reconnect', {})
+  }
+
+  async disconnect(): Promise<void> {
+    await this.request('POST', 'disconnect', {})
   }
 
   async show(screen: Screen): Promise<boolean> {

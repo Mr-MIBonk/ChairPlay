@@ -16,6 +16,7 @@ class UiControllerTest {
     private val file: Path = dir.resolve("settings.properties")
     private val connects = AtomicInteger()
     private val reconnects = AtomicInteger()
+    private val disconnects = AtomicInteger()
     private val logged = mutableListOf<String>()
     private val launched = mutableListOf<List<String>>()
 
@@ -26,6 +27,7 @@ class UiControllerTest {
         windows: Map<String, UiWindow> = emptyMap(),
         controls: UiControls? = null,
         launch: (List<String>) -> Unit = { launched += it },
+        audio: () -> AudioDeviceNames = { AudioDeviceNames(listOf("Speakers (Realtek)"), listOf("Microphone Array")) },
     ): UiController {
         Files.writeString(file, settings)
         val values = SettingsFile(file).read()
@@ -36,10 +38,14 @@ class UiControllerTest {
                 connects.incrementAndGet()
             }
 
+            override fun disconnect() {
+                disconnects.incrementAndGet()
+            }
+
             override fun reconnect() {
                 reconnects.incrementAndGet()
             }
-        }, logged::add, autoconnect, windows, controls, launch)
+        }, logged::add, autoconnect, windows, controls, launch, audio)
     }
 
     /** Controls that record what the page asked of them. */
@@ -258,6 +264,43 @@ class UiControllerTest {
         assertFalse(ui.control("knob.select", down = true))
         assertFalse(ui.altscreenContent("hud"))
         assertNull(ui.state()["controls"])
+    }
+
+    // The pages show choices as words; the file keeps them in lower case, as the app reads them.
+    @Test
+    fun `choices are saved in lower case`() {
+        val ui = controller()
+
+        val result = ui.saveSettings(mapOf("display.theme" to " Dark ", "display.dock" to "Driver", "altscreen.cards" to "LEFT",
+            "display.right.hand.drive" to "True", "device.name" to " My Car "))
+
+        assertTrue(result.errors.toString(), result.errors.isEmpty())
+        val text = Files.readString(file)
+        for (line in listOf("display.theme=dark", "display.dock=driver", "altscreen.cards=left", "display.right.hand.drive=true", "device.name=My Car")) {
+            assertTrue(line, "$line\n" in text)
+        }
+    }
+
+    // The Audio page offers the devices Windows has, by the names the settings match.
+    @Test
+    fun `the settings carry the sound devices`() {
+        val audio = controller().settings()["audio"] as Map<*, *>
+
+        assertEquals(listOf("Speakers (Realtek)"), audio["outputs"])
+        assertEquals(listOf("Microphone Array"), audio["inputs"])
+        val none = controller(audio = { throw IllegalStateException("no Java Sound") }).settings()["audio"] as Map<*, *>
+        assertEquals(emptyList<String>(), none["outputs"])
+    }
+
+    @Test
+    fun `Disconnect ends the session and leaves the app idle`() {
+        val ui = controller()
+        ui.model.sessionActive()
+
+        ui.disconnect()
+
+        assertEquals(1, disconnects.get())
+        assertEquals(Phase.IDLE, ui.model.state.phase)
     }
 
     // The screens' links open Windows' own pages; the page names a place the app knows, never a command of its own.

@@ -94,6 +94,12 @@ export class FakeBackend implements Backend {
     this.reconnects++
   }
 
+  disconnects = 0
+
+  async disconnect() {
+    this.disconnects++
+  }
+
   async show(screen: Screen) {
     this.shown.push(screen)
     return true

@@ -3,6 +3,7 @@ package io.github.numberonebot.chairplay.config
 import com.shilapi.xcertplay.airplay.AirPlayInfoPlist
 import com.shilapi.xcertplay.airplay.AirPlayViewArea
 import com.shilapi.xcertplay.airplay.AirPlayInsets
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -35,16 +36,17 @@ class DesktopConfigTest {
         return DesktopConfig(dir)
     }
 
-    // Upstream's default physical width is 200 mm; the height follows the aspect ratio, as /info computes it.
+    // The smallest picture, as the main window's minimum is: 800x480 fits any screen. Upstream's default physical
+    // width is 200 mm; the height follows the aspect ratio, as /info computes it.
     @Test
-    fun `the display defaults to 1280x720 at 60 fps and 200 mm wide`() {
+    fun `the display defaults to 800x480 at 60 fps and 200 mm wide`() {
         val config = configWith()
         val main = config.airPlay.main
 
-        assertEquals(1280 to 720, main.widthPixels to main.heightPixels)
+        assertEquals(800 to 480, main.widthPixels to main.heightPixels)
         assertEquals(60, main.fps)
-        assertEquals(200 to 113, main.widthPhysicalMm to main.heightPhysicalMm)
-        assertEquals(WindowSize(1280, 720), config.window)
+        assertEquals(200 to 120, main.widthPhysicalMm to main.heightPhysicalMm)
+        assertEquals(WindowSize(800, 480), config.window)
     }
 
     // iOS picks its 2x or 3x rendering from pixels against millimetres, so ppi is the convenient knob.
@@ -60,13 +62,13 @@ class DesktopConfigTest {
         val both = configWith("display.physical.width.mm=250", "display.physical.height.mm=120", "display.ppi=160").airPlay.main
         assertEquals(250 to 120, both.widthPhysicalMm to both.heightPhysicalMm)
 
-        val width = configWith("display.physical.width.mm=300").airPlay.main
+        val width = configWith("display.width=1280", "display.height=720", "display.physical.width.mm=300").airPlay.main
         assertEquals(300 to 169, width.widthPhysicalMm to width.heightPhysicalMm)
     }
 
     @Test
     fun `fps and the window size come from the settings`() {
-        val config = configWith("display.fps=30", "window.width=1600", "window.height=900")
+        val config = configWith("display.width=1280", "display.height=720", "display.fps=30", "window.width=1600", "window.height=900")
 
         assertEquals(30, config.airPlay.main.fps)
         assertEquals(WindowSize(1600, 900), config.window)
@@ -134,6 +136,7 @@ class DesktopConfigTest {
     @Test
     fun `theme, driving side, dock, safe area and corners come from the settings`() {
         val config = configWith(
+            "display.width=1280", "display.height=720",
             "display.theme=dark", "display.right.hand.drive=true", "display.dock=bottom",
             "display.safe.top=10", "display.safe.left=40", "display.safe.draw.outside=false", "display.corners=square",
         )
@@ -393,6 +396,8 @@ class DesktopConfigTest {
         assertEquals(192, image.width)
         assertEquals(192, image.height)
         assertTrue("the icon is written to the app folder to be replaced", Files.exists(dir.resolve("carplay-icon.png")))
+        // The armchair of the app's own icon, as packaging/icon/make_icon.py draws it for CarPlay.
+        assertArrayEquals(Files.readAllBytes(Path.of("packaging/icon/carplay-icon.png")), Files.readAllBytes(dir.resolve("carplay-icon.png")))
     }
 
     private fun writePng(path: Path, width: Int, height: Int) {

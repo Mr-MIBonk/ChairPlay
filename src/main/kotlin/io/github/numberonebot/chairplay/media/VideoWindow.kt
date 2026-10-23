@@ -5,6 +5,7 @@ import io.github.numberonebot.chairplay.config.WindowPlacement
 import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.config.fittedTo
 import io.github.numberonebot.chairplay.config.isVisibleOn
+import io.github.numberonebot.chairplay.config.openingSize
 import io.github.numberonebot.chairplay.config.scaledBy
 import io.github.numberonebot.chairplay.config.grownTo
 import io.github.numberonebot.chairplay.input.PointerEvent
@@ -49,6 +50,11 @@ class VideoWindow(
     private val hideOnClose: Boolean = false,
     /** Whether the window shows as it opens; one that does not waits for [setShown]. */
     shown: Boolean = true,
+    /**
+     * True when [width] and [height] are a page's, in the web view's pixels: the window opens at them times the
+     * monitor's display scale, follows it to a monitor of another scale, and takes back only its place.
+     */
+    private val pageSized: Boolean = false,
 ) : Closeable {
     private val latest = AtomicReference<DecodedFrame?>()
     private val closing = AtomicBoolean()
@@ -189,8 +195,10 @@ class VideoWindow(
         // Hidden until it is in place, so it does not flash at the default position first.
         glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
         glfwWindowHint(GLFW_RESIZABLE, if (resizable) GLFW_TRUE else GLFW_FALSE)
+        // GLFW scales a page's size by the monitor's scale as it creates the window, and again on WM_DPICHANGED.
+        if (pageSized) glfwWindowHint(GLFW_SCALE_TO_MONITOR, GLFW_TRUE)
         val restore = placement?.takeIf { it.isVisibleOn(workAreas()) }
-        val remembered = WindowSize(restore?.width ?: width, restore?.height ?: height)
+        val remembered = openingSize(WindowSize(width, height), restore, pageSized)
         val size = aspect?.let { remembered.fittedTo(it) } ?: remembered
         val window = glfwCreateWindow(size.width, size.height, title, 0, 0)
         check(window != 0L) { "cannot create the window" }

@@ -19,20 +19,55 @@ enum class Applies {
  * checks match [DesktopConfig]'s, so a saved value never stops the next start, and add what a Wi-Fi network allows.
  */
 object EditableSettings {
-    private class Setting(val applies: Applies, val check: (String) -> String?)
+    /** [caseless]: a switch or a choice, saved in lower case as the app reads it. */
+    private class Setting(val applies: Applies, val caseless: Boolean = false, val check: (String) -> String?)
 
+    private fun switch(applies: Applies) = Setting(applies, caseless = true, check = ::checkBoolean)
+    private fun choice(vararg values: String) = Setting(Applies.RESTART, caseless = true) { value ->
+        if (value.trim().lowercase() in values) null else "Must be one of ${values.joinToString()}"
+    }
+
+    // Everything the app reads only as it starts applies after a restart: the iPhone's, the screens', and the sound's.
     private val settings: Map<String, Setting> = mapOf(
-        "wifi.ssid" to Setting(Applies.RECONNECT, ::checkSsid),
+        "wifi.ssid" to Setting(Applies.RECONNECT, check = ::checkSsid),
         // Checked together with the security in validate().
         "wifi.passphrase" to Setting(Applies.RECONNECT) { null },
-        "wifi.security" to Setting(Applies.RECONNECT, ::checkSecurity),
-        "ui.autoconnect" to Setting(Applies.RESTART, ::checkBoolean),
-        "ui.autoshow" to Setting(Applies.NOW, ::checkBoolean),
-        "altscreen.enabled" to Setting(Applies.RESTART, ::checkBoolean),
+        "wifi.security" to Setting(Applies.RECONNECT, check = ::checkSecurity),
+        "ui.autoconnect" to switch(Applies.RESTART),
+        "ui.autoshow" to switch(Applies.NOW),
+        "device.name" to Setting(Applies.RESTART, check = ::checkDeviceName),
+        "iphone.address" to Setting(Applies.RESTART, check = ::checkAddress),
+        "iphone.join.seconds" to Setting(Applies.RESTART) { checkPositive(it, "of seconds") },
+        "display.width" to Setting(Applies.RESTART, check = ::checkPositiveEven),
+        "display.height" to Setting(Applies.RESTART, check = ::checkPositiveEven),
+        "display.fps" to Setting(Applies.RESTART, check = ::checkFps),
+        "display.physical.width.mm" to Setting(Applies.RESTART, check = ::checkOptionalPositive),
+        "display.physical.height.mm" to Setting(Applies.RESTART, check = ::checkOptionalPositive),
+        "display.ppi" to Setting(Applies.RESTART, check = ::checkOptionalPositive),
+        "display.theme" to choice("windows", "light", "dark", "phone"),
+        "display.dock" to choice("auto", "driver", "bottom"),
+        "display.right.hand.drive" to switch(Applies.RESTART),
+        "display.safe.draw.outside" to switch(Applies.RESTART),
+        "display.corners" to choice("rounded", "square"),
+        "display.safe.top" to Setting(Applies.RESTART, check = ::checkNonNegative),
+        "display.safe.bottom" to Setting(Applies.RESTART, check = ::checkNonNegative),
+        "display.safe.left" to Setting(Applies.RESTART, check = ::checkNonNegative),
+        "display.safe.right" to Setting(Applies.RESTART, check = ::checkNonNegative),
         "window.width" to Setting(Applies.RESTART) { checkOptionalSize(it, MAIN_WINDOW_MIN_SIZE.width) },
         "window.height" to Setting(Applies.RESTART) { checkOptionalSize(it, MAIN_WINDOW_MIN_SIZE.height) },
-        "altscreen.width" to Setting(Applies.RESTART, ::checkPositiveEven),
-        "altscreen.height" to Setting(Applies.RESTART, ::checkPositiveEven),
+        "altscreen.enabled" to switch(Applies.RESTART),
+        "altscreen.width" to Setting(Applies.RESTART, check = ::checkPositiveEven),
+        "altscreen.height" to Setting(Applies.RESTART, check = ::checkPositiveEven),
+        "altscreen.content" to choice("map", "map-card", "hud", "card"),
+        "altscreen.cards" to choice("auto", "left", "right", "top", "off"),
+        "altscreen.safe.top" to Setting(Applies.RESTART, check = ::checkNonNegative),
+        "altscreen.safe.bottom" to Setting(Applies.RESTART, check = ::checkNonNegative),
+        "altscreen.safe.left" to Setting(Applies.RESTART, check = ::checkNonNegative),
+        "altscreen.safe.right" to Setting(Applies.RESTART, check = ::checkNonNegative),
+        // "default" or a device's name; a name no device has stops the next start, as a typo in the file would.
+        "audio.output" to Setting(Applies.RESTART) { null },
+        "audio.input" to Setting(Applies.RESTART) { null },
+        "audio.echo.cancellation" to switch(Applies.RESTART),
     )
 
     /** The keys the screens may change. */
@@ -40,6 +75,9 @@ object EditableSettings {
 
     /** When a change of [key], one of [keys], takes effect. */
     fun applies(key: String): Applies = settings.getValue(key).applies
+
+    /** Whether [key], one of [keys], is a switch or a choice, saved in lower case. */
+    fun caseless(key: String): Boolean = settings[key]?.caseless ?: false
 
     /**
      * The problems with [changes] to the settings [current], by key, as sentences for the screen; empty when all can
@@ -60,7 +98,30 @@ object EditableSettings {
             val passphrase = changes["wifi.passphrase"] ?: current["wifi.passphrase"].orEmpty()
             checkPassphrase(passphrase, security)?.let { errors["wifi.passphrase"] = it }
         }
+        for (screen in listOf("display", "altscreen")) checkSafeArea(screen, changes, current, errors)
         return errors
+    }
+
+    /**
+     * A safe area must leave some of [screen]'s picture, as [DesktopConfig] requires: the two sides of each axis
+     * together less than the size, both taken as they will be after [changes]. The error goes on a side that changed.
+     */
+    private fun checkSafeArea(screen: String, changes: Map<String, String>, current: Map<String, String>, errors: MutableMap<String, String>) {
+        fun value(key: String) = (changes[key] ?: current[key])?.trim()?.ifEmpty { null }
+        for ((first, second, size, axis) in listOf(
+            listOf("left", "right", "width", "left and right"),
+            listOf("top", "bottom", "height", "top and bottom"),
+        )) {
+            val keys = listOf("$screen.safe.$first", "$screen.safe.$second", "$screen.$size")
+            if (keys.none { it in changes } || keys.any { it in errors }) continue
+            val a = value(keys[0])?.toIntOrNull() ?: 0
+            val b = value(keys[1])?.toIntOrNull() ?: 0
+            val total = value(keys[2])?.toIntOrNull() ?: continue
+            if (a + b >= total) {
+                val key = keys.take(2).firstOrNull { it in changes } ?: keys[0]
+                errors[key] = "The $axis safe areas together must be less than the $size ($total px)"
+            }
+        }
     }
 
     private fun checkSsid(value: String): String? = when {
@@ -100,6 +161,30 @@ object EditableSettings {
             else -> null
         }
     }
+
+    private fun checkDeviceName(value: String): String? = when {
+        value.any(Char::isISOControl) -> "The name cannot hold control characters"
+        value.trim().toByteArray(Charsets.UTF_8).size > 63 -> "The name is at most 63 bytes (fewer letters outside English)"
+        else -> null
+    }
+
+    private val address = Regex("[0-9A-Fa-f]{2}(:[0-9A-Fa-f]{2}){5}")
+
+    private fun checkAddress(value: String): String? =
+        if (value.isBlank() || address.matches(value.trim())) null
+        else "Enter a Bluetooth address such as 01:23:45:67:89:AB, or leave it blank"
+
+    private fun checkPositive(value: String, unit: String): String? =
+        if ((value.trim().toIntOrNull() ?: 0) > 0) null else "Enter a positive whole number $unit"
+
+    private fun checkOptionalPositive(value: String): String? =
+        if (value.isBlank() || (value.trim().toIntOrNull() ?: 0) > 0) null else "Enter a positive whole number, or leave it blank"
+
+    private fun checkNonNegative(value: String): String? =
+        if ((value.trim().toIntOrNull() ?: -1) >= 0) null else "Enter zero or more pixels"
+
+    private fun checkFps(value: String): String? =
+        if (value.trim().toIntOrNull() in 30..60) null else "Enter a frame rate from 30 to 60"
 
     private fun checkPositiveEven(value: String): String? {
         val number = value.trim().toIntOrNull()

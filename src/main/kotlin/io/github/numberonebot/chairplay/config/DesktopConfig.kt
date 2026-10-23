@@ -128,8 +128,9 @@ class DesktopConfig(private val dir: Path) {
         name
     }
 
-    val displayWidth = evenSetting("display.width", 1280)
-    val displayHeight = evenSetting("display.height", 720)
+    // The smallest picture by default, as the main window's minimum: it fits any screen.
+    val displayWidth = evenSetting("display.width", 800)
+    val displayHeight = evenSetting("display.height", 480)
     private val fps = (positiveSetting("display.fps") ?: 60).also {
         require(it in 30..60) { "display.fps must be between 30 and 60, not $it" }
     }
@@ -348,13 +349,13 @@ class DesktopConfig(private val dir: Path) {
 
     /**
      * The icon on the CarPlay home screen, from car.icon in the app folder. The default file is written with
-     * the Windows icon the first time, to be replaced; any square image is sent at [MAX_ICON_PIXELS] at most,
+     * ChairPlay's armchair ([CarIcon]) the first time, to be replaced; any square image is sent at [MAX_ICON_PIXELS] at most,
      * as upstream's AirPlayIconSizing does, because a large icon in /info stopped the iPhone connecting (#567).
      */
     private fun carIcon(): AirPlayIcon {
         val name = settings.getProperty("car.icon")?.trim()?.ifEmpty { null } ?: DEFAULT_ICON_FILE
         val file = dir.resolve(name)
-        if (name == DEFAULT_ICON_FILE && !file.exists()) Files.write(file, WindowsIcon.render().data)
+        if (name == DEFAULT_ICON_FILE && !file.exists()) Files.write(file, CarIcon.png())
         require(file.exists()) { "car.icon: $file does not exist" }
         val image = runCatching { ImageIO.read(file.toFile()) }.getOrNull()
             ?: throw IllegalArgumentException("car.icon: $file is not an image ImageIO can read (PNG, JPEG, BMP, GIF)")
@@ -443,7 +444,7 @@ class DesktopConfig(private val dir: Path) {
             SettingBlock("The car's name on the iPhone (CarPlay settings, the network); blank is 'ChairPlay'.", "device.name" to ""),
             SettingBlock(
                 "The car button on the CarPlay home screen: its label, and a square image in this folder\n" +
-                    "(sent at 192 pixels at most). carplay-icon.png is written with the Windows icon to replace.",
+                    "(sent at 192 pixels at most). carplay-icon.png is written with ChairPlay's armchair to replace.",
                 "car.label" to DEFAULT_CAR_LABEL, "car.icon" to "carplay-icon.png",
             ),
             SettingBlock(
@@ -463,7 +464,7 @@ class DesktopConfig(private val dir: Path) {
             SettingBlock(
                 "The CarPlay screen the iPhone draws, in pixels (positive even numbers), and its frame rate (30-60).\n" +
                     "iOS draws at @3x from about 1280x720 on both sides, at @2x below; more pixels fit more on screen.",
-                "display.width" to "1280", "display.height" to "720", "display.fps" to "60",
+                "display.width" to "800", "display.height" to "480", "display.fps" to "60",
             ),
             SettingBlock(
                 "Its physical size: the millimetres, or a pixel density. Blank (best) uses 200 mm wide with the height\n" +

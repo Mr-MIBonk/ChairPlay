@@ -31,6 +31,15 @@ describe('Api', () => {
     expect(await new Api('key').window('altscreen', true)).toBe(false)
   })
 
+  it('asks the app to disconnect', async () => {
+    const requests = answer(200)
+
+    await new Api('key').disconnect()
+
+    expect(requests[0].url).toBe('/api/disconnect')
+    expect(requests[0].init.method).toBe('POST')
+  })
+
   // A link to a Windows page names the place; the app knows what to start for it.
   it('asks the app to open a Windows page', async () => {
     const requests = answer(200)

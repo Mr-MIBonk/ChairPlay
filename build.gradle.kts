@@ -577,6 +577,11 @@ sourceSets {
     }
 }
 
+// The car button's default icon, drawn by packaging/icon/make_icon.py: the app writes it into its folder (CarIcon).
+tasks.processResources {
+    from("packaging/icon/carplay-icon.png") { into("icons") }
+}
+
 // The UI's tests are part of the suite.
 tasks.test {
     dependsOn(webuiTest)

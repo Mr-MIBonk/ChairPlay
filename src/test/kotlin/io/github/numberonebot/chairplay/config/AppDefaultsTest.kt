@@ -1,10 +1,12 @@
 package io.github.numberonebot.chairplay.config
 
 import io.github.numberonebot.chairplay.input.ControlsConfig
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.file.Files
+import java.nio.file.Path
 
 class AppDefaultsTest {
     // deploy writes these into the app folder, so the Wi-Fi can be filled in before the first start.
@@ -21,7 +23,8 @@ class AppDefaultsTest {
         assertTrue(Files.readString(dir.resolve(ControlsConfig.FILE)).startsWith("# ChairPlay controls, read at start."))
         for (key in DesktopConfig.SETTING_KEYS) assertTrue("$key missing", Regex("(?m)^${Regex.escape(key)}=").containsMatchIn(settings))
         assertTrue(Files.readString(dir.resolve(ControlsConfig.FILE)).contains("\nkey.siri=S\n"))
-        assertTrue(Files.size(dir.resolve(DesktopConfig.DEFAULT_ICON_FILE)) > 0)
+        // The armchair of the app's own icon, not a picture drawn in code.
+        assertArrayEquals(Files.readAllBytes(Path.of("packaging/icon/carplay-icon.png")), Files.readAllBytes(dir.resolve(DesktopConfig.DEFAULT_ICON_FILE)))
     }
 
     @Test

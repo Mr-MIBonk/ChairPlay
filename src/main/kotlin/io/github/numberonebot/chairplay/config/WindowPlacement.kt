@@ -39,6 +39,14 @@ private fun ceilDiv(a: Long, b: Long): Int = ((a + b - 1) / b).toInt()
 fun WindowSize.fittedTo(aspect: WindowSize): WindowSize =
     WindowSize(width, Math.round(width.toDouble() * aspect.height / aspect.width).toInt().coerceAtLeast(1))
 
+/**
+ * The size a window opens at: the one it was left at ([restore]), else [configured]. A window sized by its page
+ * ([pageSized]) always opens at [configured], in the web view's pixels for GLFW to scale to the monitor; the size it
+ * was left at is in screen pixels, scaled once already.
+ */
+fun openingSize(configured: WindowSize, restore: WindowPlacement?, pageSized: Boolean): WindowSize =
+    if (pageSized || restore == null) configured else WindowSize(restore.width, restore.height)
+
 /** A monitor's work area (without the taskbar), in the same coordinates as [WindowPlacement]. */
 data class ScreenArea(val x: Int, val y: Int, val width: Int, val height: Int)
 

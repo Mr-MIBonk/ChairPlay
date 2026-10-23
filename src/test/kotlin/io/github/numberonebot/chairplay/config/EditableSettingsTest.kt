@@ -26,10 +26,72 @@ class EditableSettingsTest {
 
     @Test
     fun `only the settings the UI offers can change`() {
-        val result = errors("display.width" to "1920")
+        val result = errors("log.carplay.data" to "true")
 
-        assertEquals(setOf("display.width"), result.keys)
-        assertTrue(result.getValue("display.width"), "cannot be changed here" in result.getValue("display.width"))
+        assertEquals(setOf("log.carplay.data"), result.keys)
+        assertTrue(result.getValue("log.carplay.data"), "cannot be changed here" in result.getValue("log.carplay.data"))
+    }
+
+    // Every setting the pages show: the iPhone, the CarPlay screen, the AltScreen, and the sound.
+    @Test
+    fun `the pages' settings can change`() {
+        val result = errors(
+            "device.name" to "Гараж", "iphone.address" to "AA:bb:CC:dd:EE:ff", "iphone.join.seconds" to "45",
+            "display.width" to "1920", "display.height" to "720", "display.fps" to "30",
+            "display.physical.width.mm" to "292", "display.physical.height.mm" to "", "display.ppi" to "",
+            "display.theme" to "dark", "display.dock" to "driver", "display.right.hand.drive" to "true",
+            "display.safe.draw.outside" to "false", "display.corners" to "rounded",
+            "display.safe.top" to "10", "display.safe.bottom" to "0", "display.safe.left" to "40", "display.safe.right" to "0",
+            "altscreen.content" to "map-card", "altscreen.cards" to "left",
+            "altscreen.safe.top" to "0", "altscreen.safe.bottom" to "0", "altscreen.safe.left" to "12", "altscreen.safe.right" to "0",
+            "audio.output" to "Speakers (Realtek(R) Audio)", "audio.input" to "default", "audio.echo.cancellation" to "true",
+        )
+
+        assertEquals(emptyMap<String, String>(), result)
+    }
+
+    @Test
+    fun `choices take only the values the app knows`() {
+        assertTrue("windows, light, dark, phone" in errors("display.theme" to "neon").getValue("display.theme"))
+        assertTrue("auto, driver, bottom" in errors("display.dock" to "left").getValue("display.dock"))
+        assertTrue("rounded, square" in errors("display.corners" to "round").getValue("display.corners"))
+        assertTrue("map, map-card, hud, card" in errors("altscreen.content" to "radar").getValue("altscreen.content"))
+        assertTrue("auto, left, right, top, off" in errors("altscreen.cards" to "bottom").getValue("altscreen.cards"))
+        for (key in listOf("display.right.hand.drive", "display.safe.draw.outside", "audio.echo.cancellation")) {
+            assertTrue(key, "true or false" in errors(key to "yes").getValue(key))
+        }
+    }
+
+    @Test
+    fun `the CarPlay screen's numbers are ones the iPhone takes`() {
+        assertTrue("even" in errors("display.width" to "801").getValue("display.width"))
+        assertTrue("even" in errors("display.height" to "").getValue("display.height"))
+        assertTrue("30 to 60" in errors("display.fps" to "25").getValue("display.fps"))
+        assertTrue("30 to 60" in errors("display.fps" to "fast").getValue("display.fps"))
+        assertTrue("positive" in errors("display.physical.width.mm" to "0").getValue("display.physical.width.mm"))
+        assertTrue("positive" in errors("display.ppi" to "abc").getValue("display.ppi"))
+        assertTrue(errors("display.physical.width.mm" to "", "display.ppi" to " ").isEmpty())
+    }
+
+    // The safe area must leave some of the screen: checked against the size as it will be, changed or not.
+    @Test
+    fun `a safe area leaves some of the screen`() {
+        val wide = errors("display.safe.left" to "400", "display.safe.right" to "500", "display.width" to "800")
+        assertTrue(wide.toString(), "left and right" in wide.getValue("display.safe.left"))
+        val tall = EditableSettings.validate(mapOf("display.safe.top" to "300"), current + ("display.height" to "480") + ("display.safe.bottom" to "200"))
+        assertTrue(tall.toString(), "top and bottom" in tall.getValue("display.safe.top"))
+        assertTrue("zero or more" in errors("display.safe.top" to "-1").getValue("display.safe.top"))
+        assertTrue("zero or more" in errors("altscreen.safe.left" to "x").getValue("altscreen.safe.left"))
+    }
+
+    @Test
+    fun `the iPhone's settings are ones it can have`() {
+        assertTrue("63 bytes" in errors("device.name" to "Ж".repeat(32)).getValue("device.name"))
+        assertTrue("control" in errors("device.name" to "a\nb").getValue("device.name"))
+        assertTrue(errors("device.name" to "").isEmpty())
+        assertTrue("Bluetooth address" in errors("iphone.address" to "my phone").getValue("iphone.address"))
+        assertTrue(errors("iphone.address" to "").isEmpty())
+        assertTrue("positive" in errors("iphone.join.seconds" to "0").getValue("iphone.join.seconds"))
     }
 
     @Test
@@ -95,5 +157,10 @@ class EditableSettingsTest {
         assertEquals(Applies.RESTART, EditableSettings.applies("ui.autoconnect"))
         assertEquals(Applies.RESTART, EditableSettings.applies("altscreen.enabled"))
         assertEquals(Applies.RESTART, EditableSettings.applies("window.width"))
+        // The app reads these once, as it starts.
+        for (key in listOf("device.name", "iphone.address", "iphone.join.seconds", "display.width", "display.theme",
+            "display.safe.top", "altscreen.content", "altscreen.safe.left", "audio.output", "audio.echo.cancellation")) {
+            assertEquals(key, Applies.RESTART, EditableSettings.applies(key))
+        }
     }
 }

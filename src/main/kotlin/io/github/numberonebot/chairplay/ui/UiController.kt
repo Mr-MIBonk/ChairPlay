@@ -3,6 +3,7 @@ package io.github.numberonebot.chairplay.ui
 import io.github.numberonebot.chairplay.config.Applies
 import io.github.numberonebot.chairplay.config.EditableSettings
 import io.github.numberonebot.chairplay.config.SettingsFile
+import io.github.numberonebot.chairplay.media.AudioDevices
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.format.DateTimeFormatter
@@ -14,6 +15,9 @@ interface UiActions {
 
     /** Ends the session or bring-up and starts a new one, as Ctrl+R does. */
     fun reconnect()
+
+    /** Ends the session or bring-up; none starts until Connect. */
+    fun disconnect()
 }
 
 /** A window of the app the settings screen shows and hides: the AltScreen's, the controls'. */
@@ -53,6 +57,9 @@ data class SetupInfo(
     val displayHeight: Int,
 )
 
+/** The sound devices by the names audio.output and audio.input match against. */
+data class AudioDeviceNames(val outputs: List<String>, val inputs: List<String>)
+
 /** A save's outcome: the problems by key, or, when there are none, when each saved setting applies. */
 class SaveResult(val errors: Map<String, String>, val applies: Map<String, String>)
 
@@ -67,6 +74,7 @@ interface UiApi {
     /** Null when connecting started, else why it cannot. */
     fun connect(): String?
     fun reconnect()
+    fun disconnect()
 
     /** Shows the screen named "start", "settings" or "carplay"; false when it cannot be shown. */
     fun show(screen: String): Boolean
@@ -105,6 +113,10 @@ class UiController(
     private val controls: UiControls? = null,
     /** Starts a program with its arguments, for [open]. */
     private val launch: (List<String>) -> Unit = { ProcessBuilder(it).start() },
+    /** The sound devices the Audio page offers, as Java Sound names them. */
+    private val audioDevices: () -> AudioDeviceNames = {
+        AudioDeviceNames(AudioDevices.outputs().map { it.name }, AudioDevices.inputs().map { it.name })
+    },
 ) : UiApi {
     /** The settings as the app started with them, against which a change waits for the next start. */
     private val startup: Map<String, String> = settings.read()
@@ -225,6 +237,8 @@ class UiController(
             "passphraseSet" to !values[PASSPHRASE].isNullOrEmpty(),
             "applies" to EditableSettings.keys.associateWith { appliesName(EditableSettings.applies(it)) },
             "display" to mapOf("width" to setup.displayWidth, "height" to setup.displayHeight),
+            "audio" to runCatching { audioDevices() }.getOrElse { AudioDeviceNames(emptyList(), emptyList()) }
+                .let { mapOf("outputs" to it.outputs, "inputs" to it.inputs) },
         )
     }
 
@@ -266,6 +280,11 @@ class UiController(
 
     override fun reconnect() = actions.reconnect()
 
+    override fun disconnect() {
+        actions.disconnect()
+        model.disconnected()
+    }
+
     override fun show(screen: String): Boolean {
         val target = Screen.entries.firstOrNull { it.name.equals(screen, ignoreCase = true) } ?: return false
         return model.show(target)
@@ -274,8 +293,7 @@ class UiController(
     private fun normalize(key: String, value: String): String = when (key) {
         // A network name and a password are taken as typed: spaces may belong to them.
         "wifi.ssid", PASSPHRASE -> value
-        "ui.autoconnect", "ui.autoshow", "altscreen.enabled" -> value.trim().lowercase()
-        else -> value.trim()
+        else -> if (EditableSettings.caseless(key)) value.trim().lowercase() else value.trim()
     }
 
     private fun appliesName(applies: Applies) = applies.name.lowercase()

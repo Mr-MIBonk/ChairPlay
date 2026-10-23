@@ -138,6 +138,21 @@ class UiModelTest {
         assertFalse(model.wifiSaved())
     }
 
+    // Disconnect: the session ends and the app waits for Connect; CarPlay's picture gives way to the screens.
+    @Test
+    fun `Disconnect leaves the app idle on its screens`() {
+        val model = model(autoconnect = true)
+        model.sessionActive()
+        model.show(Screen.CARPLAY)
+
+        model.disconnected()
+
+        assertEquals(Phase.IDLE, model.state.phase)
+        assertEquals(Screen.START, model.state.screen)
+        model.connecting()
+        assertEquals(Phase.STARTING, model.state.phase)
+    }
+
     @Test
     fun `Connect starts a bring-up from idle`() {
         val model = model(autoconnect = false)

@@ -94,7 +94,7 @@ class UiServer(
             return
         }
         val method = exchange.requestMethod
-        val posts = setOf("settings", "connect", "reconnect", "screen", "window", "control", "altscreen", "open")
+        val posts = setOf("settings", "connect", "reconnect", "disconnect", "screen", "window", "control", "altscreen", "open")
         val gets = setOf("state", "settings", "events")
         when {
             method == "GET" && route in gets -> when (route) {
@@ -142,6 +142,10 @@ class UiServer(
             }
             "reconnect" -> {
                 api.reconnect()
+                json(exchange, 200, mapOf("ok" to true))
+            }
+            "disconnect" -> {
+                api.disconnect()
                 json(exchange, 200, mapOf("ok" to true))
             }
             "screen" -> {

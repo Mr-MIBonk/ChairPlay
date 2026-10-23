@@ -22,7 +22,7 @@ fun writeAppDefaults(dir: Path): List<String> {
     }
     write(DesktopConfig.SETTINGS_FILE) { dir.resolve(DesktopConfig.SETTINGS_FILE).writeText(DesktopConfig.defaultSettingsText()) }
     write(ControlsConfig.FILE) { dir.resolve(ControlsConfig.FILE).writeText(ControlsConfig.defaultText()) }
-    write(DesktopConfig.DEFAULT_ICON_FILE) { Files.write(dir.resolve(DesktopConfig.DEFAULT_ICON_FILE), WindowsIcon.render().data) }
+    write(DesktopConfig.DEFAULT_ICON_FILE) { Files.write(dir.resolve(DesktopConfig.DEFAULT_ICON_FILE), CarIcon.png()) }
     return written
 }
 

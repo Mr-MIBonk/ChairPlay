@@ -114,6 +114,11 @@ class UiModel(
         state.copy(phase = Phase.STARTING, screen = if (state.screen == Screen.CARPLAY) Screen.START else state.screen)
     }
 
+    /** Disconnect: no session and no bring-up until Connect; CarPlay's picture gives way to the start screen. */
+    fun disconnected() = update { state ->
+        state.copy(phase = Phase.IDLE, screen = if (state.screen == Screen.CARPLAY) Screen.START else state.screen)
+    }
+
     /** The car button on the CarPlay home screen. */
     fun carButton() = update { it.copy(screen = Screen.SETTINGS) }
 
