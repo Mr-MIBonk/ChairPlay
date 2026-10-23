@@ -217,6 +217,17 @@ class DesktopConfig(private val dir: Path) {
     /** windows follows the Windows dark mode; phone sends nothing and leaves it to the iPhone. */
     val theme: Theme = choiceSetting("display.theme", Theme.WINDOWS, Theme.entries.associateBy { it.name.lowercase() })
 
+    /**
+     * ui.accent: the accent colour of the screens, the controls window, and the HUD, written #rrggbb; every lighter or
+     * fainter shade of it is made from it.
+     */
+    val accentText: String = (settings.getProperty("ui.accent")?.trim()?.ifEmpty { null } ?: DEFAULT_ACCENT).lowercase().also {
+        require(Regex("#[0-9a-f]{6}").matches(it)) { "ui.accent must be a colour written #rrggbb, such as $DEFAULT_ACCENT, not $it" }
+    }
+
+    /** [accentText] as 0xRRGGBB. */
+    val accent: Int = accentText.drop(1).toInt(16)
+
     /** Right-hand drive puts CarPlay's dock and controls on the right. */
     private val rightHandDrive = booleanSetting("display.right.hand.drive", false)
 
@@ -433,17 +444,22 @@ class DesktopConfig(private val dir: Path) {
                 "iphone.join.seconds" to "30",
             ),
             SettingBlock(
-                "The start screen: 'true' connects to the iPhone as the app starts, 'false' waits for Connect.",
+                "'true' connects to the iPhone as the app starts, 'false' waits for Connect.",
                 "ui.autoconnect" to "true",
             ),
             SettingBlock(
-                "'true' shows CarPlay over the start screen as soon as the iPhone connects, 'false' stays on the start\n" +
-                    "screen until you choose Show CarPlay.",
+                "'true' shows CarPlay over the settings as soon as the iPhone connects, 'false' stays on the settings\n" +
+                    "until you choose CarPlay.",
                 "ui.autoshow" to "true",
             ),
             SettingBlock(
                 "'true' shows each controls window button's key on it; 'false' shows them only while Alt is held.",
                 "ui.controls.keys" to "false",
+            ),
+            SettingBlock(
+                "The accent colour of the screens, the controls window, and the HUD, written #rrggbb; its lighter and\n" +
+                    "fainter shades are made from it.",
+                "ui.accent" to DEFAULT_ACCENT,
             ),
             SettingBlock("The car's name on the iPhone (CarPlay settings, the network); blank is 'ChairPlay'.", "device.name" to ""),
             SettingBlock(
@@ -535,6 +551,8 @@ class DesktopConfig(private val dir: Path) {
         private const val MAX_ICON_PIXELS = 192
         const val SETTINGS_FILE = "settings.properties"
         // The Audi Virtual Cockpit's 12.3-inch Kombi panel; DiPlay's cluster display reports the same 292 mm.
+        /** iOS's system blue, CarPlay's own accent. */
+        const val DEFAULT_ACCENT = "#0a84ff"
         private const val DEFAULT_ALTSCREEN_WIDTH = 1440
         private const val DEFAULT_ALTSCREEN_HEIGHT = 540
         private const val ALTSCREEN_WIDTH_MM = 292

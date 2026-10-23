@@ -10,7 +10,7 @@ data class SetupSnapshot(val pairedIphone: String?, val pcWifi: String?, val fir
 /**
  * The setup as it is now, read again every few seconds so the steps tick themselves as the PC changes: an iPhone
  * paired, the PC on a network, a firewall rule added. Nothing is read while the page is not shown ([active]). The
- * firewall takes a PowerShell to read, so it is read again only while it is wrong, and at most every
+ * firewall takes a PowerShell to read, so it is read again only while it is wrong (not while it is off), and at most every
  * [FIREWALL_EVERY_SECONDS]. A reader that fails reads as nothing found.
  */
 class SetupChecks(
@@ -35,7 +35,8 @@ class SetupChecks(
         val before = snapshot
         var firewallNow = before.firewall
         val time = now()
-        if (firewallNow != FirewallStatus.PRESENT && time - firewallRead >= TimeUnit.SECONDS.toNanos(FIREWALL_EVERY_SECONDS)) {
+        val settled = firewallNow == FirewallStatus.PRESENT || firewallNow == FirewallStatus.OFF
+        if (!settled && time - firewallRead >= TimeUnit.SECONDS.toNanos(FIREWALL_EVERY_SECONDS)) {
             firewallRead = time
             firewallNow = runCatching(firewall).getOrDefault(firewallNow)
         }

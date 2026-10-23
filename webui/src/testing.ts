@@ -1,6 +1,7 @@
 // Fakes for the tests: an app state and a backend that records what the screens ask for.
 import type {
-  AltscreenContent, AppState, Backend, ControlsData, SaveOutcome, Screen, SettingsData, WindowName, WindowsPlace,
+  AltscreenContent, AppState, Backend, ControlsData, PictureWindow, SaveOutcome, Screen, SettingsData, WindowName,
+  WindowsPlace,
 } from './api'
 
 export function appState(overrides: Partial<AppState> = {}): AppState {
@@ -18,8 +19,15 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     restartPending: [],
     windows: { altscreen: { available: true, visible: true }, controls: { available: true, visible: true } },
     mainWindow: null,
+    altscreenWindow: null,
     controlsKeys: false,
     setupDone: true,
+    accent: '#0a84ff',
+    about: {
+      app: { commit: '4e6d50df', date: '2026-10-23' },
+      core: { commit: '143f4674', date: '2026-10-21' },
+      details: 'ChairPlay 4e6d50df (2026-10-23)\nDiPlay core 143f4674 (2026-10-21)\nWindows 11 24H2 (build 26300)',
+    },
     controls: {
       keys: {
         'knob.left': 'Left', 'knob.right': 'Right', 'knob.up': 'Up', 'knob.down': 'Down', 'knob.next': 'Tab',
@@ -181,10 +189,11 @@ export class FakeBackend implements Backend {
     return this.consent
   }
 
-  actualSizes = 0
+  /** The windows Actual size was asked of, in order. */
+  actualSized: PictureWindow[] = []
 
-  async actualSize() {
-    this.actualSizes++
+  async actualSize(window: PictureWindow) {
+    this.actualSized.push(window)
     return true
   }
 

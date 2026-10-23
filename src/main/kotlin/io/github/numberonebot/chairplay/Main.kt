@@ -166,9 +166,13 @@ private fun VideoWindow.asUiWindow() = object : UiWindow {
     override fun setShown(shown: Boolean) = this@asUiWindow.setShown(shown)
 }
 
-private fun VideoWindow.asUiMainWindow() = object : UiMainWindow {
+/** A window for its page's Actual size; [picture] is the size it shows, null for the display's. */
+private fun VideoWindow.asUiMainWindow(picture: WindowSize? = null) = object : UiMainWindow {
     override val width get() = framebufferSize.width
     override val height get() = framebufferSize.height
+    override val minWidth get() = minimumSize.width
+    override val minHeight get() = minimumSize.height
+    override val picture = picture
     override fun resizeTo(width: Int, height: Int) = this@asUiMainWindow.resizeTo(width, height)
 }
 
@@ -372,9 +376,10 @@ private fun runCarPlay() {
     }, pageControls, window.asUiMainWindow(), onBindings = { saved ->
         bindings.set(saved)
         log(saved.summary())
-    }, readFirewall = ::readFirewallStatus)
+    }, readFirewall = ::readFirewallStatus, altscreenWindow = altscreen?.asUiMainWindow(config.altscreen?.size))
     // The CarPlay page offers Actual size while the window's size differs from the picture's.
     window.onResize = { ui.windowsChanged() }
+    altscreen?.onResize = { ui.windowsChanged() }
     controlsChanged.set { ui.controlsChanged() }
     giveKeysBack.set {
         ui.controlsView?.giveKeysBack()
@@ -443,7 +448,7 @@ private fun runCarPlay() {
         alt.overlay = HudPainter({
             val snapshot = demo?.invoke() ?: carPlayData.bus.snapshot()
             HudView(demo != null || active.get() != null, hudState(snapshot), snapshot.artwork)
-        }, ::log, alt::repaint)
+        }, ::log, alt::repaint, config.accent)
         carPlayData.bus.addListener { if (alt.hud) alt.repaint() }
     }
     val bootstrap = WirelessBootstrap(config, sink, object : AirPlaySessionListener {
@@ -531,8 +536,13 @@ private fun checkFirewall(port: Int): FirewallStatus {
         log("could not read the Windows Firewall rules; if the iPhone cannot connect, add these $hint")
         return FirewallStatus.UNKNOWN
     }
+    if (state.off) {
+        log("Windows Firewall is off for the networks this PC is on; ChairPlay needs no rule")
+        return FirewallStatus.OFF
+    }
     if (!state.allowRule) {
-        log("no Windows Firewall rule \"$FIREWALL_RULE\"; the iPhone cannot connect until one is added")
+        // Another rule (Windows' own, from its first-run prompt) may let the iPhone in: ours is only missing.
+        log("no Windows Firewall rule \"$FIREWALL_RULE\"; if the iPhone cannot connect, add it")
         log(hint)
     }
     state.blocking.forEach {
@@ -547,6 +557,7 @@ private fun readFirewallStatus(): FirewallStatus =
     readFirewall(ProcessHandle.current().info().command().orElse("java.exe"))?.let(::firewallStatus) ?: FirewallStatus.UNKNOWN
 
 private fun firewallStatus(state: FirewallState): FirewallStatus = when {
+    state.off -> FirewallStatus.OFF
     state.blocking.isNotEmpty() -> FirewallStatus.BLOCKED
     !state.allowRule -> FirewallStatus.MISSING
     else -> FirewallStatus.PRESENT

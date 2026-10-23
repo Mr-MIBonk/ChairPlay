@@ -578,6 +578,43 @@ sourceSets {
     }
 }
 
+// The About page's build: this repository's commit and the DiPlay core's (the upstream submodule), each with its
+// date, in build-info.properties (BuildInfo). The commits move without a file Gradle watches, so the task runs every
+// build; it writes the file only when that changes, which leaves the jar up to date otherwise.
+val buildInfoResources = layout.buildDirectory.dir("generated/build-info")
+val buildInfo by tasks.registering {
+    group = "build"
+    description = "Writes the app's and the DiPlay core's commits for the About page."
+    val out = buildInfoResources.map { it.file("build-info.properties") }
+    val root = layout.projectDirectory.asFile
+    outputs.file(out)
+    outputs.upToDateWhen { false }
+    doLast {
+        fun commit(dir: File): List<String> = runCatching {
+            val process = ProcessBuilder("git", "log", "-1", "--format=%h %cs", "--abbrev=8").directory(dir).start()
+            val text = process.inputStream.bufferedReader().readText().trim()
+            if (process.waitFor() == 0) text.split(' ') else emptyList()
+        }.getOrDefault(emptyList())
+        val lines = listOf("app" to commit(root), "core" to commit(root.resolve("upstream")))
+            .filter { (_, commit) -> commit.size == 2 }
+            .flatMap { (name, commit) -> listOf("$name.commit=${commit[0]}", "$name.date=${commit[1]}") }
+        val text = lines.joinToString("") { "$it\n" }
+        val file = out.get().asFile
+        if (!file.exists() || file.readText() != text) {
+            file.parentFile.mkdirs()
+            file.writeText(text)
+        }
+    }
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir(files(buildInfoResources).builtBy(buildInfo))
+        }
+    }
+}
+
 // The car button's default icon, drawn by packaging/icon/make_icon.py: the app writes it into its folder (CarIcon).
 tasks.processResources {
     from("packaging/icon/carplay-icon.png") { into("icons") }

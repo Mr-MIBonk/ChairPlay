@@ -1,6 +1,7 @@
+import type { AppState, Backend } from '../api'
 import { Checkbox, Group, Row } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
-import { parts, SafeArea, SizeRows } from './parts'
+import { ActualSize, Changed, parts, pendingOf, SafeArea, SizeRows } from './parts'
 
 /** The instrument clusters a size fits, for its preset's tooltip. */
 const PRESETS = [
@@ -12,8 +13,9 @@ const PRESETS = [
 const DISPLAY_KEYS = ['altscreen.enabled', 'altscreen.width', 'altscreen.height']
 
 /** The second, cluster-sized window: whether it opens, its size, what it starts with, and its safe area. */
-export function AltScreenPage({ settings }: { settings: Settings }) {
-  const { choice, note } = parts(settings)
+export function AltScreenPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
+  const pending = pendingOf(state)
+  const { choice, note } = parts(settings, pending)
   return (
     <>
       <Group title="Display" note={note(DISPLAY_KEYS)} />
@@ -24,8 +26,16 @@ export function AltScreenPage({ settings }: { settings: Settings }) {
           onChange={(checked) => settings.save({ 'altscreen.enabled': String(checked) })}
         />
         <span className="exp">Experimental</span>
+        <Changed keys={['altscreen.enabled']} pending={pending} />
       </Row>
-      <SizeRows settings={settings} prefix="altscreen" presets={PRESETS} fallback={{ width: 1440, height: 540 }} />
+      <SizeRows
+        settings={settings}
+        prefix="altscreen"
+        presets={PRESETS}
+        fallback={{ width: 1440, height: 540 }}
+        after={<ActualSize sizes={state.altscreenWindow} window="altscreen" backend={backend} />}
+        pending={pending}
+      />
       <Group title="Starts with" note="The controls window switches them" />
       <Row label="Content">
         {choice('altscreen.content', 'Content', 'map', [['hud', 'HUD'], ['map', 'Map'], ['map-card', 'Map + card'], ['card', 'Turn card']])}
@@ -34,7 +44,7 @@ export function AltScreenPage({ settings }: { settings: Settings }) {
         {choice('altscreen.cards', 'Turn card', 'auto', [['auto', 'Auto'], ['left', 'Left'], ['right', 'Right'], ['top', 'Top'], ['off', 'Off']])}
       </Row>
       <Group title="Safe area" note="Pixels at each edge" />
-      <SafeArea settings={settings} prefix="altscreen.safe" label="Map text kept clear" />
+      <SafeArea settings={settings} prefix="altscreen.safe" label="Insets" pending={pending} />
     </>
   )
 }

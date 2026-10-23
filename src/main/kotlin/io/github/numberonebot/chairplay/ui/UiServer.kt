@@ -198,10 +198,13 @@ class UiServer(
             "firewall-rule" ->
                 if (api.addFirewallRule()) json(exchange, 200, mapOf("ok" to true))
                 else json(exchange, 409, mapOf("error" to "The rule was not added"))
-            "window-size" -> when {
-                body["actual"] != true -> json(exchange, 400, mapOf("error" to "actual missing"))
-                api.actualSize() -> json(exchange, 200, mapOf("ok" to true))
-                else -> json(exchange, 404, mapOf("error" to "no main window"))
+            "window-size" -> {
+                val window = body["window"] as? String ?: "main"
+                when {
+                    body["actual"] != true -> json(exchange, 400, mapOf("error" to "actual missing"))
+                    api.actualSize(window) -> json(exchange, 200, mapOf("ok" to true))
+                    else -> json(exchange, 404, mapOf("error" to "no $window window"))
+                }
             }
         }
     }

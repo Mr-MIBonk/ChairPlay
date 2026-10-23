@@ -13,7 +13,13 @@
   --bg: #000;
   --text: #fff;
   --muted: #9a9aa0;
+  /*
+   * The accent, ui.accent in settings.properties, which the page sets here (accent.ts); every lighter, darker, or
+   * fainter shade of it is made from it, on both pages.
+   */
   --accent: #0a84ff;
+  --accent-light: color-mix(in srgb, var(--accent), white 20%);
+  --accent-dark: color-mix(in srgb, var(--accent), black 12%);
   --green: #30d158;
   --orange: #ff9f0a;
   --red: #ff453a;
@@ -128,9 +134,11 @@ code {
   --edge: #3a3a3f;
   --line: #2a2a2e;
   --dim: #5c5c63;
-  --accent-tint: rgba(10, 132, 255, 0.16);
-  --accent-fill: linear-gradient(180deg, #3897ff, #0a84ff 55%, #0a6fd8);
-  --chosen-fill: linear-gradient(180deg, #1c78dc, #0a6bd2 60%, #0960c0);
+  --accent-tint: color-mix(in srgb, var(--accent) 16%, transparent);
+  --accent-fill: linear-gradient(180deg, var(--accent-light), var(--accent) 55%, var(--accent-dark));
+  --chosen-fill: linear-gradient(
+    180deg, var(--accent-dark), color-mix(in srgb, var(--accent), black 17%) 60%, color-mix(in srgb, var(--accent), black 25%)
+  );
   box-sizing: border-box;
   height: 100vh;
   overflow: hidden;
@@ -180,7 +188,7 @@ code {
 
 .controls-screen .key.down,
 .controls-screen .key[aria-pressed='true'] {
-  border-color: #0a6fd8;
+  border-color: var(--accent-dark);
   background: var(--accent-fill);
   color: #fff;
 }
@@ -419,7 +427,7 @@ code {
 
 .controls-screen .key.select.down {
   border-color: var(--line);
-  background: radial-gradient(circle at 50% 22%, #3897ff, #0a84ff 58%, #0a6fd8);
+  background: radial-gradient(circle at 50% 22%, var(--accent-light), var(--accent) 58%, var(--accent-dark));
 }
 
 .controls-screen .key.select .kb {
@@ -563,7 +571,7 @@ html:has(.shell) {
   --text: #e9e9eb;
   --muted: #8b8b92;
   --dim: #5c5c63;
-  --accent-bg: rgba(10, 132, 255, 0.18);
+  --accent-bg: color-mix(in srgb, var(--accent) 18%, transparent);
   /* Hover lightens a control's own colours with a thin white layer, so a button on an amber message stays amber */
   --lighten: linear-gradient(rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.09));
   --ui: 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
@@ -578,6 +586,20 @@ html:has(.shell) {
 .shell button {
   color: inherit;
   font: inherit;
+}
+
+/*
+ * Through black, in step with the window's own fade (Fade.kt, 150 ms each half): going away the page dims at once,
+ * while the window holds it; coming back it waits while the picture dims, then comes up as the window shows it.
+ */
+.shell {
+  transition: opacity 150ms ease 150ms;
+}
+
+.shell.away {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 150ms ease;
 }
 
 /* Toolbar: 38 px buttons in a 58 px bar, 10 px round them as between them */
@@ -726,7 +748,10 @@ html:has(.shell) {
 
 /* Connect when Get started's last step points to it: a ring and a glow in the accent colour */
 .shell .tb .btn.primary.lit {
-  box-shadow: 0 0 0 2px var(--bar), 0 0 0 4px rgba(10, 132, 255, 0.55), 0 0 16px 4px rgba(10, 132, 255, 0.45);
+  box-shadow:
+    0 0 0 2px var(--bar),
+    0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 16px 4px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
 /* The section list and the page */
@@ -1015,6 +1040,10 @@ html:has(.shell) {
 
 .shell .trademarks {
   margin-top: 8px;
+}
+
+.shell .copy-details {
+  margin-left: 10px;
 }
 
 /*

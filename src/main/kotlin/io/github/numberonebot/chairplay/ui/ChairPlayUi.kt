@@ -35,6 +35,8 @@ class ChairPlayUi(
     controls: UiControls? = null,
     /** The main window, for the CarPlay page's Actual size. */
     mainWindow: UiMainWindow? = null,
+    /** The AltScreen's window, for the AltScreen page's Actual size. */
+    altscreenWindow: UiMainWindow? = null,
     /** Puts the bindings the Keyboard page saved in force. */
     onBindings: (ControlsConfig) -> Unit = {},
     /** Reads the firewall again, quietly, for the live setup checks. */
@@ -60,6 +62,7 @@ class ChairPlayUi(
             settingsFile = dir.resolve(DesktopConfig.SETTINGS_FILE),
             displayWidth = config.displayWidth,
             displayHeight = config.displayHeight,
+            accent = config.accentText,
         ),
         actions,
         log,
@@ -67,6 +70,7 @@ class ChairPlayUi(
         windows,
         controls,
         mainWindow = mainWindow,
+        altscreenWindow = altscreenWindow,
         bindings = ControlsFile(dir),
         onBindings = onBindings,
         checks = checks,

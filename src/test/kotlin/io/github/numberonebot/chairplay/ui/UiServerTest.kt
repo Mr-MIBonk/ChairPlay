@@ -151,12 +151,13 @@ class UiServerTest {
         assertEquals(409, post("/api/firewall-rule", "{}").statusCode())
         api.calls.removeAll { it == "firewall rule" }
 
-        // The CarPlay page's Actual size.
+        // The CarPlay and AltScreen pages' Actual size; a request without a window names the main one.
         assertEquals(200, post("/api/window-size", """{"actual":true}""").statusCode())
+        assertEquals(200, post("/api/window-size", """{"actual":true,"window":"altscreen"}""").statusCode())
         assertEquals(400, post("/api/window-size", "{}").statusCode())
         api.mainWindow = false
         assertEquals(404, post("/api/window-size", """{"actual":true}""").statusCode())
-        assertEquals(listOf("actual size", "actual size"), api.calls.drop(13))
+        assertEquals(listOf("actual size main", "actual size altscreen", "actual size main"), api.calls.drop(13))
 
         api.connectError = "Enter the Wi-Fi network first"
         val refused = post("/api/connect", "{}")
@@ -261,8 +262,8 @@ class UiServerTest {
             return SaveResult(emptyMap(), emptyMap())
         }
         var mainWindow = true
-        override fun actualSize(): Boolean {
-            calls += "actual size"
+        override fun actualSize(window: String): Boolean {
+            calls += "actual size $window"
             return mainWindow
         }
         override fun awaitChange(seen: Long, timeoutMillis: Long): Long = synchronized(lock) {

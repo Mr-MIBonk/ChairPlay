@@ -43,10 +43,10 @@ describe('Api', () => {
   it('asks the app to bring the main window to the actual size', async () => {
     const requests = answer(200)
 
-    expect(await new Api('key').actualSize()).toBe(true)
+    expect(await new Api('key').actualSize('altscreen')).toBe(true)
 
     expect(requests[0].url).toBe('/api/window-size')
-    expect(JSON.parse(String(requests[0].init.body))).toEqual({ actual: true })
+    expect(JSON.parse(String(requests[0].init.body))).toEqual({ actual: true, window: 'altscreen' })
   })
 
   it('reads the key bindings, or none when the app has none', async () => {

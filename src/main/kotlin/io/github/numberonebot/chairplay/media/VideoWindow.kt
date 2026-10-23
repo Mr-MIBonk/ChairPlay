@@ -190,6 +190,12 @@ class VideoWindow(
     private var tracker: PlacementTracker? = null
     private var program = 0
     private var sourceUniform = -1
+    // Black over the window at the fades' depth: one layer dims the picture and the HUD alike.
+    private var dimProgram = 0
+    private var dimUniform = -1
+    // The child (the settings over CarPlay) and the HUD (over the AltScreen's picture) each come and go through black.
+    private var childFade: Fade? = null
+    private var hudFade: Fade? = null
     private var vao = 0
     private val textures = IntArray(3)
     private val planeSizes = IntArray(6)
@@ -243,6 +249,8 @@ class VideoWindow(
         capabilities = GL.createCapabilities()
         installInput(window)
 
+        dimProgram = buildProgram(DIM_FRAGMENT)
+        dimUniform = glGetUniformLocation(dimProgram, "alpha")
         program = buildProgram()
         vao = glGenVertexArrays()
         for (plane in 0 until 3) textures[plane] = glGenTextures()
@@ -273,7 +281,13 @@ class VideoWindow(
         glfwGetWindowContentScale(window, scale, null)
         val size = min.scaledBy(scale[0])
         glfwSetWindowSizeLimits(window, size.width, size.height, GLFW_DONT_CARE, GLFW_DONT_CARE)
+        minimumSize = Size(size.width, size.height)
     }
+
+    /** The smallest client area the window takes, in screen pixels, with the monitor's scale; zero without a limit. */
+    @Volatile
+    var minimumSize = Size(0, 0)
+        private set
 
     private fun applyShown(window: Long, shown: Boolean) {
         if (shown) {
@@ -316,11 +330,15 @@ class VideoWindow(
         val resized = Size(w[0], h[0]).takeIf { it != framebufferSize && it.width > 0 && it.height > 0 }
         framebufferSize = Size(w[0], h[0])
         resized?.let(onResize)
-        child?.layout(w[0], h[0])
+        // What the window shows changes through black: the settings over CarPlay, the HUD over the AltScreen's picture.
+        val cover = child?.let { visible -> (childFade ?: Fade(visible.covers).also { childFade = it }).apply { update(visible.covers) } }
+        child?.layout(w[0], h[0], cover?.shown ?: true)
+        val content = (hudFade ?: Fade(hud).also { hudFade = it }).apply { update(hud) }
+        val showsHud = content.shown
         val shown = picture
         val layer = overlay
         when {
-            hud -> {
+            showsHud -> {
                 clear(w[0], h[0])
                 if (layer != null) {
                     if (!overlayOpen) {
@@ -335,8 +353,9 @@ class VideoWindow(
             shown == null -> clear(w[0], h[0])
             else -> draw(shown, w[0], h[0])
         }
+        dim(1f - minOf(cover?.brightness ?: 1f, content.brightness), w[0], h[0])
         val shot = screenshotRequest.getAndSet(null)
-        if (shot != null && hud) {
+        if (shot != null && showsHud) {
             // The HUD is ours, not the iPhone's picture: save what the window shows.
             val pixels = readFramebuffer(w[0], h[0])
             val (fw, fh) = w[0] to h[0]
@@ -344,7 +363,7 @@ class VideoWindow(
         }
         glfwSwapBuffers(window)
         if (fresh != null) onFrameShown()
-        if (shot != null && !hud && shown != null) {
+        if (shot != null && !showsHud && shown != null) {
             val pixels = readPicture(shown)
             Thread({ shot(screenshotImage(shown.width, shown.height, pixels)) }, "screenshot").apply { isDaemon = true }.start()
         }
@@ -383,6 +402,7 @@ class VideoWindow(
         glDeleteTextures(textures)
         glDeleteVertexArrays(vao)
         glDeleteProgram(program)
+        glDeleteProgram(dimProgram)
         glfwMakeContextCurrent(0)
         glfwDestroyWindow(window)
         handle = 0L
@@ -526,10 +546,26 @@ class VideoWindow(
         glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
     }
 
-    private fun buildProgram(): Int {
+    /** Black over the whole window, [alpha] deep, as the fades dim what it shows; nothing at 0. */
+    private fun dim(alpha: Float, fw: Int, fh: Int) {
+        if (alpha <= 0f || fw == 0 || fh == 0) return
+        glViewport(0, 0, fw, fh)
+        glUseProgram(dimProgram)
+        glUniform1f(dimUniform, alpha)
+        glEnable(GL_BLEND)
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
+        glDisable(GL_BLEND)
+        glUseProgram(program)
+    }
+
+    /** Whether a fade is under way, which needs passes of the loop at the screen's pace until it ends. */
+    internal val animating: Boolean get() = childFade?.moving == true || hudFade?.moving == true
+
+    private fun buildProgram(fragmentSource: String = FRAGMENT): Int {
         val program = glCreateProgram()
         val vertex = compile(GL_VERTEX_SHADER, VERTEX)
-        val fragment = compile(GL_FRAGMENT_SHADER, FRAGMENT)
+        val fragment = compile(GL_FRAGMENT_SHADER, fragmentSource)
         glAttachShader(program, vertex)
         glAttachShader(program, fragment)
         glLinkProgram(program)
@@ -573,6 +609,14 @@ void main() {
     float v = (texture(planeV, at).r - 128.0 / 255.0) * (255.0 / 224.0);
     color = vec4(y + 1.5748 * v, y - 0.1873 * u - 0.4681 * v, y + 1.8556 * u, 1.0);
 }"""
+
+        // Black, blended over what is drawn: the fades' depth.
+        const val DIM_FRAGMENT = """#version 330 core
+out vec4 color;
+uniform float alpha;
+void main() {
+    color = vec4(0.0, 0.0, 0.0, alpha);
+}"""
     }
 }
 
@@ -581,6 +625,9 @@ void main() {
  * every window and its events on one thread, so the windows take turns after each wake-up. Closing one of
  * [others] closes only that window.
  */
+/** The wait between passes while a fade runs: a little over a frame at 120 Hz. */
+private const val FADE_FRAME_SECONDS = 0.008
+
 fun runWindows(main: VideoWindow, vararg others: VideoWindow) {
     GLFWErrorCallback.createPrint(System.err).set()
     check(glfwInit()) { "cannot initialise GLFW" }
@@ -592,7 +639,8 @@ fun runWindows(main: VideoWindow, vararg others: VideoWindow) {
             open += window
         }
         while (true) {
-            glfwWaitEvents()
+            // A fade under way draws at about the screen's pace; otherwise the loop sleeps until something happens.
+            if (open.any { it.animating }) glfwWaitEventsTimeout(FADE_FRAME_SECONDS) else glfwWaitEvents()
             if (!main.step()) break
             for (window in open.drop(1)) {
                 if (!window.step()) {

@@ -41,7 +41,7 @@ The call echo canceller is DiPlay's copy of SpeexDSP, which is C. The build comp
 needed. The first build downloads zig 0.16.0 (about 100 MB, checked against its SHA-256) into
 `%USERPROFILE%\.gradle\caches\chairplay\zig` and reuses it after that; it needs internet access once.
 
-The start and settings screens are a web page (React and TypeScript in `webui\`, built by Vite) that the app shows
+The settings and Get started are a web page (React and TypeScript in `webui\`, built by Vite) that the app shows
 in WebView2 inside its window. The build needs no Node.js on the machine: it downloads Node.js 24 (checked against
 its SHA-256) into `%USERPROFILE%\.gradle\caches\chairplay\node`, installs the page's packages from
 `webui\package-lock.json` (npm checks each against its integrity hash, and runs no install scripts), type-checks
@@ -90,15 +90,19 @@ The files below live in the app folder, next to `ChairPlay.exe`.
 3. **Settings.** `deploy` (or the first start, for a folder filled by hand) writes `settings.properties` with
    every setting at its default and a comment on each, together with `controls.properties` and `carplay-icon.png`;
    files already there are kept, and a settings file from an older version gets the settings it lacks added at
-   its end. The start screen sets the Wi-Fi network and the settings screen a few others (see
-   [The start and settings screens](#the-start-and-settings-screens)); the rest are edited here:
+   its end. The settings change most of them, and Get started the Wi-Fi network (see
+   [The settings and Get started](#the-settings-and-get-started)); every one is described here:
    - `wifi.ssid` and `wifi.passphrase`: the Wi-Fi network shared by the PC and the iPhone. Nothing connects
-     without it; while it is blank the start screen asks for it;
+     without it; while it is blank Get started asks for it;
    - `wifi.security`: `NONE`, `WEP`, `WPA_WPA2` (default), `WPA3_TRANSITION` or `WPA3_ONLY`;
-   - `ui.autoconnect` (default `true`): connect to the iPhone as the app starts; `false` waits for Connect on the
-     start screen;
-   - `ui.autoshow` (default `true`): show CarPlay over the start screen as soon as the iPhone connects; `false`
-     stays on the start screen, which then offers Show CarPlay;
+   - `ui.autoconnect` (default `true`): connect to the iPhone as the app starts; `false` waits for Connect in the
+     toolbar;
+   - `ui.autoshow` (default `true`): show CarPlay over the settings as soon as the iPhone connects; `false` stays on
+     the settings, whose CarPlay button then shows it;
+   - `ui.controls.keys` (default `false`): `true` shows each controls window button's key on it, not only while Alt
+     is held (Show keys on the buttons, on the Keyboard page);
+   - `ui.accent` (default `#0a84ff`, iOS's blue): the accent colour of the settings, the controls window, and the
+     HUD, written `#rrggbb`; every lighter, darker, or fainter shade of it is made from it;
    - `iphone.address`: the iPhone's Bluetooth address, only needed when several phones are paired;
    - `iphone.join.seconds` (default 30): how long an iPhone that paired before has to join the Wi-Fi after the
      Bluetooth start before the app starts over and gives it the network again. It joins within a second or two,
@@ -164,13 +168,15 @@ The files below live in the app folder, next to `ChairPlay.exe`.
      `bottom`), `display.safe.top`/`bottom`/`left`/`right` (pixels CarPlay keeps its controls out of) with
      `display.safe.draw.outside`, and `display.corners` (`square`, the default, fills the window to its corners; `rounded` keeps CarPlay's rounded corners).
 
-   The settings apply at the next start (the Wi-Fi network with the next connection, `ui.autoshow` at once); the
+   The settings apply at the next start (the Wi-Fi network with the next connection, `ui.autoshow` and
+   `ui.controls.keys` at once); the
    console prints what the iPhone was told, for example
    `display 800x480 px, 200x120 mm (102 ppi), 60 fps; window 800x480`.
-4. **Firewall.** Windows Firewall drops the iPhone's inbound connections. From an administrator Command Prompt, add
-   these rules once (the paths are those of the packaged exe; adjust them if you move the folder). The app does not
-   change the firewall itself and prints the same commands at start when no rule named `ChairPlay CarPlay inbound`
-   exists:
+4. **Firewall.** Windows Firewall drops the iPhone's inbound connections. Add the rule, in Get started and on the
+   Connection page, adds these rules with the administrator's consent (Windows asks once); or add them yourself, once,
+   from Terminal (Admin) (the paths are those of the packaged exe; adjust them if you move the folder). The app
+   prints the same commands at start when no rule named `ChairPlay CarPlay inbound` exists, unless the firewall is
+   off for the networks the PC is on, which needs no rule:
 
    ```
    netsh advfirewall firewall add rule name="ChairPlay CarPlay inbound" dir=in action=allow program="<folder>\ChairPlay.exe" protocol=TCP localport=7000-7010,49152-65535
@@ -197,46 +203,70 @@ and `ChairPlay.exe probe-bt [iphone-address]` run those commands instead. The ap
 to the console window, and the CarPlay screen opens in its own window, titled ChairPlay.
 
 The iPhone lists the PC as **ChairPlay** (or `device.name`). The CarPlay home screen shows ChairPlay's armchair (`car.icon`) where a car shows its maker's;
-tapping it opens the settings screen over CarPlay and leaves CarPlay running.
+tapping it opens the settings over CarPlay and leaves CarPlay running.
 
 Besides touch with the mouse, the keyboard and the mouse wheel work as a car's controls. These are the defaults;
-`controls.properties` in the app folder, written on the first start with every action documented, rebinds them
-(`key.siri=Ctrl+S, F10`; empty turns an action off) and sets the wheel (`wheel.action=knob` or `none`,
-`wheel.invert`, `wheel.notches.per.step`) and `key.repeat.every`. A mistake in it stops the start and names the
-setting; delete the file to get the defaults back.
+the Keyboard page changes them, and so does `controls.properties` in the app folder, written on the first start
+with every action documented, which rebinds them (`key.siri=Ctrl+S, F10`; empty turns an action off) and sets the
+wheel (`wheel.action=knob` or `none`, `wheel.invert`, `wheel.notches.per.step`) and `key.repeat.every`. Escape
+always goes back and Enter always selects, whatever the file says; a file that binds either to another action, or
+has any other mistake, stops the start and names the setting. Delete the file to get the defaults back.
 
 F12 (`key.screenshot`) saves the CarPlay screen, and the AltScreen when it is on, as PNGs at the size the
 iPhone draws them, not the windows', in `screenshots` in the app folder; the console prints the file names. For unattended runs, the environment variable
 `CHAIRPLAY_SCREENSHOT_AFTER=<seconds>` saves one screenshot that many seconds after the first picture. It saves
-CarPlay's picture only, never the start or settings screen.
+CarPlay's picture only, never the settings.
 
-## The start and settings screens
+## The settings and Get started
 
-Whenever CarPlay is not on screen, the window shows the **start screen** instead of black:
+Before an iPhone has connected once, and again after Forget this iPhone, the window shows **Get started**: four
+steps the app checks every few seconds while the page shows, the first one not done open with what to do:
 
-- where the connection stands: *Wi-Fi network needed*, *Not connected* (with `ui.autoconnect=false`, until
-  Connect), *Starting*, *Waiting for the iPhone* (calling it over Bluetooth), *Connecting* (the iPhone answered
-  and joins the Wi-Fi; a new one asks to accept CarPlay first), *Connected*, or *Trying again*, with the last
-  error, its time and a hint for the usual causes (missing MFi files, Bluetooth, Wi-Fi). The buttons are Connect,
-  Reconnect now (what Ctrl+R does) and, with a session, Show CarPlay;
-- the **Wi-Fi network**: name, password and security. The stored password is never shown or sent to the page,
-  which only learns whether one is set; typing a new one replaces it, leaving the field empty keeps it. With
-  `ui.autoconnect` the first network saved starts the connection; a change during a session applies with the
-  next connection, which Reconnect now starts at once;
-- the setup steps, with what the app found: the MFi files in `offline-mfi\`, the firewall rule (with the netsh
-  commands and a Copy button when it is missing), pairing in Windows and accepting CarPlay on the iPhone.
+- **MFi files** in `offline-mfi\`, with a button that opens the folder;
+- **Firewall**: Add the rule runs the netsh commands above with the administrator's consent, or copy them into
+  Terminal (Admin); a rule that blocks ChairPlay is left to you, with a button that opens the firewall's rules. The
+  firewall is read again at most every ten seconds, and only while it is wrong. While the firewall is off for the
+  networks the PC is on, the step is left out, as no rule is needed;
+- **Pair the iPhone**: done once Windows lists a paired phone (the one `iphone.address` names, when it is set);
+- **Wi-Fi network**: filled in with the network the PC is on, and saved with its password. It says so when the
+  network is not the PC's, and opens again when the iPhone answered over Bluetooth but did not join, since the
+  password is then the likely cause.
 
-With `ui.autoshow` CarPlay covers the start screen as soon as the session is active; otherwise the start screen
-stays and offers Show CarPlay. When the session ends, the start screen comes back.
+Once all four are done, You're all set says what comes next and the toolbar's Connect lights up. The first CarPlay
+session marks the setup done in `window.properties` (an install with pairing records from before counts as done).
+Skip to settings leaves the guide until the next start; Show again, on the Connection and About pages, brings it
+back.
 
-The **settings screen** opens from the start screen's Settings button, and over CarPlay from the car button on the
-CarPlay home screen; its back button (or Esc) returns to CarPlay when there is a session, else to the start screen.
-It has the two switches, the AltScreen (on or off, and its size) and the main window's size. Each change is
-written into `settings.properties` in place, keeping the comments and every other line, after the same checks the
-app makes when it starts, and the screen says when it applies: `ui.autoshow` at once, the Wi-Fi network with the
-next connection, the others when ChairPlay starts again (listed at the top until then).
+Otherwise, whenever CarPlay is not on screen, the window shows the **settings**: a toolbar over a list of pages.
 
-While a screen covers the window, the keyboard and the mouse are the screen's; while CarPlay shows, the screen is
+- The **toolbar**: CarPlay (or Esc) shows CarPlay, AltScreen and Controls show and hide those windows, all three
+  with a session only. At its right end: what waits for a restart, where the connection stands (*Wi-Fi network
+  needed*, *Not connected*, *Starting*, *Waiting for the iPhone*, *Connecting*, *Connected*, or *Trying again*, with
+  more in its tooltip), and Connect, or Reconnect (what Ctrl+R does) and Disconnect once connecting has begun.
+  Disconnect ends the session gently and leaves it ended until Connect, a retry that was waiting included.
+- **Connection**: what is wrong, above everything (the last error with its time and what to do, missing MFi files,
+  the firewall, no paired iPhone), then the Wi-Fi network and the iPhone: the paired iPhone with Forget, which
+  deletes ChairPlay's pairing records in `pairings\` and opens Get started (Windows' pairing stays, and the running
+  app keeps the pairing it loaded until it restarts), its name on the iPhone, its address, the time it has to join,
+  and the two switches. The stored password is never shown or sent to the page, which only learns whether one is
+  set.
+- **CarPlay**: the screen's size, with Actual size while the window was resized, to bring it back to one screen
+  pixel per picture pixel; frame rate, physical size, theme, dock, driving side, what CarPlay draws outside the safe area, corners, and safe
+  area.
+- **AltScreen**, **Audio** (the devices Java Sound lists, or a saved one marked as not found), **Keyboard**, and
+  **About**: the build and the DiPlay core it has, the credits, and where to get help. New issue on GitHub and Copy
+  details carry the build, the core, and the Windows version, never a setting.
+
+A field saves on Enter or when it loses the focus, a choice at once. Each change goes into `settings.properties`
+or `controls.properties` in place, keeping the comments and every other line, after the same checks the app makes
+when it starts; a refused value stays in red with the reason. A setting that applies only after a restart is
+marked ⟳, and its page in the list, and the toolbar says Restart needed until then.
+
+The **Keyboard** page lists every action with its keys: click a key to press another in its place, + adds one (up
+to three), right-click removes one, and Reset puts back an action's defaults. A key another action has moves at
+once, Esc cancels the wait, and the locked keys are Escape on Back and Enter on Select. Changes apply at once.
+
+While the page covers the window, the keyboard and the mouse are the page's; while CarPlay shows, the page is
 hidden and every key works as before.
 
 The page runs in Microsoft Edge WebView2, which Windows 11 and an updated Windows 10 carry. Without it (or without
@@ -305,6 +335,6 @@ names and numbers of callers; delete it when it is no longer needed.
 
 ## Keyboard bindings
 
-See the table in the README for the defaults. `controls.properties` lists every action with its keys and a
+See the table in the README for the defaults, and the Keyboard page to change them. `controls.properties` lists every action with its keys and a
 description; each line is `action = keys`, keys separated by commas, with `Shift+`, `Ctrl+` and `Alt+` modifiers,
 key names after their place on a US keyboard (so letters work in any layout) or a raw GLFW code such as `#290`.

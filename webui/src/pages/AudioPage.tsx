@@ -1,6 +1,7 @@
+import type { AppState } from '../api'
 import { Checkbox, Group, Row, Select, type Choice } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
-import { parts } from './parts'
+import { Changed, parts, pendingOf } from './parts'
 
 /**
  * A device list: the Windows default first, then the devices Java Sound lists. A saved device the list lacks (one
@@ -13,9 +14,10 @@ function deviceChoices(devices: readonly string[], saved: string): Choice[] {
 }
 
 /** Where CarPlay's sound goes and where the microphone for calls and Siri comes from. */
-export function AudioPage({ settings }: { settings: Settings }) {
+export function AudioPage({ state, settings }: { state: AppState; settings: Settings }) {
   const { value, save, data } = settings
-  const { note } = parts(settings)
+  const pending = pendingOf(state)
+  const { note } = parts(settings, pending)
   const devices = data?.audio ?? { outputs: [], inputs: [] }
   const device = (key: string, label: string, names: readonly string[]) => (
     <Row label={label}>
@@ -26,6 +28,7 @@ export function AudioPage({ settings }: { settings: Settings }) {
         options={deviceChoices(names, value(key))}
         onChange={(chosen) => save({ [key]: chosen })}
       />
+      <Changed keys={[key]} pending={pending} />
       {settings.error(key) && <span className="errtext">{settings.error(key)}</span>}
     </Row>
   )
@@ -41,6 +44,7 @@ export function AudioPage({ settings }: { settings: Settings }) {
           onChange={(checked) => save({ 'audio.echo.cancellation': String(checked) })}
         />
         <span className="exp">Experimental</span>
+        <Changed keys={['audio.echo.cancellation']} pending={pending} />
       </Row>
     </>
   )

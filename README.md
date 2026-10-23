@@ -17,21 +17,21 @@ endorsed by DiPlay's authors or by Apple.
 ## What works
 
 - **Wireless CarPlay** with an iPhone on the same Wi-Fi network as the PC, started over Windows Bluetooth.
-- **A start screen** in the window whenever CarPlay is not on it: where the connection stands (waiting for the
-  iPhone, connecting, connected, the last error with a hint), the Wi-Fi network to enter, and the setup steps with
-  what is still missing (MFi files, the firewall rule and its commands). Two switches decide whether the app
-  connects as it starts and whether CarPlay covers the start screen as soon as the iPhone is there.
-- **A settings screen**, from the start screen or the car button on the CarPlay home screen, over CarPlay: the
-  switches, the AltScreen and the window sizes, each saved into `settings.properties` in place, saying when it
-  applies, with Reconnect now where a reconnect is enough.
+- **Get started** before the first connection: four steps the app checks on its own (the MFi files, the firewall,
+  which it lets ChairPlay through with your consent, the paired iPhone, and the Wi-Fi network, filled in with the one
+  the PC is on), each ticking itself once it is done.
+- **Settings** in the window whenever CarPlay is not on it: a toolbar with CarPlay, the AltScreen and controls
+  windows, where the connection stands, and Connect, or Reconnect and Disconnect; and pages for the connection, the
+  CarPlay screen, the AltScreen, the keyboard, audio, and about. Each change is saved into `settings.properties` or
+  `controls.properties` in place and says when it applies; what is wrong shows above the settings, with what to do.
 - **Video** in a resizable window, 800×480 at 60 fps by default, H.264 decoded in software.
 - **Touch** with the mouse: taps, drags, scrolling lists and the map.
 - **Car controls on the keyboard**: arrows tilt CarPlay's knob, Tab turns it, Enter selects, Esc goes back, plus
-  media keys, call keys and Siri. Every binding can be changed.
+  media keys, call keys and Siri. Every binding can be changed on the Keyboard page, and applies at once.
 - **Audio**: music (AAC-LC 48 kHz stereo), navigation prompts and Siri, on the device you choose.
 - **Microphone** for Siri and calls (Opus), on the device you choose.
 - **Your own "car"**: the name the iPhone shows, the icon and label of the car button on the CarPlay home screen
-  (a Windows window by default; tapping it opens the settings screen).
+  (ChairPlay's armchair by default; tapping it opens the settings).
 - **The CarPlay screen as you want it**: resolution (which decides whether iOS draws at @2x or @3x, and how much
   fits on the screen), frame rate, light or dark theme following Windows, driving side, dock position, safe area,
   corner style.
@@ -60,10 +60,9 @@ Tested on Windows 11 with an iPhone 15 (iOS 18.6).
   wired to the same router by Ethernet is not enough yet. The network must be WPA2-Personal or open (a WPA2/WPA3
   mixed router works as WPA2; WPA3-only does not), and must let its clients reach each other and pass multicast
   for Bonjour: no client or AP isolation, which guest networks usually have. Tested on 5 GHz.
-- **Windows Firewall** must let the iPhone in (the start screen and the console give the commands if a rule is
-  missing).
-- **Microsoft Edge WebView2** for the start and settings screens: part of Windows 11 and of an updated Windows 10.
-  Without it the screens open in the default browser instead.
+- **Windows Firewall** must let the iPhone in (Get started adds the rule with your consent, or gives the commands).
+- **Microsoft Edge WebView2** for the settings and Get started: part of Windows 11 and of an updated Windows 10.
+  Without it they open in the default browser instead.
 - **An Apple MFi accessory identity** (certificate and private key). The iPhone authenticates every CarPlay
   accessory; this project does not and cannot ship one. You supply your own in `offline-mfi\`.
 - JDK 17 to build. The build downloads the rest itself (zig, Node.js for the screens, the WebView2 SDK), each
@@ -83,11 +82,11 @@ settings and keys there on later builds. To install it elsewhere, pass `-Pchairp
 
 1. Pair the iPhone in Windows Settings > Bluetooth & devices.
 2. Put your MFi identity files in `dist\ChairPlay\offline-mfi\`.
-3. Start `ChairPlay.exe`. The start screen asks for your Wi-Fi network (or fill it into
-   `dist\ChairPlay\settings.properties`, which `deploy` wrote with every setting at its default) and shows what
-   else is missing.
-4. Allow ChairPlay through Windows Firewall: the start screen gives the exact commands if a rule is missing.
-5. With the iPhone unlocked, accept CarPlay on it; CarPlay then covers the start screen.
+3. Start `ChairPlay.exe`. Get started checks each step on its own: the MFi files, the firewall rule (Add the rule
+   adds it with your consent), the paired iPhone, and the Wi-Fi network and its password (or fill them into
+   `dist\ChairPlay\settings.properties`, which `deploy` wrote with every setting at its default).
+4. Once every step is done, press Connect with the iPhone unlocked, and accept CarPlay on it; CarPlay then covers
+   the window.
 
 [docs/SETUP.md](docs/SETUP.md) has every step in detail and the reference for all settings.
 
@@ -110,22 +109,24 @@ settings and keys there on later builds. To install it elsewhere, pass `-Pchairp
 | F11 | AltScreen: map, turn card, map with turn card |
 | Shift+F11 | AltScreen: move the ETA and turn card (auto, left, right, top, off) |
 | Mouse wheel over the AltScreen, + / − (either keyboard) | zoom the AltScreen map |
-| The car button on the CarPlay home screen | the settings screen; its back button or Esc returns to CarPlay |
+| The car button on the CarPlay home screen | the settings; the CarPlay button or Esc returns to CarPlay |
 
-While the start or settings screen covers the window, the keys and the mouse are the screen's, not CarPlay's.
+While the settings cover the window, the keys and the mouse are theirs, not CarPlay's.
 
-Rebind any of them in `controls.properties`, which the app writes on its first start with every action listed.
+Rebind any of them on the Keyboard page, which saves them into `controls.properties` and applies them at once; Esc
+always goes back and Enter always selects.
 
 ## Configuration
 
 Everything lives next to the exe, in plain text:
 
-- `settings.properties`: Wi-Fi, the iPhone, the start screen's two switches, the car's name and icon, sound
-  devices and call echo cancellation, and the CarPlay screen (size, frame rate, physical size, theme, driving
-  side, dock, safe area, corners) and window size. The start and settings screens change some of these in place,
-  keeping the file's comments and the other lines.
-- `controls.properties`: key bindings and mouse-wheel behaviour.
-- `window.properties`: where you left the window and its size, written by the app when it closes.
+- `settings.properties`: Wi-Fi, the iPhone, connecting at start and showing CarPlay at once, the car's name and
+  icon, sound devices and call echo cancellation, and the CarPlay screen (size, frame rate, physical size, theme,
+  driving side, dock, safe area, corners) and window size. The settings change these in place, keeping the file's
+  comments and the other lines.
+- `controls.properties`: key bindings and mouse-wheel behaviour, which the Keyboard page changes the same way.
+- `window.properties`: where you left the windows and their sizes, and whether Get started is done, written by the
+  app.
 
 A wrong value stops the start with the setting named, and the console prints what the iPhone was told.
 

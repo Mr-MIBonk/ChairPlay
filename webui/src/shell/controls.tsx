@@ -42,6 +42,14 @@ export function Field(props: {
 }) {
   const [draft, setDraft] = useState(props.value)
   const [dirty, setDirty] = useState(false)
+  // A value saved, or a reason gone, by another control (a preset saving both sizes) replaces what was typed.
+  const [seen, setSeen] = useState({ value: props.value, error: props.error })
+  if (seen.value !== props.value || (seen.error && !props.error)) {
+    setSeen({ value: props.value, error: props.error })
+    setDirty(false)
+  } else if (seen.error !== props.error) {
+    setSeen({ value: props.value, error: props.error })
+  }
   const shown = dirty ? draft : props.value
 
   function commit() {
@@ -133,15 +141,6 @@ export function Select(props: {
         </option>
       ))}
     </select>
-  )
-}
-
-/** A setting that takes effect only after a restart, marked beside it. */
-export function Later() {
-  return (
-    <span className="later" title="Applies after restart">
-      ⟳
-    </span>
   )
 }
 

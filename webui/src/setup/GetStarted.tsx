@@ -51,10 +51,13 @@ export function GetStarted(props: {
   // The network starts as the one this PC is on, and is saved with the password.
   const network = settings.value('wifi.ssid') || setup.pcWifi || ''
   const problem = steps.wifiProblem
+  // With the firewall off its step is left out, and the steps after it move up.
+  const firewall = steps.firewall
+  const n = firewall ? 1 : 0
   return (
     <div className="setup">
       <h2>Get started</h2>
-      <div className="sub">Four steps, once. ChairPlay checks each one on its own.</div>
+      <div className="sub">{firewall ? 'Four' : 'Three'} steps, once. ChairPlay checks each one on its own.</div>
       <Step n={1} title="MFi files" {...steps.mfi}>
         <span>Put identity.pk8 and certificate.p7b in this folder. ChairPlay finds them on its own.</span>
         <div className="acts">
@@ -64,39 +67,41 @@ export function GetStarted(props: {
         </div>
         <Waiting>Waiting for the files…</Waiting>
       </Step>
-      <Step n={2} title="Firewall" {...steps.firewall}>
-        {setup.firewall === 'blocked' ? (
-          <>
-            <span>
-              A rule in Windows Defender Firewall blocks ChairPlay, so the iPhone cannot reach it. Delete the rule, or set it
-              to Allow, then come back.
-            </span>
-            <div className="acts">
-              <button
-                type="button"
-                className="btn"
-                title="Open Windows Defender Firewall with Advanced Security"
-                onClick={() => backend.open('firewall-rules')}
-              >
-                <ShieldIcon />
-                Open the firewall's rules
-              </button>
-              <Waiting>Waiting for the rule to change…</Waiting>
-            </div>
-          </>
-        ) : (
-          <>
-            <span>Windows Firewall drops the iPhone's connections until ChairPlay is let in.</span>
-            <AddRule backend={backend} />
-            <div className="acts">
-              <CodeLine text={setup.firewallCommands}>
-                <CopyButton text={setup.firewallCommands} />
-              </CodeLine>
-            </div>
-          </>
-        )}
-      </Step>
-      <Step n={3} title="Pair the iPhone" {...steps.pair}>
+      {firewall && (
+        <Step n={2} title="Firewall" {...firewall}>
+          {setup.firewall === 'blocked' ? (
+            <>
+              <span>
+                A rule in Windows Defender Firewall blocks ChairPlay, so the iPhone cannot reach it. Delete the rule, or set it
+                to Allow, then come back.
+              </span>
+              <div className="acts">
+                <button
+                  type="button"
+                  className="btn"
+                  title="Open Windows Defender Firewall with Advanced Security"
+                  onClick={() => backend.open('firewall-rules')}
+                >
+                  <ShieldIcon />
+                  Open the firewall's rules
+                </button>
+                <Waiting>Waiting for the rule to change…</Waiting>
+              </div>
+            </>
+          ) : (
+            <>
+              <span>Windows Firewall is on and has no rule for ChairPlay, so it may drop the iPhone's connections.</span>
+              <AddRule backend={backend} />
+              <div className="acts">
+                <CodeLine text={setup.firewallCommands}>
+                  <CopyButton text={setup.firewallCommands} />
+                </CodeLine>
+              </div>
+            </>
+          )}
+        </Step>
+      )}
+      <Step n={2 + n} title="Pair the iPhone" {...steps.pair}>
         <span>Turn on Bluetooth on the iPhone, then pair it with this PC in Settings › Bluetooth &amp; devices › Add device.</span>
         <div className="acts">
           <button type="button" className="btn" title="Open Bluetooth settings" onClick={() => backend.open('bluetooth')}>
@@ -105,7 +110,7 @@ export function GetStarted(props: {
           <Waiting>Waiting for a paired iPhone…</Waiting>
         </div>
       </Step>
-      <Step n={4} title="Wi-Fi network" {...steps.wifi}>
+      <Step n={3 + n} title="Wi-Fi network" {...steps.wifi}>
         {problem?.kind === 'failed' ? (
           <span className="errtext">The iPhone didn’t join “{problem.ssid}”. Check the password and save it again.</span>
         ) : problem?.kind === 'other-network' ? (

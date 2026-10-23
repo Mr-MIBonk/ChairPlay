@@ -2,6 +2,7 @@ package io.github.numberonebot.chairplay.ui
 
 import io.github.numberonebot.chairplay.config.SettingsFile
 import io.github.numberonebot.chairplay.config.SetupStore
+import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.input.ControlAction
 import io.github.numberonebot.chairplay.input.ControlsConfig
 import io.github.numberonebot.chairplay.input.ControlsFile
@@ -39,6 +40,8 @@ class UiControllerTest {
         checks: SetupChecks? = null,
         elevate: (String) -> Boolean = { elevated += it; consent },
         setupStore: SetupStore? = null,
+        about: BuildInfo = BuildInfo(Commit("4e6d50df", "2026-10-23"), Commit("143f4674", "2026-10-21")),
+        altscreenWindow: UiMainWindow? = null,
     ): UiController {
         Files.writeString(file, settings)
         val values = SettingsFile(file).read()
@@ -56,7 +59,49 @@ class UiControllerTest {
             override fun reconnect() {
                 reconnects.incrementAndGet()
             }
-        }, logged::add, autoconnect, windows, controls, launch, audio, mainWindow, bindings, applied::add, checks, elevate, setupStore)
+        }, logged::add, autoconnect, windows, controls, launch, audio, mainWindow, bindings, applied::add, checks, elevate, setupStore,
+            about, windowsVersion = { "Windows 11 24H2 (build 26300)" }, altscreenWindow = altscreenWindow)
+    }
+
+    // Copy details and New issue carry the same text: the build, the DiPlay core, and Windows; never a setting.
+    @Test
+    fun `the details for a report name the build, the core, and Windows`() {
+        val details = (controller().state()["about"] as Map<*, *>)["details"]
+
+        assertEquals("ChairPlay 4e6d50df (2026-10-23)\nDiPlay core 143f4674 (2026-10-21)\nWindows 11 24H2 (build 26300)", details)
+    }
+
+    @Test
+    fun `New issue opens GitHub with the details filled in`() {
+        assertTrue(controller().open("issues"))
+
+        val (program, url) = launched.single()
+        assertEquals("explorer.exe", program)
+        assertTrue(url, url.startsWith("https://github.com/NumberOneBot/ChairPlay/issues/new?body="))
+        val body = java.net.URLDecoder.decode(url.substringAfter("body="), Charsets.UTF_8)
+        assertTrue(body, body.endsWith("ChairPlay 4e6d50df (2026-10-23)\nDiPlay core 143f4674 (2026-10-21)\nWindows 11 24H2 (build 26300)"))
+    }
+
+    @Test
+    fun `the About page's links open the project's pages, and the notices in Notepad`() {
+        val ui = controller()
+        val pages = mapOf(
+            "source" to "https://github.com/NumberOneBot/ChairPlay",
+            "releases" to "https://github.com/NumberOneBot/ChairPlay/releases",
+            "discussions" to "https://github.com/NumberOneBot/ChairPlay/discussions",
+            "pull-requests" to "https://github.com/NumberOneBot/ChairPlay/pulls",
+            "diplay" to "https://github.com/shihabal3amri/DiPlay",
+            "rgi" to "https://github.com/luka-dev/mib2q-carplay-rgi",
+        )
+        for ((place, url) in pages) {
+            launched.clear()
+            assertTrue(place, ui.open(place))
+            assertEquals(listOf("explorer.exe", url), launched.single())
+        }
+
+        launched.clear()
+        assertTrue(ui.open("notices"))
+        assertEquals(listOf("notepad.exe", dir.resolve("THIRD_PARTY_NOTICES").toString()), launched.single())
     }
 
     // Get started shows until the first CarPlay session, which marks the setup done for the starts after.
@@ -85,6 +130,69 @@ class UiControllerTest {
         assertFalse(store.done())
         assertTrue(ui.version > before)
         assertFalse(controller().forget())
+    }
+
+    // The CarPlay page's look is read as the app starts: a change waits for a restart, which the toolbar says.
+    @Test
+    fun `the CarPlay screen's corners and edges wait for a restart`() {
+        val ui = controller()
+
+        ui.saveSettings(mapOf("display.corners" to "rounded", "display.safe.draw.outside" to "false"))
+
+        assertEquals(listOf("display.corners", "display.safe.draw.outside"), ui.state()["restartPending"])
+    }
+
+    // The pages colour themselves from it.
+    @Test
+    fun `the state carries the accent colour`() {
+        assertEquals("#0a84ff", controller().state()["accent"])
+    }
+
+    // The About page's Version group.
+    @Test
+    fun `the state says which build this is`() {
+        val about = controller().state()["about"] as Map<*, *>
+
+        assertTrue(Regex("[0-9a-f]{8}").matches((about["app"] as Map<*, *>)["commit"] as String))
+        assertTrue(Regex("[0-9a-f]{8}").matches((about["core"] as Map<*, *>)["commit"] as String))
+    }
+
+    // Get started owns the first Connect: a network saved before the password must not start a bring-up without it.
+    @Test
+    fun `the first Wi-Fi network waits for Connect while Get started is open`() {
+        val ui = controller(settings = "wifi.ssid=\nwifi.passphrase=\nui.autoconnect=true\n", setupStore = SetupStore(dir))
+
+        ui.saveSettings(mapOf("wifi.ssid" to "Car"))
+
+        assertEquals(0, connects.get())
+        assertEquals(Phase.IDLE, ui.model.state.phase)
+    }
+
+    // Forget during a session: later changes while the session goes on must not mark the setup done again.
+    @Test
+    fun `Forget during a session stays forgotten`() {
+        val store = SetupStore(dir)
+        store.save(true)
+        val ui = controller(setupStore = store)
+        ui.model.sessionActive()
+
+        ui.forget()
+        ui.model.carButton()
+        ui.model.show(Screen.CARPLAY)
+
+        assertEquals(false, ui.state()["setupDone"])
+        assertFalse(store.done())
+    }
+
+    // Actual size cannot go below the window's smallest size, which Windows' display scale makes larger.
+    @Test
+    fun `the state carries the main window's smallest size`() {
+        val window = FakeMainWindow(1024, 576).apply { minWidth = 1000; minHeight = 600 }
+
+        val main = controller(mainWindow = window).state()["mainWindow"] as Map<*, *>
+
+        assertEquals(1000, main["minWidth"])
+        assertEquals(600, main["minHeight"])
     }
 
     @Test
@@ -198,6 +306,9 @@ class UiControllerTest {
 
     /** A main window at [width] x [height] that records the sizes it was asked for. */
     private class FakeMainWindow(override var width: Int, override var height: Int) : UiMainWindow {
+        override var minWidth = 0
+        override var minHeight = 0
+        override var picture: WindowSize? = null
         val asked = mutableListOf<String>()
         override fun resizeTo(width: Int, height: Int) {
             asked += "${width}x$height"
@@ -209,7 +320,10 @@ class UiControllerTest {
     fun `the state carries the main window's size and the picture's`() {
         val ui = controller(mainWindow = FakeMainWindow(1024, 576))
 
-        assertEquals(mapOf("width" to 1024, "height" to 576, "pictureWidth" to 1280, "pictureHeight" to 720), ui.state()["mainWindow"])
+        assertEquals(
+            mapOf("width" to 1024, "height" to 576, "pictureWidth" to 1280, "pictureHeight" to 720, "minWidth" to 0, "minHeight" to 0),
+            ui.state()["mainWindow"],
+        )
         assertNull(controller().state()["mainWindow"])
     }
 
@@ -218,10 +332,26 @@ class UiControllerTest {
         val window = FakeMainWindow(1024, 576)
         val ui = controller(mainWindow = window)
 
-        assertTrue(ui.actualSize())
+        assertTrue(ui.actualSize("main"))
 
         assertEquals(listOf("1280x720"), window.asked)
-        assertFalse(controller().actualSize())
+        assertFalse(controller().actualSize("main"))
+    }
+
+    // The AltScreen's window can be dragged to another size as well; its picture is the size the AltScreen page set.
+    @Test
+    fun `the AltScreen window has an Actual size of its own`() {
+        val alt = FakeMainWindow(1200, 450).apply { picture = WindowSize(1440, 540) }
+        val ui = controller(altscreenWindow = alt)
+
+        assertEquals(
+            mapOf("width" to 1200, "height" to 450, "pictureWidth" to 1440, "pictureHeight" to 540, "minWidth" to 0, "minHeight" to 0),
+            ui.state()["altscreenWindow"],
+        )
+        assertTrue(ui.actualSize("altscreen"))
+        assertEquals(listOf("1440x540"), alt.asked)
+        assertFalse(ui.actualSize("controls"))
+        assertNull(controller().state()["altscreenWindow"])
     }
 
     @Test

@@ -114,6 +114,25 @@ describe('Shell toolbar', () => {
   })
 })
 
+describe('Shell fading', () => {
+  // The window hides the page a fade's time after CarPlay is to show; the page fades to black meanwhile.
+  it('fades away as CarPlay takes the window, and back as it returns', () => {
+    const { container, rerender } = render(<Shell state={appState({ ...live, screen: 'carplay' })} backend={new FakeBackend()} />)
+    expect(container.querySelector('.shell')?.classList.contains('away')).toBe(true)
+
+    rerender(<Shell state={appState({ ...live, screen: 'settings' })} backend={new FakeBackend()} />)
+
+    expect(container.querySelector('.shell')?.classList.contains('away')).toBe(false)
+  })
+
+  // In a browser nothing covers the page: it stays.
+  it('stays in a browser', () => {
+    const { container } = render(<Shell state={appState({ ...live, screen: 'carplay', embedded: false })} backend={new FakeBackend()} />)
+
+    expect(container.querySelector('.shell')?.classList.contains('away')).toBe(false)
+  })
+})
+
 describe('Shell', () => {
   it('opens on Connection and switches pages from the section list', () => {
     render(<Shell state={appState(live)} backend={new FakeBackend()} />)

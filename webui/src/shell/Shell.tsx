@@ -33,6 +33,11 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
   const steps = guiding ? setupSteps(state, joinFailureSeen) : null
   const showGuide = () => setGuide('shown')
 
+  // Forget this iPhone undoes the setup: Get started comes back, though it was skipped before.
+  useEffect(() => {
+    if (!state.setupDone) setGuide((current) => (current === 'skipped' ? 'auto' : current))
+  }, [state.setupDone])
+
   useEffect(() => {
     if (!showable) return
     const onKey = (event: KeyboardEvent) => {
@@ -42,8 +47,11 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
     return () => window.removeEventListener('keydown', onKey)
   }, [backend, showable])
 
+  // CarPlay is to show: the window hides the page a fade's time later (Fade.kt), so it fades to black meanwhile.
+  const away = state.embedded && state.screen === 'carplay'
+
   return (
-    <div className="shell">
+    <div className={`shell ${away ? 'away' : ''}`}>
       <Toolbar state={state} backend={backend} guide={steps} />
       {steps ? (
         <div className="body setup-body">
@@ -87,10 +95,10 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
               {settings.loadError && <Message tone="bad" head="Couldn't read the settings." text={settings.loadError} />}
               {settings.data && section === 'connection' && <ConnectionPage state={state} backend={backend} settings={settings} onShowGuide={showGuide} />}
               {settings.data && section === 'carplay' && <CarPlayPage state={state} backend={backend} settings={settings} />}
-              {settings.data && section === 'altscreen' && <AltScreenPage settings={settings} />}
+              {settings.data && section === 'altscreen' && <AltScreenPage state={state} backend={backend} settings={settings} />}
               {settings.data && section === 'keyboard' && <KeyboardPage backend={backend} settings={settings} />}
-              {settings.data && section === 'audio' && <AudioPage settings={settings} />}
-              {section === 'about' && <AboutPage />}
+              {settings.data && section === 'audio' && <AudioPage state={state} settings={settings} />}
+              {section === 'about' && <AboutPage state={state} backend={backend} onShowGuide={showGuide} />}
             </div>
           </div>
         </div>

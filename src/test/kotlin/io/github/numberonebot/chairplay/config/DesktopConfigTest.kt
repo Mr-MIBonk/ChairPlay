@@ -29,6 +29,19 @@ class DesktopConfigTest {
         assertEquals(first.publicKeyHex, second.publicKeyHex)
     }
 
+    // One accent colour for the screens, the controls window, and the HUD; everything lighter or fainter is made from it.
+    @Test
+    fun `the accent colour is the iOS blue unless set`() {
+        assertEquals(0x0A84FF, configWith().accent)
+        assertEquals(0x30D158, configWith("ui.accent=#30d158").accent)
+        assertEquals("#30d158", configWith("ui.accent=#30d158").accentText)
+        assertEquals("#0a84ff", configWith().accentText)
+        for (bad in listOf("ui.accent=blue", "ui.accent=#0a84f", "ui.accent=0a84ff")) {
+            val error = assertThrows(IllegalArgumentException::class.java) { configWith(bad).accent }
+            assertTrue(error.message, "ui.accent" in error.message.orEmpty())
+        }
+    }
+
     private fun configWith(vararg lines: String): DesktopConfig {
         val dir = Files.createTempDirectory("chairplay-config")
         writeTestSettings(dir)

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { applyAccent } from './accent'
 import { Api, tokenFrom, type AppState } from './api'
 import { ControlsScreen } from './ControlsScreen'
 import { Shell } from './shell/Shell'
@@ -10,6 +11,7 @@ export function App() {
   const [lost, setLost] = useState(false)
 
   useEffect(() => (api ? api.subscribe(setState, setLost) : undefined), [api])
+  useEffect(() => applyAccent(state?.accent), [state?.accent])
 
   if (!api) {
     return <p className="app-message">No key in the address. Open the address printed in the console.</p>

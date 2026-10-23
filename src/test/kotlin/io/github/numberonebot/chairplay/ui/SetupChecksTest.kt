@@ -66,12 +66,14 @@ class SetupChecksTest {
 
     @Test
     fun `a firewall right at the start is not read again`() {
-        val checks = checks(start = FirewallStatus.PRESENT)
+        for (start in listOf(FirewallStatus.PRESENT, FirewallStatus.OFF)) {
+            val checks = checks(start = start)
 
-        seconds(60)
-        checks.check()
+            seconds(60)
+            checks.check()
 
-        assertEquals(0, firewallReads)
+            assertEquals(start.name, 0, firewallReads)
+        }
     }
 
     // Nothing is read while CarPlay covers the page: no one would see it.

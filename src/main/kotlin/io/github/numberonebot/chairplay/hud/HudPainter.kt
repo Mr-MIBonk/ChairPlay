@@ -40,7 +40,10 @@ class HudPainter(
     private val view: () -> HudView,
     private val log: (String) -> Unit = {},
     repaint: (() -> Unit)? = null,
+    /** ui.accent as 0xRRGGBB: the route's colour. */
+    accent: Int = 0x0A84FF,
 ) : WindowOverlay {
+    private val accentColor = 0xFF000000.toInt() or accent
     private var vg = 0L
     private var fonts = false
     // NanoVG reads the font files from these buffers for as long as the context lives.
@@ -186,7 +189,7 @@ class HudPainter(
             fill(DIM)
             nvgBeginPath(vg)
             nvgRoundedRect(vg, tx, barY, textWidth * progress, barHeight, barHeight / 2)
-            fill(BLUE)
+            fill(accentColor)
         }
         media.source?.let {
             val size = 0.04f * h
@@ -311,14 +314,14 @@ class HudPainter(
         if (exit != null || type == ManeuverType.ENTER_ROUNDABOUT || type == ManeuverType.EXIT_ROUNDABOUT) {
             nvgBeginPath(vg)
             nvgCircle(vg, cx, y + size * 0.45f, size * 0.26f)
-            stroke(BLUE)
+            stroke(accentColor)
             exit?.let { centred(it.toString(), cx, y + size * 0.45f, size * 0.3f, WHITE, BOLD) }
             return
         }
         if (type in ARRIVALS) {
             nvgBeginPath(vg)
             nvgCircle(vg, cx, y + size * 0.42f, size * 0.2f)
-            fill(BLUE)
+            fill(accentColor)
             return
         }
         val degrees = when (type) {
@@ -350,7 +353,7 @@ class HudPainter(
             nvgLineTo(vg, tx, ty)
             tx to ty
         }
-        stroke(BLUE)
+        stroke(accentColor)
         // The head points along the last segment.
         val headAngle = if (degrees == 180f) PI.toFloat() else angle
         val head = size * 0.2f
@@ -359,7 +362,7 @@ class HudPainter(
         nvgLineTo(vg, tipX + sin(headAngle - 2.4f) * head, tipY - cos(headAngle - 2.4f) * head)
         nvgLineTo(vg, tipX + sin(headAngle + 2.4f) * head, tipY - cos(headAngle + 2.4f) * head)
         nvgClosePath(vg)
-        fill(BLUE)
+        fill(accentColor)
     }
 
     private fun callCard(call: String, w: Float, h: Float, presence: Float) {
@@ -444,7 +447,6 @@ class HudPainter(
         const val WHITE = 0xFFFFFFFF.toInt()
         const val GREY = 0xFF9A9AA0.toInt()
         const val DIM = 0xFF2C2C2E.toInt()
-        const val BLUE = 0xFF0A84FF.toInt()
         const val GREEN = 0xFF30D158.toInt()
         const val CALL_GROUND = 0xFF1C1C1E.toInt()
         val ARRIVALS = setOf(

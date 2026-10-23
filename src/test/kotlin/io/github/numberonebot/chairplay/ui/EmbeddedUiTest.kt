@@ -68,6 +68,23 @@ class EmbeddedUiTest {
         assertEquals(listOf("hide", "focus window"), calls)
     }
 
+    // The window fades through black: the page wants to cover it at once, but shows or hides when the window says.
+    @Test
+    fun `the page says what it wants, and shows or hides when the window says`() {
+        val ui = ui()
+        ui.attach(42)
+        ui.layout(1280, 720)
+        calls.clear()
+
+        shows = false
+        assertEquals(false, ui.covers)
+        ui.layout(1280, 720, shown = true)
+        assertEquals(emptyList<String>(), calls)
+
+        ui.layout(1280, 720, shown = false)
+        assertEquals(listOf("hide", "focus window"), calls)
+    }
+
     @Test
     fun `the page follows the window's size`() {
         val ui = ui()

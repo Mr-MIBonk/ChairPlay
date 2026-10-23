@@ -88,15 +88,28 @@ describe('Connection page, Wi-Fi', () => {
 })
 
 describe('Connection page, iPhone', () => {
-  it('saves the switches at once, Connect when ChairPlay starts marked as applying after restart', async () => {
+  it('saves the switches at once', async () => {
     const backend = await connection()
 
     fireEvent.click(screen.getByRole('checkbox', { name: 'Connect when ChairPlay starts' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Show CarPlay as soon as the iPhone connects' }))
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'ui.autoconnect': 'false' }, { 'ui.autoshow': 'false' }]))
-    const row = screen.getByRole('checkbox', { name: 'Connect when ChairPlay starts' }).closest('.row') as HTMLElement
-    expect(within(row).getByTitle('Applies after restart')).toBeTruthy()
+  })
+
+  // Only a changed setting that waits is marked: the untouched ones carry nothing.
+  it('marks a changed setting that waits for a restart or the next connection, and nothing else', async () => {
+    const rowOf = (name: string) => screen.getByRole('checkbox', { name }).closest('.row') as HTMLElement
+    await connection()
+    expect(screen.queryAllByTitle(/^Changed;/)).toEqual([])
+    cleanup()
+
+    await connection(appState({ ...live, restartPending: ['ui.autoconnect'], reconnectPending: ['wifi.ssid'] }))
+
+    expect(within(rowOf('Connect when ChairPlay starts')).getByTitle('Changed; applies after restart')).toBeTruthy()
+    const network = textbox('Network').closest('.row') as HTMLElement
+    expect(within(network).getByTitle('Changed; applies at the next connection')).toBeTruthy()
+    expect(screen.queryAllByTitle(/^Changed;/)).toHaveLength(2)
   })
 
   it('saves the name, the address, and the time to join, with the defaults shown while blank', async () => {
@@ -179,7 +192,9 @@ describe('Connection page, messages', () => {
     await connection(appState({ ...live, setup: setup({ firewall: 'missing' }) }))
 
     const message = screen.getByRole('alert')
-    expect(message.textContent).toContain('The firewall blocks the iPhone.')
+    // Only ours is missing: another rule may let the iPhone in, so the message claims no block.
+    expect(message.textContent).toContain('No firewall rule for ChairPlay.')
+    expect(message.textContent).not.toContain('blocks')
     fireEvent.click(within(message).getByRole('button', { name: 'Copy' }))
 
     expect(writeText).toHaveBeenCalledWith(appState().setup.firewallCommands)
@@ -205,6 +220,12 @@ describe('Connection page, messages', () => {
     fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Add the rule' }))
 
     expect(await screen.findByText("The rule wasn't added. Run the command in Terminal (Admin) instead.")).toBeTruthy()
+  })
+
+  it('says nothing of the firewall while it is off', async () => {
+    await connection(appState({ ...live, setup: setup({ firewall: 'off' }) }))
+
+    expect(screen.queryAllByRole('alert')).toEqual([])
   })
 
   it("opens the firewall's rules when one blocks ChairPlay", async () => {

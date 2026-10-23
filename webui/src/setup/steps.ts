@@ -14,7 +14,8 @@ export type WifiProblem = { kind: 'failed'; ssid: string } | { kind: 'other-netw
 
 export interface Steps {
   mfi: Step
-  firewall: Step
+  /** Null while the firewall is off: there is nothing to let ChairPlay through, and the guide is a step shorter. */
+  firewall: Step | null
   pair: Step
   wifi: Step
   wifiProblem: WifiProblem
@@ -30,7 +31,7 @@ export interface Steps {
  */
 export function setupSteps(state: AppState, joinFailureSeen: string | null): Steps {
   const { setup, wifi, error } = state
-  const firewallDone = setup.firewall === 'present' || setup.firewall === 'unknown'
+  const firewallDone = setup.firewall !== 'missing' && setup.firewall !== 'blocked'
   const failed = error !== null && state.phase !== 'active' && errorKind(error.message) === 'join' && error.at !== joinFailureSeen
   const passwordNeeded = wifi.security !== 'NONE' && !wifi.passphraseSet
   const otherNetwork = wifi.ssid !== '' && setup.pcWifi !== null && setup.pcWifi !== wifi.ssid
@@ -38,7 +39,9 @@ export function setupSteps(state: AppState, joinFailureSeen: string | null): Ste
   const done = [setup.mfiPresent, firewallDone, setup.pairedIphone !== null, wifiDone]
   const open = done.indexOf(false)
   const stateOf = (index: number): StepState => (done[index] ? 'done' : index === open ? 'now' : 'todo')
-  const firewallNote = { present: 'Rule added', unknown: 'Not checked', missing: 'Rule missing', blocked: 'Blocked by a rule' }[setup.firewall]
+  const firewallNote = {
+    present: 'Rule added', unknown: 'Not checked', missing: 'Rule missing', blocked: 'Blocked by a rule', off: 'Firewall off',
+  }[setup.firewall]
   const wifiNote = wifiDone
     ? wifi.ssid
     : failed
@@ -56,7 +59,7 @@ export function setupSteps(state: AppState, joinFailureSeen: string | null): Ste
   ]
   return {
     mfi: { state: stateOf(0), note: setup.mfiPresent ? 'Found' : 'Not found' },
-    firewall: { state: stateOf(1), note: firewallNote },
+    firewall: setup.firewall === 'off' ? null : { state: stateOf(1), note: firewallNote },
     pair: { state: stateOf(2), note: setup.pairedIphone ?? 'No iPhone paired' },
     wifi: { state: stateOf(3), note: wifiNote },
     wifiProblem: failed

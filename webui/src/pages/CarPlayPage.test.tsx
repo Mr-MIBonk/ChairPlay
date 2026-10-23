@@ -9,7 +9,8 @@ afterEach(cleanup)
 async function carplay(backend = new FakeBackend(), state = appState({ phase: 'active', canShowCarPlay: true })) {
   render(<Shell state={state} backend={backend} />)
   await screen.findByRole('textbox', { name: 'Network' })
-  fireEvent.click(screen.getByRole('tab', { name: 'CarPlay' }))
+  // The tab carries a ⟳ while one of its settings waits for a restart.
+  fireEvent.click(screen.getByRole('tab', { name: /^CarPlay/ }))
   return backend
 }
 
@@ -54,18 +55,26 @@ describe('CarPlay page, display', () => {
 
   // The window was resized: Actual size brings it back to one screen pixel per picture pixel.
   it('offers Actual size while the window differs from the picture', async () => {
-    const mainWindow = { width: 1024, height: 576, pictureWidth: 1280, pictureHeight: 720 }
+    const mainWindow = { width: 1024, height: 576, pictureWidth: 1280, pictureHeight: 720, minWidth: 1000, minHeight: 600 }
     const backend = await carplay(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
 
     const actual = screen.getByRole('button', { name: 'Actual size' })
     expect(actual.title).toBe('Resize the window to 1280×720, one screen pixel per picture pixel')
     fireEvent.click(actual)
 
-    expect(backend.actualSizes).toBe(1)
+    expect(backend.actualSized).toEqual(['main'])
+  })
+
+  // At 150 % display scale an 800x480 picture is smaller than the window can get: the button could do nothing.
+  it('has no Actual size when the window cannot get as small as the picture', async () => {
+    const mainWindow = { width: 1200, height: 720, pictureWidth: 800, pictureHeight: 480, minWidth: 1200, minHeight: 720 }
+    await carplay(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
+
+    expect(screen.queryByRole('button', { name: 'Actual size' })).toBeNull()
   })
 
   it('has no Actual size while the window is at it', async () => {
-    const mainWindow = { width: 1280, height: 720, pictureWidth: 1280, pictureHeight: 720 }
+    const mainWindow = { width: 1280, height: 720, pictureWidth: 1280, pictureHeight: 720, minWidth: 0, minHeight: 0 }
     await carplay(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
 
     expect(screen.queryByRole('button', { name: 'Actual size' })).toBeNull()
@@ -108,7 +117,7 @@ describe('CarPlay page, look', () => {
     expect(chosen('Theme')).toEqual(['Windows'])
     expect(chosen('Dock')).toEqual(['Auto'])
     expect(chosen('Driving side')).toEqual(['Left-hand'])
-    expect(chosen('Screen edges')).toEqual(['Wallpaper'])
+    expect(chosen('Outside safe area')).toEqual(['Draw UI'])
     expect(chosen('Corners')).toEqual(['Square'])
   })
 
@@ -118,7 +127,7 @@ describe('CarPlay page, look', () => {
     fireEvent.click(radio('Theme', 'Dark'))
     fireEvent.click(radio('Dock', 'Driver side'))
     fireEvent.click(radio('Driving side', 'Right-hand'))
-    fireEvent.click(radio('Screen edges', 'Black'))
+    fireEvent.click(radio('Outside safe area', 'Black'))
     fireEvent.click(radio('Corners', 'Rounded'))
 
     await waitFor(() =>
@@ -133,9 +142,24 @@ describe('CarPlay page, look', () => {
   })
 })
 
+describe('CarPlay page, changes waiting for a restart', () => {
+  // The app reads the screen's settings as it starts: a changed one is marked until then, beside its control.
+  it('marks each changed setting that waits for a restart', async () => {
+    const state = appState({ phase: 'active', canShowCarPlay: true, restartPending: ['display.corners', 'display.safe.top', 'display.width'] })
+    await carplay(new FakeBackend(), state)
+
+    const mark = (row: HTMLElement | null | undefined) => row?.querySelector('[title="Changed; applies after restart"]')
+    expect(mark(radio('Corners', 'Square').closest('.row'))).toBeTruthy()
+    expect(mark(textbox('Top').closest('.row'))).toBeTruthy()
+    expect(mark(textbox('Width').closest('.row'))).toBeTruthy()
+    expect(mark(radio('Theme', 'Dark').closest('.row'))).toBeFalsy()
+  })
+})
+
 describe('CarPlay page, safe area', () => {
   it('saves each edge, and gives a refused one its reason under the frame', async () => {
     const backend = await carplay()
+    expect(textbox('Top').closest('.row')?.querySelector('label')?.textContent).toBe('Insets')
     expect(textbox('Top').placeholder).toBe('0')
 
     fireEvent.change(textbox('Top'), { target: { value: '40' } })

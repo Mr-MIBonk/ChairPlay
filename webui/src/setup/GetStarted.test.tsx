@@ -46,6 +46,17 @@ describe('Get started', () => {
     expect(stateOf('Wi-Fi network')).toBe('todo')
   })
 
+  // With the firewall off there is nothing to let ChairPlay through: the guide is a step shorter.
+  it('leaves the firewall step out while the firewall is off', async () => {
+    await guide(firstStart({ mfiPresent: true, firewall: 'off' }))
+
+    expect(screen.queryByText('Firewall', { selector: '.st > span:first-child' })).toBeNull()
+    expect(screen.getByText('Three steps, once. ChairPlay checks each one on its own.')).toBeTruthy()
+    expect(stateOf('Pair the iPhone')).toBe('now')
+    expect(step('Pair the iPhone').querySelector('.mark')?.textContent).toBe('2')
+    expect(step('Wi-Fi network').querySelector('.mark')?.textContent).toBe('3')
+  })
+
   it('says where the MFi files go and opens the folder', async () => {
     const backend = await guide(firstStart())
 
@@ -136,6 +147,43 @@ describe('Get started, all done', () => {
     expect(connect.disabled).toBe(true)
     expect(connect.title).toBe('Pair the iPhone first')
     expect(screen.queryByText('You’re all set')).toBeNull()
+  })
+})
+
+describe('Get started after Forget', () => {
+  // Skipped once, it still comes back when Forget this iPhone undoes the setup.
+  it('opens again when the setup is undone, even after Skip to settings', async () => {
+    const backend = new FakeBackend()
+    const state = firstStart({ ...everything }, wifiSet)
+    const { rerender } = render(<Shell state={state} backend={backend} />)
+    fireEvent.click(await screen.findByRole('button', { name: 'Skip to settings' }))
+
+    rerender(<Shell state={{ ...state, setupDone: true }} backend={backend} />)
+    rerender(<Shell state={{ ...state, setupDone: false }} backend={backend} />)
+
+    expect(await screen.findByRole('heading', { name: 'Get started' })).toBeTruthy()
+  })
+})
+
+describe('Add the rule', () => {
+  // Windows' consent prompt can take a while: a second click must not ask again meanwhile.
+  it('waits for the consent before it can be pressed again', async () => {
+    const backend = new FakeBackend()
+    let answer: (added: boolean) => void = () => {}
+    backend.addFirewallRule = () => {
+      backend.firewallRules++
+      return new Promise<boolean>((resolve) => (answer = resolve))
+    }
+    await guide(firstStart({ mfiPresent: true }), backend)
+    const add = () => within(step('Firewall')).getByRole('button', { name: 'Add the rule' }) as HTMLButtonElement
+
+    fireEvent.click(add())
+    fireEvent.click(add())
+
+    expect(backend.firewallRules).toBe(1)
+    expect(add().disabled).toBe(true)
+    answer(true)
+    await waitFor(() => expect(add().disabled).toBe(false))
   })
 })
 

@@ -1,15 +1,18 @@
 package io.github.numberonebot.chairplay.ui
 
 import io.github.numberonebot.chairplay.config.Applies
+import io.github.numberonebot.chairplay.config.DesktopConfig
 import io.github.numberonebot.chairplay.config.EditableSettings
 import io.github.numberonebot.chairplay.config.SettingsFile
 import io.github.numberonebot.chairplay.config.SetupStore
+import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.input.ControlAction
 import io.github.numberonebot.chairplay.input.ControlsConfig
 import io.github.numberonebot.chairplay.input.ControlsFile
 import io.github.numberonebot.chairplay.input.ControlsSave
 import io.github.numberonebot.chairplay.input.WheelAction
 import io.github.numberonebot.chairplay.media.AudioDevices
+import java.net.URLEncoder
 import java.nio.file.Files
 import java.nio.file.Path
 import java.time.format.DateTimeFormatter
@@ -34,11 +37,18 @@ interface UiWindow {
     fun setShown(shown: Boolean)
 }
 
-/** The main window, for the CarPlay page's Actual size. */
+/** A window that shows a picture, for its page's Actual size: the main window, the AltScreen's. */
 interface UiMainWindow {
     /** The client area, in screen pixels. */
     val width: Int
     val height: Int
+
+    /** The smallest client area its edges and a resize can reach, in screen pixels: Windows' display scale grows it. */
+    val minWidth: Int get() = 0
+    val minHeight: Int get() = 0
+
+    /** The picture it shows, one screen pixel per picture pixel at Actual size; null for the display size the app started with. */
+    val picture: WindowSize? get() = null
 
     /** Safe from any thread: resizes the client area to [width] x [height] screen pixels soon after. */
     fun resizeTo(width: Int, height: Int)
@@ -60,7 +70,12 @@ interface UiControls {
 }
 
 /** Whether Windows Firewall lets the iPhone in, as read at start. */
-enum class FirewallStatus { PRESENT, MISSING, BLOCKED, UNKNOWN }
+enum class FirewallStatus {
+    PRESENT, MISSING, BLOCKED, UNKNOWN,
+
+    /** Off for the networks the PC is on: nothing to add, nothing to warn of. */
+    OFF,
+}
 
 /** What the start screen's setup steps refer to. */
 data class SetupInfo(
@@ -71,6 +86,8 @@ data class SetupInfo(
     val settingsFile: Path,
     val displayWidth: Int,
     val displayHeight: Int,
+    /** ui.accent, #rrggbb, which the pages colour themselves from. */
+    val accent: String = DesktopConfig.DEFAULT_ACCENT,
 )
 
 /** The sound devices by the names audio.output and audio.input match against. */
@@ -107,8 +124,11 @@ interface UiApi {
     /** Opens the Windows page or folder [place] names ([UiController.open]); false when there is none or it failed. */
     fun open(place: String): Boolean
 
-    /** Resizes the main window to one screen pixel per picture pixel; false when there is no main window. */
-    fun actualSize(): Boolean
+    /**
+     * Resizes the window named "main" or "altscreen" to one screen pixel per picture pixel; false when there is no such
+     * window.
+     */
+    fun actualSize(window: String): Boolean
 
     /** Adds the firewall rules with the administrator's consent; false when it was not given or they failed. */
     fun addFirewallRule(): Boolean
@@ -163,6 +183,12 @@ class UiController(
     private val elevate: (String) -> Boolean = { false },
     /** Whether Get started is done; null counts it as done. */
     private val setupStore: SetupStore? = null,
+    /** Which build this is, for the About page. */
+    private val about: BuildInfo = BuildInfo.load(),
+    /** The Windows version, for the details of a report. */
+    private val windowsVersion: () -> String = ::windowsVersion,
+    /** The AltScreen's window, for the AltScreen page's Actual size; null without an AltScreen. */
+    private val altscreenWindow: UiMainWindow? = null,
 ) : UiApi {
     /** The settings as the app started with them, against which a change waits for the next start. */
     private val startup: Map<String, String> = settings.read()
@@ -185,10 +211,15 @@ class UiController(
     @Volatile
     private var setupDone = setupStore?.done() ?: true
 
+    /** The phase the model was last in, so the setup is marked done on the change into a session alone. */
+    private var lastPhase = model.state.phase
+
     init {
         model.addListener { state ->
-            // The first CarPlay session ends Get started, for this start and the next.
-            if (state.phase == Phase.ACTIVE && !setupDone) {
+            val entered = state.phase == Phase.ACTIVE && lastPhase != Phase.ACTIVE
+            lastPhase = state.phase
+            // The first CarPlay session ends Get started, for this start and the next; Forget during it stays.
+            if (entered && !setupDone) {
                 setupDone = true
                 runCatching { setupStore?.save(true) }.onFailure { log("setup done not remembered: $it") }
             }
@@ -200,10 +231,26 @@ class UiController(
     fun windowsChanged() = changed()
 
     /** The picture is the display size the app started with, which a change of display.width waits a restart for. */
-    override fun actualSize(): Boolean {
-        val window = mainWindow ?: return false
-        window.resizeTo(setup.displayWidth, setup.displayHeight)
+    override fun actualSize(window: String): Boolean {
+        val target = when (window) {
+            "main" -> mainWindow
+            "altscreen" -> altscreenWindow
+            else -> null
+        } ?: return false
+        val picture = pictureOf(target)
+        target.resizeTo(picture.width, picture.height)
         return true
+    }
+
+    private fun pictureOf(window: UiMainWindow) = window.picture ?: WindowSize(setup.displayWidth, setup.displayHeight)
+
+    /** A window's client area, its picture, and its smallest size, for its page's Actual size. */
+    private fun sizes(window: UiMainWindow): Map<String, Int> {
+        val picture = pictureOf(window)
+        return mapOf(
+            "width" to window.width, "height" to window.height, "pictureWidth" to picture.width,
+            "pictureHeight" to picture.height, "minWidth" to window.minWidth, "minHeight" to window.minHeight,
+        )
     }
 
     override fun window(name: String, visible: Boolean): Boolean {
@@ -278,15 +325,20 @@ class UiController(
     override fun altscreenContent(content: String): Boolean = controls?.altscreenContent(content) ?: false
 
     /**
-     * Opens a Windows page the screens link to, by the name of one the app knows ([PLACES]): Bluetooth or Wi-Fi in
-     * Settings, the firewall in Windows Security or its console with the rules, the MFi folder (made first if it is
-     * missing). Each goes through explorer.exe, which hands it to the shell: a Settings address opens its page, and the
-     * console asks for the administrator's consent it needs. False for a name the app does not know, or when Windows
-     * did not start it.
+     * Opens a page the screens link to, by the name of one the app knows ([PLACES]): Bluetooth or Wi-Fi in Settings,
+     * the firewall in Windows Security or its console with the rules, the MFi folder (made first if it is missing), and
+     * the About page's: the project's pages on GitHub (a new issue with [details] filled in), DiPlay's, the HUD
+     * renderer's, and the third-party notices beside the app, in Notepad as the file has no extension. Each but the
+     * notices goes through explorer.exe, which hands it to the shell: a Settings address opens its page, a web address
+     * the browser, and the console asks for the administrator's consent it needs. False for a name the app does not
+     * know, or when Windows did not start it.
      */
     override fun open(place: String): Boolean {
         if (place !in PLACES) return false
-        return runCatching { launch(listOf("explorer.exe", target(place))) }
+        return runCatching {
+            if (place == "notices") launch(listOf("notepad.exe", setup.settingsFile.resolveSibling("THIRD_PARTY_NOTICES").toString()))
+            else launch(listOf("explorer.exe", target(place)))
+        }
             .onFailure { log("could not open $place: $it") }
             .isSuccess
     }
@@ -296,7 +348,22 @@ class UiController(
         "wifi" -> "ms-settings:network-wifi"
         "firewall" -> "windowsdefender://network/"
         "firewall-rules" -> Path.of(System.getenv("SystemRoot") ?: "C:/Windows", "System32", "wf.msc").toString()
+        "issues" -> "$PROJECT/issues/new?body=" +
+            URLEncoder.encode("What happened, and what you expected:\n\n\n---\n${details()}", Charsets.UTF_8).replace("+", "%20")
+        "discussions" -> "$PROJECT/discussions"
+        "pull-requests" -> "$PROJECT/pulls"
+        "source" -> PROJECT
+        "releases" -> "$PROJECT/releases"
+        "diplay" -> "https://github.com/shihabal3amri/DiPlay"
+        "rgi" -> "https://github.com/luka-dev/mib2q-carplay-rgi"
         else -> Files.createDirectories(setup.mfiDirectory).toString()
+    }
+
+    /** What a report needs to say which ChairPlay it is about: the build, the DiPlay core, and Windows; no setting. */
+    private fun details(): String {
+        fun commit(name: String, commit: Commit?) = "$name ${commit?.let { "${it.id} (${it.date})" } ?: "not recorded"}"
+        val windows = runCatching(windowsVersion).getOrDefault("Windows")
+        return "${commit("ChairPlay", about.app)}\n${commit("DiPlay core", about.core)}\n$windows"
     }
 
     private fun changed() {
@@ -339,12 +406,13 @@ class UiController(
                 val window = windows[name]
                 mapOf("available" to (window != null), "visible" to (window?.visible ?: false))
             },
-            "mainWindow" to mainWindow?.let {
-                mapOf("width" to it.width, "height" to it.height, "pictureWidth" to setup.displayWidth, "pictureHeight" to setup.displayHeight)
-            },
+            "mainWindow" to mainWindow?.let(::sizes),
+            "altscreenWindow" to altscreenWindow?.let(::sizes),
             "controls" to controls?.state(),
             "controlsKeys" to (values["ui.controls.keys"]?.trim() == "true"),
             "setupDone" to setupDone,
+            "accent" to setup.accent,
+            "about" to mapOf("app" to about.app?.let(::commitMap), "core" to about.core?.let(::commitMap), "details" to details()),
             "reconnectPending" to state.reconnectPending.sorted(),
             "restartPending" to state.restartPending.sorted(),
             "setup" to linkedMapOf(
@@ -358,6 +426,8 @@ class UiController(
             ),
         )
     }
+
+    private fun commitMap(commit: Commit) = mapOf("commit" to commit.id, "date" to commit.date)
 
     override fun settings(): Map<String, Any?> {
         val values = settings.read()
@@ -388,7 +458,9 @@ class UiController(
         val running = phase != Phase.SETUP && phase != Phase.IDLE
         val reconnect = saved.keys.filter { EditableSettings.applies(it) == Applies.RECONNECT && running }
         model.pending(reconnect.toSet(), restart.toSet())
-        if (!now["wifi.ssid"].isNullOrBlank() && model.wifiSaved() && autoconnect) {
+        // While Get started is open it owns the first Connect: a network saved before its password must not start
+        // a bring-up without one.
+        if (!now["wifi.ssid"].isNullOrBlank() && model.wifiSaved() && autoconnect && setupDone) {
             log("Wi-Fi network set; connecting")
             connectNow()
         }
@@ -434,6 +506,12 @@ class UiController(
         /** The windows the page has triggers for, each in the state whether it is there or not. */
         val WINDOWS = listOf("altscreen", "controls")
         /** The Windows pages and folder the screens may open, by the name the page gives ([open]). */
-        val PLACES = listOf("bluetooth", "wifi", "firewall", "firewall-rules", "mfi-folder")
+        val PLACES = listOf(
+            "bluetooth", "wifi", "firewall", "firewall-rules", "mfi-folder",
+            "issues", "discussions", "pull-requests", "source", "releases", "notices", "diplay", "rgi",
+        )
+
+        /** The project's home on GitHub. */
+        const val PROJECT = "https://github.com/NumberOneBot/ChairPlay"
     }
 }

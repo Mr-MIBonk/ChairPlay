@@ -30,7 +30,8 @@ class WebViewUnavailable(message: String) : Exception(message)
 
 /**
  * The web UI as the main window's [WindowChild]: it covers the window, and has the keyboard, while [showsUi] says
- * so, and hides otherwise, so that CarPlay's picture shows and takes the keys. [backend] is made in [attach], on the
+ * so ([covers]), and hides otherwise, so that CarPlay's picture shows and takes the keys; the window shows and hides
+ * it through a fade. [backend] is made in [attach], on the
  * window's thread; when it cannot be (no WebView2 runtime, no DLL), [url] opens in the default browser instead and
  * the log says why. [onEmbedded] hears which of the two it is.
  *
@@ -82,14 +83,16 @@ class EmbeddedUi(
         onEmbedded(true)
     }
 
-    override fun layout(width: Int, height: Int) {
+    override val covers: Boolean get() = showsUi()
+
+    override fun layout(width: Int, height: Int, shown: Boolean) {
         val made = web ?: return
         if (width != this.width || height != this.height) {
             this.width = width
             this.height = height
             made.setBounds(view, width, height)
         }
-        val show = showsUi()
+        val show = shown
         if (!takesKeyboard) {
             if (show != visible) {
                 visible = show

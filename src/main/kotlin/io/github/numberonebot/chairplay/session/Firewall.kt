@@ -12,8 +12,11 @@ import java.util.concurrent.TimeUnit
  */
 const val FIREWALL_RULE = "ChairPlay CarPlay inbound"
 
-/** Whether our allow rule exists, and the enabled inbound block rules for the program with their profiles. */
-internal data class FirewallState(val allowRule: Boolean, val blocking: List<String>)
+/**
+ * Whether our allow rule exists, the enabled inbound block rules for the program with their profiles, and whether the
+ * firewall is off for the networks the PC is on, which lets the iPhone in without any rule.
+ */
+internal data class FirewallState(val allowRule: Boolean, val blocking: List<String>, val off: Boolean = false)
 
 /**
  * Reads the rules only; changing them needs an administrator ([addFirewallRules] asks for the consent). Returns null
@@ -33,6 +36,8 @@ internal fun readFirewall(program: String): FirewallState? {
         Get-NetFirewallApplicationFilter -Program ${'$'}env:CHAIRPLAY_PROGRAM -ErrorAction SilentlyContinue | Get-NetFirewallRule |
             Where-Object { ${'$'}_.Enabled -eq 'True' -and ${'$'}_.Direction -eq 'Inbound' -and ${'$'}_.Action -eq 'Block' } |
             ForEach-Object { "block`t" + ${'$'}_.Profile + "`t" + ${'$'}_.DisplayName }
+        Get-NetFirewallProfile -ErrorAction SilentlyContinue | ForEach-Object { "profile`t" + ${'$'}_.Name + "`t" + ${'$'}_.Enabled }
+        Get-NetConnectionProfile -ErrorAction SilentlyContinue | ForEach-Object { "network`t" + ${'$'}_.NetworkCategory }
         # A program without rules is a silenced error, which would still make the exit code 1.
         exit 0
     """.trimIndent()
@@ -106,5 +111,10 @@ internal fun parseFirewallReport(report: String): FirewallState? {
     val allow = lines.firstOrNull { it.size == 2 && it[0] == "allow" }?.get(1)?.toIntOrNull() ?: return null
     val blocking = lines.filter { it.size >= 3 && it[0] == "block" }
         .map { "\"${it[2]}\" (profiles ${it[1]})" }
-    return FirewallState(allow > 0, blocking)
+    val enabled = lines.filter { it.size == 3 && it[0] == "profile" }.associate { it[1] to (it[2] == "True") }
+    // A connected network's category names the profile that applies to it; DomainAuthenticated is the Domain one.
+    val networks = lines.filter { it.size == 2 && it[0] == "network" }.map { if (it[1] == "DomainAuthenticated") "Domain" else it[1] }
+    val applying = networks.ifEmpty { enabled.keys.toList() }
+    val off = enabled.isNotEmpty() && applying.all { enabled[it] == false }
+    return FirewallState(allow > 0, blocking, off)
 }

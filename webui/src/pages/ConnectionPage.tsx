@@ -1,7 +1,8 @@
 import type { AppState, Backend } from '../api'
-import { Checkbox, Field, Group, Later, PasswordField, Row, Select, type Choice } from '../shell/controls'
+import { Checkbox, Field, Group, PasswordField, Row, Select, type Choice } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
 import { ErrorMessage, SetupMessages } from './messages'
+import { Changed, pendingOf } from './parts'
 
 /** wifi.security as DesktopConfig names it, and as the page shows it. */
 export const SECURITY_CHOICES: readonly Choice[] = [
@@ -17,8 +18,9 @@ export function ConnectionPage(props: { state: AppState; backend: Backend; setti
   const { state, backend, settings } = props
   const { value, error, save } = settings
   const commit = (key: string) => (text: string) => save({ [key]: text })
-  // The page says what the app says: a mark beside each setting it applies only after a restart.
-  const later = (key: string) => settings.data?.applies[key] === 'restart' && <Later />
+  // A changed setting that waits for a restart or the next connection is marked beside its control; the others not.
+  const pending = pendingOf(state)
+  const later = (key: string) => <Changed keys={[key]} pending={pending} />
   const field = (key: string, label: string, placeholder: string, className = 'w200') => (
     <Field label={label} className={className} value={value(key)} placeholder={placeholder} error={error(key)} onCommit={commit(key)} />
   )
@@ -36,6 +38,7 @@ export function ConnectionPage(props: { state: AppState; backend: Backend; setti
           options={SECURITY_CHOICES}
           onChange={commit('wifi.security')}
         />
+        <Changed keys={['wifi.ssid', 'wifi.security']} pending={pending} />
         {error('wifi.security') && <span className="errtext">{error('wifi.security')}</span>}
       </Row>
       <Row label="Password">
@@ -45,6 +48,7 @@ export function ConnectionPage(props: { state: AppState; backend: Backend; setti
           error={error('wifi.passphrase')}
           onCommit={commit('wifi.passphrase')}
         />
+        {later('wifi.passphrase')}
       </Row>
       <Group title="iPhone" />
       {state.setup.pairedIphone ? (

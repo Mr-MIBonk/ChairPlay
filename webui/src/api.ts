@@ -2,7 +2,8 @@
 
 export type Phase = 'setup' | 'idle' | 'starting' | 'calling' | 'joining' | 'active' | 'retrying'
 export type Screen = 'start' | 'settings' | 'carplay'
-export type Firewall = 'present' | 'missing' | 'blocked' | 'unknown'
+/** Whether Windows Firewall lets the iPhone in; 'off' when it is off for the networks the PC is on. */
+export type Firewall = 'present' | 'missing' | 'blocked' | 'unknown' | 'off'
 export type Applies = 'now' | 'reconnect' | 'restart'
 /** The app's windows besides the main one: the AltScreen and the on-screen car controls. */
 export type WindowName = 'altscreen' | 'controls'
@@ -10,8 +11,10 @@ export type WindowName = 'altscreen' | 'controls'
 /** What the AltScreen shows (AltscreenContent in DesktopConfig.kt). */
 export type AltscreenContent = 'hud' | 'map' | 'map-card' | 'card'
 
-/** The Windows pages and folder a link can open (UiController.PLACES). */
-export type WindowsPlace = 'bluetooth' | 'wifi' | 'firewall' | 'firewall-rules' | 'mfi-folder'
+/** The Windows pages, folder, and web pages a link can open (UiController.PLACES). */
+export type WindowsPlace =
+  | 'bluetooth' | 'wifi' | 'firewall' | 'firewall-rules' | 'mfi-folder'
+  | 'issues' | 'discussions' | 'pull-requests' | 'source' | 'releases' | 'notices' | 'diplay' | 'rgi'
 
 /** What the controls window shows beside its buttons (UiControls in Main.kt). */
 export interface ControlsState {
@@ -22,6 +25,25 @@ export interface ControlsState {
   altscreen: AltscreenContent | null
   /** Alt is held in one of ChairPlay's windows: the buttons show their keys. */
   altHeld: boolean
+}
+
+/** A window's client area, the picture it shows, and the smallest it gets, in screen pixels, for Actual size. */
+export interface WindowSizes {
+  width: number
+  height: number
+  pictureWidth: number
+  pictureHeight: number
+  minWidth: number
+  minHeight: number
+}
+
+/** A window that has an Actual size. */
+export type PictureWindow = 'main' | 'altscreen'
+
+/** A commit by its short id and the day it was made. */
+export interface BuildCommit {
+  commit: string
+  date: string
 }
 
 /** A window is available while its feature is on; only then can it be shown or hidden. */
@@ -44,14 +66,28 @@ export interface AppState {
   reconnectPending: string[]
   restartPending: string[]
   windows: Record<WindowName, WindowState>
-  /** The main window's client area and the picture's size, in screen pixels; null without a main window. */
-  mainWindow: { width: number; height: number; pictureWidth: number; pictureHeight: number } | null
+  /**
+   * The main window's client area, the picture's size, and the smallest the window gets (Windows' display scale grows
+   * it), in screen pixels; null without a main window.
+   */
+  mainWindow: WindowSizes | null
+  /** The AltScreen's window, the same way; null without an AltScreen. */
+  altscreenWindow: WindowSizes | null
   /** Null when the app has no controls window. */
   controls: ControlsState | null
   /** The controls window shows each button's key always, not only while Alt is held (ui.controls.keys). */
   controlsKeys: boolean
   /** Get started is done: an iPhone has connected since the last Forget this iPhone. */
   setupDone: boolean
+  /** ui.accent, #rrggbb: the colour every accent shade of the pages is made from. */
+  accent: string
+  /** Which build this is: this repository's commit and the DiPlay core's; null for one the build did not record. */
+  about: {
+    app: BuildCommit | null
+    core: BuildCommit | null
+    /** What a report needs, for Copy details and New issue: the build, the core, and Windows. */
+    details: string
+  }
   setup: {
     mfiFolder: string
     mfiPresent: boolean
@@ -111,8 +147,8 @@ export interface Backend {
   altscreen(content: AltscreenContent): Promise<boolean>
   /** Opens a Windows page or the MFi folder; false when Windows did not open it. */
   open(place: WindowsPlace): Promise<boolean>
-  /** Resizes the main window to one screen pixel per picture pixel; false without a main window. */
-  actualSize(): Promise<boolean>
+  /** Resizes [window] to one screen pixel per picture pixel; false when there is no such window. */
+  actualSize(window: PictureWindow): Promise<boolean>
   /** Adds the firewall rule with the consent Windows asks for; false when it was not given or the rule failed. */
   addFirewallRule(): Promise<boolean>
   /** Forget this iPhone: ChairPlay's pairing records go, and Get started opens. */
@@ -211,8 +247,8 @@ export class Api implements Backend {
     return (await this.request('POST', 'open', { place })).status === 200
   }
 
-  async actualSize(): Promise<boolean> {
-    return (await this.request('POST', 'window-size', { actual: true })).status === 200
+  async actualSize(window: PictureWindow): Promise<boolean> {
+    return (await this.request('POST', 'window-size', { actual: true, window })).status === 200
   }
 
   /**

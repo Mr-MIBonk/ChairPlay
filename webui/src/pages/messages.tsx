@@ -18,19 +18,19 @@ export function CodeLine({ text, children }: { text: string; children: ReactNode
   )
 }
 
-export function CopyButton({ text }: { text: string }) {
+export function CopyButton({ text, label = 'Copy', title = 'Copy the command' }: { text: string; label?: string; title?: string }) {
   const [copied, setCopied] = useState(false)
   return (
     <button
       type="button"
       className="btn small"
-      title="Copy the command"
+      title={title}
       onClick={async () => {
         await navigator.clipboard.writeText(text)
         setCopied(true)
       }}
     >
-      {copied ? 'Copied' : 'Copy'}
+      {copied ? 'Copied' : label}
     </button>
   )
 }
@@ -111,13 +111,23 @@ export function OpenFolder({ backend }: { backend: Backend }) {
  */
 export function AddRule({ backend }: { backend: Backend }) {
   const [refused, setRefused] = useState(false)
+  // Windows' consent prompt can take a while; a second click meanwhile would ask again.
+  const [waiting, setWaiting] = useState(false)
   return (
     <div className="acts">
       <button
         type="button"
         className="btn small"
-        title="Add an inbound rule for ChairPlay.exe; Windows asks for your consent"
-        onClick={async () => setRefused(!(await backend.addFirewallRule()))}
+        title={waiting ? 'Waiting for your consent' : 'Add an inbound rule for ChairPlay.exe; Windows asks for your consent'}
+        disabled={waiting}
+        onClick={async () => {
+          setWaiting(true)
+          try {
+            setRefused(!(await backend.addFirewallRule()))
+          } finally {
+            setWaiting(false)
+          }
+        }}
       >
         <ShieldIcon />
         Add the rule
@@ -157,8 +167,9 @@ export function SetupMessages({ state, backend, onShowGuide }: { state: AppState
           </CodeLine>
         </Message>
       )}
+      {/* Only our rule is missing: another one (Windows' own, from its first prompt) may still let the iPhone in. */}
       {setup.firewall === 'missing' && (
-        <Message tone="warn" head="The firewall blocks the iPhone." text="Windows Firewall drops the iPhone's connections until ChairPlay is let in.">
+        <Message tone="warn" head="No firewall rule for ChairPlay." text="If the iPhone cannot connect, let ChairPlay in through Windows Firewall.">
           <AddRule backend={backend} />
           <CodeLine text={setup.firewallCommands}>
             <CopyButton text={setup.firewallCommands} />

@@ -6,8 +6,8 @@ import { appState, FakeBackend } from '../testing'
 afterEach(cleanup)
 
 /** The shell on the AltScreen page, once the settings are in. */
-async function altscreen(backend = new FakeBackend()) {
-  render(<Shell state={appState({ phase: 'active', canShowCarPlay: true })} backend={backend} />)
+async function altscreen(backend = new FakeBackend(), state = appState({ phase: 'active', canShowCarPlay: true })) {
+  render(<Shell state={state} backend={backend} />)
   await screen.findByRole('textbox', { name: 'Network' })
   fireEvent.click(screen.getByRole('tab', { name: 'AltScreen' }))
   return backend
@@ -55,6 +55,18 @@ describe('AltScreen page', () => {
     expect(chosen('Size')).toEqual([])
   })
 
+  // The AltScreen's window dragged to another size: Actual size brings it back to one screen pixel per picture pixel.
+  it('offers Actual size while the AltScreen window differs from its picture', async () => {
+    const altscreenWindow = { width: 1200, height: 450, pictureWidth: 1440, pictureHeight: 540, minWidth: 0, minHeight: 0 }
+    const backend = await altscreen(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, altscreenWindow }))
+
+    const actual = screen.getByRole('button', { name: 'Actual size' })
+    expect(actual.title).toBe('Resize the window to 1440×540, one screen pixel per picture pixel')
+    fireEvent.click(actual)
+
+    expect(backend.actualSized).toEqual(['altscreen'])
+  })
+
   it('saves what it starts with, Map and Auto until set', async () => {
     const backend = await altscreen()
     expect(chosen('Content')).toEqual(['Map'])
@@ -68,6 +80,7 @@ describe('AltScreen page', () => {
 
   it('saves the safe area', async () => {
     const backend = await altscreen()
+    expect(textbox('Bottom').closest('.row')?.querySelector('label')?.textContent).toBe('Insets')
 
     fireEvent.change(textbox('Bottom'), { target: { value: '60' } })
     fireEvent.blur(textbox('Bottom'))

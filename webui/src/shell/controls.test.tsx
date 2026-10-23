@@ -61,6 +61,17 @@ describe('Field', () => {
     expect(onCommit).not.toHaveBeenCalled()
   })
 
+  // A preset saved both sizes while a refused width was typed: the field shows what is saved, not the old draft.
+  it('gives way to a value another control saved', () => {
+    const { rerender } = render(<Field label="Network" value="1280" onCommit={() => {}} />)
+    fireEvent.change(field(), { target: { value: '801' } })
+    rerender(<Field label="Network" value="1280" onCommit={() => {}} error="Enter an even number" />)
+
+    rerender(<Field label="Network" value="1920" onCommit={() => {}} />)
+
+    expect(field().value).toBe('1920')
+  })
+
   it('follows the saved value while nothing is typed', () => {
     const { rerender } = render(<Field label="Network" value="Home" onCommit={() => {}} />)
 

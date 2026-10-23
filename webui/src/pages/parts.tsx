@@ -1,10 +1,33 @@
 // What the settings pages build their rows from, bound to the shared settings: a field and a segmented choice that
 // save their key, the note a group's header gives, and the safe-area cross.
 import type { ReactNode } from 'react'
+import type { AppState, Backend, PictureWindow, WindowSizes } from '../api'
 import { Field, Row, Segmented, type Choice } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
 
-export function parts(settings: Settings) {
+/** The settings changed but not yet in effect: the state's restartPending and reconnectPending. */
+export interface Pending {
+  restart: readonly string[]
+  reconnect: readonly string[]
+}
+
+export const pendingOf = (state: AppState): Pending => ({ restart: state.restartPending, reconnect: state.reconnectPending })
+
+const NOTHING_PENDING: Pending = { restart: [], reconnect: [] }
+
+/** Marks a setting that was changed and waits for a restart or the next connection: one of [keys] is [pending]. */
+export function Changed({ keys, pending }: { keys: readonly string[]; pending: Pending }) {
+  const waits = (list: readonly string[]) => keys.some((key) => list.includes(key))
+  if (!waits(pending.restart) && !waits(pending.reconnect)) return null
+  return (
+    <span className="later" title={waits(pending.restart) ? 'Changed; applies after restart' : 'Changed; applies at the next connection'}>
+      ⟳
+    </span>
+  )
+}
+
+/** A choice changed and waiting for a restart or a connection ([pending]) is marked beside it. */
+export function parts(settings: Settings, pending: Pending = NOTHING_PENDING) {
   const { value, error, save } = settings
   return {
     /** A field for [key]; [placeholder] is what applies while it is blank. */
@@ -20,13 +43,16 @@ export function parts(settings: Settings) {
     ),
     /** A segmented choice for [key], [fallback] chosen while it is blank, as the app then takes it. */
     choice: (key: string, label: string, fallback: string, options: readonly Choice[], className?: string) => (
-      <Segmented
-        label={label}
-        value={value(key) || fallback}
-        options={options}
-        className={className}
-        onChange={(chosen) => save({ [key]: chosen })}
-      />
+      <>
+        <Segmented
+          label={label}
+          value={value(key) || fallback}
+          options={options}
+          className={className}
+          onChange={(chosen) => save({ [key]: chosen })}
+        />
+        <Changed keys={[key]} pending={pending} />
+      </>
     ),
     /** The app's word on when [keys] take effect, for their group's header: the page says what the app says. */
     note: (keys: readonly string[]) => {
@@ -51,6 +77,8 @@ export function SizeRows(props: {
   fallback: { width: number; height: number }
   /** Beside the fields: the CarPlay page's Actual size. */
   after?: ReactNode
+  /** To mark a changed size. */
+  pending?: Pending
 }) {
   const { settings, prefix, fallback } = props
   const { field } = parts(settings)
@@ -77,9 +105,30 @@ export function SizeRows(props: {
         <span className="x">×</span>
         {field(heightKey, 'Height', String(fallback.height))}
         <span className="unit">px</span>
+        <Changed keys={[widthKey, heightKey]} pending={props.pending ?? NOTHING_PENDING} />
         {props.after}
       </Row>
     </>
+  )
+}
+
+/**
+ * Brings a window dragged to another size back to one screen pixel per picture pixel; not there while it is, nor
+ * when the window cannot get as small as its picture. The picture is the size the app started with, which a size
+ * saved on the page replaces only after a restart.
+ */
+export function ActualSize({ sizes, window, backend }: { sizes: WindowSizes | null; window: PictureWindow; backend: Backend }) {
+  if (!sizes || (sizes.width === sizes.pictureWidth && sizes.height === sizes.pictureHeight)) return null
+  if (sizes.pictureWidth < sizes.minWidth || sizes.pictureHeight < sizes.minHeight) return null
+  return (
+    <button
+      type="button"
+      className="btn small actual"
+      title={`Resize the window to ${sizes.pictureWidth}×${sizes.pictureHeight}, one screen pixel per picture pixel`}
+      onClick={() => backend.actualSize(window)}
+    >
+      Actual size
+    </button>
   )
 }
 
@@ -94,7 +143,8 @@ const EDGES = [
  * Four numbers round a little frame, one for each edge of [prefix] ("display.safe" or "altscreen.safe"): top and
  * bottom centred, the sides against the frame. A refused one turns red, with its reason under the frame.
  */
-export function SafeArea({ settings, prefix, label }: { settings: Settings; prefix: string; label: string }) {
+export function SafeArea(props: { settings: Settings; prefix: string; label: string; pending?: Pending }) {
+  const { settings, prefix, label } = props
   const reason = EDGES.map(([edge]) => settings.error(`${prefix}.${edge}`)).find(Boolean)
   const [top, left, right, bottom] = EDGES.map(([edge, name, align]) => {
     const key = `${prefix}.${edge}`
@@ -125,6 +175,7 @@ export function SafeArea({ settings, prefix, label }: { settings: Settings; pref
         {bottom}
         <span />
       </span>
+      <Changed keys={EDGES.map(([edge]) => `${prefix}.${edge}`)} pending={props.pending ?? NOTHING_PENDING} />
       {reason && <span className="errtext">{reason}</span>}
     </Row>
   )

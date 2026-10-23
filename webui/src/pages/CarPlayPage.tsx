@@ -1,7 +1,7 @@
 import type { AppState, Backend } from '../api'
 import { Group, Row } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
-import { parts, SafeArea, SizeRows } from './parts'
+import { ActualSize, Changed, parts, pendingOf, SafeArea, SizeRows } from './parts'
 
 const PRESETS = [
   [800, 480],
@@ -13,28 +13,10 @@ const PRESETS = [
 const DISPLAY_KEYS = ['display.width', 'display.height', 'display.fps', 'display.physical.width.mm', 'display.physical.height.mm', 'display.ppi']
 const LOOK_KEYS = ['display.theme', 'display.dock', 'display.right.hand.drive', 'display.safe.draw.outside', 'display.corners']
 
-/**
- * Brings a resized window back to one screen pixel per picture pixel; not there while it is. The picture is the size
- * the app started with, which a size saved here replaces only after a restart.
- */
-function ActualSize({ state, backend }: { state: AppState; backend: Backend }) {
-  const main = state.mainWindow
-  if (!main || (main.width === main.pictureWidth && main.height === main.pictureHeight)) return null
-  return (
-    <button
-      type="button"
-      className="btn small actual"
-      title={`Resize the window to ${main.pictureWidth}×${main.pictureHeight}, one screen pixel per picture pixel`}
-      onClick={() => backend.actualSize()}
-    >
-      Actual size
-    </button>
-  )
-}
-
 /** The picture CarPlay draws: its size and frame rate, how large it is, its look, and the safe area. */
 export function CarPlayPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
-  const { field, choice, note } = parts(settings)
+  const pending = pendingOf(state)
+  const { field, choice, note } = parts(settings, pending)
   return (
     <>
       <Group title="Display" note={note(DISPLAY_KEYS)} />
@@ -44,7 +26,8 @@ export function CarPlayPage({ state, backend, settings }: { state: AppState; bac
         prefix="display"
         presets={PRESETS}
         fallback={settings.data?.display ?? { width: 800, height: 480 }}
-        after={<ActualSize state={state} backend={backend} />}
+        after={<ActualSize sizes={state.mainWindow} window="main" backend={backend} />}
+        pending={pending}
       />
       <Row label="Frame rate">
         {choice('display.fps', 'Frame rate', '60', [['30', '30'], ['60', '60']], 'half')}
@@ -58,6 +41,7 @@ export function CarPlayPage({ state, backend, settings }: { state: AppState; bac
         <span className="x">or</span>
         {field('display.ppi', 'Pixels per inch', 'auto')}
         <span className="unit">ppi</span>
+        <Changed keys={['display.physical.width.mm', 'display.physical.height.mm', 'display.ppi']} pending={pending} />
       </Row>
       <Group title="Look" note={note(LOOK_KEYS)} />
       <Row label="Theme">
@@ -69,14 +53,14 @@ export function CarPlayPage({ state, backend, settings }: { state: AppState; bac
       <Row label="Driving side">
         {choice('display.right.hand.drive', 'Driving side', 'false', [['false', 'Left-hand'], ['true', 'Right-hand']])}
       </Row>
-      <Row label="Screen edges" title="What CarPlay draws outside the safe area">
-        {choice('display.safe.draw.outside', 'Screen edges', 'true', [['false', 'Black'], ['true', 'Wallpaper']])}
+      <Row label="Outside safe area" title="What CarPlay draws outside the safe area (drawUIOutsideSafeArea)">
+        {choice('display.safe.draw.outside', 'Outside safe area', 'true', [['false', 'Black'], ['true', 'Draw UI']])}
       </Row>
       <Row label="Corners">
         {choice('display.corners', 'Corners', 'square', [['rounded', 'Rounded'], ['square', 'Square']])}
       </Row>
       <Group title="Safe area" note="Pixels at each edge" />
-      <SafeArea settings={settings} prefix="display.safe" label="Controls kept clear" />
+      <SafeArea settings={settings} prefix="display.safe" label="Insets" pending={pending} />
     </>
   )
 }
