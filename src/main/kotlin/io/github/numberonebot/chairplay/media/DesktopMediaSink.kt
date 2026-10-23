@@ -43,6 +43,11 @@ class DesktopMediaSink(
     private val recoveryExecutor = Executors.newSingleThreadExecutor { Thread(it, "video-recovery").apply { isDaemon = true } }
     private val microphones = ConcurrentHashMap<AudioStreamId, MicrophoneSender>()
     private val callEchoReferences = ConcurrentHashMap<AudioStreamId, EchoReference>()
+    /** Runs on the AltScreen window's thread when the first picture of an AltScreen stream newly set up is on screen. */
+    @Volatile
+    var onAltscreenStream: () -> Unit = {}
+    private val altscreenSetUp = AtomicBoolean()
+
     private val screens: Map<Int, Screen> = buildMap {
         put(MAIN_SCREEN, Screen(MAIN_SCREEN, window))
         if (altscreen != null) put(ALT_SCREEN, Screen(ALT_SCREEN, altscreen))
@@ -58,7 +63,14 @@ class DesktopMediaSink(
 
         init {
             window.onFrameShown = {
-                if (firstFramePending.compareAndSet(true, false)) diagnosticHandlers[type]?.invoke(FIRST_FRAME)
+                if (firstFramePending.compareAndSet(true, false)) {
+                    diagnosticHandlers[type]?.invoke(FIRST_FRAME)
+                }
+                // Once per stream set up, not per decoder configuration: the iPhone may configure one again as asked
+                // for a view, and the view asked for again would loop.
+                if (type == ALT_SCREEN && altscreenSetUp.compareAndSet(true, false)) {
+                    onAltscreenStream()
+                }
             }
         }
 
@@ -112,6 +124,7 @@ class DesktopMediaSink(
     }
 
     override fun onScreenStreamActive(type: Int, active: Boolean) {
+        if (active && type == ALT_SCREEN) altscreenSetUp.set(true)
         if (active) return
         val screen = screens[type] ?: return
         diagnosticHandlers.remove(type)

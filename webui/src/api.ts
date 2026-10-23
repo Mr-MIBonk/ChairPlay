@@ -7,6 +7,8 @@ export type Firewall = 'present' | 'missing' | 'blocked' | 'unknown' | 'off'
 export type Applies = 'now' | 'reconnect' | 'restart'
 /** The app's windows besides the main one: the AltScreen and the on-screen car controls. */
 export type WindowName = 'altscreen' | 'controls'
+/** A key going down, repeating while held, or coming up. */
+export type KeyPhase = 'press' | 'repeat' | 'release'
 
 /** What the AltScreen shows (AltscreenContent in DesktopConfig.kt). */
 export type AltscreenContent = 'hud' | 'map' | 'map-card' | 'card'
@@ -159,6 +161,11 @@ export interface Backend {
   window(name: WindowName, visible: boolean): Promise<boolean>
   /** Presses ([down]) or releases a controls window button: a key of controls.properties without "key.". */
   control(action: string, down: boolean): Promise<void>
+  /**
+   * Hands a key pressed on the page on to the app, as pressed on the window: its name as controls.properties writes
+   * it. [everything] over the controls window; over the settings the app takes only its own keys (F11, F12 and such).
+   */
+  key(name: string, phase: KeyPhase, everything: boolean): Promise<void>
   /** Shows [content] on the AltScreen; false when it cannot be shown now. */
   altscreen(content: AltscreenContent): Promise<boolean>
   /** Opens a Windows page or the MFi folder; false when Windows did not open it. */
@@ -271,6 +278,10 @@ export class Api implements Backend {
 
   async control(action: string, down: boolean): Promise<void> {
     await this.request('POST', 'control', { action, down })
+  }
+
+  async key(name: string, phase: KeyPhase, everything: boolean): Promise<void> {
+    await this.request('POST', 'key', { name, phase, everything })
   }
 
   async altscreen(content: AltscreenContent): Promise<boolean> {

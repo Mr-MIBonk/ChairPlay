@@ -57,6 +57,7 @@ class EditableSettingsTest {
         assertTrue("rounded, square" in errors("display.corners" to "round").getValue("display.corners"))
         assertTrue("map, map-card, hud, card" in errors("altscreen.content" to "radar").getValue("altscreen.content"))
         assertTrue("auto, left, right, top, off" in errors("altscreen.cards" to "bottom").getValue("altscreen.cards"))
+        assertTrue("error, warning, info, debug, trace" in errors("log.level" to "loud").getValue("log.level"))
         for (key in listOf("display.right.hand.drive", "display.safe.draw.outside", "audio.echo.cancellation", "audio.duck.iphone")) {
             assertTrue(key, "true or false" in errors(key to "yes").getValue(key))
         }
@@ -190,6 +191,7 @@ class EditableSettingsTest {
         assertEquals(Applies.NOW, EditableSettings.applies("audio.start.silence.ms"))
         assertEquals(Applies.NOW, EditableSettings.applies("audio.start.fade.ms"))
         assertEquals(Applies.NOW, EditableSettings.applies("audio.duck.percent"))
+        assertEquals(Applies.NOW, EditableSettings.applies("log.level"))
         assertEquals(Applies.NOW, EditableSettings.applies("audio.duck.iphone"))
         // The iPhone learns of the AltScreen as it connects.
         for (key in listOf("altscreen.enabled", "altscreen.width", "altscreen.height", "altscreen.content",

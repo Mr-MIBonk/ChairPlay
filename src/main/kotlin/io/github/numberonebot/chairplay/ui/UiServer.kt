@@ -94,7 +94,7 @@ class UiServer(
             return
         }
         val method = exchange.requestMethod
-        val posts = setOf("settings", "controls", "connect", "reconnect", "disconnect", "screen", "window", "control", "altscreen", "open", "window-size", "firewall-rule", "forget", "altscreen-frame", "demo", "volume")
+        val posts = setOf("settings", "controls", "connect", "reconnect", "disconnect", "screen", "window", "control", "key", "altscreen", "open", "window-size", "firewall-rule", "forget", "altscreen-frame", "demo", "volume")
         val gets = setOf("state", "settings", "passphrase", "controls", "events")
         when {
             method == "GET" && route in gets -> when (route) {
@@ -175,6 +175,15 @@ class UiServer(
                     action == null || down == null -> json(exchange, 400, mapOf("error" to "action and down missing"))
                     api.control(action, down) -> json(exchange, 200, mapOf("ok" to true))
                     else -> json(exchange, 404, mapOf("error" to "no button $action"))
+                }
+            }
+            "key" -> {
+                val name = body["name"] as? String
+                val phase = body["phase"] as? String
+                when {
+                    name == null || phase == null -> json(exchange, 400, mapOf("error" to "name and phase missing"))
+                    api.key(name, phase, body["everything"] == true) -> json(exchange, 200, mapOf("ok" to true))
+                    else -> json(exchange, 404, mapOf("error" to "$name does nothing here"))
                 }
             }
             "altscreen" -> {

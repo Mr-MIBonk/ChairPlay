@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AppState } from '../api'
 import { Shell } from '../shell/Shell'
@@ -49,6 +49,18 @@ describe('Experiments page', () => {
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'log.carplay.data': 'true' }]))
     expect(screen.getByText('Applies after restart')).toBeTruthy()
+  })
+
+  // How much the app's log in the logs folder tells, at once; Trace adds DiPlay's packet-by-packet lines.
+  it('sets the log level', async () => {
+    const backend = await experiments()
+    const level = screen.getByRole('radiogroup', { name: 'Log level' })
+
+    expect(within(level).getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['Errors', 'Warnings', 'Info', 'Debug', 'Trace'])
+    expect(within(level).getByRole('radio', { name: 'Info' }).getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(within(level).getByRole('radio', { name: 'Trace' }))
+
+    await waitFor(() => expect(backend.saved).toEqual([{ 'log.level': 'trace' }]))
   })
 
   it('opens the logs and screenshots folders', async () => {

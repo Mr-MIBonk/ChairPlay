@@ -26,9 +26,12 @@ import io.github.numberonebot.chairplay.config.fittedTo
 import io.github.numberonebot.chairplay.ui.UiWindow
 import io.github.numberonebot.chairplay.input.ControlsConfig
 import io.github.numberonebot.chairplay.input.KeyControls
+import io.github.numberonebot.chairplay.input.PageKeys
 import io.github.numberonebot.chairplay.input.TouchQueue
 import io.github.numberonebot.chairplay.input.TouchTracker
 import io.github.numberonebot.chairplay.input.ControlAction
+import io.github.numberonebot.chairplay.log.AppLog
+import io.github.numberonebot.chairplay.log.LogLevel
 import io.github.numberonebot.chairplay.media.AudioDevices
 import io.github.numberonebot.chairplay.media.AudioRenderer
 import io.github.numberonebot.chairplay.media.StartFade
@@ -43,6 +46,7 @@ import io.github.numberonebot.chairplay.hud.HudView
 import io.github.numberonebot.chairplay.hud.hudState
 import io.github.numberonebot.chairplay.media.saveScreenshot
 import io.github.numberonebot.chairplay.media.windowsAppsDark
+import io.github.numberonebot.chairplay.session.AltscreenUi
 import io.github.numberonebot.chairplay.session.FIREWALL_RULE
 import io.github.numberonebot.chairplay.session.FirewallState
 import io.github.numberonebot.chairplay.session.IAP2_IPHONE_UUID
@@ -69,7 +73,6 @@ import com.shilapi.xcertplay.transport.Iap2WirelessIdentification
 import com.shilapi.xcertplay.transport.Iap2WirelessLinkRole
 import com.shilapi.xcertplay.transport.forWirelessLink
 import java.nio.file.Path
-import java.time.LocalTime
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -87,7 +90,10 @@ fun main(args: Array<String>) {
     }
 }
 
-private fun log(message: String) = println("${LocalTime.now()} $message")
+/** The console and, once the app folder is known, logs\chairplay-<time>.log, at log.level. */
+private val appLog = AppLog()
+
+private fun log(message: String) = appLog.info(message)
 
 /** How often display.theme=windows looks at the Windows theme. */
 private const val CONNECTING = "connecting…"
@@ -181,8 +187,11 @@ private fun VideoWindow.asUiMainWindow(available: () -> Boolean = { true }) = ob
 }
 
 private fun runCarPlay() {
+    appLog.install()
     val dir = dataDirectory()
+    appLog.open(dir.resolve("logs"))
     val config = DesktopConfig(dir)
+    appLog.level = config.logLevel
     val controlsConfig = ControlsConfig.load(dir)
     log(controlsConfig.summary())
     val firewall = checkFirewall(config.airPlay.port)
@@ -297,6 +306,8 @@ private fun runCarPlay() {
     // way to the waiting screen instead of its last picture standing still.
     val sessionDropped = AtomicReference<() -> Unit> {}
     fun reconnect() = Thread({ restartBootstrap.get()() }, "reconnect").apply { isDaemon = true }.start()
+    // What the iPhone is told the AltScreen shows: its view while the window shows it, else nothing (stopUI).
+    val altscreenUi = AltscreenUi()
     // The AltScreen's view as it is now, on the touch thread: the HUD or the iPhone's picture, the cluster URL a running
     // [session] is asked for, the title, the view remembered for the next start, and the controls window's page.
     fun showAltscreenView(session: AirPlaySession?) {
@@ -304,10 +315,15 @@ private fun runCarPlay() {
         val content = altscreenContent ?: return
         val url = altscreenUrl(content, altscreenCards)
         val cards = altscreenCards
+        val hud = content == AltscreenContent.HUD || hudDemo.get() != null
+        // The iPhone draws the view only while it is seen: not under the HUD, nor with the window closed.
+        val seen = !hud && altscreen.visible
         // The window goes black before the iPhone is asked for the view, and stays so until the view is in.
-        altscreen.showView(content == AltscreenContent.HUD || hudDemo.get() != null, url) {
-            val sent = session?.setClusterUrl(url, send = true)
-            if (session != null) log("altscreen ${content.key}, cards ${cards.key}: $url sent=$sent")
+        altscreen.showView(hud, url to seen) {
+            val sent = session?.let { altscreenUi.tell(AltscreenUi.of(it), url, seen, key = it) }
+            // A view stopped leaves no picture to come back to: the next one waits on black for the iPhone's.
+            if (!seen) altscreen.clearPicture()
+            if (session != null) log("altscreen ${content.key}, cards ${cards.key}: $url ${if (seen) "showUI" else "stopUI"} sent=$sent")
             altscreen.setTitle(altscreenTitle(alt.size, content, cards) + if (sent == false) " (not sent)" else "")
         }
         runCatching { AltscreenViewStore(dir).save(content, altscreenCards, alt.configured) }
@@ -369,7 +385,15 @@ private fun runCarPlay() {
     val playing = AtomicReference<() -> Boolean> { false }
     val altHeld = AtomicBoolean()
     val giveKeysBack = AtomicReference<() -> Unit> {}
+    // The keys a page with the keyboard hands on, held and repeated apart from the window's own.
+    val pageKeys = PageKeys { bindings.get() }
     val pageControls = object : UiControls {
+        override fun key(name: String, phase: String, everything: Boolean): Boolean {
+            val control = pageKeys.key(name, phase, everything) ?: return false
+            send(control)
+            return true
+        }
+
         override fun control(action: String, down: Boolean): Boolean {
             val button = ControlAction.entries.firstOrNull { it.key == "key.$action" } ?: return false
             send(if (down) pad.press(button) else pad.release(button))
@@ -453,6 +477,7 @@ private fun runCarPlay() {
                     log("music starts silent for ${now.musicStartSilenceMillis} ms, rising over ${now.musicStartFadeMillis} ms")
                 }
             }
+            saved["log.level"]?.let { LogLevel.of(it) }?.let { appLog.level = it }
             if ("audio.duck.percent" in saved || "audio.duck.iphone" in saved) {
                 runCatching { config.now() }.onSuccess { now ->
                     duckSetting.set(now.duckSetting)
@@ -476,7 +501,20 @@ private fun runCarPlay() {
         ui.controlsView?.giveKeysBack()
         controlsWindow.repaint()
     }
-    altscreen.onVisibility = { ui.windowsChanged() }
+    altscreen.onVisibility = {
+        ui.windowsChanged()
+        // A closed AltScreen is not drawn on the iPhone, and asked for again as it opens; none once the app closes.
+        runCatching { touchSender.execute { showAltscreenView(active.get()) } }
+    }
+    // Each new AltScreen stream starts on the iPhone's initial view: it is told what the window shows now.
+    sink.onAltscreenStream = {
+        altscreenUi.newStream()
+        runCatching { touchSender.execute { showAltscreenView(active.get()) } }
+    }
+    // taskkill without /F asks one of the app's windows to close: the AltScreen's or the controls window's ends the app
+    // as the main window's does, where its close button only hides it.
+    altscreen.onOutsideClose = { window.close() }
+    controlsWindow.onOutsideClose = { window.close() }
     controlsWindow.onVisibility = { shown ->
         runCatching { controlsShown.save(shown) }.onFailure { log("controls window state not saved: $it") }
         ui.windowsChanged()
@@ -485,16 +523,21 @@ private fun runCarPlay() {
     controlsWindow.child = ui.controlsView
     // While the page covers the window, the keys and the wheel are its own. Alt held shows the keys on the controls
     // window's buttons, as Windows shows access keys; GLFW releases it when a window loses the focus.
-    window.keyHandler = { key, action, mods ->
-        if (key == GLFW_KEY_LEFT_ALT || key == GLFW_KEY_RIGHT_ALT) {
-            val held = action != GLFW_RELEASE
-            if (altHeld.getAndSet(held) != held) ui.controlsChanged()
+    // A page with the keyboard hands its keys on itself (PageKeys), so the main window drops them while its page covers it.
+    val windowKeys = { covered: () -> Boolean ->
+        { key: Int, action: Int, mods: Int ->
+            if (key == GLFW_KEY_LEFT_ALT || key == GLFW_KEY_RIGHT_ALT) {
+                val held = action != GLFW_RELEASE
+                if (altHeld.getAndSet(held) != held) ui.controlsChanged()
+            }
+            if (!covered()) send(controls.key(key, action, mods))
         }
-        if (!ui.coversWindow) send(controls.key(key, action, mods))
     }
-    // The same keys work while the altscreen or the controls window has the focus; all run on the one GL thread.
-    altscreen.keyHandler = window.keyHandler
-    controlsWindow.keyHandler = window.keyHandler
+    window.keyHandler = windowKeys { ui.coversWindow }
+    // The same keys work while the altscreen or the controls window has the focus, whatever covers the main window;
+    // all run on the one GL thread.
+    altscreen.keyHandler = windowKeys { false }
+    controlsWindow.keyHandler = altscreen.keyHandler
     // Diagnostics: CHAIRPLAY_SCREENSHOT_AFTER=<seconds> saves one screenshot that long after the first picture, or
     // after half a minute without one, so the windows the app draws itself can be looked at without an iPhone.
     System.getenv("CHAIRPLAY_SCREENSHOT_AFTER")?.toLongOrNull()?.let { seconds ->
@@ -592,8 +635,8 @@ private fun runCarPlay() {
                 window.minimize()
             }
         }
-        override fun onTransportError(message: String) = log("AirPlay transport error: $message")
-        override fun onDebugLog(message: String) = log(message)
+        override fun onTransportError(message: String) = appLog.error("AirPlay transport error: $message")
+        override fun onDebugLog(message: String) = appLog.fromDiPlay(message)
     }, carPlayData)
     restartBootstrap.set(bootstrap::restart)
     sessionDropped.set {

@@ -27,8 +27,8 @@ class HudView(val connected: Boolean, val state: HudState, val artwork: Artwork?
  * Draws the HUD with NanoVG on black, centred, as desktop-docs/hud-spec.md lays it out:
  * the song, the route or both in the middle, and a call on top; no clock, signal or battery, which the CarPlay
  * screen shows. Sizes
- * follow the window's height. Text is in Inter, numbers that should stand out (distance) in a
- * wide Roboto Flex, after the way Audi pairs Audi Type with Audi Type Extended; both ship with the app, so the HUD
+ * follow the window's height. Text is in Inter, the route's distance and a call in the app's accent face, a wide
+ * Roboto Flex, after the way Audi pairs Audi Type with Audi Type Extended; both ship with the app, so the HUD
  * looks the same on every system. Symbols the fonts lack (play, pause) are drawn as vectors.
  *
  * The maneuver is the MHI2Q project's animated renderer ([ManeuverView]) where its library runs, else a simple
@@ -50,6 +50,8 @@ class HudPainter(
     private val fontData = mutableListOf<ByteBuffer>()
     private var cover = -1
     private var coverId: Int? = null
+    // The song keeps its cover while the iPhone sends it a new one, as it does when playback starts.
+    private val songCover = SongCover()
     private var emptyCoverNote = -1
     private val color = NVGColor.create()
     private val paint = NVGPaint.create()
@@ -158,44 +160,69 @@ class HudPainter(
     }
 
     /**
-     * The cover and, beside it, the title, artist and album, a progress bar and the app; centred in the [box] with its
-     * cover's size, [presence] of the way out of the dark.
+     * The song as the iPhone's Now Playing lays it out: the title, artist and album on lines of their own, a progress
+     * bar and the app, all centred, with the cover at their right; centred in the [box] with its cover's size,
+     * [presence] of the way out of the dark.
      */
     private fun media(media: HudMedia, now: HudView, box: HudBox, h: Float, presence: Float) {
-        val gap = 0.05f * h
+        val gap = 0.08f * h
         val coverSize = box.cover
         val textWidth = min(box.right - box.left - coverSize - gap, 0.9f * h * 1.4f)
-        val blockWidth = coverSize + gap + textWidth
+        val blockWidth = textWidth + gap + coverSize
         val x = box.left + (box.right - box.left - blockWidth) / 2
         val y = h / 2 - coverSize / 2
         emerging(presence, x + blockWidth / 2, h / 2) { mediaBlock(media, now, x, y, coverSize, gap, textWidth, h) }
     }
 
+    /** One line of the song's text block: its [height], the [space] above it, and how it draws at its middle. */
+    private class Row(val height: Float, val space: Float, val draw: (Float) -> Unit)
+
     private fun mediaBlock(media: HudMedia, now: HudView, x: Float, y: Float, coverSize: Float, gap: Float, textWidth: Float, h: Float) {
-        drawCover(now.artwork?.takeIf { it.transferId == media.artworkId && it.size > 0 }, x, y, coverSize)
-        val tx = x + coverSize + gap
+        drawCover(songCover.pick(listOf(media.title, media.artist, media.album), media.artworkId, now.artwork), x + textWidth + gap, y, coverSize)
+        val cx = x + textWidth / 2
         // In whole pixels: while the song moves between the middle and its column, every size between would be
         // another set of glyphs for NanoVG to render.
-        val titleSize = (0.085f * h * coverSize / (0.55f * h)).roundToInt().toFloat()
-        var ty = y + coverSize * 0.18f
-        text(fit(media.title.orEmpty(), textWidth, titleSize, BOLD), tx, ty, titleSize, WHITE, BOLD, NVG_ALIGN_LEFT)
-        ty += titleSize * 1.15f
-        media.subtitle?.let { text(fit(it, textWidth, titleSize * 0.68f, REGULAR), tx, ty, titleSize * 0.68f, GREY, REGULAR, NVG_ALIGN_LEFT) }
-        media.progress?.let { progress ->
-            val barY = y + coverSize * 0.70f
-            val barHeight = 0.012f * h
-            nvgBeginPath(vg)
-            nvgRoundedRect(vg, tx, barY, textWidth, barHeight, barHeight / 2)
-            fill(DIM)
-            nvgBeginPath(vg)
-            nvgRoundedRect(vg, tx, barY, textWidth * progress, barHeight, barHeight / 2)
-            fill(accentColor)
+        val fullSize = (0.10f * h * coverSize / (0.55f * h)).roundToInt().toFloat()
+        val lineSize = (fullSize * 0.6f).roundToInt().toFloat()
+        val sourceSize = 0.04f * h
+        val barHeight = 0.012f * h
+        val space = lineSize * 0.35f
+        // A long title shrinks a little before it is cut; the lines under it keep their size and place.
+        val title = media.title.orEmpty()
+        val titleSize = fitSize(title, textWidth, fullSize, fullSize * 0.8f, BOLD).roundToInt().toFloat()
+        val rows = buildList<Row> {
+            add(Row(fullSize, 0f) { cy -> centred(fit(title, textWidth, titleSize, BOLD), cx, cy, titleSize, WHITE, BOLD) })
+            // The artist in white, as the title; the album, as the iPhone's dims it, in grey.
+            for ((line, rgb) in listOfNotNull(media.artist?.to(WHITE), media.album?.to(GREY))) {
+                add(Row(lineSize, space) { cy -> centred(fit(line, textWidth, lineSize, REGULAR), cx, cy, lineSize, rgb, REGULAR) })
+            }
+            media.progress?.let { progress ->
+                add(Row(barHeight, space * 2.5f) { cy ->
+                    nvgBeginPath(vg)
+                    nvgRoundedRect(vg, x, cy - barHeight / 2, textWidth, barHeight, barHeight / 2)
+                    fill(DIM)
+                    nvgBeginPath(vg)
+                    nvgRoundedRect(vg, x, cy - barHeight / 2, textWidth * progress, barHeight, barHeight / 2)
+                    fill(accentColor)
+                })
+            }
+            media.source?.let { source ->
+                add(Row(sourceSize, space * 2f) { cy ->
+                    // The play state and the app as one centred line.
+                    val icon = sourceSize * 0.7f * (if (media.playing) 0.85f else 0.8f) + sourceSize * 0.5f
+                    val name = fit(source, textWidth - icon, sourceSize, REGULAR)
+                    val left = cx - (icon + measure(name, sourceSize, REGULAR)) / 2
+                    playState(media.playing, left, cy, sourceSize)
+                    text(name, left + icon, cy, sourceSize, GREY, REGULAR, NVG_ALIGN_LEFT)
+                })
+            }
         }
-        media.source?.let {
-            val size = 0.04f * h
-            val sy = y + coverSize * 0.88f
-            val icon = playState(media.playing, tx, sy, size) + size * 0.5f
-            text(fit(it, textWidth - icon, size, REGULAR), tx + icon, sy, size, GREY, REGULAR, NVG_ALIGN_LEFT)
+        // The lines stand together, centred on the cover; a line the song lacks keeps no room.
+        var top = y + coverSize / 2 - rows.sumOf { (it.space + it.height).toDouble() }.toFloat() / 2
+        for (row in rows) {
+            top += row.space
+            row.draw(top + row.height / 2)
+            top += row.height
         }
     }
 
@@ -374,7 +401,10 @@ class HudPainter(
             nvgBeginPath(vg)
             nvgRoundedRect(vg, left, y, right - left, height, height * 0.2f)
             fill(CALL_GROUND)
-            centred(fit(call, right - left - 0.1f * h, 0.09f * h, BOLD), w / 2, y + height / 2, 0.09f * h, GREEN, BOLD)
+            // The call in the wide accent face; a long name shrinks a little before it is cut.
+            val width = right - left - 0.1f * h
+            val size = fitSize(call, width, 0.09f * h, 0.075f * h, WIDE)
+            centred(fit(call, width, size, WIDE), w / 2, y + height / 2, size, GREEN, WIDE)
         }
     }
 
@@ -402,6 +432,14 @@ class HudPainter(
         nvgFontSize(vg, size)
         val measured = nvgTextBounds(vg, 0f, 0f, text, null as java.nio.FloatBuffer?)
         return if (measured <= width) size else (size * width / measured).coerceAtLeast(smallest)
+    }
+
+    /** How wide [text] is at [size] in [font]. */
+    private fun measure(text: String, size: Float, font: String): Float {
+        if (!fonts || text.isEmpty()) return 0f
+        nvgFontFace(vg, font)
+        nvgFontSize(vg, size)
+        return nvgTextBounds(vg, 0f, 0f, text, null as java.nio.FloatBuffer?)
     }
 
     /** [text] cut with an ellipsis to [width] at [size]. */

@@ -23,7 +23,8 @@ data class HudState(
 
 data class HudMedia(
     val title: String?,
-    val subtitle: String?,
+    val artist: String?,
+    val album: String?,
     val source: String?,
     /** How far the song has played, 0 to 1; null without a duration. */
     val progress: Float?,
@@ -83,7 +84,8 @@ fun hudState(snapshot: CarPlayDataSnapshot, zone: ZoneId = ZoneId.systemDefault(
     val media = snapshot.nowPlaying?.takeIf { !it.title.isNullOrBlank() }?.let { song ->
         HudMedia(
             title = song.title.clip(),
-            subtitle = listOfNotNull(song.artist.clip(), song.album.clip()).joinToString(" — ").ifEmpty { null },
+            artist = song.artist.clip(),
+            album = song.album.clip(),
             source = song.appName.clip(),
             progress = song.durationMillis?.takeIf { it > 0 }?.let { total ->
                 ((song.elapsedMillis ?: 0).toFloat() / total).coerceIn(0f, 1f)

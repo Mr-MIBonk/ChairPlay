@@ -4,6 +4,7 @@ import com.shilapi.xcertplay.airplay.AudioCodecKind
 import com.shilapi.xcertplay.airplay.AudioFormat
 import com.shilapi.xcertplay.airplay.AudioStreamId
 import com.shilapi.xcertplay.airplay.VideoCodec
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.ByteArrayOutputStream
@@ -37,6 +38,27 @@ class DesktopMediaSinkTest {
         assertTrue("recovery ran on the decoding thread", handlerThread[0] !== caller)
         // The stream is gone; frames after it are dropped rather than touching freed memory.
         sink.onVideoFrame(110, resource("frame0.h264"), 0, 0)
+        sink.close()
+    }
+
+    // The AltScreen's state goes to the iPhone once per stream it sets up, on that stream's first picture: not on each
+    // picture, nor on a decoder configured again, which a view asked for can bring and would ask again, in a loop.
+    @Test
+    fun `an AltScreen stream set up is reported once, at its first picture`() {
+        val altscreen = VideoWindow(320, 240)
+        val sink = DesktopMediaSink(VideoWindow(320, 240), AudioRenderer(), altscreen = altscreen)
+        var reported = 0
+        sink.onAltscreenStream = { reported++ }
+
+        altscreen.onFrameShown()
+        sink.onScreenStreamActive(111, true)
+        altscreen.onFrameShown()
+        altscreen.onFrameShown()
+        assertEquals(1, reported)
+
+        sink.onScreenStreamActive(111, true)
+        altscreen.onFrameShown()
+        assertEquals(2, reported)
         sink.close()
     }
 

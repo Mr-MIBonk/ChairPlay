@@ -68,6 +68,17 @@ class UiServerTest {
         assertEquals(mapOf("version" to 0L, "phase" to "idle"), Json.parse(response.body()))
     }
 
+    // A page with the keyboard hands the app's keys on: the key by name, pressed, repeated or released, and whether
+    // every key of the app works over it (the controls window) or only those the settings leave (F11, F12 and such).
+    @Test
+    fun `a page hands its keys on`() {
+        assertEquals(200, post("/api/key", """{"name":"F11","phase":"press","everything":false}""").statusCode())
+        assertEquals(404, post("/api/key", """{"name":"Up","phase":"press","everything":false}""").statusCode())
+        assertEquals(200, post("/api/key", """{"name":"Up","phase":"press","everything":true}""").statusCode())
+        assertEquals(400, post("/api/key", """{"name":"F11"}""").statusCode())
+        assertEquals(listOf("key F11 press false", "key Up press false", "key Up press true"), api.calls.takeLast(3))
+    }
+
     // The Audio page's slider: a whole percent.
     @Test
     fun `the volume is set from the page`() {
@@ -264,6 +275,10 @@ class UiServerTest {
         override fun control(action: String, down: Boolean): Boolean {
             calls += "control $action $down"
             return action != "eject"
+        }
+        override fun key(name: String, phase: String, everything: Boolean): Boolean {
+            calls += "key $name $phase $everything"
+            return name != "Up" || everything
         }
         override fun altscreenContent(content: String): Boolean {
             calls += "altscreen $content"

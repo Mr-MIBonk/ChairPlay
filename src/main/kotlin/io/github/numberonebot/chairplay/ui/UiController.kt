@@ -85,6 +85,14 @@ interface UiControls {
      */
     fun control(action: String, down: Boolean): Boolean
 
+    /**
+     * A key pressed on a page, which has the keyboard while it shows, handed on as if pressed on the window: its name
+     * as controls.properties writes it ("Shift+F11"), [phase] "press", "repeat" or "release". [everything] over the
+     * controls window's page; over the settings only the keys that neither move about the page nor type work. False
+     * when the key does nothing there.
+     */
+    fun key(name: String, phase: String, everything: Boolean): Boolean = false
+
     /** Shows [content] ("hud", "map", "map-card", "card") on the AltScreen; false when it cannot be shown. */
     fun altscreenContent(content: String): Boolean
 
@@ -149,6 +157,9 @@ interface UiApi {
 
     /** A button of the controls window pressed or released ([UiControls.control]); false when there is none. */
     fun control(action: String, down: Boolean): Boolean
+
+    /** A key pressed on a page, handed on to the app ([UiControls.key]); false when it does nothing there. */
+    fun key(name: String, phase: String, everything: Boolean): Boolean = false
 
     /** The controls window's AltScreen modes ([UiControls.altscreenContent]); false when it cannot be shown. */
     fun altscreenContent(content: String): Boolean
@@ -389,6 +400,9 @@ class UiController(
     }
 
     override fun control(action: String, down: Boolean): Boolean = controls?.control(action, down) ?: false
+
+    override fun key(name: String, phase: String, everything: Boolean): Boolean =
+        controls?.key(name, phase, everything) ?: false
 
     override fun altscreenContent(content: String): Boolean = controls?.altscreenContent(content) ?: false
 

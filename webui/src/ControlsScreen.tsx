@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { AltscreenContent, AppState, Backend } from './api'
 import { icons } from './controlsIcons'
+import { useKeysToApp } from './shell/useKeysToApp'
 
 /** The AltScreen's modes, in the order the controls window lists them. */
 const MODES: { content: AltscreenContent; label: string }[] = [
@@ -48,6 +49,8 @@ function Key(props: Shared & {
   icon: ReactNode
   /** Shown under the icon; none for the media and volume keys, whose icons say it. */
   text?: string
+  /** The key on a plate of its own beside [text] rather than in its place, as the knob's parts show theirs. */
+  keyApart?: boolean
   className?: string
   disabled?: boolean
   pressed?: boolean
@@ -55,6 +58,8 @@ function Key(props: Shared & {
   const held = useRef(false)
   const [down, setDown] = useState(false)
   const key = props.keys[props.action]
+  // The key a labelled button shows in its label's place while the keys show.
+  const labelKey = props.showKeys && key && props.text && !props.keyApart ? keyLabel(key) : null
   const release = () => {
     if (!held.current) return
     held.current = false
@@ -81,8 +86,9 @@ function Key(props: Shared & {
       onLostPointerCapture={release}
     >
       {props.icon}
-      {props.text && <span>{props.text}</span>}
-      {props.showKeys && key && <small className="kb">{keyLabel(key)}</small>}
+      {/* Nothing moves as the keys show: a label gives its place to the key, an icon's button has it in a corner */}
+      {props.text && <span className={labelKey ? 'key-name' : ''}>{labelKey ?? props.text}</span>}
+      {props.showKeys && key && !labelKey && <small className="kb">{keyLabel(key)}</small>}
     </button>
   )
 }
@@ -111,7 +117,7 @@ function Knob(props: Shared & { onTurn: (forward: boolean) => void }) {
       {part('knob.down', 'Tilt down', icons.down, 'tilt tilt-down')}
       {part('knob.left', 'Tilt left', icons.left, 'tilt tilt-left')}
       {part('knob.right', 'Tilt right', icons.right, 'tilt tilt-right')}
-      <Key {...props} action="select" label="Select" icon={null} text="Select" className="select" />
+      <Key {...props} action="select" label="Select" icon={null} text="Select" className="select" keyApart />
     </div>
   )
 }
@@ -124,6 +130,8 @@ function Knob(props: Shared & { onTurn: (forward: boolean) => void }) {
 export function ControlsScreen({ state, backend }: { state: AppState; backend: Backend }) {
   const controls = state.controls
   const [altHere, setAltHere] = useState(false)
+  // A click on a button gives the page the keyboard: every key of the app works over it as over the window.
+  useKeysToApp(backend, true)
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -154,7 +162,7 @@ export function ControlsScreen({ state, backend }: { state: AppState; backend: B
   const modesKey = shared.keys['altscreen.content']
 
   return (
-    <div className={`controls-screen ${shared.showKeys ? 'show-keys' : ''}`}>
+    <div className="controls-screen">
       <div className={`alt-column ${altOn ? '' : 'off'}`}>
         <div className="zoom-group">
           <Key {...shared} action="altscreen.zoom.in" label="Zoom in" icon={icons.zoomIn} disabled={!altOn} />

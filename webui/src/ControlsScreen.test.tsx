@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ControlsScreen } from './ControlsScreen'
 import { appState, FakeBackend } from './testing'
@@ -101,6 +101,28 @@ describe('ControlsScreen', () => {
     expect(screen.getByText('=')).toBeTruthy()
     expect(screen.getByText('F11')).toBeTruthy()
     expect(screen.getByText('Ctrl+M')).toBeTruthy()
+  })
+
+  // Nothing on a button moves as the keys show: a labelled button shows its key in its label's place, an icon's
+  // button in its corner, clear of the icon.
+  it("puts a key in a label's place, and in the corner of an icon", () => {
+    render(<ControlsScreen state={appState({ ...live, controlsKeys: true })} backend={new FakeBackend()} />)
+
+    const back = screen.getByRole('button', { name: 'Back' })
+    expect(within(back).getByText('Esc').className).not.toContain('kb')
+    expect(within(back).queryByText('Back')).toBeNull()
+    expect(within(screen.getByRole('button', { name: 'Mute' })).getByText('Ctrl+M').className).toContain('kb')
+  })
+
+  // A click on a button gives the page the keyboard; every key of the app still works, as pressed on the window.
+  it('hands every key on to the app', () => {
+    const backend = new FakeBackend()
+    render(<ControlsScreen state={appState(live)} backend={backend} />)
+
+    fireEvent.keyDown(window, { code: 'ArrowUp', key: 'ArrowUp' })
+    fireEvent.keyUp(window, { code: 'ArrowUp', key: 'ArrowUp' })
+
+    expect(backend.keys).toEqual(['Up press everything', 'Up release everything'])
   })
 
   // The Keyboard page's Show keys on the buttons.

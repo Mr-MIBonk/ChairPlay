@@ -116,6 +116,7 @@ class HudStateTest {
     }
 
     @Test
+    // As the iPhone's Now Playing lays them out: the artist and the album each on a line of its own.
     fun `the song shows title, artist and album, its app and how far it has played`() {
         val song = NowPlaying(
             title = "Gasoline", artist = "Twin Fin", album = "Gasoline", durationMillis = 166_721, elapsedMillis = 41_680,
@@ -124,7 +125,8 @@ class HudStateTest {
         val media = hudState(CarPlayDataSnapshot(nowPlaying = song), zone).media!!
 
         assertEquals("Gasoline", media.title)
-        assertEquals("Twin Fin — Gasoline", media.subtitle)
+        assertEquals("Twin Fin", media.artist)
+        assertEquals("Gasoline", media.album)
         assertEquals("YouTube Music", media.source)
         assertEquals(0.25f, media.progress!!, 0.001f)
         assertEquals(true, media.playing)

@@ -1,7 +1,15 @@
 import type { AppState, Backend, DemoKind } from '../api'
-import { Checkbox, Group, Row } from '../shell/controls'
+import { Checkbox, Group, Row, Segmented, type Choice } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
 import { Changed, parts, pendingOf } from './parts'
+
+const LEVELS: readonly Choice[] = [
+  ['error', 'Errors'],
+  ['warning', 'Warnings'],
+  ['info', 'Info'],
+  ['debug', 'Debug'],
+  ['trace', 'Trace'],
+]
 
 const DEMOS: readonly (readonly [kind: DemoKind, label: string, title: string])[] = [
   ['maneuvers', 'Maneuvers', "Play a made-up route on the AltScreen's HUD"],
@@ -10,7 +18,7 @@ const DEMOS: readonly (readonly [kind: DemoKind, label: string, title: string])[
 
 /**
  * What is still being tried, and what helps to look into it: the HUD's demos, played on the AltScreen without an iPhone,
- * the CarPlay data log, and the folders the logs and the screenshots go to.
+ * the app log's level, the CarPlay data log, and the folders the logs and the screenshots go to.
  */
 export function ExperimentsPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
   const demo = state.demo
@@ -35,6 +43,14 @@ export function ExperimentsPage({ state, backend, settings }: { state: AppState;
         )
       })}
       <Group title="Logs" note={note(['log.carplay.data'])} />
+      <Row label="Log level" title="How much the app's log in the logs folder tells; Trace adds every packet">
+        <Segmented
+          label="Log level"
+          value={settings.value('log.level') || 'info'}
+          options={LEVELS}
+          onChange={(level) => settings.save({ 'log.level': level })}
+        />
+      </Row>
       <Row label="CarPlay data" title="The iPhone's route, song, call, and battery messages, one JSON object a line, in the logs folder">
         <Checkbox
           label="Write the iPhone's messages to a file"

@@ -197,6 +197,26 @@ describe('Shell', () => {
     expect(backend.shown).toEqual(['carplay'])
   })
 
+  // The settings have the keyboard while they show: the app's own keys (F11, F12 and such) still reach it, as pressed
+  // on the window, and the app keeps the arrows, Enter and the like to the page. What is typed in a field stays there.
+  it("hands the app's keys on, not what is typed in a field", async () => {
+    const backend = new FakeBackend()
+    render(<Shell state={appState(live)} backend={backend} />)
+
+    fireEvent.keyDown(window, { code: 'F11', key: 'F11' })
+    fireEvent.keyDown(window, { code: 'F11', key: 'F11', repeat: true })
+    fireEvent.keyUp(window, { code: 'F11', key: 'F11' })
+    fireEvent.keyDown(window, { code: 'Equal', key: '=', shiftKey: true })
+    fireEvent.keyDown(window, { code: 'ShiftLeft', key: 'Shift', shiftKey: true })
+    const field = await screen.findByRole('textbox', { name: 'Network' })
+    fireEvent.keyDown(field, { code: 'Minus', key: '-' })
+    fireEvent.keyDown(field, { code: 'F12', key: 'F12' })
+
+    expect(backend.keys).toEqual([
+      'F11 press settings', 'F11 repeat settings', 'F11 release settings', 'Shift+Equal press settings', 'F12 press settings',
+    ])
+  })
+
   it('leaves Escape alone without a session, or when a page used it', () => {
     const backend = new FakeBackend()
     render(<Shell state={appState({ phase: 'calling' })} backend={backend} />)

@@ -213,9 +213,9 @@ code {
   pointer-events: none;
 }
 
-/* While the keys show, a key's icon and label move down clear of the one in its corner */
-.controls-screen.show-keys .key-row .key {
-  padding-top: 8px;
+/* A labelled key's key, in its label's place while the keys show: the label's line and size, dimmer than a label */
+.controls-screen .key .key-name {
+  color: var(--muted);
 }
 
 /* The AltScreen's column: + over − as one bar, the modes as a track; it greys out while there is no AltScreen */
@@ -431,10 +431,12 @@ code {
   background: radial-gradient(circle at 50% 22%, var(--accent-light), var(--accent) 58%, var(--accent-dark));
 }
 
+/* Select's key on its plate just under its label, which keeps its place as the keys show */
 .controls-screen .key.select .kb {
-  position: static;
-  padding: 0;
-  background: none;
+  top: calc(50% + 8px);
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
   font-size: 11.05px;
 }
 

@@ -3,6 +3,7 @@ package io.github.numberonebot.chairplay.config
 import com.shilapi.xcertplay.airplay.AirPlayInfoPlist
 import com.shilapi.xcertplay.airplay.AirPlayViewArea
 import com.shilapi.xcertplay.airplay.AirPlayInsets
+import io.github.numberonebot.chairplay.log.LogLevel
 import io.github.numberonebot.chairplay.media.DuckSetting
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -356,15 +357,20 @@ class DesktopConfigTest {
 
     // The HUD shows the turn card cut out of the iPhone's card-only stream, which costs next to no bandwidth.
     @Test
-    fun `the HUD asks the iPhone for the turn card and is the fourth content`() {
+    fun `the HUD asks the iPhone for the turn card`() {
         assertEquals(
             "maps:/car/instrumentcluster/instructioncard",
             configWith("altscreen.enabled=true", "altscreen.content=hud").airPlay.cluster!!.initialUrl,
         )
-        // F11 goes map, map-card, hud, card.
-        assertEquals(AltscreenContent.HUD, AltscreenContent.MAP_CARD.next())
-        assertEquals(AltscreenContent.CARD, AltscreenContent.HUD.next())
-        assertEquals(AltscreenContent.MAP, AltscreenContent.CARD.next())
+    }
+
+    // F11 steps through the views in the order the controls window and the AltScreen page show them.
+    @Test
+    fun `F11 goes hud, map, map-card, card, as the buttons stand`() {
+        assertEquals(AltscreenContent.MAP, AltscreenContent.HUD.next())
+        assertEquals(AltscreenContent.MAP_CARD, AltscreenContent.MAP.next())
+        assertEquals(AltscreenContent.CARD, AltscreenContent.MAP_CARD.next())
+        assertEquals(AltscreenContent.HUD, AltscreenContent.CARD.next())
     }
 
     // The iPhone is asked at once for the content the AltScreen was left on.
@@ -405,6 +411,15 @@ class DesktopConfigTest {
         assertTrue(configWith("log.carplay.data=true").logCarPlayData)
         assertTrue(DesktopConfig.defaultSettingsText().contains("'true' or 'false'.\nlog.carplay.data=false\n"))
         assertTrue(runCatching { configWith("log.carplay.data=yes").logCarPlayData }.exceptionOrNull() is IllegalArgumentException)
+    }
+
+    // The app's log tells what happens without DiPlay's packet-by-packet lines unless asked for.
+    @Test
+    fun `the log is at info unless set`() {
+        assertEquals(LogLevel.INFO, configWith().logLevel)
+        assertEquals(LogLevel.TRACE, configWith("log.level=Trace").logLevel)
+        assertTrue(DesktopConfig.defaultSettingsText().contains("\nlog.level=info\n"))
+        assertTrue(runCatching { configWith("log.level=loud").logLevel }.exceptionOrNull() is IllegalArgumentException)
     }
 
     // The name the iPhone shows for the car, in CarPlay settings, /info and the Bonjour service; the window

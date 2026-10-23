@@ -182,6 +182,14 @@ class VideoWindow(
     // GLFW rejects glfwPostEmptyEvent outside init..terminate, which frames and close() can fall outside of.
     private val running = AtomicBoolean()
 
+    /**
+     * Runs on the GL thread when a window that hides on its close button is asked to close from outside the app
+     * (taskkill without /F), which asks the app to end; the close button and Alt+F4 only hide it.
+     */
+    @Volatile
+    var onOutsideClose: () -> Unit = {}
+    private val closeSource = CloseSource()
+
     /** Runs on the GL thread as the window closes, with its last place and restored size. */
     @Volatile
     var onPlacement: (WindowPlacement) -> Unit = {}
@@ -309,9 +317,11 @@ class VideoWindow(
             glfwSetWindowContentScaleCallback(window) { handle, _, _ -> limitSize(handle) }
         }
         if (hideOnClose) {
+            closeSource.watch(glfwGetWin32Window(window))
             glfwSetWindowCloseCallback(window) { handle ->
                 glfwSetWindowShouldClose(handle, false)
-                applyShown(handle, false)
+                // The close button hides the window; a close asked from outside (taskkill) ends the app.
+                if (closeSource.userClosed()) applyShown(handle, false) else onOutsideClose()
             }
         }
         WindowIcon.apply(window)

@@ -81,6 +81,7 @@ object EditableSettings {
         "audio.duck.iphone" to switch(Applies.NOW),
         // The data log opens as the app starts.
         "log.carplay.data" to switch(Applies.RESTART),
+        "log.level" to choice("error", "warning", "info", "debug", "trace", applies = Applies.NOW),
     )
 
     /** The keys the screens may change. */

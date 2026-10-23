@@ -12,6 +12,7 @@ import { setupSteps } from '../setup/steps'
 import { Message } from './controls'
 import { SECTIONS, sectionsOf, type Section } from './sections'
 import { Toolbar } from './Toolbar'
+import { useKeysToApp } from './useKeysToApp'
 import { useSettings } from './useSettings'
 import { Waiting } from './Waiting'
 
@@ -39,6 +40,9 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
   useEffect(() => {
     if (!state.setupDone) setGuide((current) => (current === 'skipped' ? 'auto' : current))
   }, [state.setupDone])
+
+  // F11, F12 and the app's other keys work over the settings as over CarPlay.
+  useKeysToApp(backend, false)
 
   useEffect(() => {
     if (!showable) return

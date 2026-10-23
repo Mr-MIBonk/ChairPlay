@@ -9,6 +9,7 @@ import com.shilapi.xcertplay.airplay.AirPlayInsets
 import com.shilapi.xcertplay.airplay.AirPlayViewArea
 import com.shilapi.xcertplay.airplay.CarPlayClusterDisplay
 import com.shilapi.xcertplay.airplay.PairingStore
+import io.github.numberonebot.chairplay.log.LogLevel
 import io.github.numberonebot.chairplay.media.DuckSetting
 import io.github.numberonebot.chairplay.network.SavedWifi
 import com.shilapi.xcertplay.transport.Iap2WirelessSecurity
@@ -41,12 +42,13 @@ enum class Theme { WINDOWS, LIGHT, DARK, PHONE }
 
 /** What the altscreen shows: one of the cluster contents the iPhone lists in its altScreenURLs. */
 enum class AltscreenContent(val key: String, val cluster: CarPlayClusterDisplay.Content) {
-    MAP("map", CarPlayClusterDisplay.Content.MAP),
-    MAP_CARD("map-card", CarPlayClusterDisplay.Content.INSTRUMENTS),
     /** Our HUD: the iPhone sends the turn card, the window shows the HUD's own data. */
     HUD("hud", CarPlayClusterDisplay.Content.TURN_CARD),
+    MAP("map", CarPlayClusterDisplay.Content.MAP),
+    MAP_CARD("map-card", CarPlayClusterDisplay.Content.INSTRUMENTS),
     CARD("card", CarPlayClusterDisplay.Content.TURN_CARD);
 
+    /** F11's next view, in the order the controls window's buttons and the AltScreen page show them. */
     fun next(): AltscreenContent = entries[(ordinal + 1) % entries.size]
 }
 
@@ -243,6 +245,9 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
 
     /** log.carplay.data: the iPhone's route, song, call and battery messages to logs\carplay-data-<time>.jsonl. */
     val logCarPlayData: Boolean = booleanSetting("log.carplay.data", false)
+
+    /** log.level: how much the app's log, in the console and logs\chairplay-<time>.log, tells. */
+    val logLevel: LogLevel = choiceSetting("log.level", LogLevel.INFO, LogLevel.entries.associateBy { it.key })
 
     /** windows follows the Windows dark mode; phone sends nothing and leaves it to the iPhone. */
     val theme: Theme = choiceSetting("display.theme", Theme.WINDOWS, Theme.entries.associateBy { it.name.lowercase() })
@@ -546,6 +551,11 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
                 "Write every message the iPhone sends about the route, the song, calls and its battery to\n" +
                     "logs\\carplay-data-<date-time>.jsonl in this folder, one JSON object per line: 'true' or 'false'.",
                 "log.carplay.data" to "false",
+            ),
+            SettingBlock(
+                "How much the app's log tells, in the console and in logs\\chairplay-<date-time>.log in this folder\n" +
+                    "(the ten newest are kept): error, warning, info, debug, or trace (with every packet).",
+                "log.level" to "info",
             ),
             SettingBlock(
                 "The CarPlay screen the iPhone draws, in pixels (positive even numbers), and its frame rate (30-60).\n" +

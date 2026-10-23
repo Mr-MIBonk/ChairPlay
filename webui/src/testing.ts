@@ -1,6 +1,6 @@
 // Fakes for the tests: an app state and a backend that records what the screens ask for.
 import type {
-  AltscreenContent, AppState, Backend, ControlsData, DemoKind, PictureWindow, SaveOutcome, Screen, SettingsData,
+  AltscreenContent, AppState, Backend, ControlsData, DemoKind, KeyPhase, PictureWindow, SaveOutcome, Screen, SettingsData,
   WindowName, WindowsPlace,
 } from './api'
 
@@ -187,6 +187,13 @@ export class FakeBackend implements Backend {
 
   async control(action: string, down: boolean) {
     this.controls.push(`${action} ${down ? 'down' : 'up'}`)
+  }
+
+  /** Keys handed on from a page, as "name phase settings" or "name phase everything". */
+  keys: string[] = []
+
+  async key(name: string, phase: KeyPhase, everything: boolean) {
+    this.keys.push(`${name} ${phase} ${everything ? 'everything' : 'settings'}`)
   }
 
   async altscreen(content: AltscreenContent) {
