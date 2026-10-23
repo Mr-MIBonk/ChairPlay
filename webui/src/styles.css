@@ -596,7 +596,9 @@ html:has(.shell) {
 
 /*
  * Through black, in step with the window's own fade (Fade.kt, 150 ms each half): going away the page dims at once,
- * while the window holds it; coming back it waits while the picture dims, then comes up as the window shows it.
+ * faster than the window, so it is black well before the window hides it and the frame the web view keeps hidden is
+ * black too (one a little behind showed for a moment as the page came back); coming back it waits while the picture
+ * dims, then comes up as the window shows it.
  */
 .shell {
   transition: opacity 150ms ease 150ms;
@@ -605,7 +607,7 @@ html:has(.shell) {
 .shell.away {
   opacity: 0;
   pointer-events: none;
-  transition: opacity 150ms ease;
+  transition: opacity 100ms ease;
 }
 
 /* Waiting for the connection the app makes on its own: black, as CarPlay's picture will be, the icon over the status */
@@ -1124,9 +1126,11 @@ html:has(.shell) {
 
 .shell .t.n { width: 60px; text-align: right; }
 .shell .t.n3 { width: 46px; text-align: right; }
-/* A screen's size and insets: as wide as a Frame rate plate beside them, a size centred */
+/* A screen's size and insets, a size centred; a size's two fields and its × are as long as the Frame rate group */
 .shell .t.short { width: 44px; text-align: right; }
 .shell .t.short.c { text-align: center; }
+/* The × between a size's fields: a set width, so that the Frame rate group (.seg.half) can be as long as the pair */
+.shell .x.times { width: 9px; text-align: center; }
 .shell .t.w120 { width: 120px; }
 .shell .t.w160 { width: 160px; }
 .shell .t.w200 { width: 200px; }
@@ -1612,9 +1616,15 @@ html:has(.shell) {
   padding: 0 6px;
 }
 
-/* Short figures: the group half as long as two ordinary choices */
+/* Short figures: the group as long as a size's two fields (.t.short), its × (.x.times) and the gaps (.ctl) */
+.shell .seg.half {
+  box-sizing: border-box;
+  width: calc(2 * 44px + 9px + 2 * 6px);
+}
+
 .shell .seg.half button {
-  min-width: 43px;
+  flex: 1 1 0;
+  min-width: auto;
   padding: 0 6px;
 }
 
@@ -1666,15 +1676,18 @@ html:has(.shell) {
  * accent within a ring, as long as the device list above it
  */
 /*
- * Under the track, a mark every 5 % (as the volume keys step): 21 marks from the pin's first centre (7 px in) to its
- * last, a twentieth of its travel (the width less the 14 px pin) apart
+ * Over the track, a mark every 5 % (as the volume keys step): 21 marks from the pin's first centre (8 px in) to its
+ * last, a twentieth of its travel (the width less the 16 px pin) apart
  */
 .shell .slider {
+  /* The track at the height of the label's lowercase letters, 2 px under the line's middle, the marks above it */
+  position: relative;
+  top: 2px;
   width: 280px;
   height: 24px;
   margin: 0;
-  background: repeating-linear-gradient(to right, var(--dim) 0 1px, transparent 1px calc((100% - 1px) / 20)) 6.5px 100% /
-    calc(100% - 13px) 3px no-repeat;
+  background: repeating-linear-gradient(to right, var(--dim) 0 1px, transparent 1px calc((100% - 1px) / 20)) 7.5px 0 /
+    calc(100% - 15px) 3px no-repeat;
   appearance: none;
   cursor: default;
 }
@@ -1685,14 +1698,15 @@ html:has(.shell) {
   background: linear-gradient(to right, var(--accent) var(--level), var(--edge) var(--level));
 }
 
+/* The pin: the accent, a dark ring of 1 px parting it from its border, and the border, which hover and drag light up */
 .shell .slider::-webkit-slider-thumb {
   box-sizing: border-box;
-  width: 14px;
-  height: 14px;
-  margin-top: -5px;
+  width: 16px;
+  height: 16px;
+  margin-top: -6px;
   border: 1px solid #5a5a62;
   border-radius: 50%;
-  background: var(--accent);
+  background: radial-gradient(circle closest-side, var(--accent) calc(100% - 1.5px), #000 calc(100% - 1px));
   appearance: none;
 }
 
@@ -1703,7 +1717,7 @@ html:has(.shell) {
 /* Dragged: brighter, with a glow of its own colour */
 .shell .slider:active::-webkit-slider-thumb {
   border-color: #fff;
-  background: var(--accent-light);
+  background: radial-gradient(circle closest-side, var(--accent-light) calc(100% - 1.5px), #000 calc(100% - 1px));
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 

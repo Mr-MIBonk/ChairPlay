@@ -9,6 +9,7 @@ import com.shilapi.xcertplay.airplay.AirPlayInsets
 import com.shilapi.xcertplay.airplay.AirPlayViewArea
 import com.shilapi.xcertplay.airplay.CarPlayClusterDisplay
 import com.shilapi.xcertplay.airplay.PairingStore
+import io.github.numberonebot.chairplay.media.DuckSetting
 import io.github.numberonebot.chairplay.network.SavedWifi
 import com.shilapi.xcertplay.transport.Iap2WirelessSecurity
 import java.awt.RenderingHints
@@ -165,6 +166,29 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
 
     /** audio.echo.cancellation: DiPlay's SpeexDSP echo canceller on calls, for speakers without headphones. */
     val echoCancellation: Boolean = booleanSetting("audio.echo.cancellation", false)
+
+    /**
+     * audio.start.silence.ms and audio.start.fade.ms: CarPlay's music starts silent for so long, then rises to full over so
+     * long, since the iPhone's first second or two of audio come in bursts and the line runs dry in them. The sound fades
+     * out over the same time as CarPlay disconnects or reconnects and as the app closes.
+     */
+    val musicStartSilenceMillis: Long = nonNegativeOr("audio.start.silence.ms", 1200).toLong()
+    val musicStartFadeMillis: Long = nonNegativeOr("audio.start.fade.ms", 800).toLong()
+
+    /**
+     * audio.duck.percent and audio.duck.iphone: the music under a navigation prompt plays at the iPhone's level when one
+     * comes, as a car's head unit takes Apple's, unless turned off; else at this percentage of its volume (30, about
+     * -10 dB, by default).
+     */
+    val duckSetting: DuckSetting = DuckSetting(
+        nonNegativeOr("audio.duck.percent", 30).also {
+            require(it <= 100) { "audio.duck.percent must be from 0 to 100, not $it" }
+        } / 100f,
+        booleanSetting("audio.duck.iphone", true),
+    )
+
+    private fun nonNegativeOr(key: String, default: Int): Int =
+        if (settings.getProperty(key)?.trim().isNullOrEmpty()) default else nonNegativeSetting(key)
 
     /**
      * altscreen.*: DiPlay's cluster display, with even margins as for its virtual cluster rather than a BYD
@@ -505,6 +529,18 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
             SettingBlock(
                 "Echo cancellation for calls through speakers, without headphones (experimental): 'true' or 'false'.",
                 "audio.echo.cancellation" to "false",
+            ),
+            SettingBlock(
+                "How CarPlay's music starts, since the iPhone's first audio comes in bursts: silent for this many\n" +
+                    "milliseconds, then rising to full over this many (both 0 play it at once).",
+                "audio.start.silence.ms" to "1200",
+                "audio.start.fade.ms" to "800",
+            ),
+            SettingBlock(
+                "How loud CarPlay's music stays under a navigation prompt, in percent of its volume (30 is\n" +
+                    "about -10 dB), and whether a level the iPhone sends wins over it: 'true' or 'false'.",
+                "audio.duck.percent" to "30",
+                "audio.duck.iphone" to "true",
             ),
             SettingBlock(
                 "Write every message the iPhone sends about the route, the song, calls and its battery to\n" +

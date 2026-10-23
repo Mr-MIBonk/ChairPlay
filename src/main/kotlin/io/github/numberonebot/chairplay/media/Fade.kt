@@ -1,12 +1,12 @@
 package io.github.numberonebot.chairplay.media
 
 /**
- * A switch between a window's two contents through black: when the wanted one changes, the content on screen dims to
- * black over [millis], the other takes its place, and comes up over [millis] again. Taken back half way, the content
- * on screen comes back up from where it was. [update] runs on each pass of the window's loop; [moving] asks for more
- * passes until it is done.
+ * A switch between a window's contents through black: when the wanted one changes, the content on screen dims to
+ * black over [millis], the wanted one takes its place, and comes up over [millis] again, once it may rise. Taken back
+ * half way, the content on screen comes back up from where it was. [update] runs on each pass of the window's loop;
+ * [moving] asks for more passes until it is done.
  */
-class Fade(initial: Boolean, private val millis: Long = FADE_MILLIS, private val now: () -> Long = System::nanoTime) {
+class Fade<T>(initial: T, private val millis: Long = FADE_MILLIS, private val now: () -> Long = System::nanoTime) {
     /** The content on screen now, which lags the wanted one while it dims away. */
     var shown = initial
         private set
@@ -20,7 +20,8 @@ class Fade(initial: Boolean, private val millis: Long = FADE_MILLIS, private val
 
     val moving: Boolean get() = brightness < 1f || target != shown
 
-    fun update(target: Boolean) {
+    /** [mayRise] false keeps new content on black, as the iPhone's picture of another view is not in yet. */
+    fun update(target: T, mayRise: Boolean = true) {
         val time = now()
         val step = ((time - last).coerceAtLeast(0) / (millis * 1_000_000.0)).toFloat()
         last = time
@@ -32,13 +33,16 @@ class Fade(initial: Boolean, private val millis: Long = FADE_MILLIS, private val
                 brightness = 0f
                 shown = target
             }
-        } else {
+        } else if (mayRise || brightness > 0f) {
             brightness = (brightness + step).coerceAtMost(1f)
         }
     }
 
     companion object {
-        /** Each half of a fade; the page's own fade (styles.css, .shell.away) takes as long. */
+        /**
+         * Each half of a fade. The page's own fade (styles.css, .shell) comes back up as long; it goes away faster, so
+         * the web view is black before the window hides it.
+         */
         const val FADE_MILLIS = 150L
     }
 }

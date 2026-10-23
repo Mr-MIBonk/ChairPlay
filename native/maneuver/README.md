@@ -13,7 +13,7 @@ pinned zig into `chairplay_maneuver.dll`; `hud/maneuver/` in the Kotlin code dri
 
 ## The files
 
-Copied unchanged: `maneuver.c`, `maneuver.h`, `route_path.c`, `route_path.h`, `route_progress.h`,
+Copied unchanged: `maneuver.c`, `maneuver.h`, `route_path.h`, `route_progress.h`,
 `visible_area.h`, `arrow_progress.h`, `contact_shadow.h`, `lane_guidance.h`, `lane_panel.h`,
 `maneuver_command.h`, `protocol.h`, `visual_style.h` and `scene/` (`scene.cpp`, `geometry.cpp`, `layout.cpp`,
 `lane_panel.cpp`, `scene.h`, `scene_internal.hpp`, `style.hpp`).
@@ -33,6 +33,10 @@ Changed, each change marked "ChairPlay" in the file:
 - `render.c`: `render_sprite_flag_ex` sends the flag's quad already projected (w = 1 under an identity matrix).
   Drawn in 3D inside ChairPlay's OpenGL 3.3 core context, its texture coordinates reached the fragments divided
   by w after some frames, and the flag showed the top left quarter of its picture; the cause is not known.
+- `route_path.c`: the arrival's disc, which the arrow's head turns into, tags its vertices with their distance
+  along the head, as the arrow's head does, instead of all with the route's end. The disc lies over the end of
+  the shaft in the same plane; tagged with the end, it stayed white while the shaft under it filled, and the two
+  showed in turns row by row, white stripes across the blue as the fill rose into the disc.
 
 The renderer's road masks cover the whole area of a transition at the framebuffer's density: 3.5 times its
 size each way, twice. At the HUD's default size (a 720 x 398 texture, supersampled 1.6 times) that is two masks

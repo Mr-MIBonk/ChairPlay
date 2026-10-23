@@ -59,6 +59,24 @@ internal fun fadeGain(startNs: Long, nowNs: Long, durationNs: Long): Float {
     }
 }
 
+/**
+ * How a music stream starts: [silenceMillis] of silence, then a straight rise to full over [fadeMillis]. The iPhone's
+ * first second or two of music after a connection come in bursts, and the line runs dry in them; this hides that.
+ */
+data class StartFade(val silenceMillis: Long, val fadeMillis: Long) {
+    /** The gain [elapsedNs] after the stream started playing. */
+    fun gain(elapsedNs: Long): Float {
+        val intoFade = elapsedNs - silenceMillis * 1_000_000
+        if (intoFade < 0) return 0f
+        if (fadeMillis <= 0) return 1f
+        return (intoFade.toFloat() / (fadeMillis * 1_000_000)).coerceAtMost(1f)
+    }
+
+    companion object {
+        val NONE = StartFade(0, 0)
+    }
+}
+
 /** Multiplies the first [length] bytes of little-endian 16-bit PCM by [gain], in place. */
 internal fun scaleSamples(pcm: ByteArray, length: Int, gain: Float) {
     var at = 0
@@ -240,10 +258,16 @@ class AudioRenderer internal constructor(
     private val pollMillis: Long = POLL_MILLIS,
     /** The app's volume ([Volume.gain]), read for every block written. */
     private val volume: () -> Float = { 1f },
+    /** How a music stream starts, read as each one starts playing. */
+    private val startFade: () -> StartFade = { StartFade.NONE },
 ) : Closeable {
     /** Plays on [output], or on the Windows default output when it is null (audio.output), at [volume]. */
-    constructor(log: (String) -> Unit, output: Mixer.Info? = null, volume: () -> Float = { 1f }) :
-        this(log, javaSoundLines(output), volume = volume)
+    constructor(
+        log: (String) -> Unit,
+        output: Mixer.Info? = null,
+        volume: () -> Float = { 1f },
+        startFade: () -> StartFade = { StartFade.NONE },
+    ) : this(log, javaSoundLines(output), volume = volume, startFade = startFade)
 
     private val streams = ConcurrentHashMap<AudioStreamId, Stream>()
     private val ducking = MediaDucking(log)
@@ -266,9 +290,10 @@ class AudioRenderer internal constructor(
 
     /**
      * Fades every playing stream out over [durationMillis], for a reconnect or a close that ends the session
-     * gracefully, which takes seconds. Streams started afterwards, by the next session, play at full volume.
+     * gracefully, which takes seconds. Streams started afterwards, by the next session, play at full volume. By default
+     * the sound fades out as long as the music fades in (audio.start.fade.ms).
      */
-    fun fadeOut(durationMillis: Long) {
+    fun fadeOut(durationMillis: Long = startFade().fadeMillis) {
         val now = clock()
         streams.values.forEach { it.fadeOut(now, durationMillis * 1_000_000) }
     }
@@ -392,12 +417,20 @@ class AudioRenderer internal constructor(
                 var playedUntil = 0L
                 var lastPacketAt = clock()
                 var writtenFrames = 0L
+                // When the stream first played, and how music starts from there (silent, then rising); a prompt plays at once.
+                var startedAt: Long? = null
+                var start = StartFade.NONE
                 fun play(pcm: ByteArray, length: Int) {
                     val now = clock()
+                    val began = startedAt ?: now.also {
+                        startedAt = it
+                        if (media) start = startFade()
+                    }
                     val gain = fadeGain(fadeStartNs, now, fadeNs) * volume()
-                    // A duck's ramp runs through the block: its gain now and where the block will have ended.
-                    val startGain = if (media) gain * ducking.gain(now) else gain
-                    val endGain = if (media) gain * ducking.gain(now + nanosOf(length)) else gain
+                    // A duck's ramp, and the start's, run through the block: their gains now and where it will have ended.
+                    val end = now + nanosOf(length)
+                    val startGain = (if (media) gain * ducking.gain(now) else gain) * start.gain(now - began)
+                    val endGain = (if (media) gain * ducking.gain(end) else gain) * start.gain(end - began)
                     if (startGain < 1f || endGain < 1f) rampSamples(pcm, length, format.channels, startGain, endGain)
                     opened.start()
                     opened.write(pcm, length)
@@ -416,6 +449,10 @@ class AudioRenderer internal constructor(
                     if (playing && now > playedUntil) {
                         playing = false
                         note("underrun, rebuffering")
+                        // Early ones each, by when they come: what a music stream's silent start has to cover.
+                        startedAt?.let { (now - it) / 1_000_000 }?.takeIf { it < EARLY_MILLIS }?.let {
+                            log("audio ${id.audioType}: underrun $it ms after the stream started")
+                        }
                     }
                     if (packet == null) {
                         // A short final burst may never reach the threshold; play it after a bounded wait.
@@ -479,6 +516,8 @@ class AudioRenderer internal constructor(
         const val MAX_VALID_SPAN_NS = 16_000_000_000L
         const val SHED_TO_NS = 500_000_000L
         const val DIAGNOSTIC_INTERVAL_NS = 10_000_000_000L
+        // A stream's first seconds, whose underruns are each logged with their time.
+        const val EARLY_MILLIS = 10_000L
         const val MEDIA_JITTER_MS = 60
         const val JITTER_MS = 40
         const val LINE_HEADROOM_MS = 140

@@ -745,6 +745,7 @@ void rpath_extrude_partial(const route_path_t *p, route_mesh_t *m,
 
         /* Bulb disc (scales up with blend) */
         if (blend > 0.0f) {
+            int bulb_first = m->vert_count;
             g_mesh_path_dist=m->progress_end;
             float bul_r = p->bulb_radius * blend;
             int segs = 16, i_b;
@@ -764,6 +765,18 @@ void rpath_extrude_partial(const route_path_t *p, route_mesh_t *m,
                 mesh_v(m, ax + bul_r * c0, tip_base, az + bul_r * s0, c0, 0, s0);
                 mesh_v(m, ax + bul_r * c1, tip_top,  az + bul_r * s1, c1, 0, s1);
                 mesh_v(m, ax + bul_r * c1, tip_base, az + bul_r * s1, c1, 0, s1);
+            }
+            /* ChairPlay: the disc's distance tags follow its place along the head, as the arrow's do, up to the
+             * arrow's length, where the fill ends. Tagged all at the end, the disc stayed white while the shaft's
+             * end under it filled, and the two tops, in one plane, took turns row by row: white stripes across
+             * the blue as the fill rose into the disc. */
+            {
+                int vi;
+                float length = width * RPATH_ARROW_LENGTH_FACTOR;
+                for (vi = bulb_first; vi < m->vert_count; vi++) {
+                    float d = (m->verts[vi*6]-ax)*cosf(a_dir)+(m->verts[vi*6+2]-az)*sinf(a_dir);
+                    m->path_dist[vi] = target_dist + (d < length ? d : length);
+                }
             }
         }
     }

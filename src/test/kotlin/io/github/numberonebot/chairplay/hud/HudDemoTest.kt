@@ -1,7 +1,14 @@
 package io.github.numberonebot.chairplay.hud
 
+import io.github.numberonebot.chairplay.data.Artwork
+import io.github.numberonebot.chairplay.data.Call
+import io.github.numberonebot.chairplay.data.CallDirection
+import io.github.numberonebot.chairplay.data.CallStatus
+import io.github.numberonebot.chairplay.data.CarPlayDataSnapshot
 import io.github.numberonebot.chairplay.data.LaneStatus
 import io.github.numberonebot.chairplay.data.ManeuverType
+import io.github.numberonebot.chairplay.data.NowPlaying
+import io.github.numberonebot.chairplay.data.RouteGuidance
 import io.github.numberonebot.chairplay.data.RouteGuidanceState
 import io.github.numberonebot.chairplay.hud.maneuver.ArrowProgress
 import io.github.numberonebot.chairplay.hud.maneuver.arrowProgress
@@ -10,7 +17,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.math.abs
 
 class HudDemoTest {
     @Test
@@ -69,28 +75,72 @@ class HudDemoTest {
         assertEquals("400 m", withSong.maneuver!!.distance)
     }
 
+    // The two demos stay apart: the maneuvers alone in the route, the lane row only in the lanes demo.
     @Test
-    fun `the demo shows lanes where a road would have them`() {
+    fun `the maneuvers demo shows no lanes, which are the lanes demo's`() {
+        for (demo in listOf(HudDemo(withMedia = false), HudDemo(withMedia = true), HudDemo(withMedia = true, cycle = true))) {
+            for (step in 0 until demo.steps) {
+                for (at in listOf(500L, 4_500L, 6_600L)) {
+                    val snapshot = demo.snapshot(step * HudDemo.STEP_MILLIS + at)
+                    assertNull("step $step", snapshot.lanes)
+                    assertTrue("step $step", snapshot.route?.laneGuidanceShowing != true)
+                    assertNull("step $step", hudState(snapshot).maneuver?.lanes)
+                }
+            }
+        }
+        val lanes = HudDemo.fromEnvironment(mapOf("CHAIRPLAY_HUD_DEMO" to "lanes"))!!.snapshot(100)
+        assertNotNull(hudState(lanes).maneuver!!.lanes)
+    }
+
+    // The Experiments page plays a demo over the iPhone's session: its made-up route takes the place of the iPhone's
+    // guidance only, so the maneuver shares the HUD with the song as guidance does on a drive, and a call still covers
+    // both.
+    @Test
+    fun `a demo played over a session keeps the iPhone's song, cover and calls`() {
+        val song = NowPlaying(title = "Live song", artist = "Live artist", playing = true, appName = "Music", artworkTransferId = 7)
+        val cover = Artwork(7, byteArrayOf(1, 2, 3))
+        val guidance = RouteGuidance(state = RouteGuidanceState.ROUTE_SET, currentRoad = "Real Road", distanceToManeuverMeters = 900)
+        val live = CarPlayDataSnapshot(route = guidance, nowPlaying = song, artwork = cover)
         val demo = HudDemo(withMedia = false)
-        val left = demo.snapshot(0)
-        assertEquals(true, left.route!!.laneGuidanceShowing)
-        assertEquals(left.route!!.laneGuidanceIndex, left.lanes!!.index)
-        assertEquals(listOf(-90), left.lanes!!.lanes.filter { it.status == LaneStatus.PREFERRED }.map { it.direction })
-        assertEquals(left.lanes, hudState(left).maneuver!!.lanes)
 
-        // None on the roundabout.
-        val ring = demo.snapshot(HudDemo.STEP_MILLIS)
-        assertNull(ring.lanes)
-        assertEquals(false, ring.route!!.laneGuidanceShowing)
-        assertNull(hudState(ring).maneuver!!.lanes)
+        val shown = demo.snapshot(0, live)
+        assertEquals(demo.snapshot(0).route, shown.route)
+        assertEquals(demo.snapshot(0).lanes, shown.lanes)
+        assertEquals(cover, shown.artwork)
+        val hud = hudState(shown)
+        assertEquals("Live song", hud.media!!.title)
+        assertEquals("400 m", hud.maneuver!!.distance)
 
-        // Wherever lanes show, a recommended one leads the maneuver's way.
-        val withLanes = (0 until demo.steps).map { demo.snapshot(it * HudDemo.STEP_MILLIS) }.filter { it.lanes != null }
-        assertTrue("${withLanes.size} steps with lanes", withLanes.size >= 5)
-        for (snapshot in withLanes) {
-            val exit = snapshot.route!!.nextManeuver!!.exitAngle ?: continue
-            val recommended = snapshot.lanes!!.lanes.filter { it.status == LaneStatus.PREFERRED }.mapNotNull { it.direction }
-            assertTrue("$exit: $recommended", recommended.isNotEmpty() && recommended.all { abs(it - exit) <= 45 })
+        // In the demo's gap without guidance the song is alone, as after a route.
+        val gap = hudState(demo.snapshot(demo.lapMillis - 500, live))
+        assertNull(gap.maneuver)
+        assertEquals("Live song", gap.media!!.title)
+
+        // A call takes over the demo as it takes over guidance.
+        val ringing = Call(id = "1", displayName = "Mom", status = CallStatus.RINGING, direction = CallDirection.INCOMING)
+        assertEquals("Incoming call · Mom", hudState(demo.snapshot(0, live.copy(calls = listOf(ringing)))).call)
+
+        // The lanes demo likewise.
+        assertEquals("Live song", hudState(HudDemo(withMedia = false, lanes = true).snapshot(0, live)).media!!.title)
+
+        // A demo with its own song shows that one, coming and going as the demo has it.
+        assertEquals("Demo song", hudState(HudDemo(withMedia = true).snapshot(0, live)).media!!.title)
+        assertNull(hudState(HudDemo(withMedia = true, cycle = true).snapshot(15_000, live)).media)
+
+        // Without a session the demo is what it was.
+        assertEquals(demo.snapshot(0), demo.snapshot(0, CarPlayDataSnapshot()))
+    }
+
+    @Test(timeout = 10_000)
+    fun `a running demo plays over the bus it is given`() {
+        val running = HudDemo(withMedia = false).start({}) {}
+        try {
+            val live = CarPlayDataSnapshot(nowPlaying = NowPlaying(title = "Live song", playing = true))
+            val shown = running.over(live)
+            assertNotNull(shown.route)
+            assertEquals("Live song", shown.nowPlaying!!.title)
+        } finally {
+            running.stop()
         }
     }
 

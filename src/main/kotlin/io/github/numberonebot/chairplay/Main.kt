@@ -31,6 +31,7 @@ import io.github.numberonebot.chairplay.input.TouchTracker
 import io.github.numberonebot.chairplay.input.ControlAction
 import io.github.numberonebot.chairplay.media.AudioDevices
 import io.github.numberonebot.chairplay.media.AudioRenderer
+import io.github.numberonebot.chairplay.media.StartFade
 import io.github.numberonebot.chairplay.media.DesktopMediaSink
 import io.github.numberonebot.chairplay.media.VideoWindow
 import io.github.numberonebot.chairplay.media.Volume
@@ -94,7 +95,6 @@ private val CONTROLS_SIZE = WindowSize(518, 212)
 private const val SCREENSHOT_PICTURE_WAIT_NANOS = 30_000_000_000L
 private const val CLOSING_PREVIOUS = "closing previous run…"
 private const val PREVIOUS_RUN_WAIT_MILLIS = 15_000L
-private const val FADE_OUT_MILLIS = 1_000L
 
 /** Held for the life of the process; the system lets go of it when the process ends. */
 private val instanceLock = AtomicReference<InstanceLock?>()
@@ -239,10 +239,11 @@ private fun runCarPlay() {
         }
     }
     // The HUD demo playing (HudDemo), by its kind ("maneuvers" or "lanes"): CHAIRPLAY_HUD_DEMO starts one, the Experiments
-    // page plays and stops them. The AltScreen shows the HUD, with the demo's made-up data, while one plays.
+    // page plays and stops them. The AltScreen shows the HUD, with the demo's made-up route, while one plays.
     val hudDemo = AtomicReference<Pair<String, HudDemo.Running>?>(null)
     var altscreenContent = config.altscreen?.content
-    altscreen.hud = altscreenContent == AltscreenContent.HUD
+    altscreen.log = { log("altscreen $it") }
+    altscreen.showView(altscreenContent == AltscreenContent.HUD)
     var altscreenCards = config.altscreen?.cards ?: AltscreenCards.AUTO
     // F12 saves both screens, each at the size the iPhone draws it.
     fun screenshots() {
@@ -264,7 +265,12 @@ private fun runCarPlay() {
         runCatching { volumeStore.save(volume.level, volume.muted) }.onFailure { log("volume not saved: $it") }
         controlsChanged.get()()
     }
-    val sink = DesktopMediaSink(window, AudioRenderer(::log, output, volume::gain), ::log, input, config.echoCancellation, altscreen)
+    // How the music starts, silent and then rising (and how long the sound fades out over), and how low a prompt puts it;
+    // the Audio page changes both at once.
+    val musicStart = AtomicReference(StartFade(config.musicStartSilenceMillis, config.musicStartFadeMillis))
+    val duckSetting = AtomicReference(config.duckSetting)
+    val renderer = AudioRenderer(::log, output, volume::gain, musicStart::get)
+    val sink = DesktopMediaSink(window, renderer, ::log, input, config.echoCancellation, altscreen, duckSetting::get)
     val active = AtomicReference<AirPlaySession?>()
     // sendTouch writes to the iPhone's socket and can block; the GL thread only maps and enqueues.
     // One thread keeps the press, moves and release in order.
@@ -296,11 +302,14 @@ private fun runCarPlay() {
     fun showAltscreenView(session: AirPlaySession?) {
         val alt = altSettings.get() ?: return
         val content = altscreenContent ?: return
-        altscreen.hud = content == AltscreenContent.HUD || hudDemo.get() != null
         val url = altscreenUrl(content, altscreenCards)
-        val sent = session?.setClusterUrl(url, send = true)
-        if (session != null) log("altscreen ${content.key}, cards ${altscreenCards.key}: $url sent=$sent")
-        altscreen.setTitle(altscreenTitle(alt.size, content, altscreenCards) + if (sent == false) " (not sent)" else "")
+        val cards = altscreenCards
+        // The window goes black before the iPhone is asked for the view, and stays so until the view is in.
+        altscreen.showView(content == AltscreenContent.HUD || hudDemo.get() != null, url) {
+            val sent = session?.setClusterUrl(url, send = true)
+            if (session != null) log("altscreen ${content.key}, cards ${cards.key}: $url sent=$sent")
+            altscreen.setTitle(altscreenTitle(alt.size, content, cards) + if (sent == false) " (not sent)" else "")
+        }
         runCatching { AltscreenViewStore(dir).save(content, altscreenCards, alt.configured) }
             .onFailure { log("AltScreen view not saved: $it") }
         controlsChanged.get()()
@@ -323,7 +332,7 @@ private fun runCarPlay() {
             log("reconnecting at the user's request")
             reconnecting.set(true)
             window.setTitle(mainWindowTitle(stream(), RECONNECTING))
-            sink.fadeOut(FADE_OUT_MILLIS)
+            sink.fadeOut()
             sessionDropped.get()()
             reconnect()
             return
@@ -402,10 +411,12 @@ private fun runCarPlay() {
             hudDemo.getAndSet(null)?.second?.stop()
             if (kind != null) {
                 hudDemo.set(kind to HudDemo(withMedia = false, lanes = kind == "lanes").start(altscreen::repaint) {})
-                altscreen.hud = true
+                altscreen.showView(true)
                 altscreen.setShown(true)
             } else {
-                altscreen.hud = altscreenContent == AltscreenContent.HUD
+                // Back to the AltScreen's view, which waits on black for the iPhone's picture as any change does.
+                altscreen.showView(altscreenContent == AltscreenContent.HUD)
+                showAltscreenView(active.get())
             }
             altscreen.repaint()
             return true
@@ -423,7 +434,7 @@ private fun runCarPlay() {
         override fun disconnect() {
             log("disconnecting at the user's request")
             reconnecting.set(false)
-            sink.fadeOut(FADE_OUT_MILLIS)
+            sink.fadeOut()
             Thread({ stopBootstrap.get()() }, "disconnect").apply { isDaemon = true }.start()
         }
     }, window::repaint, ::log, buildMap {
@@ -436,6 +447,18 @@ private fun runCarPlay() {
         altscreenFrame = UiSafeAreaFrame { top, bottom, left, right -> altscreen.showFrame(top, bottom, left, right) },
         onSaved = { saved ->
             saved["display.theme"]?.let { themeSaved.get()(it) }
+            if ("audio.start.silence.ms" in saved || "audio.start.fade.ms" in saved) {
+                runCatching { config.now() }.onSuccess { now ->
+                    musicStart.set(StartFade(now.musicStartSilenceMillis, now.musicStartFadeMillis))
+                    log("music starts silent for ${now.musicStartSilenceMillis} ms, rising over ${now.musicStartFadeMillis} ms")
+                }
+            }
+            if ("audio.duck.percent" in saved || "audio.duck.iphone" in saved) {
+                runCatching { config.now() }.onSuccess { now ->
+                    duckSetting.set(now.duckSetting)
+                    log("prompts duck the music to ${now.duckSetting.level}" + if (now.duckSetting.iPhoneFirst) ", or the iPhone's level" else "")
+                }
+            }
             // A saved turn card moves at once, as Shift+F11 moves it.
             saved["altscreen.cards"]?.let { value ->
                 touchSender.execute {
@@ -522,7 +545,8 @@ private fun runCarPlay() {
     }
     // The AltScreen's HUD shows the bus's data, drawn again when it changes.
     altscreen.let { alt ->
-        // CHAIRPLAY_HUD_DEMO plays a made-up route instead of the bus's data, for watching the maneuvers (HudDemo).
+        // CHAIRPLAY_HUD_DEMO plays a made-up route in place of the iPhone's guidance, beside its song, for watching
+        // the maneuvers (HudDemo).
         HudDemo.fromEnvironment()?.let { demo ->
             hudDemo.set((if (demo.lanes) "lanes" else "maneuvers") to demo.start(alt::repaint) { name ->
                 alt.screenshot { image -> saveScreenshot(image, dir, ::log, "altscreen-demo-$name") }
@@ -530,7 +554,8 @@ private fun runCarPlay() {
         }
         alt.overlay = HudPainter({
             val demo = hudDemo.get()?.second
-            val snapshot = demo?.snapshot?.invoke() ?: carPlayData.bus.snapshot()
+            val live = carPlayData.bus.snapshot()
+            val snapshot = demo?.over(live) ?: live
             HudView(demo != null || active.get() != null, hudState(snapshot), snapshot.artwork)
         }, ::log, alt::repaint, config.accent)
         carPlayData.bus.addListener { if (alt.hud) alt.repaint() }
@@ -624,7 +649,7 @@ private fun runCarPlay() {
     }
     Runtime.getRuntime().addShutdownHook(Thread {
         // The window is gone at once; the sound fades over the seconds the session takes to end.
-        sink.fadeOut(FADE_OUT_MILLIS)
+        sink.fadeOut()
         ui.close()
         themeWatch.shutdownNow()
         bootstrap.close()

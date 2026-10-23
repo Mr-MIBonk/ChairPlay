@@ -1,10 +1,15 @@
 package io.github.numberonebot.chairplay.media
 
+import com.shilapi.xcertplay.airplay.AudioCodecKind
+import com.shilapi.xcertplay.airplay.AudioFormat
+import com.shilapi.xcertplay.airplay.AudioStreamId
 import com.shilapi.xcertplay.airplay.VideoCodec
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayOutputStream
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicLong
 
 /** A VideoWindow that never runs opens no window, so the sink is tested whole. */
 class DesktopMediaSinkTest {
@@ -33,5 +38,42 @@ class DesktopMediaSinkTest {
         // The stream is gone; frames after it are dropped rather than touching freed memory.
         sink.onVideoFrame(110, resource("frame0.h264"), 0, 0)
         sink.close()
+    }
+
+    private class RecordingLine : PcmLine {
+        val written = ByteArrayOutputStream()
+        override fun start() {}
+        @Synchronized override fun write(data: ByteArray, length: Int) { written.write(data, 0, length) }
+        @Synchronized fun bytes(): ByteArray = written.toByteArray()
+        override fun playedFrames(): Long? = null
+        override fun close() {}
+    }
+
+    // audio.duck.percent: the music under a navigation prompt is as loud as set, whatever level the iPhone asks for.
+    @Test
+    fun `a prompt ducks the music to the level set`() {
+        val line = RecordingLine()
+        val clock = AtomicLong(1)
+        val renderer = AudioRenderer({}, { _, _, _ -> line }, { clock.get() }, 5)
+        val sink = DesktopMediaSink(VideoWindow(320, 240), renderer, duckSetting = { DuckSetting(0.5f, iPhoneFirst = false) })
+        val media = AudioStreamId(102, "media")
+        renderer.start(media, AudioFormat(AudioCodecKind.LPCM, 48_000, 2, 96, "media"))
+
+        sink.onAudioDuck(true, mapOf("volume" to 0.1))
+        clock.addAndGet(TimeUnit.SECONDS.toNanos(1))
+        // 10 ms of big-endian LPCM a packet, every sample 0x1000.
+        repeat(6) { n ->
+            val rtp = ByteArray(12).also { it[0] = 0x80.toByte() } + ByteArray(480 * 4) { if (it % 2 == 0) 0x10 else 0 }
+            renderer.push(media, rtp, n * 480)
+        }
+        val deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+        while (line.bytes().size < 6 * 480 * 4) {
+            assertTrue("timed out waiting for playback", System.nanoTime() < deadline)
+            Thread.sleep(5)
+        }
+
+        val samples = line.bytes().toList().chunked(2).map { (low, high) -> ((high.toInt() shl 8) or (low.toInt() and 0xff)).toShort().toInt() }
+        assertTrue(samples.distinct().toString(), samples.all { it == 0x0800 })
+        renderer.close()
     }
 }

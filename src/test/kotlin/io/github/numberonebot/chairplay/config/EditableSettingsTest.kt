@@ -57,7 +57,7 @@ class EditableSettingsTest {
         assertTrue("rounded, square" in errors("display.corners" to "round").getValue("display.corners"))
         assertTrue("map, map-card, hud, card" in errors("altscreen.content" to "radar").getValue("altscreen.content"))
         assertTrue("auto, left, right, top, off" in errors("altscreen.cards" to "bottom").getValue("altscreen.cards"))
-        for (key in listOf("display.right.hand.drive", "display.safe.draw.outside", "audio.echo.cancellation")) {
+        for (key in listOf("display.right.hand.drive", "display.safe.draw.outside", "audio.echo.cancellation", "audio.duck.iphone")) {
             assertTrue(key, "true or false" in errors(key to "yes").getValue(key))
         }
     }
@@ -71,6 +71,22 @@ class EditableSettingsTest {
         assertTrue("positive" in errors("display.physical.width.mm" to "0").getValue("display.physical.width.mm"))
         assertTrue("positive" in errors("display.ppi" to "abc").getValue("display.ppi"))
         assertTrue(errors("display.physical.width.mm" to "", "display.ppi" to " ").isEmpty())
+    }
+
+    @Test
+    fun `the music's level under prompts is a percentage`() {
+        assertTrue("0 to 100" in errors("audio.duck.percent" to "101").getValue("audio.duck.percent"))
+        assertTrue("0 to 100" in errors("audio.duck.percent" to "half").getValue("audio.duck.percent"))
+        assertTrue(errors("audio.duck.percent" to "0", "audio.duck.iphone" to "true").isEmpty())
+    }
+
+    // The buffering pause and the fade are times, not pixels.
+    @Test
+    fun `the music's pause and fade are milliseconds`() {
+        for (key in listOf("audio.start.silence.ms", "audio.start.fade.ms")) {
+            assertEquals(key, "Enter zero or more milliseconds", errors(key to "-1").getValue(key))
+        }
+        assertTrue(errors("audio.start.silence.ms" to "0", "audio.start.fade.ms" to "800").isEmpty())
     }
 
     // The safe area must leave some of the screen: checked against the size as it will be, changed or not.
@@ -171,6 +187,10 @@ class EditableSettingsTest {
         // CarPlay takes these while it runs, as F11 and Shift+F11 change the AltScreen's.
         assertEquals(Applies.NOW, EditableSettings.applies("display.theme"))
         assertEquals(Applies.NOW, EditableSettings.applies("altscreen.cards"))
+        assertEquals(Applies.NOW, EditableSettings.applies("audio.start.silence.ms"))
+        assertEquals(Applies.NOW, EditableSettings.applies("audio.start.fade.ms"))
+        assertEquals(Applies.NOW, EditableSettings.applies("audio.duck.percent"))
+        assertEquals(Applies.NOW, EditableSettings.applies("audio.duck.iphone"))
         // The iPhone learns of the AltScreen as it connects.
         for (key in listOf("altscreen.enabled", "altscreen.width", "altscreen.height", "altscreen.content",
             "altscreen.safe.top", "altscreen.safe.bottom", "altscreen.safe.left", "altscreen.safe.right")) {

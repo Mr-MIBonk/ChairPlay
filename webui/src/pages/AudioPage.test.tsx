@@ -30,6 +30,40 @@ describe('Audio page volume', () => {
     expect(screen.getByText('37%')).toBeTruthy()
   })
 
+  // The music starts silent while the iPhone's first bursts buffer, then rises; it fades out over the same time as
+  // CarPlay disconnects or the app closes.
+  it('sets how the music fades in and out', async () => {
+    const backend = await audio()
+
+    const silence = screen.getByRole('textbox', { name: 'Buffering pause' }) as HTMLInputElement
+    expect(silence.placeholder).toBe('1200')
+    fireEvent.change(silence, { target: { value: '1500' } })
+    fireEvent.blur(silence)
+    const fade = screen.getByRole('textbox', { name: 'Fade' }) as HTMLInputElement
+    expect(fade.placeholder).toBe('800')
+    fireEvent.change(fade, { target: { value: '500' } })
+    fireEvent.blur(fade)
+
+    await waitFor(() => expect(backend.saved).toEqual([{ 'audio.start.silence.ms': '1500' }, { 'audio.start.fade.ms': '500' }]))
+  })
+
+  // Navigation prompts lower the music to the iPhone's level, as a car's head unit does, or to the level set when it
+  // sends none or is not let.
+  it('sets how low prompts put the music', async () => {
+    const backend = await audio()
+
+    const level = screen.getByRole('slider', { name: 'Music at' }) as HTMLInputElement
+    expect(level.value).toBe('30')
+    expect(level.step).toBe('5')
+    expect(screen.getByText('30%')).toBeTruthy()
+    fireEvent.change(level, { target: { value: '20' } })
+    const iPhone = screen.getByRole('checkbox', { name: "Prefer the iPhone's level" }) as HTMLInputElement
+    expect(iPhone.checked).toBe(true)
+    fireEvent.click(iPhone)
+
+    await waitFor(() => expect(backend.saved).toEqual([{ 'audio.duck.percent': '20' }, { 'audio.duck.iphone': 'false' }]))
+  })
+
   it('says when the volume is muted', async () => {
     const state = appState({ phase: 'active', canShowCarPlay: true })
     render(<Shell state={{ ...state, controls: { ...state.controls!, volume: { level: 60, muted: true } } }} backend={new FakeBackend()} />)

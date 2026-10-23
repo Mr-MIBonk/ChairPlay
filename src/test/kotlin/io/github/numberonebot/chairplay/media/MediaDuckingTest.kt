@@ -11,38 +11,49 @@ class MediaDuckingTest {
     private val ducking = MediaDucking { logs += it }
 
     private fun ms(millis: Long) = TimeUnit.MILLISECONDS.toNanos(millis)
+    private val iPhoneFirst = DuckSetting(iPhoneFirst = true)
 
     @Test
     fun `duckAudio's level and ramp are read from its params`() {
-        assertEquals(DuckRequest(0.2f, 500), duckRequest(mapOf("volume" to 0.2, "durationMs" to 500L)))
+        assertEquals(DuckRequest(0.2f, 500), duckRequest(mapOf("volume" to 0.2, "durationMs" to 500L), iPhoneFirst))
         // Any number type the plist decoder gives.
-        assertEquals(DuckRequest(0.5f, 300), duckRequest(mapOf("volume" to 0.5f, "durationMs" to 300)))
-        assertEquals(DuckRequest(0f, 1000), duckRequest(mapOf("volume" to 0, "durationMs" to 1000.0)))
+        assertEquals(DuckRequest(0.5f, 300), duckRequest(mapOf("volume" to 0.5f, "durationMs" to 300), iPhoneFirst))
+        assertEquals(DuckRequest(0f, 1000), duckRequest(mapOf("volume" to 0, "durationMs" to 1000.0), iPhoneFirst))
+    }
+
+    // audio.duck.percent sets the music's level under a prompt; audio.duck.iphone lets a level the iPhone sends win.
+    @Test
+    fun `the level set wins over the iPhone's unless the iPhone's is let first`() {
+        val params = mapOf("volume" to 0.1, "durationMs" to 400L)
+        assertEquals(DuckRequest(0.5f, 400), duckRequest(params, DuckSetting(0.5f, iPhoneFirst = false)))
+        assertEquals(DuckRequest(0.1f, 400), duckRequest(params, DuckSetting(0.5f, iPhoneFirst = true)))
+        // An iPhone that sends no level gets the one set.
+        assertEquals(DuckRequest(0.5f, 400), duckRequest(mapOf("durationMs" to 400L), DuckSetting(0.5f, iPhoneFirst = true)))
     }
 
     @Test
     fun `missing params take the defaults`() {
         val defaults = DuckRequest(MediaDucking.DEFAULT_LEVEL, MediaDucking.DEFAULT_RAMP_MILLIS)
-        assertEquals(defaults, duckRequest(emptyMap()))
-        assertEquals(DuckRequest(MediaDucking.DEFAULT_LEVEL, 400), duckRequest(mapOf("durationMs" to 400L)))
-        assertEquals(DuckRequest(0.1f, MediaDucking.DEFAULT_RAMP_MILLIS), duckRequest(mapOf("volume" to 0.1)))
+        assertEquals(defaults, duckRequest(emptyMap(), iPhoneFirst))
+        assertEquals(DuckRequest(MediaDucking.DEFAULT_LEVEL, 400), duckRequest(mapOf("durationMs" to 400L), iPhoneFirst))
+        assertEquals(DuckRequest(0.1f, MediaDucking.DEFAULT_RAMP_MILLIS), duckRequest(mapOf("volume" to 0.1), iPhoneFirst))
     }
 
     @Test
     fun `nonsensical params take the defaults or the nearest sane value`() {
         val level = MediaDucking.DEFAULT_LEVEL
         val ramp = MediaDucking.DEFAULT_RAMP_MILLIS
-        assertEquals(level, duckRequest(mapOf("volume" to 1.5)).level, 0f)
-        assertEquals(level, duckRequest(mapOf("volume" to -0.1)).level, 0f)
-        assertEquals(level, duckRequest(mapOf("volume" to Double.NaN)).level, 0f)
-        assertEquals(level, duckRequest(mapOf("volume" to "0.2")).level, 0f)
-        assertEquals(level, duckRequest(mapOf("volume" to null)).level, 0f)
-        assertEquals(ramp, duckRequest(mapOf("durationMs" to -5L)).rampMillis)
-        assertEquals(ramp, duckRequest(mapOf("durationMs" to Double.POSITIVE_INFINITY)).rampMillis)
-        assertEquals(ramp, duckRequest(mapOf("durationMs" to true)).rampMillis)
+        assertEquals(level, duckRequest(mapOf("volume" to 1.5), iPhoneFirst).level, 0f)
+        assertEquals(level, duckRequest(mapOf("volume" to -0.1), iPhoneFirst).level, 0f)
+        assertEquals(level, duckRequest(mapOf("volume" to Double.NaN), iPhoneFirst).level, 0f)
+        assertEquals(level, duckRequest(mapOf("volume" to "0.2"), iPhoneFirst).level, 0f)
+        assertEquals(level, duckRequest(mapOf("volume" to null), iPhoneFirst).level, 0f)
+        assertEquals(ramp, duckRequest(mapOf("durationMs" to -5L), iPhoneFirst).rampMillis)
+        assertEquals(ramp, duckRequest(mapOf("durationMs" to Double.POSITIVE_INFINITY), iPhoneFirst).rampMillis)
+        assertEquals(ramp, duckRequest(mapOf("durationMs" to true), iPhoneFirst).rampMillis)
         // A jump in one block would click; a ramp of minutes would never be heard as a duck.
-        assertEquals(MediaDucking.MIN_RAMP_MILLIS, duckRequest(mapOf("durationMs" to 0L)).rampMillis)
-        assertEquals(MediaDucking.MAX_RAMP_MILLIS, duckRequest(mapOf("durationMs" to 60_000L)).rampMillis)
+        assertEquals(MediaDucking.MIN_RAMP_MILLIS, duckRequest(mapOf("durationMs" to 0L), iPhoneFirst).rampMillis)
+        assertEquals(MediaDucking.MAX_RAMP_MILLIS, duckRequest(mapOf("durationMs" to 60_000L), iPhoneFirst).rampMillis)
     }
 
     @Test

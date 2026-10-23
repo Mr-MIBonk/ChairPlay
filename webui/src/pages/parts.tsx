@@ -101,7 +101,7 @@ export function SizeRows(props: {
       </Row>
       <Row>
         {field(widthKey, 'Width', String(fallback.width), 'short c')}
-        <span className="x">×</span>
+        <span className="x times">×</span>
         {field(heightKey, 'Height', String(fallback.height), 'short c')}
         <span className="unit">px</span>
         <Changed keys={[widthKey, heightKey]} pending={props.pending ?? NOTHING_PENDING} />

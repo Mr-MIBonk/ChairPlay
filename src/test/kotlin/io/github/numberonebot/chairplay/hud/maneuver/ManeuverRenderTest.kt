@@ -210,6 +210,40 @@ class ManeuverRenderTest {
         save("arrive", pixels())
     }
 
+    // At the arrival the arrow's head turns into a disc over the end of its shaft. The fill rising into the disc must
+    // colour both alike: the shaft under the disc filled while the disc stayed white, and as the two lie in one plane
+    // they took turns row by row, white stripes across the blue.
+    @Test
+    fun `the fill rises into the arrival's disc in one piece`() {
+        // A sixteenth or two still to go: the front is in the disc.
+        for (level in listOf(1, 2, 3)) {
+            ManeuverNative.command(ManeuverPackets.clear())
+            run(0.2)
+            show(maneuver(ManeuverType.ARRIVE_AT_DESTINATION, index = 200 + level), ArrowProgress(level, ArrowProgress.FILL))
+            run(3.0)
+            val frame = pixels()
+            save("arrive-fill-$level", frame)
+            // Up the middle columns, bottom row first: blue, then white from the front on, and no white amid blue.
+            val worst = (WIDTH / 2 - 12..WIDTH / 2 + 12).maxOf { x ->
+                var changes = 0
+                var last: Boolean? = null
+                for (y in 0 until HEIGHT) {
+                    val i = (y * WIDTH + x) * 4
+                    val r = frame[i].toInt() and 0xFF
+                    val g = frame[i + 1].toInt() and 0xFF
+                    val b = frame[i + 2].toInt() and 0xFF
+                    val blue = b > 200 && r < 150 && b - r > 80
+                    val white = r > 200 && g > 200 && b > 200
+                    if (!blue && !white) continue
+                    if (last != null && last != blue) changes++
+                    last = blue
+                }
+                changes
+            }
+            assertTrue("level $level: the colour changes $worst times up a column", worst <= 1)
+        }
+    }
+
     // Each frame of this atlas is a gradient, red across and green down: the flag drawn from it must show both to
     // their ends. Drawn as a 3D quad in this context, the flag's texture coordinates reached the fragments divided
     // by w after some frames, and it showed the top left quarter of its picture.

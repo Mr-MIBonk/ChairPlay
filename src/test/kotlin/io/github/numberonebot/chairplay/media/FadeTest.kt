@@ -60,6 +60,39 @@ class FadeTest {
         assertFalse(fade.moving)
     }
 
+    // The new content waits on black while it may not rise yet (the iPhone's picture of another view not in), then
+    // comes up as usual; content already rising is not held.
+    @Test
+    fun `new content waits on black until it may rise`() {
+        fade.update(true)
+        after(150, true)
+        assertTrue(fade.shown)
+
+        nanos += TimeUnit.MILLISECONDS.toNanos(500)
+        fade.update(true, mayRise = false)
+        assertEquals(0f, fade.brightness, 0f)
+        assertTrue(fade.moving)
+
+        nanos += TimeUnit.MILLISECONDS.toNanos(75)
+        fade.update(true, mayRise = true)
+        assertEquals(0.5f, fade.brightness, 0.01f)
+        nanos += TimeUnit.MILLISECONDS.toNanos(30)
+        fade.update(true, mayRise = false)
+        assertEquals(0.7f, fade.brightness, 0.01f)
+    }
+
+    // Two views of the iPhone's picture are two contents too, not only the picture and the HUD.
+    @Test
+    fun `any change of the wanted content goes through black`() {
+        val views = Fade(initial = "map", millis = 150) { nanos }
+        views.update("card")
+        nanos += TimeUnit.MILLISECONDS.toNanos(150)
+        views.update("card")
+
+        assertEquals("card", views.shown)
+        assertEquals(0f, views.brightness, 0f)
+    }
+
     // A pause in the loop (a dragged window) must not leave the fade stuck half way, nor overshoot.
     @Test
     fun `a long gap between passes ends the step it was in`() {

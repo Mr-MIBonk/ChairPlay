@@ -308,9 +308,9 @@ The page's sources are in `webui\src`. To work on them with Vite's dev server, w
 
 The AltScreen's HUD (`altscreen.content=hud`) draws the next maneuver animated, with the maneuver renderer of
 LuKa's MHI2Q CarPlay project (`chairplay_maneuver.dll` next to the exe). To watch it without an iPhone,
-`CHAIRPLAY_HUD_DEMO=1` plays a made-up route of every kind of maneuver into the HUD instead of the iPhone's data,
-with a row of lane arrows under the maneuvers where a road would have lanes (`CHAIRPLAY_HUD_DEMO=media` with a song
-beside it), and `CHAIRPLAY_HUD_DEMO_SHOTS=1` saves three screenshots of
+`CHAIRPLAY_HUD_DEMO=1` plays a made-up route of every kind of maneuver, without lanes, into the HUD in place of the
+iPhone's guidance, beside the iPhone's song while a session plays one (`CHAIRPLAY_HUD_DEMO=media` with a made-up
+song beside it), and `CHAIRPLAY_HUD_DEMO_SHOTS=1` saves three screenshots of
 each maneuver of its first lap (`altscreen-demo-*` in `screenshots`). The HUD's parts rise from the dark and fade
 back into it; `CHAIRPLAY_HUD_DEMO=cycle` plays these animations over and over (a song, guidance coming beside it and
 going, nothing), and with `CHAIRPLAY_HUD_DEMO_SHOTS=1` its first cycle saves a screenshot half way through each.

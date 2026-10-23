@@ -13,11 +13,14 @@ function deviceChoices(devices: readonly string[], saved: string): Choice[] {
   return choices
 }
 
-/** How loud CarPlay plays, where its sound goes, and where the microphone for calls and Siri comes from. */
+/**
+ * How loud CarPlay plays, where its sound goes, where the microphone for calls and Siri comes from, how the music fades
+ * in and out, and how low navigation prompts put it.
+ */
 export function AudioPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
   const { value, save, data } = settings
   const pending = pendingOf(state)
-  const { note } = parts(settings, pending)
+  const { field, note } = parts(settings, pending)
   const devices = data?.audio ?? { outputs: [], inputs: [] }
   const device = (key: string, label: string, names: readonly string[]) => (
     <Row label={label}>
@@ -59,6 +62,36 @@ export function AudioPage({ state, backend, settings }: { state: AppState; backe
         />
         <span className="exp">Experimental</span>
         <Changed keys={['audio.echo.cancellation']} pending={pending} />
+      </Row>
+      <Group title="Music fade" note="From the next stream" />
+      <Row
+        label="Buffering pause"
+        title="The iPhone's first second or two of music come in bursts: how long the music stays silent while they buffer"
+      >
+        {field('audio.start.silence.ms', 'Buffering pause', '1200')}
+        <span className="unit">ms</span>
+      </Row>
+      <Row label="Fade" title="How long the music takes to rise after the pause, and to fade out as CarPlay disconnects or ChairPlay closes">
+        {field('audio.start.fade.ms', 'Fade', '800')}
+        <span className="unit">ms</span>
+      </Row>
+      <Group title="Navigation prompts" note="From the next prompt" />
+      <Row label="Music at" title="How loud the music stays under a prompt, in percent of its volume: 30 is about -10 dB">
+        <Slider
+          label="Music at"
+          step={5}
+          value={Number(value('audio.duck.percent') || '30')}
+          onChange={(level) => save({ 'audio.duck.percent': String(level) })}
+        />
+        <Changed keys={['audio.duck.percent']} pending={pending} />
+      </Row>
+      <Row title="Use the level the iPhone sends with a prompt; Music at applies when it sends none">
+        <Checkbox
+          label="Prefer the iPhone's level"
+          checked={value('audio.duck.iphone') !== 'false'}
+          onChange={(checked) => save({ 'audio.duck.iphone': String(checked) })}
+        />
+        <Changed keys={['audio.duck.iphone']} pending={pending} />
       </Row>
     </>
   )

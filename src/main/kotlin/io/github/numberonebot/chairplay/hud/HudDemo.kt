@@ -15,11 +15,12 @@ import kotlin.math.roundToLong
 
 /**
  * A made-up route for watching the HUD's maneuvers without an iPhone: CHAIRPLAY_HUD_DEMO=1 in the environment shows
- * it in the AltScreen's HUD instead of the bus's data, CHAIRPLAY_HUD_DEMO=media with a song beside it. Each maneuver
+ * it in the AltScreen's HUD in place of the iPhone's guidance, beside the iPhone's song while a session plays one
+ * ([Running.over]), CHAIRPLAY_HUD_DEMO=media with a made-up song beside it. Each maneuver
  * is approached from [START_METERS] in [STEP_MILLIS], slowing down toward it, so the arrow fills and blinks before
  * the next one slides in; after the last the flag waves at the destination, guidance ends, and after a pause the
- * route starts over ([lapMillis]). Where a road would have lanes, the iPhone's lane guidance shows them under the
- * maneuver, the recommended ones leading its way. CHAIRPLAY_HUD_DEMO=cycle plays the HUD's own animations instead,
+ * route starts over ([lapMillis]). It has no lanes: the lane row is the lanes demo's alone. CHAIRPLAY_HUD_DEMO=cycle
+ * plays the HUD's own animations instead,
  * over and over in [CYCLE_MILLIS]: the song alone, guidance coming beside it, the song alone again and nothing.
  * CHAIRPLAY_HUD_DEMO=lanes holds one maneuver far ahead, its arrow quiet, and switches the lanes under it every
  * [LANE_STEP_MILLIS]: the recommended lane moves, the row grows past the frame's cells, goes and comes back.
@@ -49,6 +50,21 @@ class HudDemo(
         )
     }
 
+    /**
+     * The bus as it would be [elapsedMillis] into the demo played over [live], the iPhone's: the demo's guidance and
+     * lanes take the place of the iPhone's, and the rest stays the iPhone's, so the maneuver shares the HUD with the
+     * song as guidance does on a drive, and a call covers both. A demo [withMedia] shows its own song instead.
+     */
+    fun snapshot(elapsedMillis: Long, live: CarPlayDataSnapshot): CarPlayDataSnapshot {
+        val demo = snapshot(elapsedMillis)
+        return live.copy(
+            route = demo.route,
+            lanes = demo.lanes,
+            nowPlaying = if (withMedia) demo.nowPlaying else live.nowPlaying,
+            artwork = if (withMedia) demo.artwork else live.artwork,
+        )
+    }
+
     /** One lap: every maneuver, the flag held at the destination, and a spell without guidance before the next. */
     val lapMillis: Long get() = STEP_MILLIS * ROUTE.size + ARRIVED_MILLIS + GAP_MILLIS
 
@@ -64,7 +80,7 @@ class HudDemo(
         // Arrived: the distance stays at zero while the flag waves.
         val into = if (inLap >= driving) STEP_MILLIS else inLap % STEP_MILLIS
         val step = lap * ROUTE.size + inRoute
-        val (road, maneuver, lanes) = ROUTE[inRoute]
+        val (road, maneuver) = ROUTE[inRoute]
         // A car slowing down toward the turn: the distance falls with the square of the time left, so the arrow's
         // blink over the last metres lasts a couple of seconds, as it does in town.
         val left = (STEP_MILLIS - into).toDouble() / STEP_MILLIS
@@ -77,16 +93,11 @@ class HudDemo(
             remainingMeters = (ROUTE.size - inRoute) * START_METERS,
             distanceToManeuverMeters = meters,
             nextManeuver = maneuver.copy(index = step, afterRoad = road, description = road),
-            // The lane events count apart from the maneuvers; here one per step.
-            laneGuidanceIndex = step,
-            laneGuidanceShowing = lanes.isNotEmpty(),
+            // The maneuvers alone: the lane row is the lanes demo's.
+            laneGuidanceShowing = false,
             sourceName = "ChairPlay demo",
         )
-        return CarPlayDataSnapshot(
-            route = route,
-            lanes = LaneGuidance(step, lanes).takeIf { lanes.isNotEmpty() },
-            nowPlaying = song,
-        )
+        return CarPlayDataSnapshot(route = route, nowPlaying = song)
     }
 
     private fun laneSwitching(elapsedMillis: Long): CarPlayDataSnapshot {
@@ -147,11 +158,19 @@ class HudDemo(
                 while (due.isNotEmpty() && due.first().second <= now) screenshot(due.removeAt(0).first)
             }
         }, "hud-demo").apply { isDaemon = true }.start()
-        return Running({ snapshot(elapsed()) }) { stopped.set(true) }
+        return Running({ live -> snapshot(elapsed(), live) }) { stopped.set(true) }
     }
 
-    /** A demo playing: the bus as it is now in it, and [stop], after which it draws no more. */
-    class Running(val snapshot: () -> CarPlayDataSnapshot, private val onStop: () -> Unit) {
+    /**
+     * A demo playing: the bus as it is now in it, alone ([snapshot]) or played over the iPhone's ([over]), and [stop],
+     * after which it draws no more.
+     */
+    class Running(private val at: (CarPlayDataSnapshot) -> CarPlayDataSnapshot, private val onStop: () -> Unit) {
+        val snapshot: () -> CarPlayDataSnapshot = { at(CarPlayDataSnapshot()) }
+
+        /** The demo now over [live], the iPhone's bus: see [HudDemo.snapshot]. */
+        fun over(live: CarPlayDataSnapshot): CarPlayDataSnapshot = at(live)
+
         fun stop() = onStop()
     }
 
@@ -199,32 +218,18 @@ class HudDemo(
             highlightAngle = angles.first().takeIf { recommended },
         )
 
+        /** The route's maneuvers, each with the road after it. */
         private val ROUTE = listOf(
-            Triple(
-                "Left Street", turn(ManeuverType.LEFT_TURN, -90, listOf(-90, 0, 90)),
-                listOf(lane(0, true, -90), lane(1, false, 0), lane(2, false, 0, 90)),
-            ),
-            Triple("Ring Road", turn(ManeuverType.ROUNDABOUT_EXIT_2, 0, listOf(-90, 0, 90, 180), JunctionType.ROUNDABOUT), emptyList()),
-            Triple(
-                "Bend Avenue", turn(ManeuverType.SLIGHT_RIGHT_TURN, 35, listOf(35, 0)),
-                listOf(lane(0, false, 0), lane(1, true, 45, 0), lane(2, true, 45)),
-            ),
-            Triple("Circle Lane", turn(ManeuverType.ROUNDABOUT_EXIT_3, 90, listOf(-90, 0, 90, 180), JunctionType.ROUNDABOUT), emptyList()),
-            Triple(
-                "Sharp Corner", turn(ManeuverType.SHARP_LEFT_TURN, -135, listOf(-135, 0, 90)),
-                listOf(lane(0, true, -135), lane(1, false, 0), lane(2, false, 0, 90)),
-            ),
-            Triple("Back Road", turn(ManeuverType.U_TURN), listOf(lane(0, true, -180, -90), lane(1, false, 0))),
-            Triple(
-                "Exit 12", turn(ManeuverType.OFF_RAMP, 25),
-                listOf(lane(0, false, 0), lane(1, false, 0), lane(2, false, 0), lane(3, true, 45, 0), lane(4, true, 45)),
-            ),
-            Triple("Motorway", turn(ManeuverType.CHANGE_HIGHWAY_LEFT), listOf(lane(0, true, -45), lane(1, false, 0), lane(2, false, 0))),
-            Triple(
-                "Right Street", turn(ManeuverType.RIGHT_TURN, 90, listOf(90, 0)),
-                listOf(lane(0, false, 0), lane(1, true, 90, 0), lane(2, true, 90)),
-            ),
-            Triple("Demo destination", turn(ManeuverType.ARRIVE_AT_DESTINATION), emptyList()),
+            "Left Street" to turn(ManeuverType.LEFT_TURN, -90, listOf(-90, 0, 90)),
+            "Ring Road" to turn(ManeuverType.ROUNDABOUT_EXIT_2, 0, listOf(-90, 0, 90, 180), JunctionType.ROUNDABOUT),
+            "Bend Avenue" to turn(ManeuverType.SLIGHT_RIGHT_TURN, 35, listOf(35, 0)),
+            "Circle Lane" to turn(ManeuverType.ROUNDABOUT_EXIT_3, 90, listOf(-90, 0, 90, 180), JunctionType.ROUNDABOUT),
+            "Sharp Corner" to turn(ManeuverType.SHARP_LEFT_TURN, -135, listOf(-135, 0, 90)),
+            "Back Road" to turn(ManeuverType.U_TURN),
+            "Exit 12" to turn(ManeuverType.OFF_RAMP, 25),
+            "Motorway" to turn(ManeuverType.CHANGE_HIGHWAY_LEFT),
+            "Right Street" to turn(ManeuverType.RIGHT_TURN, 90, listOf(90, 0)),
+            "Demo destination" to turn(ManeuverType.ARRIVE_AT_DESTINATION),
         )
 
         /** The lanes demo's events, left to right, toward an exit on the right. */

@@ -164,6 +164,14 @@ describe('CarPlay page, display', () => {
       ]),
     )
   })
+
+  it('sizes the physical size fields as the size in pixels', async () => {
+    await carplay()
+
+    for (const name of ['Physical width', 'Physical height', 'Pixels per inch']) {
+      expect(textbox(name).className).toBe(textbox('Width').className)
+    }
+  })
 })
 
 describe('CarPlay page, look', () => {

@@ -9,17 +9,24 @@ interface AudioDuckSink {
     fun onAudioDuck(ducked: Boolean, params: Map<String, Any?> = emptyMap())
 }
 
+/**
+ * audio.duck.percent and audio.duck.iphone: the music's gain under a navigation prompt, and whether a level the iPhone
+ * sends with duckAudio wins over it.
+ */
+data class DuckSetting(val level: Float = MediaDucking.DEFAULT_LEVEL, val iPhoneFirst: Boolean = true)
+
 /** What duckAudio asks for: the music's gain under the prompt, and how long the way there takes. */
 internal data class DuckRequest(val level: Float, val rampMillis: Long)
 
 /**
  * The params of duckAudio or unduckAudio. Apple's receiver reads a ramp length (durationMs) and, for a duck, the
- * level to lower the music to (volume, linear 0..1); neither name is confirmed on a real iPhone yet. A missing or
- * nonsensical value takes the default, and a ramp is kept between [MediaDucking.MIN_RAMP_MILLIS] and
- * [MediaDucking.MAX_RAMP_MILLIS].
+ * level to lower the music to (volume, linear 0..1); neither name is confirmed on a real iPhone yet. The level is
+ * [setting]'s unless it lets the iPhone's win and one came. A missing or nonsensical value takes the default, and a ramp
+ * is kept between [MediaDucking.MIN_RAMP_MILLIS] and [MediaDucking.MAX_RAMP_MILLIS].
  */
-internal fun duckRequest(params: Map<String, Any?>): DuckRequest {
-    val level = (params[VOLUME_PARAM] as? Number)?.toFloat()?.takeIf { it in 0f..1f } ?: MediaDucking.DEFAULT_LEVEL
+internal fun duckRequest(params: Map<String, Any?>, setting: DuckSetting): DuckRequest {
+    val sent = (params[VOLUME_PARAM] as? Number)?.toFloat()?.takeIf { it in 0f..1f }
+    val level = sent?.takeIf { setting.iPhoneFirst } ?: setting.level
     val ramp = (params[DURATION_PARAM] as? Number)?.toDouble()?.takeIf { it.isFinite() && it >= 0 }
         ?.toLong()?.coerceIn(MediaDucking.MIN_RAMP_MILLIS, MediaDucking.MAX_RAMP_MILLIS)
         ?: MediaDucking.DEFAULT_RAMP_MILLIS

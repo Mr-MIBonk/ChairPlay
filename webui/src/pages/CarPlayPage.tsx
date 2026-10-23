@@ -40,12 +40,12 @@ export function CarPlayPage({ state, backend, settings }: { state: AppState; bac
         <span className="unit">fps</span>
       </Row>
       <Row label="Physical size" title="Leave blank for 200 mm wide, with the height from the aspect ratio">
-        {field('display.physical.width.mm', 'Physical width', '200')}
-        <span className="x">×</span>
-        {field('display.physical.height.mm', 'Physical height', 'auto')}
+        {field('display.physical.width.mm', 'Physical width', '200', 'short c')}
+        <span className="x times">×</span>
+        {field('display.physical.height.mm', 'Physical height', 'auto', 'short c')}
         <span className="unit">mm</span>
         <span className="x">or</span>
-        {field('display.ppi', 'Pixels per inch', 'auto')}
+        {field('display.ppi', 'Pixels per inch', 'auto', 'short c')}
         <span className="unit">ppi</span>
         <Changed keys={['display.physical.width.mm', 'display.physical.height.mm', 'display.ppi']} pending={pending} />
       </Row>

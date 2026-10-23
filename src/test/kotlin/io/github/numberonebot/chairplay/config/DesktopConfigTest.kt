@@ -3,6 +3,7 @@ package io.github.numberonebot.chairplay.config
 import com.shilapi.xcertplay.airplay.AirPlayInfoPlist
 import com.shilapi.xcertplay.airplay.AirPlayViewArea
 import com.shilapi.xcertplay.airplay.AirPlayInsets
+import io.github.numberonebot.chairplay.media.DuckSetting
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -260,6 +261,23 @@ class DesktopConfigTest {
     fun `call echo cancellation is off unless asked for`() {
         assertFalse(configWith().echoCancellation)
         assertTrue(configWith("audio.echo.cancellation=true").echoCancellation)
+    }
+
+    // The music starts silent for a while after it starts, then rises: the iPhone's first audio comes in bursts.
+    @Test
+    fun `the music starts silent for 1200 ms and rises over 800 ms unless set`() {
+        assertEquals(1200L to 800L, configWith().let { it.musicStartSilenceMillis to it.musicStartFadeMillis })
+        val set = configWith("audio.start.silence.ms=0", "audio.start.fade.ms=300")
+        assertEquals(0L to 300L, set.musicStartSilenceMillis to set.musicStartFadeMillis)
+        assertTrue(runCatching { configWith("audio.start.fade.ms=-1").musicStartFadeMillis }.exceptionOrNull() is IllegalArgumentException)
+    }
+
+    // Under a navigation prompt the music plays at the iPhone's level, or at 30 %, about -10 dB, when it sends none.
+    @Test
+    fun `the music ducks to the iPhone's level, else to 30 percent, unless set`() {
+        assertEquals(DuckSetting(0.3f, iPhoneFirst = true), configWith().duckSetting)
+        assertEquals(DuckSetting(0.15f, iPhoneFirst = false), configWith("audio.duck.percent=15", "audio.duck.iphone=false").duckSetting)
+        assertTrue(runCatching { configWith("audio.duck.percent=101").duckSetting }.exceptionOrNull() is IllegalArgumentException)
     }
 
     @Test

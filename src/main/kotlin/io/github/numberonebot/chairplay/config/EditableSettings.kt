@@ -73,6 +73,12 @@ object EditableSettings {
         "audio.output" to Setting(Applies.RESTART) { null },
         "audio.input" to Setting(Applies.RESTART) { null },
         "audio.echo.cancellation" to switch(Applies.RESTART),
+        // The next music stream starts so.
+        "audio.start.silence.ms" to Setting(Applies.NOW, check = ::checkMillis),
+        "audio.start.fade.ms" to Setting(Applies.NOW, check = ::checkMillis),
+        // The next prompt ducks so.
+        "audio.duck.percent" to Setting(Applies.NOW, check = ::checkPercent),
+        "audio.duck.iphone" to switch(Applies.NOW),
         // The data log opens as the app starts.
         "log.carplay.data" to switch(Applies.RESTART),
     )
@@ -189,6 +195,12 @@ object EditableSettings {
 
     private fun checkNonNegative(value: String): String? =
         if ((value.trim().toIntOrNull() ?: -1) >= 0) null else "Enter zero or more pixels"
+
+    private fun checkMillis(value: String): String? =
+        if ((value.trim().toIntOrNull() ?: -1) >= 0) null else "Enter zero or more milliseconds"
+
+    private fun checkPercent(value: String): String? =
+        if (value.trim().toIntOrNull() in 0..100) null else "Enter a percentage from 0 to 100"
 
     private fun checkFps(value: String): String? =
         if (value.trim().toIntOrNull() in 30..60) null else "Enter a frame rate from 30 to 60"

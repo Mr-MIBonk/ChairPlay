@@ -32,6 +32,8 @@ class DesktopMediaSink(
     private val echoCancellation: Boolean = false,
     /** altscreen.enabled: the window for the cluster stream; its frames are ignored without one. */
     private val altscreen: VideoWindow? = null,
+    /** audio.duck.*: how low a navigation prompt puts the music, read at each prompt. */
+    private val duckSetting: () -> DuckSetting = { DuckSetting() },
 ) : MediaSink, AudioDuckSink, Closeable {
     private val diagnosticHandlers = ConcurrentHashMap<Int, (String) -> Unit>()
     private val recoveryHandlers = ConcurrentHashMap<Int, () -> Unit>()
@@ -151,15 +153,15 @@ class DesktopMediaSink(
 
     /** duckAudio and unduckAudio: the music makes way for a navigation prompt, as long as the prompt lasts. */
     override fun onAudioDuck(ducked: Boolean, params: Map<String, Any?>) {
-        val request = duckRequest(params)
+        val request = duckRequest(params, duckSetting())
         if (ducked) audio.duck(request.level, request.rampMillis) else audio.unduck(request.rampMillis)
     }
 
     /**
-     * Fades the sound out over [durationMillis], for a reconnect or a close: the graceful end of the session waits
-     * seconds for the iPhone. The next session's streams play at full volume.
+     * Fades the sound out as long as the music fades in, for a reconnect or a close: the graceful end of the session
+     * waits seconds for the iPhone. The next session's streams play at full volume.
      */
-    fun fadeOut(durationMillis: Long) = audio.fadeOut(durationMillis)
+    fun fadeOut() = audio.fadeOut()
 
     override fun close() {
         screens.values.forEach { it.stop() }

@@ -141,13 +141,34 @@ class VideoWindow(
         wake()
     }
 
-    /** Shows [overlay] on black instead of the picture: the AltScreen's HUD. */
+    /** What the window shows: [overlay] on black (the AltScreen's HUD), or the picture of the iPhone's view [key]. */
+    private data class View(val hud: Boolean, val key: Any?)
+
     @Volatile
-    var hud = false
-        set(value) {
-            field = value
-            wake()
-        }
+    private var view = View(false, null)
+    // What to do once the window is black on the view wanted: ask the iPhone for it.
+    private val onBlack = AtomicReference<(() -> Unit)?>()
+
+    /** Whether the window shows (or is going over to) [overlay] on black instead of the picture: the AltScreen's HUD. */
+    val hud: Boolean get() = view.hud
+
+    /**
+     * Safe from any thread: shows the HUD ([hud]) or the iPhone's view [key], through black when that changes. [onBlack]
+     * runs once the window is black, on a thread of its own, to ask the iPhone for the view: it starts drawing it only
+     * then, so nothing of the change shows; the window stays black until the view's pictures are in (or [hud] needs
+     * none). Unchanged, [onBlack] runs at once. [log] tells how long each change waited.
+     */
+    fun showView(hud: Boolean, key: Any? = null, onBlack: () -> Unit = {}) {
+        // Under the HUD the iPhone's view is not seen: changing it is no change of what shows.
+        this.onBlack.set(onBlack)
+        view = View(hud, if (hud) null else key)
+        wake()
+    }
+
+    /** The window's own lines in the app's log. */
+    @Volatile
+    var log: (String) -> Unit = {}
+    private val reveal = RevealGate(log = { log(it) })
 
     /** What [hud] shows; set before [runWindows]. */
     var overlay: WindowOverlay? = null
@@ -249,8 +270,8 @@ class VideoWindow(
     private var frameProgram = 0
     private var frameUniform = -1
     // The child (the settings over CarPlay) and the HUD (over the AltScreen's picture) each come and go through black.
-    private var childFade: Fade? = null
-    private var hudFade: Fade? = null
+    private var childFade: Fade<Boolean>? = null
+    private var viewFade: Fade<View>? = null
     private var vao = 0
     private val textures = IntArray(3)
     private val planeSizes = IntArray(6)
@@ -426,6 +447,7 @@ class VideoWindow(
         if (fresh != null) {
             // glTexImage2D and glTexSubImage2D have read client memory by the time they return.
             upload(fresh, textures, planeSizes)
+            reveal.picture(meanLuma(fresh))
             fresh.release()
             val size = Size(fresh.width, fresh.height)
             picture = size
@@ -436,11 +458,23 @@ class VideoWindow(
         val resized = Size(w[0], h[0]).takeIf { it != framebufferSize && it.width > 0 && it.height > 0 }
         framebufferSize = Size(w[0], h[0])
         resized?.let(onResize)
-        // What the window shows changes through black: the settings over CarPlay, the HUD over the AltScreen's picture.
+        // What the window shows changes through black: the settings over CarPlay, the AltScreen's HUD and its views.
         val cover = child?.let { visible -> (childFade ?: Fade(visible.covers).also { childFade = it }).apply { update(visible.covers) } }
         child?.layout(w[0], h[0], cover?.shown ?: true)
-        val content = (hudFade ?: Fade(hud).also { hudFade = it }).apply { update(hud) }
-        val showsHud = content.shown
+        val wanted = view
+        val content = (viewFade ?: Fade(wanted).also { viewFade = it }).apply { update(wanted, reveal.open()) }
+        if (content.shown == wanted) {
+            onBlack.getAndSet(null)?.let { ask ->
+                // Black on another of the iPhone's views: it waits for the view's pictures. The HUD needs none, and a
+                // change taken back before black never left the view on screen.
+                val wait = if (content.brightness == 0f && !wanted.hud) reveal.hold() else null
+                Thread({
+                    ask()
+                    wait?.let(reveal::sent)
+                }, "view-ask").apply { isDaemon = true }.start()
+            }
+        }
+        val showsHud = content.shown.hud
         val shown = picture
         val layer = overlay
         when {
@@ -686,7 +720,7 @@ class VideoWindow(
     }
 
     /** Whether a fade is under way, which needs passes of the loop at the screen's pace until it ends. */
-    internal val animating: Boolean get() = childFade?.moving == true || hudFade?.moving == true
+    internal val animating: Boolean get() = childFade?.moving == true || viewFade?.moving == true
 
     private fun buildProgram(fragmentSource: String = FRAGMENT): Int {
         val program = glCreateProgram()
