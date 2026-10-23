@@ -3,6 +3,12 @@ package io.github.numberonebot.chairplay.ui
 import io.github.numberonebot.chairplay.config.Applies
 import io.github.numberonebot.chairplay.config.EditableSettings
 import io.github.numberonebot.chairplay.config.SettingsFile
+import io.github.numberonebot.chairplay.config.SetupStore
+import io.github.numberonebot.chairplay.input.ControlAction
+import io.github.numberonebot.chairplay.input.ControlsConfig
+import io.github.numberonebot.chairplay.input.ControlsFile
+import io.github.numberonebot.chairplay.input.ControlsSave
+import io.github.numberonebot.chairplay.input.WheelAction
 import io.github.numberonebot.chairplay.media.AudioDevices
 import java.nio.file.Files
 import java.nio.file.Path
@@ -104,6 +110,21 @@ interface UiApi {
     /** Resizes the main window to one screen pixel per picture pixel; false when there is no main window. */
     fun actualSize(): Boolean
 
+    /** Adds the firewall rules with the administrator's consent; false when it was not given or they failed. */
+    fun addFirewallRule(): Boolean
+
+    /** Forget this iPhone: ChairPlay's pairing records go and Get started opens; false when there is nothing to forget. */
+    fun forget(): Boolean
+
+    /**
+     * The Keyboard page's bindings: each action's keys, defaults and fixed keys, and the wheel and repeat settings as
+     * controls.properties names them; null when the app has none to change.
+     */
+    fun controls(): Map<String, Any?>?
+
+    /** Saves controls.properties [changes] and puts them in force at once, or says why the start would refuse them. */
+    fun saveControls(changes: Map<String, String>): SaveResult
+
     /** Waits up to [timeoutMillis] for [version] to differ from [seen], and returns it. */
     fun awaitChange(seen: Long, timeoutMillis: Long): Long
 }
@@ -132,6 +153,16 @@ class UiController(
     },
     /** The main window, whose size the CarPlay page compares with the picture's; null in tests without one. */
     private val mainWindow: UiMainWindow? = null,
+    /** controls.properties, which the Keyboard page changes; null where there is none to change. */
+    private val bindings: ControlsFile? = null,
+    /** Puts bindings the Keyboard page saved in force: the next key press reads them. */
+    private val onBindings: (ControlsConfig) -> Unit = {},
+    /** The setup read again as the PC changes; null keeps the start's reading of the firewall. */
+    private val checks: SetupChecks? = null,
+    /** Runs commands with the administrator's consent (Windows asks for it); true when they ran and succeeded. */
+    private val elevate: (String) -> Boolean = { false },
+    /** Whether Get started is done; null counts it as done. */
+    private val setupStore: SetupStore? = null,
 ) : UiApi {
     /** The settings as the app started with them, against which a change waits for the next start. */
     private val startup: Map<String, String> = settings.read()
@@ -150,8 +181,19 @@ class UiController(
     override var version = 0L
         private set
 
+    /** Get started is done: an iPhone has connected since the last Forget. */
+    @Volatile
+    private var setupDone = setupStore?.done() ?: true
+
     init {
-        model.addListener { changed() }
+        model.addListener { state ->
+            // The first CarPlay session ends Get started, for this start and the next.
+            if (state.phase == Phase.ACTIVE && !setupDone) {
+                setupDone = true
+                runCatching { setupStore?.save(true) }.onFailure { log("setup done not remembered: $it") }
+            }
+            changed()
+        }
     }
 
     /** Tells the page that a window was shown or hidden, by its trigger or by its own close button, or resized. */
@@ -172,6 +214,64 @@ class UiController(
 
     /** Tells the page that what the controls window shows changed: the volume, the AltScreen's content, Alt held. */
     fun controlsChanged() = changed()
+
+    /** Tells the page that the live setup checks found a change. */
+    fun setupChanged() = changed()
+
+    override fun forget(): Boolean {
+        val store = setupStore ?: return false
+        runCatching { store.forget() }.onFailure {
+            log("could not forget the iPhone: $it")
+            return false
+        }
+        setupDone = false
+        log("iPhone forgotten: its pairing records are deleted; Get started opens")
+        changed()
+        return true
+    }
+
+    /** The commands the page offers to copy, run as they are, so the two ways add the same rules. */
+    override fun addFirewallRule(): Boolean {
+        val added = runCatching { elevate(setup.firewallCommands) }.getOrDefault(false)
+        log(if (added) "firewall rules added" else "firewall rules not added: no consent, or netsh failed")
+        checks?.firewallNow()
+        changed()
+        return added
+    }
+
+    override fun controls(): Map<String, Any?>? {
+        val config = bindings?.read() ?: return null
+        return linkedMapOf(
+            "actions" to ControlAction.entries.associate { action ->
+                action.key to mapOf(
+                    "keys" to config.keys(action),
+                    "defaults" to action.defaults.split(',').map(String::trim).filter(String::isNotEmpty),
+                    "fixed" to config.fixedKeys(action),
+                )
+            },
+            "settings" to linkedMapOf(
+                "wheel.action" to if (config.wheel == WheelAction.NONE) "none" else "knob",
+                "wheel.invert" to config.wheelInvert.toString(),
+                "wheel.notches.per.step" to config.notchesPerStep.toString(),
+                "key.repeat.every" to config.repeatEvery.toString(),
+                "key.zoom.repeat.every" to config.zoomRepeatEvery.toString(),
+            ),
+        )
+    }
+
+    /** A save also tells the controls window's page, whose buttons show each action's first key. */
+    override fun saveControls(changes: Map<String, String>): SaveResult {
+        val file = bindings ?: return SaveResult(changes.keys.associateWith { "The app has no key bindings to change" }, emptyMap())
+        return when (val result = file.save(changes)) {
+            is ControlsSave.Refused -> SaveResult(mapOf(result.key to result.message), emptyMap())
+            is ControlsSave.Saved -> {
+                onBindings(result.config)
+                log("key bindings saved: ${result.changes.keys.joinToString()}")
+                changed()
+                SaveResult(emptyMap(), result.changes.keys.associateWith { "now" })
+            }
+        }
+    }
 
     override fun control(action: String, down: Boolean): Boolean = controls?.control(action, down) ?: false
 
@@ -243,12 +343,16 @@ class UiController(
                 mapOf("width" to it.width, "height" to it.height, "pictureWidth" to setup.displayWidth, "pictureHeight" to setup.displayHeight)
             },
             "controls" to controls?.state(),
+            "controlsKeys" to (values["ui.controls.keys"]?.trim() == "true"),
+            "setupDone" to setupDone,
             "reconnectPending" to state.reconnectPending.sorted(),
             "restartPending" to state.restartPending.sorted(),
             "setup" to linkedMapOf(
                 "mfiFolder" to setup.mfiDirectory.toString(),
                 "mfiPresent" to MFI_FILES.all { Files.isRegularFile(setup.mfiDirectory.resolve(it)) },
-                "firewall" to setup.firewall.name.lowercase(),
+                "firewall" to (checks?.snapshot?.firewall ?: setup.firewall).name.lowercase(),
+                "pairedIphone" to checks?.snapshot?.pairedIphone,
+                "pcWifi" to checks?.snapshot?.pcWifi,
                 "firewallCommands" to setup.firewallCommands,
                 "settingsFile" to setup.settingsFile.toString(),
             ),

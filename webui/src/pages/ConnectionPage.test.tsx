@@ -120,6 +120,39 @@ describe('Connection page, iPhone', () => {
   })
 })
 
+describe('Connection page, the paired iPhone', () => {
+  it('names the paired iPhone and forgets it', async () => {
+    const backend = await connection()
+
+    const row = screen.getByText('Paired iPhone', { selector: 'label' }).closest('.row') as HTMLElement
+    expect(row.textContent).toContain("Kate's iPhone")
+    fireEvent.click(within(row).getByRole('button', { name: 'Forget' }))
+
+    await waitFor(() => expect(backend.forgets).toBe(1))
+  })
+
+  // Windows lists no paired iPhone: the message says how to pair, on both sides.
+  it('says how to pair one when none is paired', async () => {
+    const backend = await connection(appState({ ...live, setup: { ...appState().setup, pairedIphone: null } }))
+
+    const row = screen.getByText('Paired iPhone', { selector: 'label' }).closest('.row') as HTMLElement
+    expect(row.textContent).toContain('None')
+    const message = screen.getByRole('alert')
+    expect(message.textContent).toContain('No iPhone is paired with this PC.')
+    fireEvent.click(within(message).getByRole('button', { name: 'Open Bluetooth settings' }))
+
+    expect(backend.opened).toEqual(['bluetooth'])
+  })
+
+  it('offers Get started from the message', async () => {
+    await connection(appState({ ...live, setup: { ...appState().setup, pairedIphone: null } }))
+
+    fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Get started' }))
+
+    expect(await screen.findByRole('heading', { name: 'Get started' })).toBeTruthy()
+  })
+})
+
 describe('Connection page, messages', () => {
   const setup = (changes: Partial<AppState['setup']>) => ({ ...appState().setup, ...changes })
 
@@ -151,6 +184,27 @@ describe('Connection page, messages', () => {
 
     expect(writeText).toHaveBeenCalledWith(appState().setup.firewallCommands)
     expect(await within(message).findByRole('button', { name: 'Copied' })).toBeTruthy()
+  })
+
+  // Windows asks for the administrator's consent; the message goes once the live checks find the rule.
+  it('adds the firewall rule with the consent Windows asks for', async () => {
+    const backend = await connection(appState({ ...live, setup: setup({ firewall: 'missing' }) }))
+
+    const message = screen.getByRole('alert')
+    expect(message.textContent).toContain('or run this in Terminal (Admin):')
+    fireEvent.click(within(message).getByRole('button', { name: 'Add the rule' }))
+
+    await waitFor(() => expect(backend.firewallRules).toBe(1))
+  })
+
+  it('says when the rule was not added', async () => {
+    const backend = new FakeBackend()
+    backend.consent = false
+    await connection(appState({ ...live, setup: setup({ firewall: 'missing' }) }), backend)
+
+    fireEvent.click(within(screen.getByRole('alert')).getByRole('button', { name: 'Add the rule' }))
+
+    expect(await screen.findByText("The rule wasn't added. Run the command in Terminal (Admin) instead.")).toBeTruthy()
   })
 
   it("opens the firewall's rules when one blocks ChairPlay", async () => {

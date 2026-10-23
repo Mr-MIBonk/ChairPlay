@@ -9,6 +9,18 @@ class IphoneSelectionTest {
     private val phone = PairedDevice("iPhone", "AA:BB:CC:DD:EE:01", 0x0200)
     private val airPods = PairedDevice("AirPods", "AA:BB:CC:DD:EE:02", 0x0400)
 
+    // Get started's Pair the iPhone step and the Connection page's Paired iPhone show the phone the bring-up would call.
+    @Test
+    fun `the paired iPhone's name is the phone the bring-up would call`() {
+        val other = PairedDevice("Pixel", "AA:BB:CC:DD:EE:03", 0x020C)
+        assertEquals("iPhone", pairedIphoneName(listOf(airPods, phone), null))
+        assertEquals("AirPods", pairedIphoneName(listOf(phone, airPods), "aa:bb:cc:dd:ee:02"))
+        assertEquals(null, pairedIphoneName(listOf(airPods), null))
+        assertEquals(null, pairedIphoneName(listOf(phone), "AA:BB:CC:DD:EE:09"))
+        // Several phones without an address: the first, so the step still says one is paired.
+        assertEquals("iPhone", pairedIphoneName(listOf(phone, other), null))
+    }
+
     @Test
     fun `configured address wins`() {
         val chosen = selectIphone(listOf(phone, airPods), "aa:bb:cc:dd:ee:02")

@@ -94,6 +94,13 @@ describe('ControlsScreen', () => {
     expect(screen.getByText('Ctrl+M')).toBeTruthy()
   })
 
+  // The Keyboard page's Show keys on the buttons.
+  it('shows each button its key always when the settings say so', () => {
+    render(<ControlsScreen state={appState({ ...live, controlsKeys: true })} backend={new FakeBackend()} />)
+
+    expect(screen.getByText('Esc')).toBeTruthy()
+  })
+
   it('shows the keys while Alt is held over the page itself', () => {
     render(<ControlsScreen state={appState(live)} backend={new FakeBackend()} />)
 

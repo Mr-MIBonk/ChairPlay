@@ -441,6 +441,10 @@ class DesktopConfig(private val dir: Path) {
                     "screen until you choose Show CarPlay.",
                 "ui.autoshow" to "true",
             ),
+            SettingBlock(
+                "'true' shows each controls window button's key on it; 'false' shows them only while Alt is held.",
+                "ui.controls.keys" to "false",
+            ),
             SettingBlock("The car's name on the iPhone (CarPlay settings, the network); blank is 'ChairPlay'.", "device.name" to ""),
             SettingBlock(
                 "The car button on the CarPlay home screen: its label, and a square image in this folder\n" +

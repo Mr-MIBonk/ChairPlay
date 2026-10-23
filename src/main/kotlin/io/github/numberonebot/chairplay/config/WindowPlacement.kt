@@ -172,6 +172,36 @@ class ControlsWindowStore(private val dir: Path) {
     }
 }
 
+/**
+ * Remembers in window.properties whether the setup is done: Get started shows until an iPhone has connected once, and
+ * again after Forget this iPhone. An install that connected before this mark existed has its pairing records in
+ * pairings/, which count as done until the mark says otherwise.
+ */
+class SetupStore(private val dir: Path) {
+    fun done(): Boolean = readWindowState(dir)?.getProperty(DONE)?.trim()?.toBooleanStrictOrNull() ?: paired()
+
+    fun save(done: Boolean) = writeWindowState(dir, listOf(DONE to done.toString()))
+
+    /**
+     * Forget this iPhone: deletes ChairPlay's pairing records and undoes the setup. The running app keeps the pairing
+     * it loaded until it restarts; Windows' own Bluetooth pairing stays.
+     */
+    fun forget() {
+        val pairings = dir.resolve("pairings")
+        if (Files.isDirectory(pairings)) Files.list(pairings).use { files -> files.forEach(Files::deleteIfExists) }
+        save(false)
+    }
+
+    private fun paired(): Boolean {
+        val pairings = dir.resolve("pairings")
+        return Files.isDirectory(pairings) && Files.list(pairings).use { it.findAny().isPresent }
+    }
+
+    private companion object {
+        const val DONE = "setup.done"
+    }
+}
+
 private val WINDOW_STATE_HEADER = listOf(
     "# Where the ChairPlay windows were when they last closed, and the AltScreen's view, written by the app.",
     "# Delete this file to open them at their default place, size and view again.",

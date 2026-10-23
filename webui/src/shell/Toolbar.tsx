@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import type { AppState, Backend, WindowName } from '../api'
-import { describe } from '../status'
+import type { Steps } from '../setup/steps'
+import { describe, type Status } from '../status'
 import { AltScreenIcon, CarPlayIcon, ControlsIcon, DisconnectIcon, ReconnectIcon } from './icons'
 import { SECTIONS, sectionsOf } from './sections'
 
@@ -10,11 +11,18 @@ const DOT = { ok: 'ok', busy: 'busy', warn: 'warn', idle: '' } as const
  * The bar over every page: CarPlay and the app's other windows at the left; at the right what waits for a restart,
  * where the connection stands, and Connect, or Reconnect and Disconnect once connecting has begun.
  */
-export function Toolbar({ state, backend }: { state: AppState; backend: Backend }) {
-  const status = describe(state)
+export function Toolbar({ state, backend, guide }: { state: AppState; backend: Backend; guide?: Steps | null }) {
   const session = state.canShowCarPlay
   const restart = sectionsOf(state.restartPending).map((id) => SECTIONS.find((section) => section.id === id)!.title)
   const idle = state.phase === 'setup' || state.phase === 'idle'
+  // Under Get started the status says where the steps stand, and Connect waits for the last of them, then lights up.
+  const status: Status =
+    guide && idle
+      ? guide.allDone
+        ? { title: 'Not connected', detail: 'Every step is done.', tone: 'idle' }
+        : { title: 'Not set up', detail: 'Finish the steps below.', tone: 'warn' }
+      : describe(state)
+  const connectWaits = guide ? guide.connectWaits : state.phase === 'setup' ? 'Enter the Wi-Fi network first' : null
   return (
     <header className="tb">
       <button
@@ -46,9 +54,9 @@ export function Toolbar({ state, backend }: { state: AppState; backend: Backend 
       {idle ? (
         <button
           type="button"
-          className="btn primary"
-          disabled={state.phase === 'setup'}
-          title={state.phase === 'setup' ? 'Enter the Wi-Fi network first' : 'Connect to the iPhone'}
+          className={`btn primary ${guide?.allDone ? 'lit' : ''}`}
+          disabled={connectWaits !== null}
+          title={connectWaits ?? 'Connect to the iPhone'}
           onClick={() => backend.connect()}
         >
           Connect

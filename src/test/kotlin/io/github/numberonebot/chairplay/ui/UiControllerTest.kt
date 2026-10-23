@@ -1,6 +1,12 @@
 package io.github.numberonebot.chairplay.ui
 
 import io.github.numberonebot.chairplay.config.SettingsFile
+import io.github.numberonebot.chairplay.config.SetupStore
+import io.github.numberonebot.chairplay.input.ControlAction
+import io.github.numberonebot.chairplay.input.ControlsConfig
+import io.github.numberonebot.chairplay.input.ControlsFile
+import io.github.numberonebot.chairplay.input.KeyBinding
+import org.lwjgl.glfw.GLFW.GLFW_KEY_F6
 import io.github.numberonebot.chairplay.session.BringUpStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -29,6 +35,10 @@ class UiControllerTest {
         launch: (List<String>) -> Unit = { launched += it },
         audio: () -> AudioDeviceNames = { AudioDeviceNames(listOf("Speakers (Realtek)"), listOf("Microphone Array")) },
         mainWindow: UiMainWindow? = null,
+        bindings: ControlsFile? = null,
+        checks: SetupChecks? = null,
+        elevate: (String) -> Boolean = { elevated += it; consent },
+        setupStore: SetupStore? = null,
     ): UiController {
         Files.writeString(file, settings)
         val values = SettingsFile(file).read()
@@ -46,7 +56,144 @@ class UiControllerTest {
             override fun reconnect() {
                 reconnects.incrementAndGet()
             }
-        }, logged::add, autoconnect, windows, controls, launch, audio, mainWindow)
+        }, logged::add, autoconnect, windows, controls, launch, audio, mainWindow, bindings, applied::add, checks, elevate, setupStore)
+    }
+
+    // Get started shows until the first CarPlay session, which marks the setup done for the starts after.
+    @Test
+    fun `the first session marks the setup done`() {
+        val store = SetupStore(dir)
+        val ui = controller(setupStore = store)
+        assertEquals(false, ui.state()["setupDone"])
+
+        ui.model.sessionActive()
+
+        assertEquals(true, ui.state()["setupDone"])
+        assertTrue(store.done())
+    }
+
+    @Test
+    fun `Forget this iPhone opens Get started again`() {
+        val store = SetupStore(dir)
+        store.save(true)
+        val ui = controller(setupStore = store)
+        val before = ui.version
+
+        assertTrue(ui.forget())
+
+        assertEquals(false, ui.state()["setupDone"])
+        assertFalse(store.done())
+        assertTrue(ui.version > before)
+        assertFalse(controller().forget())
+    }
+
+    @Test
+    fun `without a store the setup counts as done`() {
+        assertEquals(true, controller().state()["setupDone"])
+    }
+
+    /** The commands run with the administrator's consent, and whether it is given. */
+    private val elevated = mutableListOf<String>()
+    private var consent = true
+
+    // Add the rule: the netsh commands the page shows, run once with the administrator's consent; then read again.
+    @Test
+    fun `Add the rule runs the firewall commands elevated and reads the firewall again`() {
+        var firewall = FirewallStatus.MISSING
+        val checks = SetupChecks({ null }, { null }, { firewall }, FirewallStatus.MISSING, { true })
+        val ui = controller(checks = checks)
+        firewall = FirewallStatus.PRESENT
+        val before = ui.version
+
+        assertTrue(ui.addFirewallRule())
+
+        assertEquals(listOf("netsh advfirewall ..."), elevated)
+        assertEquals("present", (ui.state()["setup"] as Map<*, *>)["firewall"])
+        assertTrue(ui.version > before)
+    }
+
+    @Test
+    fun `Add the rule says when the consent was not given`() {
+        consent = false
+
+        assertFalse(controller().addFirewallRule())
+    }
+
+    /** The bindings each Keyboard page save put in force. */
+    private val applied = mutableListOf<ControlsConfig>()
+
+    private fun keyboard(): ControlsFile {
+        ControlsConfig.load(dir)
+        return ControlsFile(dir)
+    }
+
+    @Test
+    fun `the controls carry each action's keys, defaults, and fixed keys, and the wheel and repeat`() {
+        val controls = controller(bindings = keyboard()).controls()!!
+
+        val actions = controls["actions"] as Map<*, *>
+        assertEquals(
+            mapOf("keys" to listOf("Escape", "Backspace"), "defaults" to listOf("Escape", "Backspace"), "fixed" to listOf("Escape")),
+            actions["key.back"],
+        )
+        assertEquals(mapOf("keys" to listOf("Home"), "defaults" to listOf("Home"), "fixed" to emptyList<String>()), actions["key.home"])
+        assertEquals(ControlAction.entries.map { it.key }, actions.keys.toList())
+        assertEquals(
+            mapOf("wheel.action" to "knob", "wheel.invert" to "false", "wheel.notches.per.step" to "1", "key.repeat.every" to "3",
+                "key.zoom.repeat.every" to "10"),
+            controls["settings"],
+        )
+        assertNull(controller().controls())
+    }
+
+    // Changes apply at once: the app takes the new bindings, and the controls window's legends follow the version.
+    // Get started and the Connection page follow the PC as it changes: a phone paired, the PC on a network, a rule added.
+    @Test
+    fun `the setup in the state is the live checks'`() {
+        val checks = SetupChecks({ "Kate's iPhone" }, { "ChairPlay-5G" }, { FirewallStatus.PRESENT }, FirewallStatus.MISSING, { true })
+        val ui = controller(checks = checks)
+        val setup = { ui.state()["setup"] as Map<*, *> }
+        assertEquals(null, setup()["pairedIphone"])
+        assertEquals("missing", setup()["firewall"])
+
+        checks.check()
+
+        assertEquals("Kate's iPhone", setup()["pairedIphone"])
+        assertEquals("ChairPlay-5G", setup()["pcWifi"])
+    }
+
+    // The controls window's page shows each button's key while Alt is held, or always with ui.controls.keys.
+    @Test
+    fun `the state says whether the controls window shows its keys`() {
+        val ui = controller()
+        assertEquals(false, ui.state()["controlsKeys"])
+
+        ui.saveSettings(mapOf("ui.controls.keys" to "true"))
+
+        assertEquals(true, ui.state()["controlsKeys"])
+    }
+
+    @Test
+    fun `a binding saved is put in force at once`() {
+        val ui = controller(bindings = keyboard())
+        val before = ui.version
+
+        val result = ui.saveControls(mapOf("key.home" to "F6"))
+
+        assertEquals(emptyMap<String, String>(), result.errors)
+        assertEquals(ControlAction.HOME, applied.single().bindings[KeyBinding(GLFW_KEY_F6, 0)])
+        assertTrue(ui.version > before)
+        assertEquals(listOf("F6"), ((ui.controls()!!["actions"] as Map<*, *>)["key.home"] as Map<*, *>)["keys"])
+    }
+
+    @Test
+    fun `a binding the start would refuse is refused with its reason`() {
+        val ui = controller(bindings = keyboard())
+
+        val result = ui.saveControls(mapOf("key.home" to "Escape"))
+
+        assertTrue(result.errors["key.home"].orEmpty(), "Escape always goes back" in result.errors["key.home"].orEmpty())
+        assertEquals(emptyList<ControlsConfig>(), applied)
     }
 
     /** A main window at [width] x [height] that records the sizes it was asked for. */

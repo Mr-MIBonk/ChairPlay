@@ -1,8 +1,15 @@
 package io.github.numberonebot.chairplay.ui
 
+import io.github.numberonebot.chairplay.bluetooth.WindowsBluetooth
+import io.github.numberonebot.chairplay.bluetooth.pairedIphoneName
 import io.github.numberonebot.chairplay.config.DesktopConfig
+import io.github.numberonebot.chairplay.network.WlanApi
 import io.github.numberonebot.chairplay.config.SettingsFile
+import io.github.numberonebot.chairplay.config.SetupStore
+import io.github.numberonebot.chairplay.input.ControlsConfig
+import io.github.numberonebot.chairplay.input.ControlsFile
 import io.github.numberonebot.chairplay.session.BringUpStatus
+import io.github.numberonebot.chairplay.session.addFirewallRules
 import io.github.numberonebot.chairplay.session.firewallHint
 import java.io.Closeable
 import java.nio.file.Path
@@ -28,8 +35,20 @@ class ChairPlayUi(
     controls: UiControls? = null,
     /** The main window, for the CarPlay page's Actual size. */
     mainWindow: UiMainWindow? = null,
+    /** Puts the bindings the Keyboard page saved in force. */
+    onBindings: (ControlsConfig) -> Unit = {},
+    /** Reads the firewall again, quietly, for the live setup checks. */
+    readFirewall: () -> FirewallStatus = { firewall },
 ) : Closeable {
     val model = UiModel(config.wifi != null, config.autoconnect, config.autoshow)
+
+    private val checks = SetupChecks(
+        pairedIphone = { pairedIphoneName(WindowsBluetooth.pairedDevices(), config.iphoneAddress) },
+        pcWifi = { WlanApi.currentConnections().firstOrNull()?.ssid },
+        firewall = readFirewall,
+        startFirewall = firewall,
+        active = { model.state.showsUi },
+    )
 
     private val controller = UiController(
         SettingsFile(dir.resolve(DesktopConfig.SETTINGS_FILE)),
@@ -48,7 +67,14 @@ class ChairPlayUi(
         windows,
         controls,
         mainWindow = mainWindow,
+        bindings = ControlsFile(dir),
+        onBindings = onBindings,
+        checks = checks,
+        elevate = ::addFirewallRules,
+        setupStore = SetupStore(dir),
     )
+
+    private val checking = checks.start { controller.setupChanged() }
 
     /** Tells the page that a window was shown, hidden, or resized. */
     fun windowsChanged() = controller.windowsChanged()
@@ -118,7 +144,10 @@ class ChairPlayUi(
         return controller.embedded
     }
 
-    override fun close() = server.close()
+    override fun close() {
+        checking.close()
+        server.close()
+    }
 
     private companion object {
         /** The built page, and the window's own icon as the page's. */

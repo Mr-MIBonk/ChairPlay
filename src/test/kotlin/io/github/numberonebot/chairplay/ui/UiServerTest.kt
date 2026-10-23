@@ -81,6 +81,23 @@ class UiServerTest {
     }
 
     @Test
+    fun `the key bindings are read and saved, or refused with the reasons`() {
+        assertEquals(mapOf("actions" to emptyMap<String, Any>()), Json.parse(get("/api/controls").body()))
+
+        val saved = post("/api/controls", """{"changes":{"key.home":"F6"}}""")
+        assertEquals(200, saved.statusCode())
+        assertEquals(mapOf("key.home" to "F6"), api.savedControls)
+
+        val refused = post("/api/controls", """{"changes":{"key.home":"Escape"}}""")
+        assertEquals(400, refused.statusCode())
+        assertEquals(mapOf("errors" to mapOf("key.home" to "Escape always goes back")), Json.parse(refused.body()))
+
+        assertEquals(400, post("/api/controls", """{"changes":{"key.home":1}}""").statusCode())
+        api.hasControls = false
+        assertEquals(404, get("/api/controls").statusCode())
+    }
+
+    @Test
     fun `malformed requests are refused`() {
         assertEquals(400, post("/api/settings", "{").statusCode())
         assertEquals(400, post("/api/settings", """{"changes":{"a":1}}""").statusCode())
@@ -123,6 +140,16 @@ class UiServerTest {
         assertEquals(404, post("/api/open", """{"place":"cmd.exe"}""").statusCode())
         assertEquals(400, post("/api/open", "{}").statusCode())
         assertEquals(listOf("open bluetooth", "open cmd.exe"), api.calls.drop(11))
+
+        // Forget this iPhone.
+        assertEquals(200, post("/api/forget", "{}").statusCode())
+        api.calls.removeAll { it == "forget" }
+
+        // Add the rule, with the consent given, then refused.
+        assertEquals(200, post("/api/firewall-rule", "{}").statusCode())
+        api.consent = false
+        assertEquals(409, post("/api/firewall-rule", "{}").statusCode())
+        api.calls.removeAll { it == "firewall rule" }
 
         // The CarPlay page's Actual size.
         assertEquals(200, post("/api/window-size", """{"actual":true}""").statusCode())
@@ -215,6 +242,23 @@ class UiServerTest {
         override fun open(place: String): Boolean {
             calls += "open $place"
             return place == "bluetooth"
+        }
+        override fun forget(): Boolean {
+            calls += "forget"
+            return true
+        }
+        var consent = true
+        override fun addFirewallRule(): Boolean {
+            calls += "firewall rule"
+            return consent
+        }
+        var hasControls = true
+        var savedControls: Map<String, String>? = null
+        override fun controls(): Map<String, Any?>? = if (hasControls) mapOf("actions" to emptyMap<String, Any>()) else null
+        override fun saveControls(changes: Map<String, String>): SaveResult {
+            if (changes["key.home"] == "Escape") return SaveResult(mapOf("key.home" to "Escape always goes back"), emptyMap())
+            savedControls = changes
+            return SaveResult(emptyMap(), emptyMap())
         }
         var mainWindow = true
         override fun actualSize(): Boolean {

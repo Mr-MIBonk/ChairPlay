@@ -13,6 +13,31 @@ class KeyControlsTest {
     private fun press(key: Int, mods: Int = 0) = controls.key(key, GLFW_PRESS, mods)
     private fun release(key: Int) = controls.key(key, GLFW_RELEASE, 0)
 
+    // The Keyboard page's changes apply at once: the next press reads the bindings the save put in place.
+    @Test
+    fun `a binding changed while the app runs applies at the next press`() {
+        var config = ControlsConfig.DEFAULT
+        val live = KeyControls { config }
+        assertNull(live.key(GLFW_KEY_F6, GLFW_PRESS, 0))
+
+        config = ControlsConfig.parse("key.home=F6\n")
+
+        assertEquals(Control.Knob(AirPlayKnobState(home = true), false), live.key(GLFW_KEY_F6, GLFW_PRESS, 0))
+        assertNull("Home is no longer bound", live.key(GLFW_KEY_HOME, GLFW_PRESS, 0))
+    }
+
+    // A key held as its binding goes must still let go of what it pressed, or the button would stay held.
+    @Test
+    fun `a key held while its binding changes still releases`() {
+        var config = ControlsConfig.DEFAULT
+        val live = KeyControls { config }
+        assertEquals(Control.Knob(AirPlayKnobState(home = true), false), live.key(GLFW_KEY_HOME, GLFW_PRESS, 0))
+
+        config = ControlsConfig.parse("key.home=F6\n")
+
+        assertEquals(Control.Knob(AirPlayKnobState(), false), live.key(GLFW_KEY_HOME, GLFW_RELEASE, 0))
+    }
+
     // The knob's X/Y axes nudge focus in a direction, as a car's knob tilts; release centres them.
     @Test
     fun `arrows nudge the knob and release centres it`() {

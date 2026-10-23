@@ -38,10 +38,15 @@ sealed interface Control {
  * (controls.properties). Knob tilts (its X/Y axes nudge focus in a direction) and the select, back and home
  * buttons hold until the key is released, so CarPlay can tell a long press; knob turns step at once, a held
  * key stepping on every [ControlsConfig.repeatEvery]-th repeat as upstream's CarPlayRemoteKeys does.
- * A key is released by its code alone, so letting go of a modifier first cannot leave a button held.
+ * A key is released by its code alone, so letting go of a modifier first cannot leave a button held, nor can a
+ * binding changed while the key is down. [source] gives the bindings in force, which the Keyboard page's saves replace.
  * Called on the GL thread only.
  */
-class KeyControls(private val config: ControlsConfig = ControlsConfig.DEFAULT) {
+class KeyControls(private val source: () -> ControlsConfig) {
+    constructor(config: ControlsConfig = ControlsConfig.DEFAULT) : this({ config })
+
+    private val config get() = source()
+
     /** The action each held key started, and how many repeats it has had. */
     private val held = HashMap<Int, ControlAction>()
     private val repeats = HashMap<Int, Int>()

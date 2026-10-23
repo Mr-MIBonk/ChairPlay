@@ -20,6 +20,49 @@ class WindowPlacementTest {
         assertEquals(placement, store.load(configured))
     }
 
+    // Get started shows until an iPhone has connected once; Forget this iPhone brings it back.
+    @Test
+    fun `setup is done once remembered so, and not before`() {
+        val dir = Files.createTempDirectory("chairplay-setup")
+        val store = SetupStore(dir)
+        assertFalse(store.done())
+
+        store.save(true)
+        assertTrue(store.done())
+        store.save(false)
+        assertFalse(store.done())
+    }
+
+    // An install that connected before this mark existed has its pairing records: its setup is done.
+    @Test
+    fun `an install with pairing records is set up, until said otherwise`() {
+        val dir = Files.createTempDirectory("chairplay-setup")
+        Files.createDirectories(dir.resolve("pairings"))
+        assertFalse(SetupStore(dir).done())
+        Files.writeString(dir.resolve("pairings").resolve("iphone.properties"), "x")
+
+        assertTrue(SetupStore(dir).done())
+        SetupStore(dir).save(false)
+        assertFalse(SetupStore(dir).done())
+    }
+
+    // Forget this iPhone: ChairPlay's pairing records go, and Get started opens again; Windows' pairing stays.
+    @Test
+    fun `forgetting deletes the pairing records and undoes the setup`() {
+        val dir = Files.createTempDirectory("chairplay-setup")
+        val pairings = Files.createDirectories(dir.resolve("pairings"))
+        Files.writeString(pairings.resolve("iphone.properties"), "x")
+        Files.writeString(pairings.resolve("other.properties"), "y")
+        val store = SetupStore(dir)
+        store.save(true)
+
+        store.forget()
+
+        assertFalse(store.done())
+        assertTrue(Files.isDirectory(pairings))
+        assertEquals(0L, Files.list(pairings).use { it.count() })
+    }
+
     @Test
     fun `nothing is remembered before the first close`() {
         assertNull(WindowPlacementStore(Files.createTempDirectory("chairplay-window")).load(configured))

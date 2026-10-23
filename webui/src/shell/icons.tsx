@@ -151,6 +151,16 @@ export function EyeIcon() {
   )
 }
 
+/** A small padlock after a key that cannot be moved or removed. */
+export function LockIcon() {
+  return (
+    <svg viewBox="0 0 10 10" aria-hidden="true">
+      <rect x="1.5" y="4.5" width="7" height="5" rx="1" fill="currentColor" />
+      <path d="M3 4.5V3a2 2 0 0 1 4 0v1.5" fill="none" stroke="currentColor" strokeWidth="1.2" />
+    </svg>
+  )
+}
+
 /** Windows' shield, on a button that asks for the administrator's consent: blue and yellow quarters. */
 export function ShieldIcon() {
   return (

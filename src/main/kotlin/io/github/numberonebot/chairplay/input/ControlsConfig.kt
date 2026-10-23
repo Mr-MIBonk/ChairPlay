@@ -1,6 +1,7 @@
 package io.github.numberonebot.chairplay.input
 
 import org.lwjgl.glfw.GLFW.*
+import java.io.StringReader
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Properties
@@ -60,6 +61,12 @@ class ControlsConfig(
     /** The first key bound to [action], as the file names it ("Escape", "Ctrl+Up"), for a button's label; null for none. */
     fun firstKey(action: ControlAction): String? = keyNames[action]?.firstOrNull()
 
+    /** Every key bound to [action], as the file names them, in its order; the fixed one first when the file lacks it. */
+    fun keys(action: ControlAction): List<String> = keyNames[action].orEmpty()
+
+    /** The keys [action] has whatever the file says: Escape for Back, Enter for Select. */
+    fun fixedKeys(action: ControlAction): List<String> = FIXED.filter { it.action == action }.map { it.name }
+
     fun summary(): String =
         "controls: ${bindings.values.toSet().size} actions, wheel=${if (wheel == WheelAction.NONE) "none" else "knob"}"
 
@@ -74,6 +81,14 @@ class ControlsConfig(
         private val MODIFIERS = mapOf("shift" to GLFW_MOD_SHIFT, "ctrl" to GLFW_MOD_CONTROL, "alt" to GLFW_MOD_ALT)
         internal const val MOD_MASK = GLFW_MOD_SHIFT or GLFW_MOD_CONTROL or GLFW_MOD_ALT
 
+        /** A key an action always has, so the app never loses its way back or its select. */
+        private class Fixed(val binding: KeyBinding, val action: ControlAction, val name: String, val reason: String)
+
+        private val FIXED = listOf(
+            Fixed(KeyBinding(GLFW_KEY_ESCAPE, 0), ControlAction.BACK, "Escape", "Escape always goes back"),
+            Fixed(KeyBinding(GLFW_KEY_ENTER, 0), ControlAction.SELECT, "Enter", "Enter always selects"),
+        )
+
         // Lazy: parse needs KEY_NAMES, which is initialised below.
         val DEFAULT: ControlsConfig by lazy { parse(Properties()) }
 
@@ -86,6 +101,9 @@ class ControlsConfig(
             }
             return parse(Properties().apply { file.reader().use(::load) })
         }
+
+        /** [FILE]'s [text] as the start reads it; a mistake throws with the setting named. */
+        internal fun parse(text: String): ControlsConfig = parse(Properties().apply { load(StringReader(text)) })
 
         private fun parse(settings: Properties): ControlsConfig {
             val known = ControlAction.entries.map { it.key }.toSet() + setOf(REPEAT, ZOOM_REPEAT, WHEEL, INVERT, NOTCHES)
@@ -103,11 +121,20 @@ class ControlsConfig(
                     val binding = parseBinding(name) ?: throw IllegalArgumentException(
                         "$FILE: ${action.key} = $value: \"$name\" is not a key; use a name such as F5, Ctrl+S or #290",
                     )
+                    FIXED.firstOrNull { it.binding == binding && it.action != action }?.let { fixed ->
+                        throw IllegalArgumentException("$FILE: ${action.key} = $value: ${fixed.reason}; take $name out of ${action.key}")
+                    }
                     bindings[binding]?.let { other ->
                         throw IllegalArgumentException("$FILE: $name is bound to both ${other.key} (as ${names[binding]}) and ${action.key}")
                     }
                     bindings[binding] = action
                     names[binding] = name
+                }
+            }
+            // A fixed key the file leaves out comes first, as the one the controls window's legends show.
+            for (fixed in FIXED) {
+                if (bindings.putIfAbsent(fixed.binding, fixed.action) == null) {
+                    keyNames[fixed.action] = listOf(fixed.name) + keyNames[fixed.action].orEmpty()
                 }
             }
             return ControlsConfig(

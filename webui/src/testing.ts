@@ -1,5 +1,7 @@
 // Fakes for the tests: an app state and a backend that records what the screens ask for.
-import type { AltscreenContent, AppState, Backend, SaveOutcome, Screen, SettingsData, WindowName, WindowsPlace } from './api'
+import type {
+  AltscreenContent, AppState, Backend, ControlsData, SaveOutcome, Screen, SettingsData, WindowName, WindowsPlace,
+} from './api'
 
 export function appState(overrides: Partial<AppState> = {}): AppState {
   return {
@@ -16,6 +18,8 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     restartPending: [],
     windows: { altscreen: { available: true, visible: true }, controls: { available: true, visible: true } },
     mainWindow: null,
+    controlsKeys: false,
+    setupDone: true,
     controls: {
       keys: {
         'knob.left': 'Left', 'knob.right': 'Right', 'knob.up': 'Up', 'knob.down': 'Down', 'knob.next': 'Tab',
@@ -33,9 +37,39 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
       mfiPresent: true,
       firewall: 'present',
       firewallCommands: 'netsh advfirewall firewall add rule name="ChairPlay CarPlay inbound"',
+      pairedIphone: "Kate's iPhone",
+      pcWifi: 'Home',
       settingsFile: 'C:\\ChairPlay\\settings.properties',
     },
     ...overrides,
+  }
+}
+
+/** ControlAction's settings and default keys, in its order. */
+const DEFAULT_KEYS: [string, string[]][] = [
+  ['key.knob.left', ['Left']], ['key.knob.right', ['Right']], ['key.knob.up', ['Up']], ['key.knob.down', ['Down']],
+  ['key.knob.next', ['Tab']], ['key.knob.previous', ['Shift+Tab']], ['key.select', ['Enter', 'KP_Enter', 'Space']],
+  ['key.back', ['Escape', 'Backspace']], ['key.home', ['Home']], ['key.media.previous', ['F7']],
+  ['key.media.playpause', ['F8']], ['key.media.next', ['F9']], ['key.call.answer', ['F3']], ['key.call.end', ['F4']],
+  ['key.siri', ['S']], ['key.reconnect', ['Ctrl+R']], ['key.screenshot', ['F12']], ['key.altscreen.content', ['F11']],
+  ['key.altscreen.zoom.in', ['Equal', 'Shift+Equal', 'KP_Add']], ['key.altscreen.zoom.out', ['Minus', 'KP_Subtract']],
+  ['key.altscreen.cards', ['Shift+F11']], ['key.volume.up', ['Ctrl+Up']], ['key.volume.down', ['Ctrl+Down']],
+  ['key.volume.mute', ['Ctrl+M']],
+]
+
+/** The bindings as a fresh controls.properties has them. */
+export function controlsData(): ControlsData {
+  return {
+    actions: Object.fromEntries(
+      DEFAULT_KEYS.map(([key, keys]) => [
+        key,
+        { keys: [...keys], defaults: [...keys], fixed: key === 'key.back' ? ['Escape'] : key === 'key.select' ? ['Enter'] : [] },
+      ]),
+    ),
+    settings: {
+      'wheel.action': 'knob', 'wheel.invert': 'false', 'wheel.notches.per.step': '1', 'key.repeat.every': '3',
+      'key.zoom.repeat.every': '10',
+    },
   }
 }
 
@@ -132,10 +166,58 @@ export class FakeBackend implements Backend {
     return true
   }
 
+  forgets = 0
+
+  async forget() {
+    this.forgets++
+    return true
+  }
+
+  firewallRules = 0
+  consent = true
+
+  async addFirewallRule() {
+    this.firewallRules++
+    return this.consent
+  }
+
   actualSizes = 0
 
   async actualSize() {
     this.actualSizes++
     return true
+  }
+
+  bindings: ControlsData | null = controlsData()
+  controlsSaved: Record<string, string>[] = []
+  nextControlsOutcome: SaveOutcome | null = null
+
+  async keyBindings() {
+    return this.bindings && structuredClone(this.bindings)
+  }
+
+  /** Saves as the app does: a key taken from another action leaves it. */
+  async saveKeyBindings(changes: Record<string, string>): Promise<SaveOutcome> {
+    this.controlsSaved.push(changes)
+    const outcome = this.nextControlsOutcome
+    this.nextControlsOutcome = null
+    if (outcome) return outcome
+    const data = this.bindings!
+    const applies: Record<string, 'now'> = {}
+    for (const [key, value] of Object.entries(changes)) {
+      applies[key] = 'now'
+      if (!data.actions[key]) {
+        data.settings[key] = value
+        continue
+      }
+      const keys = value.split(',').map((name) => name.trim()).filter(Boolean)
+      data.actions[key].keys = keys
+      for (const [other, action] of Object.entries(data.actions)) {
+        if (other === key || !action.keys.some((name) => keys.includes(name))) continue
+        action.keys = action.keys.filter((name) => !keys.includes(name))
+        applies[other] = 'now'
+      }
+    }
+    return { ok: true, applies }
   }
 }

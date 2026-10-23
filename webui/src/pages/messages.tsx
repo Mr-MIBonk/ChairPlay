@@ -7,7 +7,7 @@ import { ShieldIcon } from '../shell/icons'
 import { errorKind, type ErrorKind } from '../status'
 
 /** A path or command to read or copy, and its button beside it. */
-function CodeLine({ text, children }: { text: string; children: ReactNode }) {
+export function CodeLine({ text, children }: { text: string; children: ReactNode }) {
   return (
     <>
       <div className="code" title={text}>
@@ -18,7 +18,7 @@ function CodeLine({ text, children }: { text: string; children: ReactNode }) {
   )
 }
 
-function CopyButton({ text }: { text: string }) {
+export function CopyButton({ text }: { text: string }) {
   const [copied, setCopied] = useState(false)
   return (
     <button
@@ -35,8 +35,21 @@ function CopyButton({ text }: { text: string }) {
   )
 }
 
+/** The way to Get started from a message about pairing: a link, as the only thing in a message that is not a button. */
+function GuideLink({ onShowGuide }: { onShowGuide?: () => void }) {
+  if (!onShowGuide) return null
+  return (
+    <span>
+      or go through{' '}
+      <button type="button" className="link" title="Go through the setup steps again" onClick={onShowGuide}>
+        Get started
+      </button>
+    </span>
+  )
+}
+
 /** The bring-up's last error, until a session is active; the raw message is its tooltip. */
-export function ErrorMessage({ state, backend }: { state: AppState; backend: Backend }) {
+export function ErrorMessage({ state, backend, onShowGuide }: { state: AppState; backend: Backend; onShowGuide?: () => void }) {
   const { error, setup } = state
   if (!error || state.phase === 'active') return null
   const kind = errorKind(error.message)
@@ -55,6 +68,7 @@ export function ErrorMessage({ state, backend }: { state: AppState; backend: Bac
         <button type="button" className="btn small" title="Open Bluetooth settings" onClick={() => backend.open('bluetooth')}>
           Open Bluetooth settings
         </button>
+        <GuideLink onShowGuide={onShowGuide} />
       </div>,
     ],
     wifi: [
@@ -83,7 +97,7 @@ export function ErrorMessage({ state, backend }: { state: AppState; backend: Bac
   )
 }
 
-function OpenFolder({ backend }: { backend: Backend }) {
+export function OpenFolder({ backend }: { backend: Backend }) {
   return (
     <button type="button" className="btn small" title="Open the folder in File Explorer" onClick={() => backend.open('mfi-folder')}>
       Open
@@ -91,11 +105,51 @@ function OpenFolder({ backend }: { backend: Backend }) {
   )
 }
 
+/**
+ * Add the rule, with Windows' shield as it asks for the administrator's consent; the copied command is the other way.
+ * The message goes once the live checks find the rule; a refusal says so.
+ */
+export function AddRule({ backend }: { backend: Backend }) {
+  const [refused, setRefused] = useState(false)
+  return (
+    <div className="acts">
+      <button
+        type="button"
+        className="btn small"
+        title="Add an inbound rule for ChairPlay.exe; Windows asks for your consent"
+        onClick={async () => setRefused(!(await backend.addFirewallRule()))}
+      >
+        <ShieldIcon />
+        Add the rule
+      </button>
+      {refused ? (
+        <span className="errtext">The rule wasn't added. Run the command in Terminal (Admin) instead.</span>
+      ) : (
+        <span>or run this in Terminal (Admin):</span>
+      )}
+    </div>
+  )
+}
+
 /** The setup problems the app finds: the MFi files, and the firewall; each goes once it is fixed. */
-export function SetupMessages({ state, backend }: { state: AppState; backend: Backend }) {
+export function SetupMessages({ state, backend, onShowGuide }: { state: AppState; backend: Backend; onShowGuide?: () => void }) {
   const { setup } = state
   return (
     <>
+      {!setup.pairedIphone && (
+        <Message
+          tone="warn"
+          head="No iPhone is paired with this PC."
+          text="On the iPhone, open Settings › Bluetooth. On this PC, open Settings › Bluetooth & devices › Add device › Bluetooth, choose the iPhone, and confirm the code on both."
+        >
+          <div className="acts">
+            <button type="button" className="btn small" title="Open Bluetooth settings" onClick={() => backend.open('bluetooth')}>
+              Open Bluetooth settings
+            </button>
+            <GuideLink onShowGuide={onShowGuide} />
+          </div>
+        </Message>
+      )}
       {!setup.mfiPresent && (
         <Message tone="warn" head="MFi files not found." text="Put identity.pk8 and certificate.p7b in this folder:">
           <CodeLine text={setup.mfiFolder}>
@@ -104,11 +158,8 @@ export function SetupMessages({ state, backend }: { state: AppState; backend: Ba
         </Message>
       )}
       {setup.firewall === 'missing' && (
-        <Message
-          tone="warn"
-          head="The firewall blocks the iPhone."
-          text="Windows Firewall drops the iPhone's connections until ChairPlay is let in. Run this in Terminal (Admin):"
-        >
+        <Message tone="warn" head="The firewall blocks the iPhone." text="Windows Firewall drops the iPhone's connections until ChairPlay is let in.">
+          <AddRule backend={backend} />
           <CodeLine text={setup.firewallCommands}>
             <CopyButton text={setup.firewallCommands} />
           </CodeLine>

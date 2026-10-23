@@ -48,11 +48,19 @@ export interface AppState {
   mainWindow: { width: number; height: number; pictureWidth: number; pictureHeight: number } | null
   /** Null when the app has no controls window. */
   controls: ControlsState | null
+  /** The controls window shows each button's key always, not only while Alt is held (ui.controls.keys). */
+  controlsKeys: boolean
+  /** Get started is done: an iPhone has connected since the last Forget this iPhone. */
+  setupDone: boolean
   setup: {
     mfiFolder: string
     mfiPresent: boolean
     firewall: Firewall
     firewallCommands: string
+    /** The paired iPhone's name, as Windows lists it; null when none is paired. Read again every few seconds. */
+    pairedIphone: string | null
+    /** The Wi-Fi network this PC is on; null when it is on none. */
+    pcWifi: string | null
     settingsFile: string
   }
 }
@@ -65,6 +73,20 @@ export interface SettingsData {
   display: { width: number; height: number }
   /** The sound devices Java Sound lists, by name; empty when it fails. */
   audio: { outputs: string[]; inputs: string[] }
+}
+
+/** One action of controls.properties, by its setting ("key.home"): its keys as the file names them, in order. */
+export interface ActionKeys {
+  keys: string[]
+  defaults: string[]
+  /** The keys it has whatever the file says: Escape for Back, Enter for Select. */
+  fixed: string[]
+}
+
+/** The Keyboard page's data (GET /api/controls): the actions in the file's order, then the wheel and repeat. */
+export interface ControlsData {
+  actions: Record<string, ActionKeys>
+  settings: Record<string, string>
 }
 
 export type SaveOutcome =
@@ -91,6 +113,14 @@ export interface Backend {
   open(place: WindowsPlace): Promise<boolean>
   /** Resizes the main window to one screen pixel per picture pixel; false without a main window. */
   actualSize(): Promise<boolean>
+  /** Adds the firewall rule with the consent Windows asks for; false when it was not given or the rule failed. */
+  addFirewallRule(): Promise<boolean>
+  /** Forget this iPhone: ChairPlay's pairing records go, and Get started opens. */
+  forget(): Promise<boolean>
+  /** The key bindings; null when the app has none to change. */
+  keyBindings(): Promise<ControlsData | null>
+  /** Saves controls.properties changes; the actions a key moved from are among those saved. */
+  saveKeyBindings(changes: Record<string, string>): Promise<SaveOutcome>
 }
 
 export class ApiError extends Error {}
@@ -121,7 +151,28 @@ export class Api implements Backend {
   }
 
   async save(changes: Record<string, string>): Promise<SaveOutcome> {
-    const { status, data } = await this.request('POST', 'settings', { changes })
+    return this.saveTo('settings', changes)
+  }
+
+  async forget(): Promise<boolean> {
+    return (await this.request('POST', 'forget', {})).status === 200
+  }
+
+  async addFirewallRule(): Promise<boolean> {
+    return (await this.request('POST', 'firewall-rule', {})).status === 200
+  }
+
+  async keyBindings(): Promise<ControlsData | null> {
+    const { status, data } = await this.request('GET', 'controls')
+    return status === 200 ? (data as ControlsData) : null
+  }
+
+  async saveKeyBindings(changes: Record<string, string>): Promise<SaveOutcome> {
+    return this.saveTo('controls', changes)
+  }
+
+  private async saveTo(path: 'settings' | 'controls', changes: Record<string, string>): Promise<SaveOutcome> {
+    const { status, data } = await this.request('POST', path, { changes })
     if (status === 200) return { ok: true, applies: data.applies ?? {} }
     if (status === 400 && data.errors) return { ok: false, errors: data.errors }
     throw new ApiError(data.error ?? `saving failed (${status})`)

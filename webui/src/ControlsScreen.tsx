@@ -15,6 +15,8 @@ const KEY_LABELS: Record<string, string> = {
   escape: 'Esc', equal: '=', minus: '−', kp_add: 'Num +', kp_subtract: 'Num −', kp_enter: 'Num Enter',
   kp_multiply: 'Num *', kp_divide: 'Num /', kp_decimal: 'Num .', pageup: 'Page Up', pagedown: 'Page Down',
   backspace: 'Backspace', capslock: 'Caps Lock', printscreen: 'Print Screen', ctrl: 'Ctrl', shift: 'Shift', alt: 'Alt',
+  scrolllock: 'Scroll Lock', numlock: 'Num Lock', leftbracket: '[', rightbracket: ']', backslash: '\\', semicolon: ';',
+  apostrophe: "'", comma: ',', period: '.', slash: '/', graveaccent: '`', kp_equal: 'Num =',
 }
 
 export function keyLabel(name: string): string {
@@ -138,7 +140,7 @@ export function ControlsScreen({ state, backend }: { state: AppState; backend: B
     }
   }, [])
 
-  const shared: Shared = { backend, keys: controls?.keys ?? {}, showKeys: Boolean(controls?.altHeld || altHere) }
+  const shared: Shared = { backend, keys: controls?.keys ?? {}, showKeys: Boolean(controls?.altHeld || altHere || state.controlsKeys) }
   const altscreen = controls?.altscreen ?? null
   const altOn = altscreen !== null && state.windows.altscreen.available && state.canShowCarPlay
   // Disabled, the modes show none chosen.

@@ -13,7 +13,8 @@ export const SECURITY_CHOICES: readonly Choice[] = [
 ]
 
 /** What is wrong, if anything; then the Wi-Fi the iPhone joins, and how the iPhone is called and shown. */
-export function ConnectionPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
+export function ConnectionPage(props: { state: AppState; backend: Backend; settings: Settings; onShowGuide?: () => void }) {
+  const { state, backend, settings } = props
   const { value, error, save } = settings
   const commit = (key: string) => (text: string) => save({ [key]: text })
   // The page says what the app says: a mark beside each setting it applies only after a restart.
@@ -23,8 +24,8 @@ export function ConnectionPage({ state, backend, settings }: { state: AppState; 
   )
   return (
     <>
-      <ErrorMessage state={state} backend={backend} />
-      <SetupMessages state={state} backend={backend} />
+      <ErrorMessage state={state} backend={backend} onShowGuide={props.onShowGuide} />
+      <SetupMessages state={state} backend={backend} onShowGuide={props.onShowGuide} />
       <Group title="Wi-Fi" note="Applies at the next connection" />
       <Row label="Network">
         {field('wifi.ssid', 'Network', 'Network name')}
@@ -46,6 +47,23 @@ export function ConnectionPage({ state, backend, settings }: { state: AppState; 
         />
       </Row>
       <Group title="iPhone" />
+      {state.setup.pairedIphone ? (
+        <Row label="Paired iPhone">
+          <span>{state.setup.pairedIphone}</span>
+          <button
+            type="button"
+            className="btn small forget"
+            title="Forget this iPhone: it pairs again at its next connection after a restart, and Get started opens"
+            onClick={() => backend.forget()}
+          >
+            Forget
+          </button>
+        </Row>
+      ) : (
+        <Row label="Paired iPhone" title="The message above says how to pair one">
+          <span className="hint">None</span>
+        </Row>
+      )}
       <Row label="Name on iPhone" title="The name the iPhone shows for this car in CarPlay settings and in its Wi-Fi list">
         {field('device.name', 'Name on iPhone', 'ChairPlay')}
         {later('device.name')}
@@ -75,6 +93,13 @@ export function ConnectionPage({ state, backend, settings }: { state: AppState; 
         />
         {later('ui.autoshow')}
       </Row>
+      {props.onShowGuide && (
+        <Row label="Get started">
+          <button type="button" className="btn small" title="Go through the setup steps again" onClick={props.onShowGuide}>
+            Show again
+          </button>
+        </Row>
+      )}
     </>
   )
 }

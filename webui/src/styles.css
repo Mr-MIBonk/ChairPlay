@@ -908,7 +908,8 @@ html:has(.shell) {
   padding: 0 9px;
 }
 
-.shell .btn.actual {
+.shell .btn.actual,
+.shell .btn.forget {
   margin-left: 8px;
 }
 
@@ -1014,6 +1015,277 @@ html:has(.shell) {
 
 .shell .trademarks {
   margin-top: 8px;
+}
+
+/*
+ * Get started: the main window before the first connection. One column of steps the app checks on its own; a step
+ * done folds to its line with a tick, the open one shows what to do.
+ */
+.shell .body.setup-body {
+  display: block;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.shell .setup {
+  position: relative;
+  min-height: 100%;
+  padding: 14px 24px 34px;
+}
+
+.shell .setup h2 {
+  margin: 0;
+  color: #fff;
+  font: 600 18px/24px var(--wide);
+}
+
+.shell .setup .sub {
+  margin: 2px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.shell .step {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.shell .step .mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  color: var(--muted);
+  font: 600 13px var(--wide);
+}
+
+.shell .step .mark svg {
+  width: 13px;
+  height: 13px;
+}
+
+.shell .step.done .mark {
+  border-color: transparent;
+  background: rgba(48, 209, 88, 0.18);
+  color: var(--green);
+}
+
+.shell .step.now .mark {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+/* You're all set: its tick filled green */
+.shell .step.all-set .mark {
+  background: var(--green);
+  color: #000;
+}
+
+/* A step's title heads it, in the accent font as the settings' group headers are; its note stays in Segoe UI */
+.shell .step .st {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+  color: var(--text);
+  font: 600 13px var(--wide);
+}
+
+.shell .step.todo .st {
+  color: var(--dim);
+}
+
+.shell .step .st .note {
+  margin-left: auto;
+  color: var(--muted);
+  font: 400 12px var(--ui);
+}
+
+.shell .step.done .st .note {
+  color: var(--green);
+}
+
+.shell .step .bd {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 6px;
+  color: var(--muted);
+}
+
+.shell .step .acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shell .step .acts .code {
+  flex: 1;
+  min-width: 0;
+}
+
+.shell .step .btn {
+  height: 24px;
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+/* Fields in a step: a narrow label column against the step's own text, not the settings' wide one */
+.shell .step .row {
+  grid-template-columns: 72px minmax(0, 1fr);
+  min-height: 30px;
+}
+
+.shell .step .row > label {
+  padding-right: 0;
+  text-align: left;
+}
+
+/* A button named in a step's text: only whiter than the text round it; the button itself is lit in the toolbar */
+.shell .step .ref {
+  color: #fff;
+}
+
+/* Waiting for something the app checks by itself: a ring that turns */
+.shell .waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.shell .waiting::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--edge);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: shell-turn 1.2s linear infinite;
+}
+
+@keyframes shell-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.shell .setup .skip {
+  position: absolute;
+  right: 24px;
+  bottom: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.3);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.shell .setup .skip:hover {
+  color: var(--text);
+}
+
+/* Key bindings: keycaps in a row per action; + shows on the hovered row only */
+.shell .keys-row {
+  min-height: 32px;
+}
+
+.shell .keys-row .ctl {
+  gap: 4px;
+}
+
+.shell .keys-row:hover,
+.shell .keys-row:focus-within {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.shell .kbd {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--edge);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background-color: var(--raised);
+  color: var(--text);
+  font: 12px var(--ui);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.shell button.kbd:hover {
+  background-image: var(--lighten);
+}
+
+.shell .kbd.wait {
+  border-color: var(--accent);
+  background-color: var(--accent-bg);
+  color: var(--accent);
+}
+
+/* A fixed key: no hover, a small lock after its name */
+.shell .kbd.lock {
+  gap: 4px;
+  border-bottom-width: 1px;
+  background-color: transparent;
+  color: var(--muted);
+}
+
+.shell .kbd.lock svg {
+  width: 9px;
+  height: 9px;
+  opacity: 0.7;
+}
+
+.shell .add {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  border: 1px dashed var(--edge);
+  border-radius: 2px;
+  background: none;
+  color: var(--muted);
+  cursor: default;
+}
+
+.shell .keys-row:hover .add,
+.shell .keys-row:focus-within .add {
+  display: inline-flex;
+}
+
+.shell .add:hover {
+  border-color: #5a5a62;
+  color: var(--text);
+}
+
+.shell .off {
+  color: var(--dim);
+}
+
+.shell .reset {
+  margin-left: 6px;
+}
+
+.shell .gap {
+  width: 6px;
 }
 
 /* Safe-area cross: four numbers round a little frame */
@@ -1266,7 +1538,17 @@ html:has(.shell) {
 .shell .alert.bad .btn { border-color: #7a3430; background-color: #552220; }
 .shell .alert.warn .btn { border-color: #7a5b22; background-color: #553f17; }
 
+/* A link: a button that reads as one */
+.shell .link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  cursor: pointer;
+}
+
 /* A link in a message: in its text colour, underlined, so it sits in the tinted block */
+.shell .alert .link,
 .shell .alert a {
   color: var(--text);
   text-decoration: underline;
@@ -1274,6 +1556,7 @@ html:has(.shell) {
   text-underline-offset: 2px;
 }
 
+.shell .alert .link:hover,
 .shell .alert a:hover {
   text-decoration-color: var(--text);
 }

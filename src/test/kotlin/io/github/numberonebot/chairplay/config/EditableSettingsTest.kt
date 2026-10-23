@@ -131,9 +131,16 @@ class EditableSettingsTest {
 
     @Test
     fun `switches take true or false`() {
-        for (key in listOf("ui.autoconnect", "ui.autoshow", "altscreen.enabled")) {
+        for (key in listOf("ui.autoconnect", "ui.autoshow", "altscreen.enabled", "ui.controls.keys")) {
             assertTrue(key, "true or false" in errors(key to "yes").getValue(key))
         }
+    }
+
+    // The Keyboard page's Show keys on the buttons: the controls window's page follows it at once.
+    @Test
+    fun `showing the keys on the controls window's buttons applies at once`() {
+        assertTrue(errors("ui.controls.keys" to "true").isEmpty())
+        assertEquals(Applies.NOW, EditableSettings.applies("ui.controls.keys"))
     }
 
     @Test

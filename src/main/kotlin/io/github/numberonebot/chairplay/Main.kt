@@ -43,6 +43,7 @@ import io.github.numberonebot.chairplay.hud.hudState
 import io.github.numberonebot.chairplay.media.saveScreenshot
 import io.github.numberonebot.chairplay.media.windowsAppsDark
 import io.github.numberonebot.chairplay.session.FIREWALL_RULE
+import io.github.numberonebot.chairplay.session.FirewallState
 import io.github.numberonebot.chairplay.session.IAP2_IPHONE_UUID
 import io.github.numberonebot.chairplay.session.WirelessBootstrap
 import io.github.numberonebot.chairplay.session.desktopIdentification
@@ -257,8 +258,10 @@ private fun runCarPlay() {
         pending.offer(contact)
         touchSender.execute { pending.poll()?.let { active.get()?.sendTouch(listOf(it)) } }
     }
-    // Keys and the wheel go through the touch thread too, so a tap and a key press reach the iPhone in order.
-    val controls = KeyControls(controlsConfig)
+    // Keys and the wheel go through the touch thread too, so a tap and a key press reach the iPhone in order. The
+    // bindings in force: the Keyboard page's saves replace them, and the next press reads the new ones.
+    val bindings = AtomicReference(controlsConfig)
+    val controls = KeyControls { bindings.get() }
     // The main window's title says when there is no session to show, and why.
     val stream = WindowSize(config.displayWidth, config.displayHeight)
     val reconnecting = AtomicBoolean()
@@ -341,7 +344,7 @@ private fun runCarPlay() {
         }
 
         override fun state(): Map<String, Any?> = linkedMapOf(
-            "keys" to ControlAction.entries.associate { it.key.removePrefix("key.") to controlsConfig.firstKey(it) },
+            "keys" to ControlAction.entries.associate { it.key.removePrefix("key.") to bindings.get().firstKey(it) },
             "volume" to mapOf("level" to volume.level, "muted" to volume.muted),
             "altscreen" to altscreenContent?.key,
             "altHeld" to altHeld.get(),
@@ -366,7 +369,10 @@ private fun runCarPlay() {
     }, window::repaint, ::log, buildMap {
         altscreen?.let { put("altscreen", it.asUiWindow()) }
         put("controls", controlsWindow.asUiWindow())
-    }, pageControls, window.asUiMainWindow())
+    }, pageControls, window.asUiMainWindow(), onBindings = { saved ->
+        bindings.set(saved)
+        log(saved.summary())
+    }, readFirewall = ::readFirewallStatus)
     // The CarPlay page offers Actual size while the window's size differs from the picture's.
     window.onResize = { ui.windowsChanged() }
     controlsChanged.set { ui.controlsChanged() }
@@ -533,9 +539,15 @@ private fun checkFirewall(port: Int): FirewallStatus {
         log("Windows Firewall rule $it blocks inbound connections to $program; the iPhone cannot connect while " +
             "it applies. Delete it or set it to Allow in Windows Defender Firewall > Advanced settings > Inbound Rules")
     }
-    return when {
-        state.blocking.isNotEmpty() -> FirewallStatus.BLOCKED
-        !state.allowRule -> FirewallStatus.MISSING
-        else -> FirewallStatus.PRESENT
-    }
+    return firewallStatus(state)
+}
+
+/** The firewall read again for the live setup checks, without the start's log lines. */
+private fun readFirewallStatus(): FirewallStatus =
+    readFirewall(ProcessHandle.current().info().command().orElse("java.exe"))?.let(::firewallStatus) ?: FirewallStatus.UNKNOWN
+
+private fun firewallStatus(state: FirewallState): FirewallStatus = when {
+    state.blocking.isNotEmpty() -> FirewallStatus.BLOCKED
+    !state.allowRule -> FirewallStatus.MISSING
+    else -> FirewallStatus.PRESENT
 }

@@ -49,6 +49,39 @@ describe('Api', () => {
     expect(JSON.parse(String(requests[0].init.body))).toEqual({ actual: true })
   })
 
+  it('reads the key bindings, or none when the app has none', async () => {
+    const requests = answer(200)
+    expect(await new Api('key').keyBindings()).toEqual({})
+    expect(requests[0].url).toBe('/api/controls')
+
+    answer(404)
+    expect(await new Api('key').keyBindings()).toBeNull()
+  })
+
+  it('saves key bindings as settings are saved', async () => {
+    const requests = answer(200)
+
+    expect(await new Api('key').saveKeyBindings({ 'key.home': 'F6' })).toEqual({ ok: true, applies: {} })
+    expect(requests[0].url).toBe('/api/controls')
+    expect(JSON.parse(String(requests[0].init.body))).toEqual({ changes: { 'key.home': 'F6' } })
+  })
+
+  it('asks the app to forget the iPhone', async () => {
+    const requests = answer(200)
+
+    expect(await new Api('key').forget()).toBe(true)
+    expect(requests[0].url).toBe('/api/forget')
+  })
+
+  it('asks the app to add the firewall rule, and tells whether it did', async () => {
+    const requests = answer(200)
+    expect(await new Api('key').addFirewallRule()).toBe(true)
+    expect(requests[0].url).toBe('/api/firewall-rule')
+
+    answer(409)
+    expect(await new Api('key').addFirewallRule()).toBe(false)
+  })
+
   // A link to a Windows page names the place; the app knows what to start for it.
   it('asks the app to open a Windows page', async () => {
     const requests = answer(200)

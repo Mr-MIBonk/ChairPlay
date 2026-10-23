@@ -51,8 +51,31 @@ class ControlsConfigTest {
         assertTrue(ControlAction.HOME !in loaded.bindings.values)
         assertEquals(ControlAction.MEDIA_NEXT, loaded.bindings[KeyBinding(GLFW_KEY_F1, 0)])
         assertEquals(ControlAction.SELECT, loaded.bindings[KeyBinding(GLFW_KEY_KP_ENTER, 0)])
-        assertNull("unlisted actions keep their defaults only when absent", loaded.bindings[KeyBinding(GLFW_KEY_ENTER, 0)])
+        assertNull("a listed action loses its other defaults", loaded.bindings[KeyBinding(GLFW_KEY_SPACE, 0)])
         assertEquals(ControlAction.BACK, loaded.bindings[KeyBinding(GLFW_KEY_ESCAPE, 0)])
+    }
+
+    // Whatever the file says, Escape goes back and Enter selects, so neither can leave the app without a way back.
+    @Test
+    fun `Escape always goes back and Enter always selects`() {
+        val loaded = ControlsConfig.load(dirWith("key.back = Backspace", "key.select =", "key.home = Shift+Escape"))
+
+        assertEquals(ControlAction.BACK, loaded.bindings[KeyBinding(GLFW_KEY_ESCAPE, 0)])
+        assertEquals(ControlAction.SELECT, loaded.bindings[KeyBinding(GLFW_KEY_ENTER, 0)])
+        assertEquals(ControlAction.HOME, loaded.bindings[KeyBinding(GLFW_KEY_ESCAPE, GLFW_MOD_SHIFT)])
+        assertEquals(listOf("Escape", "Backspace"), loaded.keys(ControlAction.BACK))
+        assertEquals(listOf("Enter"), loaded.keys(ControlAction.SELECT))
+        assertEquals(listOf("Escape"), loaded.fixedKeys(ControlAction.BACK))
+        assertEquals(listOf("Enter"), loaded.fixedKeys(ControlAction.SELECT))
+        assertEquals(emptyList<String>(), loaded.fixedKeys(ControlAction.HOME))
+    }
+
+    @Test
+    fun `a file that binds Escape or Enter to another action is refused, naming the setting`() {
+        for ((line, reason) in mapOf("key.home = Escape" to "Escape always goes back", "key.siri = F2, enter" to "Enter always selects")) {
+            val message = runCatching { ControlsConfig.load(dirWith(line)) }.exceptionOrNull()?.message.orEmpty()
+            assertTrue(message, line.substringBefore(" =") in message && reason in message)
+        }
     }
 
     @Test
@@ -90,11 +113,11 @@ class ControlsConfigTest {
     // A modifier let go before the key must not leave the knob tilted or the button held.
     @Test
     fun `a key released after its modifier still releases`() {
-        val controls = KeyControls(ControlsConfig.load(dirWith("key.back = Shift+Escape")))
+        val controls = KeyControls(ControlsConfig.load(dirWith("key.home = Shift+H")))
 
-        assertEquals(Control.Knob(AirPlayKnobState(back = true), false), controls.key(GLFW_KEY_ESCAPE, GLFW_PRESS, GLFW_MOD_SHIFT))
-        assertEquals(Control.Knob(AirPlayKnobState(), false), controls.key(GLFW_KEY_ESCAPE, GLFW_RELEASE, 0))
-        assertNull(controls.key(GLFW_KEY_ESCAPE, GLFW_PRESS, 0))
+        assertEquals(Control.Knob(AirPlayKnobState(home = true), false), controls.key(GLFW_KEY_H, GLFW_PRESS, GLFW_MOD_SHIFT))
+        assertEquals(Control.Knob(AirPlayKnobState(), false), controls.key(GLFW_KEY_H, GLFW_RELEASE, 0))
+        assertNull(controls.key(GLFW_KEY_H, GLFW_PRESS, 0))
     }
 
     @Test

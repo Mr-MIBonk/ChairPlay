@@ -16,8 +16,8 @@ const val FIREWALL_RULE = "ChairPlay CarPlay inbound"
 internal data class FirewallState(val allowRule: Boolean, val blocking: List<String>)
 
 /**
- * Reads the rules only; changing them needs an administrator and is left to the user. Returns null when they
- * could not be read.
+ * Reads the rules only; changing them needs an administrator ([addFirewallRules] asks for the consent). Returns null
+ * when they could not be read.
  *
  * netsh's verbose listing translates both its labels and its values (Action: Allow / Block) into the display
  * language, so it is not parsed. The NetSecurity cmdlets report Enabled, Direction, Action and Profile as enum
@@ -63,6 +63,41 @@ internal fun readFirewall(program: String): FirewallState? {
         null
     } finally {
         output.delete()
+    }
+}
+
+/**
+ * Runs [commands] (one per line, as [firewallHint] writes them) in one cmd.exe started with the administrator's
+ * consent, so Windows asks once. True when the consent was given and every command succeeded; false when it was
+ * refused, a command failed, or nothing came back within five minutes, as a prompt left open would.
+ */
+fun addFirewallRules(commands: String): Boolean {
+    val script = """
+        try {
+            ${'$'}line = ${'$'}env:CHAIRPLAY_COMMANDS -replace "`r?`n", ' && '
+            ${'$'}process = Start-Process -FilePath cmd.exe -ArgumentList ('/c ' + ${'$'}line) -Verb RunAs -Wait -PassThru -WindowStyle Hidden
+            exit ${'$'}process.ExitCode
+        } catch {
+            # The consent refused: Start-Process throws "The operation was canceled by the user".
+            exit 1223
+        }
+    """.trimIndent()
+    val encoded = Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
+    return try {
+        val process = ProcessBuilder("powershell.exe", "-NoProfile", "-NonInteractive", "-EncodedCommand", encoded)
+            .redirectErrorStream(true)
+            .redirectOutput(ProcessBuilder.Redirect.DISCARD)
+            .apply { environment()["CHAIRPLAY_COMMANDS"] = commands }
+            .start()
+        process.outputStream.close()
+        if (!process.waitFor(5, TimeUnit.MINUTES)) {
+            process.destroyForcibly()
+            false
+        } else {
+            process.exitValue() == 0
+        }
+    } catch (_: Exception) {
+        false
     }
 }
 

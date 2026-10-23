@@ -94,12 +94,13 @@ class UiServer(
             return
         }
         val method = exchange.requestMethod
-        val posts = setOf("settings", "connect", "reconnect", "disconnect", "screen", "window", "control", "altscreen", "open", "window-size")
-        val gets = setOf("state", "settings", "events")
+        val posts = setOf("settings", "controls", "connect", "reconnect", "disconnect", "screen", "window", "control", "altscreen", "open", "window-size", "firewall-rule", "forget")
+        val gets = setOf("state", "settings", "controls", "events")
         when {
             method == "GET" && route in gets -> when (route) {
                 "state" -> json(exchange, 200, api.state())
                 "settings" -> json(exchange, 200, api.settings())
+                "controls" -> api.controls()?.let { json(exchange, 200, it) } ?: json(exchange, 404, mapOf("error" to "no key bindings"))
                 else -> events(exchange)
             }
             method == "POST" && route in posts -> post(exchange, route)
@@ -125,16 +126,17 @@ class UiServer(
             return
         }
         when (route) {
-            "settings" -> {
+            "settings", "controls" -> {
                 val changes = body["changes"] as? Map<*, *>
                 if (changes == null || changes.any { (key, value) -> key !is String || value !is String }) {
                     json(exchange, 400, mapOf("error" to "changes must be an object of strings"))
                     return
                 }
                 @Suppress("UNCHECKED_CAST")
-                val result = api.saveSettings(changes as Map<String, String>)
+                val strings = changes as Map<String, String>
+                val result = if (route == "settings") api.saveSettings(strings) else api.saveControls(strings)
                 if (result.errors.isNotEmpty()) json(exchange, 400, mapOf("errors" to result.errors))
-                else json(exchange, 200, mapOf("saved" to changes.keys.toList(), "applies" to result.applies))
+                else json(exchange, 200, mapOf("saved" to result.applies.keys.toList().ifEmpty { strings.keys.toList() }, "applies" to result.applies))
             }
             "connect" -> {
                 val error = api.connect()
@@ -190,6 +192,12 @@ class UiServer(
                     else -> json(exchange, 404, mapOf("error" to "cannot open $place"))
                 }
             }
+            "forget" ->
+                if (api.forget()) json(exchange, 200, mapOf("ok" to true))
+                else json(exchange, 409, mapOf("error" to "Nothing to forget"))
+            "firewall-rule" ->
+                if (api.addFirewallRule()) json(exchange, 200, mapOf("ok" to true))
+                else json(exchange, 409, mapOf("error" to "The rule was not added"))
             "window-size" -> when {
                 body["actual"] != true -> json(exchange, 400, mapOf("error" to "actual missing"))
                 api.actualSize() -> json(exchange, 200, mapOf("ok" to true))
