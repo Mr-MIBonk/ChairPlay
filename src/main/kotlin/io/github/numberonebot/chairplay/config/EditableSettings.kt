@@ -73,6 +73,8 @@ object EditableSettings {
         "audio.output" to Setting(Applies.RESTART) { null },
         "audio.input" to Setting(Applies.RESTART) { null },
         "audio.echo.cancellation" to switch(Applies.RESTART),
+        // The data log opens as the app starts.
+        "log.carplay.data" to switch(Applies.RESTART),
     )
 
     /** The keys the screens may change. */

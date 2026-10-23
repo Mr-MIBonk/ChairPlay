@@ -94,6 +94,22 @@ class HudDemoTest {
         }
     }
 
+    // The Experiments page starts a demo and stops it again while the app runs: a stopped one draws no more.
+    @Test(timeout = 10_000)
+    fun `a started demo draws until it is stopped`() {
+        val repaints = java.util.concurrent.atomic.AtomicInteger()
+        val running = HudDemo(withMedia = false).start({ repaints.incrementAndGet() }) {}
+        Thread.sleep(HudDemo.FRAME_MILLIS * 4)
+        assertTrue(repaints.get() > 0)
+        assertNotNull(running.snapshot().route)
+
+        running.stop()
+        Thread.sleep(HudDemo.FRAME_MILLIS * 2)
+        val stopped = repaints.get()
+        Thread.sleep(HudDemo.FRAME_MILLIS * 4)
+        assertEquals(stopped, repaints.get())
+    }
+
     @Test
     fun `only the environment variable turns it on`() {
         assertNull(HudDemo.fromEnvironment(emptyMap()))

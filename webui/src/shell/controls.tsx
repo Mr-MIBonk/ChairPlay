@@ -1,6 +1,6 @@
 // The settings pages' parts, as desktop-docs/mockups/desktop-ui.html draws them: a property grid of rows under group
 // headers, segmented groups, checkboxes, and the messages that say what is wrong.
-import { useState, type KeyboardEvent, type ReactNode } from 'react'
+import { useState, type CSSProperties, type KeyboardEvent, type ReactNode } from 'react'
 import { EyeIcon } from './icons'
 
 /** A group's header: its name in the accent font, and a note at its right end. */
@@ -166,8 +166,8 @@ export type Choice = readonly [value: string, text: string, title?: string]
 /**
  * Choices side by side, the chosen one a lit plate. A disabled group shows none chosen. Two or three choices are equal
  * plates; four or more ("wide") keep to the length of a row's controls, and are as long as four plates where the page
- * has room, and five where it has room for that. [className] sets the width by hand instead: "compact", or "half" for
- * short figures.
+ * has room, and five where it has room for that; six or more ("rows") wrap onto two rows of equal plates. [className]
+ * sets the width by hand instead: "compact", or "half" for short figures.
  */
 export function Segmented(props: {
   label: string
@@ -179,8 +179,9 @@ export function Segmented(props: {
 }) {
   return (
     <span
-      className={`seg ${props.className ?? (props.options.length >= 4 ? 'wide' : '')}`}
+      className={`seg ${props.className ?? (props.options.length >= 6 ? 'rows' : props.options.length >= 4 ? 'wide' : '')}`}
       data-items={props.options.length}
+      style={props.options.length >= 6 ? ({ '--columns': Math.ceil(props.options.length / 2) } as CSSProperties) : undefined}
       role="radiogroup"
       aria-label={props.label}
     >
@@ -204,6 +205,42 @@ export function Segmented(props: {
         )
       })}
     </span>
+  )
+}
+
+/**
+ * A level from 0 to 100: a track like a segmented group's frame, lit up to the level as a chosen plate is, with a
+ * plate to drag, and the level in percent beside it ([idle] in its place while it is not dragged, for a muted level).
+ * Each move passes the level on; while it is dragged the slider keeps its own, so the app's answer does not pull it
+ * back, and follows [value] again once let go.
+ */
+export function Slider(props: { label: string; value: number; onChange: (value: number) => void; idle?: string }) {
+  const [dragged, setDragged] = useState<number | null>(null)
+  const value = dragged ?? props.value
+  const letGo = () => setDragged(null)
+  const idle = dragged === null ? props.idle : undefined
+  return (
+    <>
+      <input
+        type="range"
+        className="slider"
+        aria-label={props.label}
+        min={0}
+        max={100}
+        step={1}
+        value={value}
+        style={{ '--level': `${value}%` } as CSSProperties}
+        onChange={(event) => {
+          const level = Number(event.target.value)
+          setDragged(level)
+          props.onChange(level)
+        }}
+        onPointerUp={letGo}
+        onKeyUp={letGo}
+        onBlur={letGo}
+      />
+      <span className={`level ${idle ? 'idle' : ''}`}>{idle ?? `${value}%`}</span>
+    </>
   )
 }
 

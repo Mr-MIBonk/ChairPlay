@@ -30,6 +30,15 @@ class Volume(level: Int = MAX, muted: Boolean = false) {
         onChange()
     }
 
+    /** Sets the level itself (the Audio page's slider), kept within 0 and [MAX]; it unmutes, as a turn does. */
+    fun set(level: Int) {
+        synchronized(this) {
+            this.level = level.coerceIn(0, MAX)
+            muted = false
+        }
+        onChange()
+    }
+
     fun toggleMute() {
         synchronized(this) { muted = !muted }
         onChange()

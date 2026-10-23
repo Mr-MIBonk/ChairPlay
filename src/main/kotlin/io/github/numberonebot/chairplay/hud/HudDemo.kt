@@ -125,9 +125,10 @@ class HudDemo(
 
     /**
      * Starts the demo's clock on a daemon thread, which calls [repaint] every [FRAME_MILLIS] and, with [takeShots],
-     * [screenshot] with a name at each of the [shots] of the first lap. Returns the bus snapshot of the moment.
+     * [screenshot] with a name at each of the [shots] of the first lap. Returns it [Running]: its bus snapshot of the
+     * moment, and its stop.
      */
-    fun start(repaint: () -> Unit, screenshot: (String) -> Unit): () -> CarPlayDataSnapshot {
+    fun start(repaint: () -> Unit, screenshot: (String) -> Unit): Running {
         val started = System.nanoTime()
         fun elapsed() = (System.nanoTime() - started) / 1_000_000
         val due = when {
@@ -136,15 +137,22 @@ class HudDemo(
             lanes -> laneShots
             else -> (0 until steps).flatMap { step -> shots.map { (name, at) -> "${step + 1}-$name" to step * STEP_MILLIS + at } }
         }.toMutableList()
+        val stopped = java.util.concurrent.atomic.AtomicBoolean()
         Thread({
-            while (true) {
+            while (!stopped.get()) {
                 Thread.sleep(FRAME_MILLIS)
+                if (stopped.get()) break
                 repaint()
                 val now = elapsed()
                 while (due.isNotEmpty() && due.first().second <= now) screenshot(due.removeAt(0).first)
             }
         }, "hud-demo").apply { isDaemon = true }.start()
-        return { snapshot(elapsed()) }
+        return Running({ snapshot(elapsed()) }) { stopped.set(true) }
+    }
+
+    /** A demo playing: the bus as it is now in it, and [stop], after which it draws no more. */
+    class Running(val snapshot: () -> CarPlayDataSnapshot, private val onStop: () -> Unit) {
+        fun stop() = onStop()
     }
 
     companion object {

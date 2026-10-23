@@ -100,9 +100,9 @@ export function SizeRows(props: {
         />
       </Row>
       <Row>
-        {field(widthKey, 'Width', String(fallback.width))}
+        {field(widthKey, 'Width', String(fallback.width), 'short c')}
         <span className="x">×</span>
-        {field(heightKey, 'Height', String(fallback.height))}
+        {field(heightKey, 'Height', String(fallback.height), 'short c')}
         <span className="unit">px</span>
         <Changed keys={[widthKey, heightKey]} pending={props.pending ?? NOTHING_PENDING} />
         {props.after}
@@ -177,7 +177,7 @@ export function SafeArea(props: { settings: Settings; prefix: string; label: str
         key={key}
         label={name}
         title={name}
-        className={`n3 ${align}`}
+        className={`short ${align}`}
         value={settings.value(key)}
         placeholder="0"
         error={settings.error(key)}

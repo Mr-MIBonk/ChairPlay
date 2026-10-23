@@ -22,7 +22,7 @@ export function CarPlayIcon() {
   )
 }
 
-/** An instrument cluster: a long filled panel with the speedometer and the rev counter cut out at its ends. */
+/** An instrument cluster: a long filled panel with the speedometer and the rev counter cut out at its ends, each with its needle. */
 export function AltScreenIcon() {
   const mask = useMaskId('alt')
   return (
@@ -30,11 +30,14 @@ export function AltScreenIcon() {
       <defs>
         <mask id={mask}>
           <rect width="26" height="16" fill="#fff" />
-          <circle cx="6.2" cy="8" r="4.3" fill="#000" />
-          <circle cx="19.8" cy="8" r="4.3" fill="#000" />
+          {/* As far from the panel's bottom edge (1.4) as from its ends */}
+          <circle cx="5.9" cy="8.7" r="4.3" fill="#000" />
+          <circle cx="20.1" cy="8.7" r="4.3" fill="#000" />
         </mask>
       </defs>
       <rect x="0.2" y="1.6" width="25.6" height="12.8" rx="4" fill="currentColor" mask={`url(#${mask})`} />
+      {/* A needle in each dial, as the controls knob's pointer, the two leaning apart */}
+      <path d="M5.9 8.7L3.85 6.65M20.1 8.7L22.15 6.65" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   )
 }
@@ -128,6 +131,23 @@ export function AudioIcon() {
     <svg viewBox="0 0 14 14" aria-hidden="true">
       <path d="M2 5h2.5L8 2v10L4.5 9H2z" fill="none" stroke="currentColor" strokeWidth="1.3" />
       <path d="M10 5a3 3 0 0 1 0 4" fill="none" stroke="currentColor" strokeWidth="1.3" />
+    </svg>
+  )
+}
+
+/** A flask: the Experiments page. */
+export function FlaskIcon() {
+  return (
+    <svg viewBox="0 0 14 14" aria-hidden="true">
+      <path
+        d="M5.3 1.6h3.4M5.8 1.6v3.9L2.4 11.2a.9.9 0 0 0 .8 1.3h7.6a.9.9 0 0 0 .8-1.3L8.2 5.5V1.6"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+        strokeLinecap="round"
+      />
+      <path d="M3.9 8.9h6.2" stroke="currentColor" strokeWidth="1.1" />
     </svg>
   )
 }

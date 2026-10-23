@@ -1,5 +1,5 @@
-import type { AppState } from '../api'
-import { Checkbox, Group, Row, Select, type Choice } from '../shell/controls'
+import type { AppState, Backend } from '../api'
+import { Checkbox, Group, Row, Select, Slider, type Choice } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
 import { Changed, parts, pendingOf } from './parts'
 
@@ -13,8 +13,8 @@ function deviceChoices(devices: readonly string[], saved: string): Choice[] {
   return choices
 }
 
-/** Where CarPlay's sound goes and where the microphone for calls and Siri comes from. */
-export function AudioPage({ state, settings }: { state: AppState; settings: Settings }) {
+/** How loud CarPlay plays, where its sound goes, and where the microphone for calls and Siri comes from. */
+export function AudioPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
   const { value, save, data } = settings
   const pending = pendingOf(state)
   const { note } = parts(settings, pending)
@@ -32,10 +32,24 @@ export function AudioPage({ state, settings }: { state: AppState; settings: Sett
       {settings.error(key) && <span className="errtext">{settings.error(key)}</span>}
     </Row>
   )
+  const volume = state.controls?.volume
   return (
     <>
       <Group title="Devices" note={note(['audio.output', 'audio.input', 'audio.echo.cancellation'])} />
       {device('audio.output', 'Output', devices.outputs)}
+      {volume && (
+        <Row
+          label="Volume"
+          title="ChairPlay's own volume, as the volume keys and the controls window set it; Windows' own stays as it is"
+        >
+          <Slider
+            label="Volume"
+            value={volume.level}
+            idle={volume.muted ? 'Muted' : undefined}
+            onChange={(level) => backend.volume(level)}
+          />
+        </Row>
+      )}
       {device('audio.input', 'Microphone', devices.inputs)}
       <Row>
         <Checkbox

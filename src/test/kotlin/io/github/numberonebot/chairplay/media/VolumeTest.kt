@@ -60,4 +60,19 @@ class VolumeTest {
         assertEquals(100, Volume(level = 140).level)
         assertEquals(0, Volume(level = -5).level)
     }
+
+    // The Audio page's slider sets the level itself, to the percent, unmuting as a turn of the knob does.
+    @Test
+    fun `the slider sets the level and unmutes`() {
+        val volume = Volume(level = 50, muted = true)
+        var changes = 0
+        volume.onChange = { changes++ }
+
+        volume.set(37)
+
+        assertEquals(37 to false, volume.level to volume.muted)
+        assertEquals(1, changes)
+        volume.set(140)
+        assertEquals(100, volume.level)
+    }
 }

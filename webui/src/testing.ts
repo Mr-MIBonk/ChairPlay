@@ -1,7 +1,7 @@
 // Fakes for the tests: an app state and a backend that records what the screens ask for.
 import type {
-  AltscreenContent, AppState, Backend, ControlsData, PictureWindow, SaveOutcome, Screen, SettingsData, WindowName,
-  WindowsPlace,
+  AltscreenContent, AppState, Backend, ControlsData, DemoKind, PictureWindow, SaveOutcome, Screen, SettingsData,
+  WindowName, WindowsPlace,
 } from './api'
 
 export function appState(overrides: Partial<AppState> = {}): AppState {
@@ -14,6 +14,7 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     canShowCarPlay: false,
     autoshow: true,
     waiting: false,
+    demo: { playing: null, available: true },
     embedded: true,
     wifi: { ssid: 'Home', security: 'WPA_WPA2', passphraseSet: true },
     reconnectPending: [],
@@ -114,6 +115,7 @@ export class FakeBackend implements Backend {
       'window.height': 'restart',
       'altscreen.width': 'restart',
       'altscreen.height': 'restart',
+      'log.carplay.data': 'restart',
     },
     display: { width: 1280, height: 720 },
     audio: { outputs: ['Speakers (Realtek Audio)', 'Headphones (USB Audio)'], inputs: ['Microphone (Realtek Audio)'] },
@@ -128,6 +130,22 @@ export class FakeBackend implements Backend {
 
   async savedPassphrase() {
     return this.passphrase
+  }
+
+  /** The HUD demos asked for, null for a stop. */
+  demos: (DemoKind | null)[] = []
+
+  async demo(kind: DemoKind | null) {
+    this.demos.push(kind)
+    return true
+  }
+
+  /** The volume levels the Audio page set. */
+  volumes: number[] = []
+
+  async volume(level: number) {
+    this.volumes.push(level)
+    return true
   }
 
   async save(changes: Record<string, string>): Promise<SaveOutcome> {

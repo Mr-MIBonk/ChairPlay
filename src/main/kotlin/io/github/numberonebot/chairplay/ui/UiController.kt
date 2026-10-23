@@ -60,6 +60,18 @@ interface UiMainWindow {
     fun resizeTo(width: Int, height: Int)
 }
 
+/** The HUD's demos on the AltScreen, for the Experiments page: "maneuvers" or "lanes", one at a time. Safe from any thread. */
+interface UiDemo {
+    /** The demo playing, or null. */
+    val playing: String?
+
+    /** Whether one can play: the AltScreen is on. */
+    val available: Boolean
+
+    /** Plays [kind], in place of one playing, or stops it (null); false when the AltScreen is off. */
+    fun play(kind: String?): Boolean
+}
+
 /** The AltScreen's window drawing a safe area for a moment; insets in the picture's pixels. Safe from any thread. */
 fun interface UiSafeAreaFrame {
     fun show(top: Int, bottom: Int, left: Int, right: Int)
@@ -75,6 +87,9 @@ interface UiControls {
 
     /** Shows [content] ("hud", "map", "map-card", "card") on the AltScreen; false when it cannot be shown. */
     fun altscreenContent(content: String): Boolean
+
+    /** Sets the app's volume to [level] percent (the Audio page's slider), unmuting it; false when there is none. */
+    fun volume(level: Int): Boolean = false
 
     /** What the page shows beside the buttons: their keys, the volume, the AltScreen's content, whether Alt is held. */
     fun state(): Map<String, Any?>
@@ -156,6 +171,12 @@ interface UiApi {
     /** Forget this iPhone: ChairPlay's pairing records go and Get started opens; false when there is nothing to forget. */
     fun forget(): Boolean
 
+    /** Plays a HUD demo on the AltScreen ("maneuvers" or "lanes"), or stops it (null); false when none can play. */
+    fun demo(kind: String?): Boolean = false
+
+    /** Sets the app's volume to [level] percent, from the Audio page's slider; false without a volume to set. */
+    fun volume(level: Int): Boolean = false
+
     /**
      * The Keyboard page's bindings: each action's keys, defaults and fixed keys, and the wheel and repeat settings as
      * controls.properties names them; null when the app has none to change.
@@ -213,6 +234,8 @@ class UiController(
     private val altscreenFrame: UiSafeAreaFrame? = null,
     /** Hears each save that changed settings, with the changed ones, for those that apply at once. */
     private val onSaved: (Map<String, String>) -> Unit = {},
+    /** The HUD's demos on the AltScreen, for the Experiments page; null without them. */
+    private val demo: UiDemo? = null,
 ) : UiApi {
     /** The settings as the app started with them, against which a change waits for the next start. */
     private val startup: Map<String, String> = settings.read()
@@ -310,6 +333,18 @@ class UiController(
         return true
     }
 
+    // The controls' volume, which tells the pages of the change itself.
+    override fun volume(level: Int): Boolean = controls?.volume(level) ?: false
+
+    override fun demo(kind: String?): Boolean {
+        val demo = demo ?: return false
+        if (kind != null && kind !in DEMOS) return false
+        if (!demo.play(kind)) return false
+        log(if (kind == null) "HUD demo stopped" else "HUD demo playing: $kind")
+        changed()
+        return true
+    }
+
     /** The commands the page offers to copy, run as they are, so the two ways add the same rules. */
     override fun addFirewallRule(): Boolean {
         val added = runCatching { elevate(setup.firewallCommands) }.getOrDefault(false)
@@ -359,8 +394,8 @@ class UiController(
 
     /**
      * Opens a page the screens link to, by the name of one the app knows ([PLACES]): Bluetooth or Wi-Fi in Settings,
-     * the firewall in Windows Security or its console with the rules, the MFi folder (made first if it is missing), and
-     * the About page's: the project's pages on GitHub (a new issue with [details] filled in), DiPlay's, the HUD
+     * the firewall in Windows Security or its console with the rules, the MFi, logs, and screenshots folders (made first
+     * if they are missing), and the About page's: the project's pages on GitHub (a new issue with [details] filled in), DiPlay's, the HUD
      * renderer's, and the third-party notices beside the app, in Notepad as the file has no extension. Each but the
      * notices goes through explorer.exe, which hands it to the shell: a Settings address opens its page, a web address
      * the browser, and the console asks for the administrator's consent it needs. False for a name the app does not
@@ -390,6 +425,7 @@ class UiController(
         "releases" -> "$PROJECT/releases"
         "diplay" -> "https://github.com/shihabal3amri/DiPlay"
         "rgi" -> "https://github.com/luka-dev/mib2q-carplay-rgi"
+        "logs", "screenshots" -> Files.createDirectories(setup.settingsFile.resolveSibling(place)).toString()
         else -> Files.createDirectories(setup.mfiDirectory).toString()
     }
 
@@ -431,6 +467,7 @@ class UiController(
             "canShowCarPlay" to state.canShowCarPlay,
             "autoshow" to state.autoshow,
             "waiting" to state.waiting,
+            "demo" to demo?.let { mapOf("playing" to it.playing, "available" to it.available) },
             "embedded" to embedded,
             "wifi" to mapOf(
                 "ssid" to values["wifi.ssid"].orEmpty(),
@@ -543,10 +580,12 @@ class UiController(
         val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
         /** The windows the page has triggers for, each in the state whether it is there or not. */
         val WINDOWS = listOf("altscreen", "controls")
+        /** The HUD demos the Experiments page plays: the made-up route, and the lanes switching under one maneuver. */
+        val DEMOS = listOf("maneuvers", "lanes")
         /** The Windows pages and folder the screens may open, by the name the page gives ([open]). */
         val PLACES = listOf(
             "bluetooth", "wifi", "firewall", "firewall-rules", "mfi-folder",
-            "issues", "discussions", "pull-requests", "author", "source", "releases", "notices", "diplay", "rgi",
+            "issues", "discussions", "pull-requests", "author", "source", "releases", "notices", "diplay", "rgi", "logs", "screenshots",
         )
 
         /** The project's home on GitHub. */

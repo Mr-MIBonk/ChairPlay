@@ -45,6 +45,8 @@ class ChairPlayUi(
     readFirewall: () -> FirewallStatus = { firewall },
     /** Hears the settings each save changed, for those that apply at once. */
     onSaved: (Map<String, String>) -> Unit = {},
+    /** The HUD's demos on the AltScreen, for the Experiments page. */
+    demo: UiDemo? = null,
 ) : Closeable {
     val model = UiModel(config.wifi != null, config.autoconnect, config.autoshow, setupDone = SetupStore(dir).done())
 
@@ -82,6 +84,7 @@ class ChairPlayUi(
         elevate = ::addFirewallRules,
         setupStore = SetupStore(dir),
         onSaved = onSaved,
+        demo = demo,
     )
 
     private val checking = checks.start { controller.setupChanged() }

@@ -68,6 +68,23 @@ class UiServerTest {
         assertEquals(mapOf("version" to 0L, "phase" to "idle"), Json.parse(response.body()))
     }
 
+    // The Audio page's slider: a whole percent.
+    @Test
+    fun `the volume is set from the page`() {
+        assertEquals(200, post("/api/volume", """{"level":37}""").statusCode())
+        assertEquals(400, post("/api/volume", """{"level":"loud"}""").statusCode())
+        assertEquals(listOf("volume 37"), api.calls)
+    }
+
+    // The Experiments page's Play and Stop: a demo by name, or none to stop it.
+    @Test
+    fun `a HUD demo is played and stopped`() {
+        assertEquals(200, post("/api/demo", """{"kind":"lanes"}""").statusCode())
+        assertEquals(200, post("/api/demo", """{"kind":null}""").statusCode())
+        assertEquals(409, post("/api/demo", """{"kind":"tetris"}""").statusCode())
+        assertEquals(listOf("demo lanes", "demo null", "demo tetris"), api.calls)
+    }
+
     // The eye beside the password asks for the saved one alone, with the token like every other call.
     @Test
     fun `the saved password comes only when asked for, with the token`() {
@@ -262,6 +279,16 @@ class UiServerTest {
         }
         override fun forget(): Boolean {
             calls += "forget"
+            return true
+        }
+
+        override fun demo(kind: String?): Boolean {
+            calls += "demo $kind"
+            return kind != "tetris"
+        }
+
+        override fun volume(level: Int): Boolean {
+            calls += "volume $level"
             return true
         }
         var consent = true

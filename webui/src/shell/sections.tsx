@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { AboutIcon, AltScreenLineIcon, AudioIcon, CarPlayLineIcon, KeyboardIcon, WifiIcon } from './icons'
+import { AboutIcon, AltScreenLineIcon, AudioIcon, CarPlayLineIcon, FlaskIcon, KeyboardIcon, WifiIcon } from './icons'
 
 /** The settings' pages, in the section list's order; the first opens. */
 export const SECTIONS = [
@@ -8,6 +8,7 @@ export const SECTIONS = [
   { id: 'altscreen', title: 'AltScreen', icon: <AltScreenLineIcon /> },
   { id: 'keyboard', title: 'Keyboard', icon: <KeyboardIcon /> },
   { id: 'audio', title: 'Audio', icon: <AudioIcon /> },
+  { id: 'experiments', title: 'Experiments', icon: <FlaskIcon /> },
   { id: 'about', title: 'About', icon: <AboutIcon /> },
 ] as const satisfies readonly { id: string; title: string; icon: ReactNode }[]
 

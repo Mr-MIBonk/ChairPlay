@@ -12,9 +12,13 @@ export type WindowName = 'altscreen' | 'controls'
 export type AltscreenContent = 'hud' | 'map' | 'map-card' | 'card'
 
 /** The Windows pages, folder, and web pages a link can open (UiController.PLACES). */
+/** The HUD's demos the Experiments page plays: a made-up route, and the lanes switching under one maneuver. */
+export type DemoKind = 'maneuvers' | 'lanes'
+
 export type WindowsPlace =
   | 'bluetooth' | 'wifi' | 'firewall' | 'firewall-rules' | 'mfi-folder'
   | 'issues' | 'discussions' | 'pull-requests' | 'author' | 'source' | 'releases' | 'notices' | 'diplay' | 'rgi'
+  | 'logs' | 'screenshots'
 
 /** What the controls window shows beside its buttons (UiControls in Main.kt). */
 export interface ControlsState {
@@ -64,6 +68,8 @@ export interface AppState {
   autoshow: boolean
   /** The app connects on its own (ui.autoconnect, or a session lost from CarPlay): the page waits, black, until it fails. */
   waiting: boolean
+  /** The HUD's demos on the AltScreen (Experiments): the one playing, and whether one can (the AltScreen is on). */
+  demo: { playing: DemoKind | null; available: boolean } | null
   /** The page is inside ChairPlay's window rather than a browser. */
   embedded: boolean
   wifi: { ssid: string; security: string; passphraseSet: boolean }
@@ -139,6 +145,10 @@ export interface Backend {
   save(changes: Record<string, string>): Promise<SaveOutcome>
   /** The saved Wi-Fi password, for the eye beside it; null when none is saved. Nothing else carries it. */
   savedPassphrase(): Promise<string | null>
+  /** Plays a HUD demo on the AltScreen, or stops it (null); false when none can play. */
+  demo(kind: DemoKind | null): Promise<boolean>
+  /** Sets the app's volume to [level] percent, unmuting it. */
+  volume(level: number): Promise<boolean>
   /** Null when connecting started, else why not. */
   connect(): Promise<string | null>
   reconnect(): Promise<void>
@@ -200,6 +210,14 @@ export class Api implements Backend {
 
   async savedPassphrase(): Promise<string | null> {
     return ((await this.request('GET', 'passphrase')).data as { passphrase: string | null }).passphrase
+  }
+
+  async demo(kind: DemoKind | null): Promise<boolean> {
+    return (await this.request('POST', 'demo', { kind })).status === 200
+  }
+
+  async volume(level: number): Promise<boolean> {
+    return (await this.request('POST', 'volume', { level })).status === 200
   }
 
   async showAltscreenFrame(): Promise<boolean> {

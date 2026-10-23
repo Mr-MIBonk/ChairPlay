@@ -87,7 +87,7 @@ body {
   cursor: default;
 }
 
-input:not([type='checkbox']):not([type='radio']),
+input:not([type='checkbox']):not([type='radio']):not([type='range']),
 textarea {
   cursor: text;
 }
@@ -1124,6 +1124,9 @@ html:has(.shell) {
 
 .shell .t.n { width: 60px; text-align: right; }
 .shell .t.n3 { width: 46px; text-align: right; }
+/* A screen's size and insets: as wide as a Frame rate plate beside them, a size centred */
+.shell .t.short { width: 44px; text-align: right; }
+.shell .t.short.c { text-align: center; }
 .shell .t.w120 { width: 120px; }
 .shell .t.w160 { width: 160px; }
 .shell .t.w200 { width: 200px; }
@@ -1630,6 +1633,99 @@ html:has(.shell) {
   display: none;
 }
 
+/*
+ * Six choices or more: two rows of equal plates, half of them in each (--columns, set by the group), as long as the
+ * groups of four or more beside them; the second row starts without a separator.
+ */
+.shell .seg.rows {
+  box-sizing: border-box;
+  display: inline-grid;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  row-gap: 2px;
+  width: var(--row-width);
+}
+
+.shell .seg.rows button {
+  min-width: 0;
+}
+
+.shell .seg.rows[data-items='6'] button:nth-child(4)::before,
+.shell .seg.rows[data-items='7'] button:nth-child(5)::before,
+.shell .seg.rows[data-items='8'] button:nth-child(5)::before {
+  display: none;
+}
+
+@container (min-width: 496px) {
+  .shell .seg.rows {
+    width: calc(4 * var(--choice) + 6px);
+  }
+}
+
+/*
+ * The volume slider: a thin track, the accent up to the level (--level, set by the slider), and a round pin in the
+ * accent within a ring, as long as the device list above it
+ */
+/*
+ * Under the track, a mark every 5 % (as the volume keys step): 21 marks from the pin's first centre (7 px in) to its
+ * last, a twentieth of its travel (the width less the 14 px pin) apart
+ */
+.shell .slider {
+  width: 280px;
+  height: 24px;
+  margin: 0;
+  background: repeating-linear-gradient(to right, var(--dim) 0 1px, transparent 1px calc((100% - 1px) / 20)) 6.5px 100% /
+    calc(100% - 13px) 3px no-repeat;
+  appearance: none;
+  cursor: default;
+}
+
+.shell .slider::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: 2px;
+  background: linear-gradient(to right, var(--accent) var(--level), var(--edge) var(--level));
+}
+
+.shell .slider::-webkit-slider-thumb {
+  box-sizing: border-box;
+  width: 14px;
+  height: 14px;
+  margin-top: -5px;
+  border: 1px solid #5a5a62;
+  border-radius: 50%;
+  background: var(--accent);
+  appearance: none;
+}
+
+.shell .slider:hover::-webkit-slider-thumb {
+  border-color: #8b8b92;
+}
+
+/* Dragged: brighter, with a glow of its own colour */
+.shell .slider:active::-webkit-slider-thumb {
+  border-color: #fff;
+  background: var(--accent-light);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 35%, transparent);
+}
+
+.shell .slider:focus-visible {
+  outline: none;
+}
+
+.shell .slider:focus-visible::-webkit-slider-thumb {
+  border-color: var(--accent-light);
+}
+
+/* The level beside it, in figures that keep their width as it moves; Muted in its place, dimmer */
+.shell .level {
+  min-width: 36px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.shell .level.idle {
+  color: var(--dim);
+}
+
 .shell .seg button.on {
   z-index: 1;
   background: var(--accent);
@@ -1810,8 +1906,14 @@ html:has(.shell) {
     flex-wrap: wrap;
   }
 
-  .shell .seg.wide {
+  .shell .seg.wide,
+  .shell .seg.rows {
     width: min(var(--row-width), 100%);
+  }
+
+  /* Beside its level */
+  .shell .slider {
+    width: min(280px, calc(100% - 42px));
   }
 
   .shell .about-head {

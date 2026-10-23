@@ -4,6 +4,7 @@ import { AboutPage } from '../pages/AboutPage'
 import { AltScreenPage } from '../pages/AltScreenPage'
 import { AudioPage } from '../pages/AudioPage'
 import { CarPlayPage } from '../pages/CarPlayPage'
+import { ExperimentsPage } from '../pages/ExperimentsPage'
 import { ConnectionPage } from '../pages/ConnectionPage'
 import { KeyboardPage } from '../pages/KeyboardPage'
 import { GetStarted } from '../setup/GetStarted'
@@ -103,7 +104,8 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
               {settings.data && section === 'carplay' && <CarPlayPage state={state} backend={backend} settings={settings} />}
               {settings.data && section === 'altscreen' && <AltScreenPage state={state} backend={backend} settings={settings} />}
               {settings.data && section === 'keyboard' && <KeyboardPage backend={backend} settings={settings} />}
-              {settings.data && section === 'audio' && <AudioPage state={state} settings={settings} />}
+              {settings.data && section === 'audio' && <AudioPage state={state} backend={backend} settings={settings} />}
+              {settings.data && section === 'experiments' && <ExperimentsPage state={state} backend={backend} settings={settings} />}
               {section === 'about' && <AboutPage state={state} backend={backend} onShowGuide={showGuide} />}
             </div>
           </div>

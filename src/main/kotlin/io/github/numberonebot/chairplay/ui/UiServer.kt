@@ -94,7 +94,7 @@ class UiServer(
             return
         }
         val method = exchange.requestMethod
-        val posts = setOf("settings", "controls", "connect", "reconnect", "disconnect", "screen", "window", "control", "altscreen", "open", "window-size", "firewall-rule", "forget", "altscreen-frame")
+        val posts = setOf("settings", "controls", "connect", "reconnect", "disconnect", "screen", "window", "control", "altscreen", "open", "window-size", "firewall-rule", "forget", "altscreen-frame", "demo", "volume")
         val gets = setOf("state", "settings", "passphrase", "controls", "events")
         when {
             method == "GET" && route in gets -> when (route) {
@@ -199,6 +199,17 @@ class UiServer(
             "forget" ->
                 if (api.forget()) json(exchange, 200, mapOf("ok" to true))
                 else json(exchange, 409, mapOf("error" to "Nothing to forget"))
+            "demo" ->
+                if (api.demo(body["kind"] as? String)) json(exchange, 200, mapOf("ok" to true))
+                else json(exchange, 409, mapOf("error" to "No such demo, or the AltScreen is off"))
+            "volume" -> {
+                val level = (body["level"] as? Number)?.toInt()
+                when {
+                    level == null -> json(exchange, 400, mapOf("error" to "send the level as a number"))
+                    api.volume(level) -> json(exchange, 200, mapOf("ok" to true))
+                    else -> json(exchange, 404, mapOf("error" to "no volume"))
+                }
+            }
             "firewall-rule" ->
                 if (api.addFirewallRule()) json(exchange, 200, mapOf("ok" to true))
                 else json(exchange, 409, mapOf("error" to "The rule was not added"))

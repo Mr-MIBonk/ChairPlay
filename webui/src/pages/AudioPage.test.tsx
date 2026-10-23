@@ -16,6 +16,30 @@ async function audio(backend = new FakeBackend()) {
 const select = (name: string) => screen.getByRole('combobox', { name }) as HTMLSelectElement
 const options = (name: string) => within(select(name)).getAllByRole('option').map((option) => option.textContent)
 
+describe('Audio page volume', () => {
+  // The app's own volume, as the volume keys and the controls window set it; Windows' stays as it is.
+  it('shows the volume and sets it with the slider', async () => {
+    const backend = await audio()
+
+    const slider = screen.getByRole('slider', { name: 'Volume' }) as HTMLInputElement
+    expect(slider.value).toBe('60')
+    expect(screen.getByText('60%')).toBeTruthy()
+    fireEvent.change(slider, { target: { value: '37' } })
+
+    expect(backend.volumes).toEqual([37])
+    expect(screen.getByText('37%')).toBeTruthy()
+  })
+
+  it('says when the volume is muted', async () => {
+    const state = appState({ phase: 'active', canShowCarPlay: true })
+    render(<Shell state={{ ...state, controls: { ...state.controls!, volume: { level: 60, muted: true } } }} backend={new FakeBackend()} />)
+    await screen.findByRole('textbox', { name: 'Network' })
+    fireEvent.click(screen.getByRole('tab', { name: 'Audio' }))
+
+    expect(screen.getByText('Muted')).toBeTruthy()
+  })
+})
+
 describe('Audio page', () => {
   it('lists the devices after the Windows default, which is chosen while none is set', async () => {
     await audio()

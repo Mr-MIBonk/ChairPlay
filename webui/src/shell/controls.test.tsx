@@ -132,6 +132,17 @@ describe('Segmented', () => {
     expect(screen.getByRole('radiogroup', { name: 'Kept' }).classList.contains('wide')).toBe(false)
   })
 
+  // Six choices or more are too many for one row: two rows of equal plates, half of them on each (CSS).
+  it('lays a group of six choices or more out in two rows', () => {
+    const six: Choice[] = [['a', 'A'], ['b', 'B'], ['c', 'C'], ['d', 'D'], ['e', 'E'], ['f', 'F']]
+    render(<Segmented label="Six" value="a" options={six} onChange={() => {}} />)
+
+    const group = screen.getByRole('radiogroup', { name: 'Six' })
+    expect(group.classList.contains('rows')).toBe(true)
+    expect(group.classList.contains('wide')).toBe(false)
+    expect(group.style.getPropertyValue('--columns')).toBe('3')
+  })
+
   it('gives an item its tooltip', () => {
     render(
       <Segmented label="Size" value="" options={[['1440x540', '1440×540', 'Audi Virtual Cockpit, 12.3 inch']]} onChange={() => {}} />,

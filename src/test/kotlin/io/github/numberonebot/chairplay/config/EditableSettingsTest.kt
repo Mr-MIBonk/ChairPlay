@@ -26,10 +26,10 @@ class EditableSettingsTest {
 
     @Test
     fun `only the settings the UI offers can change`() {
-        val result = errors("log.carplay.data" to "true")
+        val result = errors("car.label" to "Mine")
 
-        assertEquals(setOf("log.carplay.data"), result.keys)
-        assertTrue(result.getValue("log.carplay.data"), "cannot be changed here" in result.getValue("log.carplay.data"))
+        assertEquals(setOf("car.label"), result.keys)
+        assertTrue(result.getValue("car.label"), "cannot be changed here" in result.getValue("car.label"))
     }
 
     // Every setting the pages show: the iPhone, the CarPlay screen, the AltScreen, and the sound.
@@ -163,6 +163,7 @@ class EditableSettingsTest {
         assertEquals(Applies.NOW, EditableSettings.applies("ui.autoshow"))
         assertEquals(Applies.RESTART, EditableSettings.applies("ui.autoconnect"))
         assertEquals(Applies.RESTART, EditableSettings.applies("window.width"))
+        assertEquals(Applies.RESTART, EditableSettings.applies("log.carplay.data"))
         // The app reads these once, as it starts.
         for (key in listOf("device.name", "iphone.address", "iphone.join.seconds", "audio.output", "audio.echo.cancellation")) {
             assertEquals(key, Applies.RESTART, EditableSettings.applies(key))

@@ -56,6 +56,7 @@ import io.github.numberonebot.chairplay.ui.UiActions
 import io.github.numberonebot.chairplay.ui.UiMainWindow
 import io.github.numberonebot.chairplay.ui.UiSafeAreaFrame
 import io.github.numberonebot.chairplay.ui.UiControls
+import io.github.numberonebot.chairplay.ui.UiDemo
 import org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT
 import org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_ALT
 import org.lwjgl.glfw.GLFW.GLFW_RELEASE
@@ -237,6 +238,9 @@ private fun runCarPlay() {
             }
         }
     }
+    // The HUD demo playing (HudDemo), by its kind ("maneuvers" or "lanes"): CHAIRPLAY_HUD_DEMO starts one, the Experiments
+    // page plays and stops them. The AltScreen shows the HUD, with the demo's made-up data, while one plays.
+    val hudDemo = AtomicReference<Pair<String, HudDemo.Running>?>(null)
     var altscreenContent = config.altscreen?.content
     altscreen.hud = altscreenContent == AltscreenContent.HUD
     var altscreenCards = config.altscreen?.cards ?: AltscreenCards.AUTO
@@ -292,7 +296,7 @@ private fun runCarPlay() {
     fun showAltscreenView(session: AirPlaySession?) {
         val alt = altSettings.get() ?: return
         val content = altscreenContent ?: return
-        altscreen.hud = content == AltscreenContent.HUD
+        altscreen.hud = content == AltscreenContent.HUD || hudDemo.get() != null
         val url = altscreenUrl(content, altscreenCards)
         val sent = session?.setClusterUrl(url, send = true)
         if (session != null) log("altscreen ${content.key}, cards ${altscreenCards.key}: $url sent=$sent")
@@ -371,6 +375,11 @@ private fun runCarPlay() {
             return true
         }
 
+        override fun volume(level: Int): Boolean {
+            volume.set(level)
+            return true
+        }
+
         override fun state(): Map<String, Any?> = linkedMapOf(
             "keys" to ControlAction.entries.associate { it.key.removePrefix("key.") to bindings.get().firstKey(it) },
             "volume" to mapOf("level" to volume.level, "muted" to volume.muted),
@@ -382,6 +391,26 @@ private fun runCarPlay() {
     val lockReady = CountDownLatch(1)
     val startBootstrap = AtomicReference<() -> Unit> {}
     val stopBootstrap = AtomicReference<() -> Unit> {}
+    // The Experiments page's HUD demos: one at a time, on the AltScreen's HUD, which shows it as it plays and goes back
+    // to its view after; none while the AltScreen is off.
+    val demos = object : UiDemo {
+        override val playing get() = hudDemo.get()?.first
+        override val available get() = altSettings.get() != null
+
+        override fun play(kind: String?): Boolean {
+            if (kind != null && altSettings.get() == null) return false
+            hudDemo.getAndSet(null)?.second?.stop()
+            if (kind != null) {
+                hudDemo.set(kind to HudDemo(withMedia = false, lanes = kind == "lanes").start(altscreen::repaint) {})
+                altscreen.hud = true
+                altscreen.setShown(true)
+            } else {
+                altscreen.hud = altscreenContent == AltscreenContent.HUD
+            }
+            altscreen.repaint()
+            return true
+        }
+    }
     // A theme the CarPlay page saved; set once the session's theme sending exists, below.
     val themeSaved = AtomicReference<(String) -> Unit> {}
     val ui = ChairPlayUi(dir, config, firewall, object : UiActions {
@@ -414,7 +443,8 @@ private fun runCarPlay() {
                     showAltscreenView(active.get())
                 }
             }
-        })
+        },
+        demo = demos)
     // The CarPlay page offers Actual size while the window's size differs from the picture's.
     window.onResize = { ui.windowsChanged() }
     altscreen.onResize = { ui.windowsChanged() }
@@ -493,11 +523,14 @@ private fun runCarPlay() {
     // The AltScreen's HUD shows the bus's data, drawn again when it changes.
     altscreen.let { alt ->
         // CHAIRPLAY_HUD_DEMO plays a made-up route instead of the bus's data, for watching the maneuvers (HudDemo).
-        val demo = HudDemo.fromEnvironment()?.start(alt::repaint) { name ->
-            alt.screenshot { image -> saveScreenshot(image, dir, ::log, "altscreen-demo-$name") }
+        HudDemo.fromEnvironment()?.let { demo ->
+            hudDemo.set((if (demo.lanes) "lanes" else "maneuvers") to demo.start(alt::repaint) { name ->
+                alt.screenshot { image -> saveScreenshot(image, dir, ::log, "altscreen-demo-$name") }
+            })
         }
         alt.overlay = HudPainter({
-            val snapshot = demo?.invoke() ?: carPlayData.bus.snapshot()
+            val demo = hudDemo.get()?.second
+            val snapshot = demo?.snapshot?.invoke() ?: carPlayData.bus.snapshot()
             HudView(demo != null || active.get() != null, hudState(snapshot), snapshot.artwork)
         }, ::log, alt::repaint, config.accent)
         carPlayData.bus.addListener { if (alt.hud) alt.repaint() }
@@ -571,6 +604,7 @@ private fun runCarPlay() {
                 if (was != null) {
                     log("altscreen off from this connection on")
                     altscreenContent = null
+                    hudDemo.getAndSet(null)?.second?.stop()
                     altscreen.setShown(false)
                     controlsChanged.get()()
                     ui.windowsChanged()

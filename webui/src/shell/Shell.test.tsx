@@ -168,7 +168,7 @@ describe('Shell', () => {
   it('names each section whether or not its label shows', () => {
     render(<Shell state={appState({ ...live, restartPending: ['display.width'] })} backend={new FakeBackend()} />)
 
-    for (const name of ['Connection', 'CarPlay', 'AltScreen', 'Keyboard', 'Audio', 'About']) {
+    for (const name of ['Connection', 'CarPlay', 'AltScreen', 'Keyboard', 'Audio', 'Experiments', 'About']) {
       const tab = screen.getByRole('tab', { name })
       expect(tab.title).toBe(name)
       expect(tab.querySelector('.label')?.textContent).toBe(name)
@@ -179,7 +179,7 @@ describe('Shell', () => {
     render(<Shell state={appState(live)} backend={new FakeBackend()} />)
 
     const names = screen.getAllByRole('tab').map((tab) => tab.textContent)
-    expect(names).toEqual(['Connection', 'CarPlay', 'AltScreen', 'Keyboard', 'Audio', 'About'])
+    expect(names).toEqual(['Connection', 'CarPlay', 'AltScreen', 'Keyboard', 'Audio', 'Experiments', 'About'])
     expect(screen.getByRole('tab', { name: 'Connection' }).getAttribute('aria-selected')).toBe('true')
 
     fireEvent.click(screen.getByRole('tab', { name: 'Audio' }))

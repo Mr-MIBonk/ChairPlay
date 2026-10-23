@@ -44,6 +44,7 @@ class UiControllerTest {
         altscreenWindow: UiMainWindow? = null,
         altscreenFrame: UiSafeAreaFrame? = null,
         onSaved: (Map<String, String>) -> Unit = {},
+        demo: UiDemo? = null,
     ): UiController {
         Files.writeString(file, settings)
         val values = SettingsFile(file).read()
@@ -63,7 +64,7 @@ class UiControllerTest {
             }
         }, logged::add, autoconnect, windows, controls, launch, audio, mainWindow, bindings, applied::add, checks, elevate, setupStore,
             about, windowsVersion = { "Windows 11 24H2 (build 26300)" }, altscreenWindow = altscreenWindow, altscreenFrame = altscreenFrame,
-            onSaved = onSaved)
+            onSaved = onSaved, demo = demo)
     }
 
     // Copy details and New issue carry the same text: the build, the DiPlay core, and Windows; never a setting.
@@ -145,6 +146,36 @@ class UiControllerTest {
 
         assertEquals(listOf("display.corners", "display.safe.draw.outside"), ui.state()["reconnectPending"])
         assertEquals(emptyList<String>(), ui.state()["restartPending"])
+    }
+
+    private class FakeDemo(override var available: Boolean = true) : UiDemo {
+        override var playing: String? = null
+        override fun play(kind: String?): Boolean {
+            if (kind != null && !available) return false
+            playing = kind
+            return true
+        }
+    }
+
+    // The Experiments page plays the HUD's demos on the AltScreen, one at a time, and stops them.
+    @Test
+    fun `the Experiments page plays a HUD demo and stops it`() {
+        val demo = FakeDemo()
+        val ui = controller(demo = demo)
+        assertEquals(mapOf("playing" to null, "available" to true), ui.state()["demo"])
+        val before = ui.version
+
+        assertTrue(ui.demo("lanes"))
+        assertEquals("lanes", (ui.state()["demo"] as Map<*, *>)["playing"])
+        assertTrue(ui.version > before)
+        assertTrue(ui.demo(null))
+        assertEquals(null, (ui.state()["demo"] as Map<*, *>)["playing"])
+
+        assertFalse(ui.demo("tetris"))
+        demo.available = false
+        assertFalse(ui.demo("maneuvers"))
+        assertFalse(controller().demo("maneuvers"))
+        assertNull(controller().state()["demo"])
     }
 
     // The page shows the black waiting screen instead of the settings while the app connects on its own.
@@ -426,7 +457,19 @@ class UiControllerTest {
         val calls = mutableListOf<String>()
         override fun control(action: String, down: Boolean) = (action != "eject").also { calls += "$action $down" }
         override fun altscreenContent(content: String) = (content == "hud").also { calls += "altscreen $content" }
+        override fun volume(level: Int) = true.also { calls += "volume $level" }
         override fun state(): Map<String, Any?> = mapOf("volume" to mapOf("level" to 60, "muted" to false))
+    }
+
+    // The Audio page's slider sets the app's volume through the controls, as the volume keys turn it.
+    @Test
+    fun `the Audio page sets the volume`() {
+        val controls = FakeControls()
+
+        assertTrue(controller(controls = controls).volume(37))
+
+        assertEquals(listOf("volume 37"), controls.calls)
+        assertFalse(controller().volume(37))
     }
 
     /** A window that only records what it was asked. */
@@ -728,6 +771,21 @@ class UiControllerTest {
 
         assertTrue(Files.isDirectory(dir.resolve("offline-mfi")))
         assertEquals(listOf(listOf("explorer.exe", dir.resolve("offline-mfi").toString())), launched)
+    }
+
+    // The Experiments page's Logs: the CarPlay data log's folder and F12's screenshots, in the app folder.
+    @Test
+    fun `the logs and screenshots folders open in File Explorer, made first if they are missing`() {
+        val ui = controller()
+
+        assertTrue(ui.open("logs"))
+        assertTrue(ui.open("screenshots"))
+
+        assertTrue(Files.isDirectory(dir.resolve("logs")) && Files.isDirectory(dir.resolve("screenshots")))
+        assertEquals(
+            listOf(listOf("explorer.exe", dir.resolve("logs").toString()), listOf("explorer.exe", dir.resolve("screenshots").toString())),
+            launched,
+        )
     }
 
     @Test
