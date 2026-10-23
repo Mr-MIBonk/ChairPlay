@@ -1646,15 +1646,15 @@ html:has(.shell) {
 }
 
 /*
- * Six choices or more: two rows of equal plates, half of them in each (--columns, set by the group), as long as the
- * groups of four or more beside them; the second row starts without a separator.
+ * Six choices or more: two rows of ordinary plates, half of them in each (--columns, set by the group), as long as a
+ * group of as many plates as a row holds, three for six; the second row starts without a separator.
  */
 .shell .seg.rows {
   box-sizing: border-box;
   display: inline-grid;
   grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
   row-gap: 2px;
-  width: var(--row-width);
+  width: calc(var(--columns) * var(--choice) + 6px);
 }
 
 .shell .seg.rows button {
@@ -1665,12 +1665,6 @@ html:has(.shell) {
 .shell .seg.rows[data-items='7'] button:nth-child(5)::before,
 .shell .seg.rows[data-items='8'] button:nth-child(5)::before {
   display: none;
-}
-
-@container (min-width: 496px) {
-  .shell .seg.rows {
-    width: calc(4 * var(--choice) + 6px);
-  }
 }
 
 /*
@@ -1922,9 +1916,12 @@ html:has(.shell) {
     flex-wrap: wrap;
   }
 
-  .shell .seg.wide,
-  .shell .seg.rows {
+  .shell .seg.wide {
     width: min(var(--row-width), 100%);
+  }
+
+  .shell .seg.rows {
+    width: min(calc(var(--columns) * var(--choice) + 6px), 100%);
   }
 
   /* Beside its level */

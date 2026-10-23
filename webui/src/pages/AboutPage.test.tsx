@@ -69,10 +69,14 @@ describe('About page', () => {
     vi.unstubAllGlobals()
   })
 
+  // An action, so a button that looks like one, not a link.
   it('opens Get started again', async () => {
     await about()
+    const again = screen.getByRole('button', { name: 'Show again' })
+    expect(again.className).toContain('btn')
+    expect(again.className).not.toContain('link')
 
-    fireEvent.click(screen.getByRole('button', { name: 'Show again' }))
+    fireEvent.click(again)
 
     expect(await screen.findByRole('heading', { name: 'Get started' })).toBeTruthy()
   })

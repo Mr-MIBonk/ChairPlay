@@ -41,8 +41,11 @@ export function parts(settings: Settings, pending: Pending = NOTHING_PENDING) {
         onCommit={(text) => save({ [key]: text })}
       />
     ),
-    /** A segmented choice for [key], [fallback] chosen while it is blank, as the app then takes it. */
-    choice: (key: string, label: string, fallback: string, options: readonly Choice[], className?: string) => (
+    /**
+     * A segmented choice for [key], [fallback] chosen while it is blank, as the app then takes it; its [unit] after it,
+     * and the mark of a change waiting last, as a field's.
+     */
+    choice: (key: string, label: string, fallback: string, options: readonly Choice[], className?: string, unit?: string) => (
       <>
         <Segmented
           label={label}
@@ -51,6 +54,7 @@ export function parts(settings: Settings, pending: Pending = NOTHING_PENDING) {
           className={className}
           onChange={(chosen) => save({ [key]: chosen })}
         />
+        {unit && <span className="unit">{unit}</span>}
         <Changed keys={[key]} pending={pending} />
       </>
     ),
@@ -112,44 +116,21 @@ export function SizeRows(props: {
 }
 
 /**
- * Back to the picture in use: brings a window dragged to another size back to one screen pixel per picture pixel, and
- * a size saved since ([prefix].width and .height, blank meaning [fallback]) back to that picture's; not there while
- * both are. The window's smallest size never outgrows its picture, so it can always get there. A size saved on the
- * page becomes the picture at the next connection.
+ * Back to the picture in use: brings a window dragged to another size back to one screen pixel per picture pixel; not
+ * there while it is. The window's smallest size never outgrows its picture, so it can always get there. A size chosen
+ * on the page becomes the picture at the next connection, which its mark says; it is left as it is.
  */
-export function ActualSize(props: {
-  sizes: WindowSizes | null
-  window: PictureWindow
-  backend: Backend
-  settings: Settings
-  prefix: string
-  fallback: { width: number; height: number }
-}) {
-  const { sizes, settings, prefix } = props
+export function ActualSize(props: { sizes: WindowSizes | null; window: PictureWindow; backend: Backend }) {
+  const { sizes } = props
   if (!sizes) return null
-  const picture = { width: String(sizes.pictureWidth), height: String(sizes.pictureHeight) }
   const resized = sizes.width !== sizes.pictureWidth || sizes.height !== sizes.pictureHeight
-  const saved = {
-    width: settings.value(`${prefix}.width`) || String(props.fallback.width),
-    height: settings.value(`${prefix}.height`) || String(props.fallback.height),
-  }
-  const changed = saved.width !== picture.width || saved.height !== picture.height
-  if (!resized && !changed) return null
-  const size = `${picture.width}×${picture.height}`
-  const title = !changed
-    ? `Resize the window to ${size}, one screen pixel per picture pixel`
-    : resized
-      ? `Resize the window to ${size}, one screen pixel per picture pixel, and set the size back to it`
-      : `Set the size back to ${size}, the one in use`
+  if (!resized) return null
   return (
     <button
       type="button"
       className="btn small actual"
-      title={title}
-      onClick={() => {
-        if (resized) void props.backend.actualSize(props.window)
-        if (changed) void settings.save({ [`${prefix}.width`]: picture.width, [`${prefix}.height`]: picture.height })
-      }}
+      title={`Resize the window to ${sizes.pictureWidth}×${sizes.pictureHeight}, one screen pixel per picture pixel`}
+      onClick={() => void props.backend.actualSize(props.window)}
     >
       Actual size
     </button>

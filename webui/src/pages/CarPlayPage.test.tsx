@@ -76,8 +76,9 @@ describe('CarPlay page, display', () => {
     expect(backend.actualSized).toEqual(['main'])
   })
 
-  // A size saved but not yet in use goes back too: the window and the setting both return to the picture in use.
-  it('puts a changed size back to the one in use with the window', async () => {
+  // Actual size is the window's: a size chosen for the next connection stays chosen, the window going back to the
+  // picture in use.
+  it('brings the window back to the picture in use, leaving a size chosen for the next connection', async () => {
     const fake = new FakeBackend()
     fake.data.values['display.width'] = '1920'
     fake.data.values['display.height'] = '1080'
@@ -85,25 +86,30 @@ describe('CarPlay page, display', () => {
     const backend = await carplay(fake, appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
 
     const actual = screen.getByRole('button', { name: 'Actual size' })
-    expect(actual.title).toBe('Resize the window to 1280×720, one screen pixel per picture pixel, and set the size back to it')
+    expect(actual.title).toBe('Resize the window to 1280×720, one screen pixel per picture pixel')
     fireEvent.click(actual)
 
     expect(backend.actualSized).toEqual(['main'])
-    await waitFor(() => expect(backend.saved).toEqual([{ 'display.width': '1280', 'display.height': '720' }]))
+    expect(backend.saved).toEqual([])
   })
 
-  it('offers Actual size for a changed size while the window is at the one in use', async () => {
+  // A changed setting's mark ends its row, after the unit, as the size's does.
+  it('marks a changed frame rate after its unit', async () => {
+    await carplay(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, reconnectPending: ['display.fps'] }))
+
+    const row = screen.getByRole('radiogroup', { name: 'Frame rate' }).parentElement!
+    const last = [...row.children].slice(-2).map((child) => child.textContent)
+    expect(last).toEqual(['fps', '⟳'])
+  })
+
+  // A size chosen waits for the next connection, as its mark says; there is nothing to make actual yet.
+  it('has no Actual size for a size waiting for the next connection', async () => {
     const fake = new FakeBackend()
     fake.data.values['display.width'] = '1920'
     const mainWindow = { width: 1280, height: 720, pictureWidth: 1280, pictureHeight: 720, minWidth: 0, minHeight: 0 }
-    const backend = await carplay(fake, appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
+    await carplay(fake, appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
 
-    const actual = screen.getByRole('button', { name: 'Actual size' })
-    expect(actual.title).toBe('Set the size back to 1280×720, the one in use')
-    fireEvent.click(actual)
-
-    expect(backend.actualSized).toEqual([])
-    await waitFor(() => expect(backend.saved).toEqual([{ 'display.width': '1280', 'display.height': '720' }]))
+    expect(screen.queryByRole('button', { name: 'Actual size' })).toBeNull()
   })
 
   it('has no Actual size while the window is at it', async () => {

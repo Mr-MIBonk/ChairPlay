@@ -97,28 +97,38 @@ class HudMotion {
 /** Starts and stops softly: cubic in and out. */
 internal fun ease(t: Float): Float = if (t < 0.5f) 4 * t * t * t else 1 - (-2 * t + 2).pow(3) / 2
 
-/** A horizontal span of the HUD and, for the song, its cover's size. */
-data class HudBox(val left: Float, val right: Float, val cover: Float = 0f)
+/** A horizontal span of the HUD and, for the song, its cover's size and its text's scale, 1 at full size. */
+data class HudBox(val left: Float, val right: Float, val cover: Float = 0f, val text: Float = 1f)
 
-/** The song's span and cover in a [width] x [height] HUD: the middle alone, the right column beside the route. */
+/**
+ * The song's span, cover and text in a [width] x [height] HUD: the middle alone, the right column beside the route,
+ * cover and text smaller.
+ */
 fun mediaBox(width: Float, height: Float, route: Float): HudBox {
-    val pad = HUD_PAD * height
+    val pad = HUD_SIDE * width
     return HudBox(
-        left = lerp(pad, width / 2, route),
+        left = lerp(pad, width / 2 + pad / 2, route),
         right = width - pad,
         cover = lerp(MEDIA_COVER_ALONE * height, MEDIA_COVER_BESIDE * height, route),
+        text = lerp(1f, MEDIA_TEXT_BESIDE, route),
     )
 }
 
 /** The route's span in a [width] x [height] HUD: the whole width alone, the left half beside the song. */
 fun routeBox(width: Float, height: Float, media: Float): HudBox {
-    val pad = HUD_PAD * height
-    return HudBox(left = pad, right = lerp(width - pad, width / 2, media))
+    val pad = HUD_SIDE * width
+    return HudBox(left = pad, right = lerp(width - pad, width / 2 - pad / 2, media))
 }
 
 internal fun lerp(from: Float, to: Float, t: Float) = from + (to - from) * t
 
-/** The margin around the HUD, in its height. */
+/** The margin above and below the HUD, in its height. */
 internal const val HUD_PAD = 0.06f
-private const val MEDIA_COVER_ALONE = 0.55f
+
+/** The margin at each side of the HUD, and between the route and the song, in its width. */
+internal const val HUD_SIDE = 0.06f
+// 260 px on the 540 px AltScreen.
+private const val MEDIA_COVER_ALONE = 0.48f
 private const val MEDIA_COVER_BESIDE = 0.38f
+// The text beside the route, as it scaled with the cover when that was 0.55 alone.
+private const val MEDIA_TEXT_BESIDE = 0.38f / 0.55f

@@ -266,8 +266,8 @@ class DesktopConfigTest {
 
     // The music starts silent for a while after it starts, then rises: the iPhone's first audio comes in bursts.
     @Test
-    fun `the music starts silent for 1200 ms and rises over 800 ms unless set`() {
-        assertEquals(1200L to 800L, configWith().let { it.musicStartSilenceMillis to it.musicStartFadeMillis })
+    fun `the music starts silent for 2 s and rises over 800 ms unless set`() {
+        assertEquals(2000L to 800L, configWith().let { it.musicStartSilenceMillis to it.musicStartFadeMillis })
         val set = configWith("audio.start.silence.ms=0", "audio.start.fade.ms=300")
         assertEquals(0L to 300L, set.musicStartSilenceMillis to set.musicStartFadeMillis)
         assertTrue(runCatching { configWith("audio.start.fade.ms=-1").musicStartFadeMillis }.exceptionOrNull() is IllegalArgumentException)

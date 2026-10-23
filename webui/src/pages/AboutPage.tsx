@@ -49,7 +49,7 @@ export function AboutPage({ state, backend, onShowGuide }: { state: AppState; ba
       </Row>
       <Group title="Support" />
       <Row label="Get started">
-        <button type="button" className="link" title="Go through the setup steps again" onClick={onShowGuide}>
+        <button type="button" className="btn small" title="Go through the setup steps again" onClick={onShowGuide}>
           Show again
         </button>
       </Row>

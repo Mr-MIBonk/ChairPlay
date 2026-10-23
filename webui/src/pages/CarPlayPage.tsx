@@ -31,13 +31,12 @@ export function CarPlayPage({ state, backend, settings }: { state: AppState; bac
         presets={PRESETS}
         fallback={displayFallback}
         after={
-          <ActualSize sizes={state.mainWindow} window="main" backend={backend} settings={settings} prefix="display" fallback={displayFallback} />
+          <ActualSize sizes={state.mainWindow} window="main" backend={backend} />
         }
         pending={pending}
       />
       <Row label="Frame rate">
-        {choice('display.fps', 'Frame rate', '60', [['30', '30'], ['60', '60']], 'half')}
-        <span className="unit">fps</span>
+        {choice('display.fps', 'Frame rate', '60', [['30', '30'], ['60', '60']], 'half', 'fps')}
       </Row>
       <Row label="Physical size" title="Leave blank for 200 mm wide, with the height from the aspect ratio">
         {field('display.physical.width.mm', 'Physical width', '200', 'short c')}

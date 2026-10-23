@@ -7,7 +7,8 @@ import { ActualSize, Changed, parts, pendingOf, SafeArea, SizeRows } from './par
 const PRESETS = [
   [1280, 480, 'BYD DiLink 3: 10.25-inch clusters'],
   [1440, 540, 'Audi Virtual Cockpit, 12.3 inch'],
-  [1920, 720, 'BYD DiLink 4 and 5, Geely: the common 12.3-inch cluster'],
+  [1600, 600],
+  [1920, 720,'BYD DiLink 4 and 5, Geely: the common 12.3-inch cluster'],
 ] as const
 
 const DISPLAY_KEYS = ['altscreen.enabled', 'altscreen.width', 'altscreen.height']
@@ -40,16 +41,7 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
         prefix="altscreen"
         presets={PRESETS}
         fallback={ALTSCREEN_FALLBACK}
-        after={
-          <ActualSize
-            sizes={state.altscreenWindow}
-            window="altscreen"
-            backend={backend}
-            settings={settings}
-            prefix="altscreen"
-            fallback={ALTSCREEN_FALLBACK}
-          />
-        }
+        after={<ActualSize sizes={state.altscreenWindow} window="altscreen" backend={backend} />}
         pending={pending}
       />
       <Group title="View" note="Also on the controls window" />

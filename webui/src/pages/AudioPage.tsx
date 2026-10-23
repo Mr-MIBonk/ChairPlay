@@ -68,7 +68,7 @@ export function AudioPage({ state, backend, settings }: { state: AppState; backe
         label="Buffering pause"
         title="The iPhone's first second or two of music come in bursts: how long the music stays silent while they buffer"
       >
-        {field('audio.start.silence.ms', 'Buffering pause', '1200')}
+        {field('audio.start.silence.ms', 'Buffering pause', '2000')}
         <span className="unit">ms</span>
       </Row>
       <Row label="Fade" title="How long the music takes to rise after the pause, and to fade out as CarPlay disconnects or ChairPlay closes">

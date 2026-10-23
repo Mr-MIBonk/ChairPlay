@@ -36,7 +36,7 @@ describe('Audio page volume', () => {
     const backend = await audio()
 
     const silence = screen.getByRole('textbox', { name: 'Buffering pause' }) as HTMLInputElement
-    expect(silence.placeholder).toBe('1200')
+    expect(silence.placeholder).toBe('2000')
     fireEvent.change(silence, { target: { value: '1500' } })
     fireEvent.blur(silence)
     const fade = screen.getByRole('textbox', { name: 'Fade' }) as HTMLInputElement

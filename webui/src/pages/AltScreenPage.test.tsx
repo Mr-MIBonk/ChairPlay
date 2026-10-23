@@ -115,10 +115,17 @@ describe('AltScreen page', () => {
   it('stretches the long groups to the length of a row', async () => {
     await altscreen()
 
-    for (const name of ['View', 'Turn card']) {
+    for (const name of ['Size', 'View', 'Turn card']) {
       expect(screen.getByRole('radiogroup', { name }).classList.contains('wide')).toBe(true)
     }
-    expect(screen.getByRole('radiogroup', { name: 'Size' }).classList.contains('wide')).toBe(false)
+  })
+
+  // Every size is the clusters' 8:3.
+  it('offers the 8:3 sizes, 1600×600 between the Audi and the common one', async () => {
+    await altscreen()
+
+    const sizes = within(screen.getByRole('radiogroup', { name: 'Size' })).getAllByRole('radio').map((radio) => radio.textContent)
+    expect(sizes).toEqual(['1280×480', '1440×540', '1600×600', '1920×720'])
   })
 
   it('saves the safe area', async () => {

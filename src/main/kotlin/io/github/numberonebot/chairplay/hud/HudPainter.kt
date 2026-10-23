@@ -160,29 +160,36 @@ class HudPainter(
     }
 
     /**
-     * The song as the iPhone's Now Playing lays it out: the title, artist and album on lines of their own, a progress
-     * bar and the app, all centred, with the cover at their right; centred in the [box] with its cover's size,
-     * [presence] of the way out of the dark.
+     * The song: the cover, and at its right the title, artist and album on lines of their own, a progress bar and the
+     * app, all centred, as the iPhone's Now Playing sets them; centred in the [box] with its cover's size, [presence] of
+     * the way out of the dark.
      */
     private fun media(media: HudMedia, now: HudView, box: HudBox, h: Float, presence: Float) {
-        val gap = 0.08f * h
+        // 40 px on the 540 px AltScreen.
+        val gap = 0.074f * h
         val coverSize = box.cover
-        val textWidth = min(box.right - box.left - coverSize - gap, 0.9f * h * 1.4f)
+        // The song alone keeps to 80 % of the width its lines could take beside the cover; beside the route its column
+        // bounds it.
+        val widest = (0.9f * h * 1.4f + gap + coverSize) * 0.8f
+        val textWidth = min(box.right - box.left, widest) - coverSize - gap
         val blockWidth = textWidth + gap + coverSize
         val x = box.left + (box.right - box.left - blockWidth) / 2
         val y = h / 2 - coverSize / 2
-        emerging(presence, x + blockWidth / 2, h / 2) { mediaBlock(media, now, x, y, coverSize, gap, textWidth, h) }
+        emerging(presence, x + blockWidth / 2, h / 2) { mediaBlock(media, now, x, y, coverSize, gap, textWidth, h, box.text) }
     }
 
     /** One line of the song's text block: its [height], the [space] above it, and how it draws at its middle. */
     private class Row(val height: Float, val space: Float, val draw: (Float) -> Unit)
 
-    private fun mediaBlock(media: HudMedia, now: HudView, x: Float, y: Float, coverSize: Float, gap: Float, textWidth: Float, h: Float) {
-        drawCover(songCover.pick(listOf(media.title, media.artist, media.album), media.artworkId, now.artwork), x + textWidth + gap, y, coverSize)
-        val cx = x + textWidth / 2
+    private fun mediaBlock(
+        media: HudMedia, now: HudView, x: Float, y: Float, coverSize: Float, gap: Float, textWidth: Float, h: Float, scale: Float,
+    ) {
+        drawCover(songCover.pick(listOf(media.title, media.artist, media.album), media.artworkId, now.artwork), x, y, coverSize)
+        val tx = x + coverSize + gap
+        val cx = tx + textWidth / 2
         // In whole pixels: while the song moves between the middle and its column, every size between would be
         // another set of glyphs for NanoVG to render.
-        val fullSize = (0.10f * h * coverSize / (0.55f * h)).roundToInt().toFloat()
+        val fullSize = (0.10f * h * scale).roundToInt().toFloat()
         val lineSize = (fullSize * 0.6f).roundToInt().toFloat()
         val sourceSize = 0.04f * h
         val barHeight = 0.012f * h
@@ -199,10 +206,10 @@ class HudPainter(
             media.progress?.let { progress ->
                 add(Row(barHeight, space * 2.5f) { cy ->
                     nvgBeginPath(vg)
-                    nvgRoundedRect(vg, x, cy - barHeight / 2, textWidth, barHeight, barHeight / 2)
+                    nvgRoundedRect(vg, tx, cy - barHeight / 2, textWidth, barHeight, barHeight / 2)
                     fill(DIM)
                     nvgBeginPath(vg)
-                    nvgRoundedRect(vg, x, cy - barHeight / 2, textWidth * progress, barHeight, barHeight / 2)
+                    nvgRoundedRect(vg, tx, cy - barHeight / 2, textWidth * progress, barHeight, barHeight / 2)
                     fill(accentColor)
                 })
             }
@@ -302,11 +309,12 @@ class HudPainter(
             if (!maneuverView.draw(vg, maneuver, x, cy - viewHeight / 2, viewWidth, viewHeight, sharpHeight)) {
                 arrow(maneuver.typeCode, x + (viewWidth - arrowSize) / 2, cy - arrowSize / 2, arrowSize)
             }
-            val tx = x + viewWidth + gap
+            // The lines centred in their column, as the song's are.
+            val tx = x + viewWidth + gap + textWidth / 2
             var y = cy - blockHeight / 2
             for (line in lines) {
                 y += line.size * line.spacing / 2
-                text(fit(line.text, textWidth, line.size, line.font), tx, y, line.size, line.rgb, line.font, NVG_ALIGN_LEFT)
+                text(fit(line.text, textWidth, line.size, line.font), tx, y, line.size, line.rgb, line.font, NVG_ALIGN_CENTER)
                 y += line.size * line.spacing / 2
             }
         }
@@ -393,7 +401,7 @@ class HudPainter(
     }
 
     private fun callCard(call: String, w: Float, h: Float, presence: Float) {
-        val left = HUD_PAD * h
+        val left = HUD_SIDE * w
         val right = w - left
         val height = 0.30f * h
         val y = h / 2 - height / 2

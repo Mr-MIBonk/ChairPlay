@@ -30,14 +30,14 @@ export function AltScreenIcon() {
       <defs>
         <mask id={mask}>
           <rect width="26" height="16" fill="#fff" />
-          {/* As far from the panel's bottom edge (1.4) as from its ends */}
-          <circle cx="5.9" cy="8.7" r="4.3" fill="#000" />
-          <circle cx="20.1" cy="8.7" r="4.3" fill="#000" />
+          {/* In the middle of the panel's height */}
+          <circle cx="5.9" cy="8" r="4.3" fill="#000" />
+          <circle cx="20.1" cy="8" r="4.3" fill="#000" />
         </mask>
       </defs>
       <rect x="0.2" y="1.6" width="25.6" height="12.8" rx="4" fill="currentColor" mask={`url(#${mask})`} />
-      {/* A needle in each dial, as the controls knob's pointer, the two leaning apart */}
-      <path d="M5.9 8.7L3.85 6.65M20.1 8.7L22.15 6.65" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
+      {/* A needle in each dial, as the controls knob's pointer, both leaning left */}
+      <path d="M5.9 8L3.85 5.95M20.1 8L18.05 5.95" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" />
     </svg>
   )
 }

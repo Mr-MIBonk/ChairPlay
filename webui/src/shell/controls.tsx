@@ -166,7 +166,8 @@ export type Choice = readonly [value: string, text: string, title?: string]
 /**
  * Choices side by side, the chosen one a lit plate. A disabled group shows none chosen. Two or three choices are equal
  * plates; four or more ("wide") keep to the length of a row's controls, and are as long as four plates where the page
- * has room, and five where it has room for that; six or more ("rows") wrap onto two rows of equal plates. [className]
+ * has room, and five where it has room for that; six or more ("rows") wrap onto two rows of ordinary plates, as long
+ * as a group of as many as a row holds (three for six). [className]
  * sets the width by hand instead: "compact", or "half" for short figures, as long as a size's two fields.
  */
 export function Segmented(props: {

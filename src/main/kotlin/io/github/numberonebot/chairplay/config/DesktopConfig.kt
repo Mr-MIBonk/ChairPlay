@@ -174,7 +174,7 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
      * long, since the iPhone's first second or two of audio come in bursts and the line runs dry in them. The sound fades
      * out over the same time as CarPlay disconnects or reconnects and as the app closes.
      */
-    val musicStartSilenceMillis: Long = nonNegativeOr("audio.start.silence.ms", 1200).toLong()
+    val musicStartSilenceMillis: Long = nonNegativeOr("audio.start.silence.ms", 2000).toLong()
     val musicStartFadeMillis: Long = nonNegativeOr("audio.start.fade.ms", 800).toLong()
 
     /**
@@ -537,8 +537,9 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
             ),
             SettingBlock(
                 "How CarPlay's music starts, since the iPhone's first audio comes in bursts: silent for this many\n" +
-                    "milliseconds, then rising to full over this many (both 0 play it at once).",
-                "audio.start.silence.ms" to "1200",
+                    "milliseconds, then rising to full over this many (both 0 play it at once). The sound fades out over\n" +
+                    "the second as CarPlay disconnects or reconnects and as the app closes.",
+                "audio.start.silence.ms" to "2000",
                 "audio.start.fade.ms" to "800",
             ),
             SettingBlock(
