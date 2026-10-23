@@ -37,6 +37,7 @@ export function AboutPage({ state, backend, onShowGuide }: { state: AppState; ba
         <Commit commit={state.about.core} />
       </Row>
       <Group title="Credits" />
+      <Row label="Author">{link('author', 'Oleksiy Strelets', "Open the author's GitHub profile")}</Row>
       <Row label="CarPlay core">
         {link('diplay', 'DiPlay')} by shihabal3amri
       </Row>

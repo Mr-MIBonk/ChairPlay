@@ -89,7 +89,7 @@ private fun log(message: String) = println("${LocalTime.now()} $message")
 
 /** How often display.theme=windows looks at the Windows theme. */
 private const val CONNECTING = "connecting…"
-private val CONTROLS_SIZE = WindowSize(518, 215)
+private val CONTROLS_SIZE = WindowSize(518, 212)
 private const val SCREENSHOT_PICTURE_WAIT_NANOS = 30_000_000_000L
 private const val CLOSING_PREVIOUS = "closing previous run…"
 private const val PREVIOUS_RUN_WAIT_MILLIS = 15_000L
@@ -283,6 +283,9 @@ private fun runCarPlay() {
     val reconnecting = AtomicBoolean()
     // Ctrl+R: set once the bootstrap exists; closing a session talks to the network, so not on the GL thread.
     val restartBootstrap = AtomicReference<() -> Unit> {}
+    // Reconnect retires the session unheard: set below, this ends it on the screens as a lost one would, CarPlay giving
+    // way to the waiting screen instead of its last picture standing still.
+    val sessionDropped = AtomicReference<() -> Unit> {}
     fun reconnect() = Thread({ restartBootstrap.get()() }, "reconnect").apply { isDaemon = true }.start()
     // The AltScreen's view as it is now, on the touch thread: the HUD or the iPhone's picture, the cluster URL a running
     // [session] is asked for, the title, the view remembered for the next start, and the controls window's page.
@@ -317,6 +320,7 @@ private fun runCarPlay() {
             reconnecting.set(true)
             window.setTitle(mainWindowTitle(stream(), RECONNECTING))
             sink.fadeOut(FADE_OUT_MILLIS)
+            sessionDropped.get()()
             reconnect()
             return
         }
@@ -514,6 +518,7 @@ private fun runCarPlay() {
             if (active.compareAndSet(session, null)) {
                 sessionChanged()
                 ui.sessionEnded()
+                window.clearPicture()
                 window.setTitle(mainWindowTitle(stream(), if (reconnecting.get()) RECONNECTING else CONNECTING))
             }
             log("AirPlay session ended")
@@ -533,11 +538,19 @@ private fun runCarPlay() {
         override fun onDebugLog(message: String) = log(message)
     }, carPlayData)
     restartBootstrap.set(bootstrap::restart)
+    sessionDropped.set {
+        if (active.getAndSet(null) != null) {
+            sessionChanged()
+            ui.sessionEnded()
+        }
+        window.clearPicture()
+    }
     startBootstrap.set(bootstrap::start)
     // A retired stack's session ends unheard (onSessionEnded above stays quiet), so Disconnect clears it here.
     stopBootstrap.set {
         bootstrap.stop()
         if (active.getAndSet(null) != null) sessionChanged()
+        window.clearPicture()
         window.setTitle(mainWindowTitle(stream(), NOT_CONNECTED))
     }
     bootstrap.onStatus = ui::bringUp

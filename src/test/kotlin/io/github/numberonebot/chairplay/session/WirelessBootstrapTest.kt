@@ -14,6 +14,7 @@ import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.config.writeTestSettings
 import io.github.numberonebot.chairplay.data.CarPlayDataTap
 import io.github.numberonebot.chairplay.data.DataLink
+import io.github.numberonebot.chairplay.media.AudioDuckSink
 import com.shilapi.xcertplay.iap2.session.Iap2Session
 import com.shilapi.xcertplay.iap2.wire.Iap2Frame
 import com.shilapi.xcertplay.mfi.MfiAuthenticator
@@ -39,6 +40,7 @@ import java.net.Socket
 import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.StandardOpenOption
+import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.LinkedBlockingQueue
@@ -192,6 +194,32 @@ class WirelessBootstrapTest {
         }
     }
 
+    // The iPhone brackets each navigation prompt with duckAudio and unduckAudio; every command reaches the log.
+    @Test(timeout = 30_000)
+    fun `duck commands reach a sink that ducks, and the session's end unducks`() {
+        val sink = DuckingSink()
+        Harness(sink = sink).use { harness ->
+            val port = harness.nextPort()
+            RtspClient(harness.loopback, port).use { client ->
+                assertOk(client.request("RECORD", "*"))
+                val duck = BplistCodec.encode(mapOf("type" to "duckAudio", "params" to mapOf("durationMs" to 500L, "volume" to 0.2)))
+                assertOk(client.request("POST", "/command", duck))
+
+                assertEquals(true to mapOf("durationMs" to 500L, "volume" to 0.2), sink.ducks.poll(10, TimeUnit.SECONDS))
+                assertTrue(harness.logs.toString(), "airplay command duckAudio: durationMs=500, volume=0.2" in harness.logs)
+            }
+            // The connection dropped mid-prompt: no unduckAudio will come.
+            assertEquals(false, sink.ducks.poll(10, TimeUnit.SECONDS)?.first)
+        }
+    }
+
+    private class DuckingSink : MediaSink, AudioDuckSink {
+        val ducks = LinkedBlockingQueue<Pair<Boolean, Map<String, Any?>>>()
+        override fun onAudioDuck(ducked: Boolean, params: Map<String, Any?>) {
+            ducks += ducked to params
+        }
+    }
+
     @Test(timeout = 30_000)
     fun `data frames from both iAP2 links reach the data tap`() {
         val tap = RecordingTap()
@@ -314,8 +342,10 @@ class WirelessBootstrapTest {
         tap: CarPlayDataTap = CarPlayDataTap.NONE,
         knownIphone: Boolean = false,
         settings: String = "",
+        sink: MediaSink = object : MediaSink {},
     ) : Closeable {
         val loopback: InetAddress = InetAddress.getByName("127.0.0.1")
+        val logs = CopyOnWriteArrayList<String>()
         val stacks = AtomicInteger()
         val parts = LinkedBlockingDeque<FakeParts>()
         val previousPortFree = AtomicBoolean()
@@ -332,7 +362,12 @@ class WirelessBootstrapTest {
             if (settings.isNotEmpty()) Files.writeString(dir.resolve("settings.properties"), "\n$settings\n", StandardOpenOption.APPEND)
             // An AirPlay pairing record, as the first session with this iPhone leaves.
             if (knownIphone) Files.createDirectories(dir.resolve("pairings")).resolve("6970686f6e65").let { Files.writeString(it, "00") }
-            WirelessBootstrap(DesktopConfig(dir), object : MediaSink {}, object : AirPlaySessionListener {}, tap) {
+            val listener = object : AirPlaySessionListener {
+                override fun onDebugLog(message: String) {
+                    logs += message
+                }
+            }
+            WirelessBootstrap(DesktopConfig(dir), sink, listener, tap) {
                 if (stacks.incrementAndGet() > 1) previousPortFree.set(bindable(loopback, previousPort.get()))
                 FakeParts(info(listOf(loopback))) { config ->
                     previousPort.set(config.port)

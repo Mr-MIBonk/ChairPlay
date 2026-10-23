@@ -168,7 +168,11 @@ The files below live in the app folder, next to `ChairPlay.exe`.
      `phone` (the iPhone decides by itself); a change on the CarPlay page applies at once, as a car's headlights do;
    - `display.right.hand.drive` (`true` puts the dock and controls on the right), `display.dock` (`auto`, `driver` or
      `bottom`), `display.safe.top`/`bottom`/`left`/`right` (pixels CarPlay keeps its controls out of) with
-     `display.safe.draw.outside`, and `display.corners` (`square`, the default, fills the window to its corners; `rounded` keeps CarPlay's rounded corners).
+     `display.safe.draw.outside`, and `display.corners` (`square`, the default, fills the window to its corners; `rounded` keeps CarPlay's rounded corners);
+   - `display.touch`: the touchscreen CarPlay is told of. `none` (the default, for a mouse) has CarPlay leave out
+     the scroll buttons in its lists; clicks and drags still reach it as taps, and the keys and the controls window
+     move its focus. `swipe` (a touchscreen that swipes) and `tap` (one that only taps) have CarPlay show them. The
+     knob is always declared.
 
    The settings apply at the next start (the Wi-Fi network with the next connection, `ui.autoshow` and
    `ui.controls.keys` at once); the

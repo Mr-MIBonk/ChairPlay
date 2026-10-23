@@ -112,6 +112,20 @@ class DesktopConfigTest {
 
     // A window is rectangular, so the picture fills it with square corners unless rounded is asked for.
     @Test
+    fun `the screen has no touch by default, or one that swipes or only taps`() {
+        // features: 0x02 a knob, 0x04 a touchscreen that only taps, 0x08 one that swipes; primary input 1 touch, 3 knob.
+        // With a mouse the knob is the primary input: CarPlay leaves out its scroll buttons, and clicks still tap.
+        val default = configWith().airPlay.main
+        assertEquals(0x02 to 3, default.features to default.primaryInputDevice)
+        val swipe = configWith("display.touch=swipe").airPlay.main
+        assertEquals(0x0A to 1, swipe.features to swipe.primaryInputDevice)
+        val tap = configWith("display.touch=tap").airPlay.main
+        assertEquals(0x06 to 1, tap.features to tap.primaryInputDevice)
+        val none = configWith("display.touch=none").airPlay.main
+        assertEquals(0x02 to 3, none.features to none.primaryInputDevice)
+    }
+
+    @Test
     fun `corners are square by default and rounded on request`() {
         val square = configWith().airPlay.main
         assertEquals(true, square.mainDisplayCornerMasks)
@@ -170,7 +184,7 @@ class DesktopConfigTest {
     @Test
     fun `rejects screen layout values the iPhone cannot use`() {
         for (bad in listOf(
-            "display.theme=sepia", "display.right.hand.drive=maybe", "display.dock=top", "display.corners=round",
+            "display.theme=sepia", "display.right.hand.drive=maybe", "display.dock=top", "display.corners=round", "display.touch=pen",
             "display.safe.top=-1", "display.safe.left=700", "display.safe.draw.outside=1",
         )) {
             val extra = if (bad.startsWith("display.safe.left")) arrayOf("display.safe.right=600") else emptyArray()

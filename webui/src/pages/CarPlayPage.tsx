@@ -11,7 +11,7 @@ const PRESETS = [
 ] as const
 
 const DISPLAY_KEYS = ['display.width', 'display.height', 'display.fps', 'display.physical.width.mm', 'display.physical.height.mm', 'display.ppi']
-const LOOK_KEYS = ['display.theme', 'display.dock', 'display.right.hand.drive', 'display.safe.draw.outside', 'display.corners']
+const LOOK_KEYS = ['display.theme', 'display.dock', 'display.right.hand.drive', 'display.safe.draw.outside', 'display.corners', 'display.touch']
 
 /** The picture CarPlay draws: its size and frame rate, how large it is, its look, and the safe area. */
 export function CarPlayPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
@@ -61,6 +61,13 @@ export function CarPlayPage({ state, backend, settings }: { state: AppState; bac
       </Row>
       <Row label="Corners">
         {choice('display.corners', 'Corners', 'square', [['rounded', 'Rounded'], ['square', 'Square']])}
+      </Row>
+      <Row label="Touchscreen" title="The touchscreen CarPlay is told of: with one, CarPlay shows scroll buttons in its lists">
+        {choice('display.touch', 'Touchscreen', 'none', [
+          ['swipe', 'Swipe', 'A touchscreen that swipes: CarPlay shows scroll buttons, and lists also scroll by swiping'],
+          ['tap', 'Tap only', 'A touchscreen that only taps: CarPlay shows scroll buttons for its lists'],
+          ['none', 'None', 'No touchscreen: CarPlay leaves out its scroll buttons; the mouse still taps and drags, the keys move the focus'],
+        ])}
       </Row>
       <Group title="Safe area" note="Pixels at each edge" />
       <SafeArea settings={settings} prefix="display.safe" label="Insets" pending={pending} />

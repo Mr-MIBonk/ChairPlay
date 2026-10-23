@@ -89,6 +89,7 @@ class UiControllerTest {
     fun `the About page's links open the project's pages, and the notices in Notepad`() {
         val ui = controller()
         val pages = mapOf(
+            "author" to "https://github.com/NumberOneBot",
             "source" to "https://github.com/NumberOneBot/ChairPlay",
             "releases" to "https://github.com/NumberOneBot/ChairPlay/releases",
             "discussions" to "https://github.com/NumberOneBot/ChairPlay/discussions",

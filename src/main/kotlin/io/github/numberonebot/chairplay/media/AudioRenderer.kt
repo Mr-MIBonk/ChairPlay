@@ -63,12 +63,17 @@ internal fun fadeGain(startNs: Long, nowNs: Long, durationNs: Long): Float {
 internal fun scaleSamples(pcm: ByteArray, length: Int, gain: Float) {
     var at = 0
     while (at + 1 < length) {
-        val sample = ((pcm[at + 1].toInt() shl 8) or (pcm[at].toInt() and 0xFF)).toShort()
-        val scaled = (sample * gain).toInt()
-        pcm[at] = scaled.toByte()
-        pcm[at + 1] = (scaled shr 8).toByte()
+        scaleSample(pcm, at, gain)
         at += 2
     }
+}
+
+/** Multiplies the little-endian 16-bit sample at [at] by [gain], in place. */
+internal fun scaleSample(pcm: ByteArray, at: Int, gain: Float) {
+    val sample = ((pcm[at + 1].toInt() shl 8) or (pcm[at].toInt() and 0xFF)).toShort()
+    val scaled = (sample * gain).toInt()
+    pcm[at] = scaled.toByte()
+    pcm[at + 1] = (scaled shr 8).toByte()
 }
 
 internal interface PcmLine : Closeable {
@@ -241,10 +246,12 @@ class AudioRenderer internal constructor(
         this(log, javaSoundLines(output), volume = volume)
 
     private val streams = ConcurrentHashMap<AudioStreamId, Stream>()
+    private val ducking = MediaDucking(log)
 
     /** [echoReference], for a call, receives what this stream plays, for the microphone's echo canceller. */
     internal fun start(id: AudioStreamId, format: AudioFormat, echoReference: EchoReference? = null) {
         streams.remove(id)?.close()
+        endDuck(id, "started")
         val supported = format.channels in 1..2 && format.sampleRate > 0
         if (!supported) {
             log("audio ${id.audioType}: ${format.codec} with ${format.channels} channels at ${format.sampleRate} Hz is not supported; dropped")
@@ -266,8 +273,30 @@ class AudioRenderer internal constructor(
         streams.values.forEach { it.fadeOut(now, durationMillis * 1_000_000) }
     }
 
+    /**
+     * duckAudio: lowers the media streams to [level] over [rampMillis] while a navigation prompt plays; the prompt, calls
+     * and Siri keep their volume. A media stream that starts or stops meanwhile ends the duck, so no music starts ducked.
+     */
+    fun duck(level: Float, rampMillis: Long) {
+        ducking.duck(level, rampMillis * 1_000_000, clock())
+        log("audio media: ducked to $level over $rampMillis ms")
+    }
+
+    /** unduckAudio: the media streams back to full volume over [rampMillis]. */
+    fun unduck(rampMillis: Long) {
+        ducking.unduck(rampMillis * 1_000_000, clock())
+        log("audio media: unducked over $rampMillis ms")
+    }
+
+    internal val ducked get() = ducking.ducked
+
+    private fun endDuck(id: AudioStreamId, what: String) {
+        if (id.audioType == MEDIA_AUDIO_TYPE && ducking.reset()) log("audio media: stream $what while ducked; back to full volume")
+    }
+
     fun stop(id: AudioStreamId) {
         streams.remove(id)?.close()
+        endDuck(id, "stopped")
     }
 
     /** Packets [id] refused as older than its playhead or because its queue was full. */
@@ -297,8 +326,9 @@ class AudioRenderer internal constructor(
             fadeNs = durationNs
             fadeStartNs = startNs
         }
+        private val media = id.audioType == MEDIA_AUDIO_TYPE
         private val jitterBytes =
-            format.sampleRate * frameBytes * (if (id.audioType == "media") MEDIA_JITTER_MS else JITTER_MS) / 1000
+            format.sampleRate * frameBytes * (if (media) MEDIA_JITTER_MS else JITTER_MS) / 1000
 
         /** Stream thread. Newer than or equal to the playhead is accepted; the iPhone's clock restarting is not "late". */
         fun push(rtp: ByteArray, sample: Int) {
@@ -316,6 +346,9 @@ class AudioRenderer internal constructor(
             }
             shedExcess(sample)
         }
+
+        /** How long [bytes] of this stream's PCM play. */
+        private fun nanosOf(bytes: Int) = bytes * 1_000_000_000L / (format.sampleRate * frameBytes)
 
         private fun spanNanos(oldest: Int, newest: Int) =
             (newest - oldest).toLong() * 1_000_000_000L / format.rtpClockRate
@@ -360,8 +393,12 @@ class AudioRenderer internal constructor(
                 var lastPacketAt = clock()
                 var writtenFrames = 0L
                 fun play(pcm: ByteArray, length: Int) {
-                    val gain = fadeGain(fadeStartNs, clock(), fadeNs) * volume()
-                    if (gain < 1f) scaleSamples(pcm, length, gain)
+                    val now = clock()
+                    val gain = fadeGain(fadeStartNs, now, fadeNs) * volume()
+                    // A duck's ramp runs through the block: its gain now and where the block will have ended.
+                    val startGain = if (media) gain * ducking.gain(now) else gain
+                    val endGain = if (media) gain * ducking.gain(now + nanosOf(length)) else gain
+                    if (startGain < 1f || endGain < 1f) rampSamples(pcm, length, format.channels, startGain, endGain)
                     opened.start()
                     opened.write(pcm, length)
                     writtenFrames += length / frameBytes
@@ -370,7 +407,7 @@ class AudioRenderer internal constructor(
                         val pending = opened.playedFrames()?.let { writtenFrames - it }
                         reference.append(pcm, 0, length, format.channels, pending, clock())
                     }
-                    playedUntil = maxOf(playedUntil, clock()) + length * 1_000_000_000L / (format.sampleRate * frameBytes)
+                    playedUntil = maxOf(playedUntil, clock()) + nanosOf(length)
                     playing = true
                 }
                 while (running) {
@@ -434,6 +471,8 @@ class AudioRenderer internal constructor(
     private class QueuedPacket(val rtp: ByteArray, val sample: Int)
 
     internal companion object {
+        // The audioType of CarPlay's music streams, the only ones a duck lowers.
+        const val MEDIA_AUDIO_TYPE = "media"
         const val BUFFER_TAIL_WAIT_NS = 500_000_000L
         const val SHED_ABOVE_NS = 1_500_000_000L
         // MediaPacketLagGuard.MAX_VALID_SPAN_SECONDS: a bigger jump is the iPhone restarting its clock.

@@ -37,6 +37,7 @@ describe('About page', () => {
   it('credits the work it is built on, and its license', async () => {
     await about()
 
+    expect(row('Author')).toBe('AuthorOleksiy Strelets')
     expect(row('CarPlay core')).toBe('CarPlay coreDiPlay by shihabal3amri')
     expect(row('HUD maneuvers')).toBe('HUD maneuversLuKa, mib2q-carplay-rgi')
     expect(row('License')).toBe('LicenseGPL-3.0 · Third-party notices')
@@ -48,12 +49,12 @@ describe('About page', () => {
     await screen.findByRole('textbox', { name: 'Network' })
     fireEvent.click(screen.getByRole('tab', { name: 'About' }))
 
-    for (const name of ['DiPlay', 'mib2q-carplay-rgi', 'Third-party notices', 'New issue on GitHub', 'Discussions',
+    for (const name of ['Oleksiy Strelets', 'DiPlay', 'mib2q-carplay-rgi', 'Third-party notices', 'New issue on GitHub', 'Discussions',
       'Pull requests', 'github.com/NumberOneBot/ChairPlay', 'Releases']) {
       fireEvent.click(screen.getByRole('button', { name }))
     }
 
-    expect(backend.opened).toEqual(['diplay', 'rgi', 'notices', 'issues', 'discussions', 'pull-requests', 'source', 'releases'])
+    expect(backend.opened).toEqual(['author', 'diplay', 'rgi', 'notices', 'issues', 'discussions', 'pull-requests', 'source', 'releases'])
   })
 
   it('copies the details a report needs', async () => {

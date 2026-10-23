@@ -75,6 +75,13 @@ class VideoWindow(
     private val newTitle = AtomicReference<String?>()
     private val shownRequest = AtomicReference<Boolean?>()
     private val resizeRequest = AtomicReference<WindowSize?>()
+    private val clearRequest = AtomicBoolean()
+
+    /** Safe from any thread: drops the picture shown, the window black until the next one, as a session ends. */
+    fun clearPicture() {
+        clearRequest.set(true)
+        wake()
+    }
 
     /** Runs on the GL thread when the client area takes another size, minimized aside. */
     @Volatile
@@ -410,6 +417,10 @@ class VideoWindow(
             // A maximized window keeps filling the screen whatever size it is given.
             if (glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE) glfwRestoreWindow(window)
             glfwSetWindowSize(window, size.width, size.height)
+        }
+        if (clearRequest.getAndSet(false)) {
+            latest.getAndSet(null)?.release()
+            picture = null
         }
         val fresh = latest.getAndSet(null)
         if (fresh != null) {

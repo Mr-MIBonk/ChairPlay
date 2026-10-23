@@ -122,6 +122,19 @@ describe('CarPlay page, display', () => {
     await waitFor(() => expect(backend.saved).toEqual([{ 'display.fps': '30' }]))
   })
 
+  // With touch declared CarPlay shows scroll buttons; with none it leaves them out, and the mouse still taps and drags.
+  it('saves what the touchscreen can do, None until set', async () => {
+    const backend = await carplay()
+    expect(chosen('Touchscreen')).toEqual(['None'])
+    expect(radio('Touchscreen', 'None').title).toBe(
+      'No touchscreen: CarPlay leaves out its scroll buttons; the mouse still taps and drags, the keys move the focus',
+    )
+
+    fireEvent.click(radio('Touchscreen', 'Swipe'))
+
+    await waitFor(() => expect(backend.saved).toEqual([{ 'display.touch': 'swipe' }]))
+  })
+
   it('saves the physical size in millimetres or pixels per inch', async () => {
     const backend = await carplay()
     expect(textbox('Physical width').placeholder).toBe('200')

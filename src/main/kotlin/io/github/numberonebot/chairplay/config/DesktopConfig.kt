@@ -269,6 +269,17 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
      */
     private val squareCorners: Boolean? = choiceSetting("display.corners", true, mapOf("rounded" to null, "square" to true))
 
+    /**
+     * display.touch, what the screen's touch can do, as /info's features and primaryInputDevice say it. With touch,
+     * swipe or tap, CarPlay shows scroll buttons in its lists; none (the default, for a mouse) makes the knob (the keys
+     * and the controls window, always declared) the primary input, and CarPlay leaves them out, while clicks and
+     * drags still reach it as taps.
+     */
+    private val touch: Pair<Int, Int> = choiceSetting(
+        "display.touch", TOUCH_NONE,
+        mapOf("swipe" to TOUCH_SWIPE, "tap" to (FEATURE_KNOB or FEATURE_TAP_TOUCH to INPUT_TOUCH), "none" to TOUCH_NONE),
+    )
+
     /** What the iPhone is told about its screen, for the start-up log. */
     fun displaySummary(): String {
         val (widthMm, heightMm) = physicalMm
@@ -292,6 +303,8 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
             widthPhysicalMm = physicalMm.first,
             heightPhysicalMm = physicalMm.second,
             fps = fps,
+            features = touch.first,
+            primaryInputDevice = touch.second,
             viewAreas = viewAreas,
             safeArea = safeArea,
             safeAreaDrawOutside = safeAreaDrawOutside,
@@ -551,6 +564,12 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
             ),
             SettingBlock("'square' (the picture fills the window to its corners) or 'rounded' (CarPlay rounds them).",
                 "display.corners" to "square"),
+            SettingBlock(
+                "The touchscreen CarPlay is told of: 'none' (CarPlay leaves out its scroll buttons; clicks and drags still\n" +
+                    "tap, the keys move the focus), 'swipe' or 'tap' (a touchscreen that swipes or only taps; CarPlay shows\n" +
+                    "scroll buttons).",
+                "display.touch" to "none",
+            ),
         )
 
         /** settings.properties with every setting at its default, as the first start or deploy writes it. */
@@ -561,6 +580,15 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
 
         /** Every key settings.properties knows. */
         val SETTING_KEYS: List<String> = TEMPLATE.flatMap { block -> block.entries.map { it.first } }
+
+        // /info's display features and primary input device (CarPlay's knob, low- and high-fidelity touch).
+        private const val FEATURE_KNOB = 0x02
+        private const val FEATURE_TAP_TOUCH = 0x04
+        private const val FEATURE_SWIPE_TOUCH = 0x08
+        private const val INPUT_TOUCH = 1
+        private const val INPUT_KNOB = 3
+        private val TOUCH_SWIPE = FEATURE_KNOB or FEATURE_SWIPE_TOUCH to INPUT_TOUCH
+        private val TOUCH_NONE = FEATURE_KNOB to INPUT_KNOB
 
         const val DEFAULT_DEVICE_NAME = "ChairPlay"
         const val DEFAULT_ICON_FILE = "carplay-icon.png"

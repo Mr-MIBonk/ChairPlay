@@ -14,7 +14,7 @@ export type AltscreenContent = 'hud' | 'map' | 'map-card' | 'card'
 /** The Windows pages, folder, and web pages a link can open (UiController.PLACES). */
 export type WindowsPlace =
   | 'bluetooth' | 'wifi' | 'firewall' | 'firewall-rules' | 'mfi-folder'
-  | 'issues' | 'discussions' | 'pull-requests' | 'source' | 'releases' | 'notices' | 'diplay' | 'rgi'
+  | 'issues' | 'discussions' | 'pull-requests' | 'author' | 'source' | 'releases' | 'notices' | 'diplay' | 'rgi'
 
 /** What the controls window shows beside its buttons (UiControls in Main.kt). */
 export interface ControlsState {

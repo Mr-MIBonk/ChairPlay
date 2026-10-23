@@ -14,6 +14,7 @@ import io.github.numberonebot.chairplay.data.CarPlayDataTap
 import io.github.numberonebot.chairplay.data.DataLink
 import io.github.numberonebot.chairplay.data.DataSubscriptions
 import io.github.numberonebot.chairplay.discovery.DesktopBonjour
+import io.github.numberonebot.chairplay.media.AudioDuckSink
 import io.github.numberonebot.chairplay.network.SameLanNetwork
 import com.shilapi.xcertplay.iap2.session.Iap2Session
 import com.shilapi.xcertplay.iap2.wire.Iap2Frame
@@ -157,6 +158,8 @@ class WirelessBootstrap internal constructor(
     var onConnection: (DesktopConfig) -> Unit = {}
 
     private val lock = Any()
+    // The music ducks under navigation prompts when the sink can.
+    private val ducks = AudioDuckCommands(sink as? AudioDuckSink, ::log)
     @Volatile private var current: Stack? = null
     private var closed = false
     // Counts [stop]s: a failed bring-up's retry runs only if none came while it waited.
@@ -368,6 +371,8 @@ class WirelessBootstrap internal constructor(
 
         /** Only a session that went active ends CarPlay: /info probes and pairing retries also connect. */
         override fun onSessionEnded(session: AirPlaySession) {
+            // Any session that ducked, a retired stack's too, must not leave the music ducked.
+            ducks.onSessionEnded(session)
             if (current !== stack) return
             listener.onSessionEnded(session)
             if (stack.active.remove(session)) restart(stack)
@@ -379,6 +384,8 @@ class WirelessBootstrap internal constructor(
         }
 
         override fun onCommand(session: AirPlaySession, type: String, params: Map<String, Any?>) {
+            log(describeCommand(type, params))
+            ducks.onCommand(session, type, params)
             if (session in stack.active && isBluetoothHandoffCommand(type) &&
                 stack.handoffRequested.compareAndSet(false, true)
             ) {

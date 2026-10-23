@@ -19,7 +19,8 @@ import javax.sound.sampled.Mixer
  *
  * Audio goes to [audio], which decodes and plays each stream on its own thread. A microphone stream
  * gets one [MicrophoneSender] capturing [microphone] until the iPhone stops it. With [echoCancellation], a call's
- * audio stream records what it plays and the call's microphone stream cancels it, as AndroidMediaSink does.
+ * audio stream records what it plays and the call's microphone stream cancels it, as AndroidMediaSink does. The music
+ * ducks under navigation prompts when the iPhone asks ([onAudioDuck]).
  */
 class DesktopMediaSink(
     private val window: VideoWindow,
@@ -31,7 +32,7 @@ class DesktopMediaSink(
     private val echoCancellation: Boolean = false,
     /** altscreen.enabled: the window for the cluster stream; its frames are ignored without one. */
     private val altscreen: VideoWindow? = null,
-) : MediaSink, Closeable {
+) : MediaSink, AudioDuckSink, Closeable {
     private val diagnosticHandlers = ConcurrentHashMap<Int, (String) -> Unit>()
     private val recoveryHandlers = ConcurrentHashMap<Int, () -> Unit>()
     // The handler sends a command, and a failed send closes the session, which stops this stream and
@@ -146,6 +147,12 @@ class DesktopMediaSink(
 
     override fun onMicrophoneStopped(id: AudioStreamId) {
         microphones.remove(id)?.close()
+    }
+
+    /** duckAudio and unduckAudio: the music makes way for a navigation prompt, as long as the prompt lasts. */
+    override fun onAudioDuck(ducked: Boolean, params: Map<String, Any?>) {
+        val request = duckRequest(params)
+        if (ducked) audio.duck(request.level, request.rampMillis) else audio.unduck(request.rampMillis)
     }
 
     /**

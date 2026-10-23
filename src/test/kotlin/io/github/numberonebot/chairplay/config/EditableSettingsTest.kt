@@ -176,7 +176,7 @@ class EditableSettingsTest {
             assertEquals(key, Applies.RECONNECT, EditableSettings.applies(key))
         }
         // What the iPhone learns of its screen it asks at each connection.
-        for (key in listOf("display.width", "display.height", "display.fps", "display.physical.width.mm",
+        for (key in listOf("display.width", "display.height", "display.fps", "display.touch", "display.physical.width.mm",
             "display.physical.height.mm", "display.ppi", "display.dock", "display.right.hand.drive",
             "display.safe.draw.outside", "display.corners", "display.safe.top", "display.safe.bottom", "display.safe.left",
             "display.safe.right")) {

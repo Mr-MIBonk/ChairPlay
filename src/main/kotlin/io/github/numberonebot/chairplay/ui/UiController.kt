@@ -385,6 +385,7 @@ class UiController(
             URLEncoder.encode("What happened, and what you expected:\n\n\n---\n${details()}", Charsets.UTF_8).replace("+", "%20")
         "discussions" -> "$PROJECT/discussions"
         "pull-requests" -> "$PROJECT/pulls"
+        "author" -> "https://github.com/NumberOneBot"
         "source" -> PROJECT
         "releases" -> "$PROJECT/releases"
         "diplay" -> "https://github.com/shihabal3amri/DiPlay"
@@ -545,7 +546,7 @@ class UiController(
         /** The Windows pages and folder the screens may open, by the name the page gives ([open]). */
         val PLACES = listOf(
             "bluetooth", "wifi", "firewall", "firewall-rules", "mfi-folder",
-            "issues", "discussions", "pull-requests", "source", "releases", "notices", "diplay", "rgi",
+            "issues", "discussions", "pull-requests", "author", "source", "releases", "notices", "diplay", "rgi",
         )
 
         /** The project's home on GitHub. */

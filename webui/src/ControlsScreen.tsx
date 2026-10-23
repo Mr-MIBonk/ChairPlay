@@ -117,7 +117,7 @@ function Knob(props: Shared & { onTurn: (forward: boolean) => void }) {
 }
 
 /**
- * The controls window (518x215): the AltScreen's zoom and modes on the left, the knob, then the CarPlay, media,
+ * The controls window (518x212): the AltScreen's zoom and modes on the left, the knob, then the CarPlay, media,
  * volume and call keys. A button press reaches the app at once; the window keeps the keyboard, so the keys work as
  * in the main window, and Alt held there or here shows each button its key.
  */
