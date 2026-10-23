@@ -94,7 +94,7 @@ class UiServer(
             return
         }
         val method = exchange.requestMethod
-        val posts = setOf("settings", "controls", "connect", "reconnect", "disconnect", "screen", "window", "control", "altscreen", "open", "window-size", "firewall-rule", "forget")
+        val posts = setOf("settings", "controls", "connect", "reconnect", "disconnect", "screen", "window", "control", "altscreen", "open", "window-size", "firewall-rule", "forget", "altscreen-frame")
         val gets = setOf("state", "settings", "controls", "events")
         when {
             method == "GET" && route in gets -> when (route) {
@@ -192,6 +192,9 @@ class UiServer(
                     else -> json(exchange, 404, mapOf("error" to "cannot open $place"))
                 }
             }
+            "altscreen-frame" ->
+                if (api.showAltscreenFrame()) json(exchange, 200, mapOf("ok" to true))
+                else json(exchange, 404, mapOf("error" to "no AltScreen"))
             "forget" ->
                 if (api.forget()) json(exchange, 200, mapOf("ok" to true))
                 else json(exchange, 409, mapOf("error" to "Nothing to forget"))

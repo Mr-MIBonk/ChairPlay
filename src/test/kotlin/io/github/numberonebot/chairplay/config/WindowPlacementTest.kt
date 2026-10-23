@@ -117,14 +117,31 @@ class WindowPlacementTest {
         assertEquals(WindowSize(1280, 480), MAIN_WINDOW_MIN_SIZE.grownTo(WindowSize(1920, 720)))
     }
 
+    // The scaled minimum must not keep a window from its picture's own size: an 800x480 stream at 160 % display scale
+    // would otherwise stop the window at 1280x768, and Actual size could never reach one pixel per pixel.
+    @Test
+    fun `a window's smallest size never outgrows its picture`() {
+        assertEquals(WindowSize(800, 480), MAIN_WINDOW_MIN_SIZE.limitFor(1.6f, picture = WindowSize(800, 480)))
+        assertEquals(WindowSize(1280, 768), MAIN_WINDOW_MIN_SIZE.limitFor(1.6f, picture = WindowSize(1920, 1080)))
+        assertEquals(WindowSize(1280, 768), MAIN_WINDOW_MIN_SIZE.limitFor(1.6f, picture = null))
+        assertEquals(WindowSize(1440, 540), WindowSize(1600, 600).limitFor(1f, picture = WindowSize(1440, 540)))
+    }
+
     // A minimum is in the web view's pixels: at 150 % display scale 800x480 takes 1200x720 screen pixels.
     @Test
     fun `a minimum size grows with the display scale`() {
         assertEquals(WindowSize(1200, 720), MAIN_WINDOW_MIN_SIZE.scaledBy(1.5f))
         assertEquals(WindowSize(1000, 600), MAIN_WINDOW_MIN_SIZE.scaledBy(1.25f))
         assertEquals(MAIN_WINDOW_MIN_SIZE, MAIN_WINDOW_MIN_SIZE.scaledBy(0f))
-        // The AltScreen's keeps the picture's shape.
-        assertEquals(WindowSize(800, 301), WindowSize(ALTSCREEN_MIN_WIDTH, 1).fittedTo(WindowSize(1440, 542)))
+    }
+
+    // The AltScreen shows no page, so its smallest size is in screen pixels: 1280 wide in the picture's shape, below a
+    // 1440x540 picture's own size.
+    @Test
+    fun `the AltScreen's smallest size is 1280 screen pixels wide in its picture's shape`() {
+        val min = WindowSize(ALTSCREEN_MIN_WIDTH, 1).fittedTo(WindowSize(1440, 540))
+        assertEquals(WindowSize(1280, 480), min)
+        assertEquals(WindowSize(1280, 480), min.limitFor(1f, picture = WindowSize(1440, 540)))
     }
 
     // The controls window's size is its page's, in the web view's pixels, which GLFW scales to the monitor; a size it

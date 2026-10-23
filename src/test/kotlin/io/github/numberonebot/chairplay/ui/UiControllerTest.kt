@@ -42,6 +42,7 @@ class UiControllerTest {
         setupStore: SetupStore? = null,
         about: BuildInfo = BuildInfo(Commit("4e6d50df", "2026-10-23"), Commit("143f4674", "2026-10-21")),
         altscreenWindow: UiMainWindow? = null,
+        altscreenFrame: UiSafeAreaFrame? = null,
     ): UiController {
         Files.writeString(file, settings)
         val values = SettingsFile(file).read()
@@ -60,7 +61,7 @@ class UiControllerTest {
                 reconnects.incrementAndGet()
             }
         }, logged::add, autoconnect, windows, controls, launch, audio, mainWindow, bindings, applied::add, checks, elevate, setupStore,
-            about, windowsVersion = { "Windows 11 24H2 (build 26300)" }, altscreenWindow = altscreenWindow)
+            about, windowsVersion = { "Windows 11 24H2 (build 26300)" }, altscreenWindow = altscreenWindow, altscreenFrame = altscreenFrame)
     }
 
     // Copy details and New issue carry the same text: the build, the DiPlay core, and Windows; never a setting.
@@ -132,14 +133,28 @@ class UiControllerTest {
         assertFalse(controller().forget())
     }
 
-    // The CarPlay page's look is read as the app starts: a change waits for a restart, which the toolbar says.
+    // The iPhone asks how its screen looks at each connection: a change waits for the next one, which the page marks.
     @Test
-    fun `the CarPlay screen's corners and edges wait for a restart`() {
+    fun `the CarPlay screen's corners and edges wait for the next connection`() {
         val ui = controller()
 
         ui.saveSettings(mapOf("display.corners" to "rounded", "display.safe.draw.outside" to "false"))
 
-        assertEquals(listOf("display.corners", "display.safe.draw.outside"), ui.state()["restartPending"])
+        assertEquals(listOf("display.corners", "display.safe.draw.outside"), ui.state()["reconnectPending"])
+        assertEquals(emptyList<String>(), ui.state()["restartPending"])
+    }
+
+    // Show frame previews the safe area saved on the AltScreen page, before a restart puts it in force.
+    @Test
+    fun `Show frame draws the saved AltScreen safe area on its window`() {
+        val shown = mutableListOf<List<Int>>()
+        val frame = UiSafeAreaFrame { top, bottom, left, right -> shown += listOf(top, bottom, left, right) }
+        val ui = controller(settings = "altscreen.safe.top=40\naltscreen.safe.left=100\naltscreen.safe.right=\n", altscreenFrame = frame)
+
+        assertTrue(ui.showAltscreenFrame())
+
+        assertEquals(listOf(listOf(40, 0, 100, 0)), shown)
+        assertFalse(controller().showAltscreenFrame())
     }
 
     // The pages colour themselves from it.

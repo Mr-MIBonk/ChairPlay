@@ -88,10 +88,13 @@ data class Altscreen(
     val configured: Pair<AltscreenContent, AltscreenCards> = content to cards,
 )
 
-class DesktopConfig(private val dir: Path) {
-    private val settings = loadSettings()
-    val identity: AirPlayIdentity = loadIdentity()
-    val pairings: PairingStore = loadPairings()
+class DesktopConfig private constructor(private val dir: Path, startedWith: DesktopConfig?) {
+    constructor(dir: Path) : this(dir, null)
+
+    // As the app starts the file gains what it lacks; read again later ([airPlayNow]), it is taken as it is.
+    private val settings = if (startedWith == null) loadSettings() else readSettings()
+    val identity: AirPlayIdentity = startedWith?.identity ?: loadIdentity()
+    val pairings: PairingStore = startedWith?.pairings ?: loadPairings()
     val iphoneAddress: String? = settings.getProperty("iphone.address")?.trim()?.ifEmpty { null }
 
     /**
@@ -108,7 +111,7 @@ class DesktopConfig(private val dir: Path) {
     val wifi: SavedWifi? = savedWifi(settings)
 
     /** The Wi-Fi network as settings.properties has it now: the start screen may have changed it since the start. */
-    fun currentWifi(): SavedWifi? = savedWifi(Properties().apply { dir.resolve(SETTINGS_FILE).reader().use(::load) })
+    fun currentWifi(): SavedWifi? = savedWifi(readSettings())
 
     /** ui.autoconnect: the app connects to the iPhone as it starts; false waits for Connect on the start screen. */
     val autoconnect: Boolean = booleanSetting("ui.autoconnect", true)
@@ -306,7 +309,17 @@ class DesktopConfig(private val dir: Path) {
         icons = listOf(carIcon()),
     )
 
+    /**
+     * [airPlay] for the next connection: what the iPhone learns of its screen, which it asks at each connection, as
+     * settings.properties has it now; the name and the AltScreen as the app started with them, as the radio and the
+     * AltScreen window keep them.
+     */
+    fun airPlayNow(): AirPlayConfig =
+        DesktopConfig(dir, this).airPlay.copy(deviceName = airPlay.deviceName, cluster = airPlay.cluster)
+
     fun mfiDirectory(): File = dir.resolve("offline-mfi").toFile()
+
+    private fun readSettings() = Properties().apply { dir.resolve(SETTINGS_FILE).reader().use(::load) }
 
     private fun loadSettings(): Properties {
         val file = dir.resolve(SETTINGS_FILE)

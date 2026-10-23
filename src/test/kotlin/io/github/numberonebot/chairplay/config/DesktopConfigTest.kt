@@ -214,6 +214,31 @@ class DesktopConfigTest {
         assertEquals("secret123", config.currentWifi()?.passphrase)
     }
 
+    // What the iPhone learns of its screen it asks at each connection, so a changed one applies at the next; the name
+    // and the AltScreen stay as the app started with them, as the radio and the AltScreen window do.
+    @Test
+    fun `the next connection takes the screen from the file as it is now`() {
+        val dir = Files.createTempDirectory("chairplay-config")
+        Files.writeString(dir.resolve("settings.properties"), "display.width=800\ndisplay.height=480\n")
+        val config = DesktopConfig(dir)
+
+        SettingsFile(dir.resolve("settings.properties")).write(
+            mapOf(
+                "display.width" to "1280", "display.height" to "720", "display.fps" to "30", "display.safe.top" to "10",
+                "display.right.hand.drive" to "true", "device.name" to "Other", "altscreen.enabled" to "true",
+            ),
+        )
+        val next = config.airPlayNow()
+
+        assertEquals(1280 to 720, next.main.widthPixels to next.main.heightPixels)
+        assertEquals(30, next.main.fps)
+        assertEquals(10, next.main.safeArea?.top)
+        assertTrue(next.rightHandDrive)
+        assertEquals(DesktopConfig.DEFAULT_DEVICE_NAME, next.deviceName)
+        assertNull(next.cluster)
+        assertEquals(800, config.displayWidth)
+    }
+
     // Upstream ships its call echo canceller off, as an experiment; so does the desktop.
     @Test
     fun `call echo cancellation is off unless asked for`() {

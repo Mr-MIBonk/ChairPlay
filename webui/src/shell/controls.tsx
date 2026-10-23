@@ -149,7 +149,7 @@ export type Choice = readonly [value: string, text: string, title?: string]
 
 /**
  * Choices side by side, the chosen one a lit plate. A disabled group shows none chosen. [className] picks the
- * segments' width: none for the usual, "compact", or "half" for short figures.
+ * segments' width: none for the usual, "compact", "half" for short figures, or "fit" for each its own word's.
  */
 export function Segmented(props: {
   label: string

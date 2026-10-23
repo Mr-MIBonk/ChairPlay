@@ -39,6 +39,7 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
       volume: { level: 60, muted: false },
       altscreen: 'map',
       altHeld: false,
+      playing: false,
     },
     setup: {
       mfiFolder: 'C:\\ChairPlay\\offline-mfi',
@@ -171,6 +172,13 @@ export class FakeBackend implements Backend {
 
   async open(place: WindowsPlace) {
     this.opened.push(place)
+    return true
+  }
+
+  framesShown = 0
+
+  async showAltscreenFrame() {
+    this.framesShown++
     return true
   }
 

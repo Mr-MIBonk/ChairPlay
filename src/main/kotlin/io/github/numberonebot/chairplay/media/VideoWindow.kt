@@ -6,7 +6,7 @@ import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.config.fittedTo
 import io.github.numberonebot.chairplay.config.isVisibleOn
 import io.github.numberonebot.chairplay.config.openingSize
-import io.github.numberonebot.chairplay.config.scaledBy
+import io.github.numberonebot.chairplay.config.limitFor
 import io.github.numberonebot.chairplay.config.grownTo
 import io.github.numberonebot.chairplay.input.PointerEvent
 import io.github.numberonebot.chairplay.input.Size
@@ -41,11 +41,13 @@ class VideoWindow(
     private val placement: WindowPlacement? = null,
     private val title: String = "ChairPlay",
     /** The picture's shape: the window keeps it while resized and opens with it; null resizes freely. */
-    private val aspect: WindowSize? = null,
+    private var aspect: WindowSize? = null,
     /** False keeps the window at its size: no resizing by its edges, no maximize button. */
     private val resizable: Boolean = true,
     /** The smallest size its edges can be dragged to, before Windows' display scale; null leaves it to Windows. */
     private val minSize: WindowSize? = null,
+    /** False when [minSize] is in screen pixels already, for a window with no page to scale with the display. */
+    private val minScales: Boolean = true,
     /** True makes the close button hide the window, which [setShown] brings back, instead of closing it. */
     private val hideOnClose: Boolean = false,
     /** Whether the window shows as it opens; one that does not waits for [setShown]. */
@@ -55,7 +57,16 @@ class VideoWindow(
      * monitor's display scale, follows it to a monitor of another scale, and takes back only its place.
      */
     private val pageSized: Boolean = false,
+    /** The picture it shows, in its pixels: [minSize] never keeps the window above it, so it can always show it 1:1. */
+    stream: WindowSize? = null,
 ) : Closeable {
+    /** The picture it shows, as it opened with it or [setStream] changed it since. */
+    @Volatile
+    var stream: WindowSize? = stream
+        private set
+    private val streamRequest = AtomicReference<WindowSize?>()
+    // The picture the window last took the shape and size of, on the GL thread.
+    private var appliedStream: WindowSize? = stream
     private val latest = AtomicReference<DecodedFrame?>()
     private val closing = AtomicBoolean()
     private val minimizing = AtomicBoolean()
@@ -67,6 +78,37 @@ class VideoWindow(
     /** Runs on the GL thread when the client area takes another size, minimized aside. */
     @Volatile
     var onResize: (Size) -> Unit = {}
+
+    /** A safe area to frame (insets in the picture's pixels) until [until] on System.nanoTime's clock. */
+    private class FrameRequest(val top: Int, val bottom: Int, val left: Int, val right: Int, val until: Long)
+
+    @Volatile
+    private var frame: FrameRequest? = null
+
+    /**
+     * Safe from any thread: frames the picture's safe area, the insets in its pixels, in green dots for [millis], over
+     * whatever the window shows, the picture or the HUD.
+     */
+    fun showFrame(top: Int, bottom: Int, left: Int, right: Int, millis: Long = 3_000) {
+        frame = FrameRequest(top, bottom, left, right, System.nanoTime() + millis * 1_000_000)
+        wake()
+        // One more pass when it is due to go.
+        Thread({
+            Thread.sleep(millis + 20)
+            wake()
+        }, "frame-end").apply { isDaemon = true }.start()
+    }
+
+    /**
+     * Safe from any thread: the picture is [size] from now on, as a connection with another display size brings. The
+     * window takes its shape, if it keeps one, and its smallest size; one at one pixel per pixel of the old picture
+     * goes to the new one's size, another keeps its width.
+     */
+    fun setStream(size: WindowSize) {
+        stream = size
+        streamRequest.set(size)
+        wake()
+    }
 
     /** Safe from any thread: gives the client area [width] x [height] screen pixels, a maximized window restored first. */
     fun resizeTo(width: Int, height: Int) {
@@ -193,6 +235,9 @@ class VideoWindow(
     // Black over the window at the fades' depth: one layer dims the picture and the HUD alike.
     private var dimProgram = 0
     private var dimUniform = -1
+    // The safe-area frame's dots.
+    private var frameProgram = 0
+    private var frameUniform = -1
     // The child (the settings over CarPlay) and the HUD (over the AltScreen's picture) each come and go through black.
     private var childFade: Fade? = null
     private var hudFade: Fade? = null
@@ -228,9 +273,9 @@ class VideoWindow(
         // pages do, and follows the window to a monitor of another scale.
         // A window that keeps the picture's shape stops at the smallest size of that shape covering the minimum, so
         // the picture fills it there too.
-        minSize?.let { aspect?.let(it::grownTo) ?: it }?.let { min ->
-            limitSize(window, min)
-            glfwSetWindowContentScaleCallback(window) { handle, _, _ -> limitSize(handle, min) }
+        if (minSize != null) {
+            limitSize(window)
+            glfwSetWindowContentScaleCallback(window) { handle, _, _ -> limitSize(handle) }
         }
         if (hideOnClose) {
             glfwSetWindowCloseCallback(window) { handle ->
@@ -251,6 +296,8 @@ class VideoWindow(
 
         dimProgram = buildProgram(DIM_FRAGMENT)
         dimUniform = glGetUniformLocation(dimProgram, "alpha")
+        frameProgram = buildProgram(FRAME_FRAGMENT)
+        frameUniform = glGetUniformLocation(frameProgram, "rect")
         program = buildProgram()
         vao = glGenVertexArrays()
         for (plane in 0 until 3) textures[plane] = glGenTextures()
@@ -272,16 +319,44 @@ class VideoWindow(
         glfwGetFramebufferSize(window, w, h)
         clear(w[0], h[0])
         glfwSwapBuffers(window)
+        // While an edge is dragged Windows runs its own message loop, and runWindows' passes wait for it to end: the
+        // window draws, and lays out the web view, from the repaints Windows asks for meanwhile, or the part it grows
+        // by stays white until the mouse lets go.
+        glfwSetWindowRefreshCallback(window) { _ -> step() }
         running.set(true)
         child?.attach(glfwGetWin32Window(window))
     }
 
-    private fun limitSize(window: Long, min: WindowSize) {
+    private fun limitSize(window: Long) {
+        val min = minSize?.let { aspect?.let(it::grownTo) ?: it } ?: return
         val scale = FloatArray(1)
         glfwGetWindowContentScale(window, scale, null)
-        val size = min.scaledBy(scale[0])
+        // In the web view's pixels, scaled with the display; never above the picture, so it can always show it 1:1.
+        val size = min.limitFor(if (minScales) scale[0] else 1f, stream)
         glfwSetWindowSizeLimits(window, size.width, size.height, GLFW_DONT_CARE, GLFW_DONT_CARE)
         minimumSize = Size(size.width, size.height)
+    }
+
+    /** [setStream] on the GL thread: the new picture's shape and smallest size, and the window's size for it. */
+    private fun applyStream(window: Long, size: WindowSize) {
+        val old = appliedStream
+        appliedStream = size
+        if (size == old) return
+        val w = IntArray(1)
+        val h = IntArray(1)
+        glfwGetWindowSize(window, w, h)
+        val wasActual = old != null && w[0] == old.width && h[0] == old.height
+        if (aspect != null) {
+            aspect = size
+            glfwSetWindowAspectRatio(window, size.width, size.height)
+        }
+        limitSize(window)
+        // A maximized window keeps filling the screen.
+        if (glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE) return
+        when {
+            wasActual -> glfwSetWindowSize(window, size.width, size.height)
+            aspect != null -> WindowSize(w[0], h[0]).fittedTo(size).let { glfwSetWindowSize(window, it.width, it.height) }
+        }
     }
 
     /** The smallest client area the window takes, in screen pixels, with the monitor's scale; zero without a limit. */
@@ -302,8 +377,21 @@ class VideoWindow(
         }
     }
 
+    // Set while a pass runs, so a repaint Windows asks for in the middle of one does not start another.
+    private var stepping = false
+
     /** One pass of the event loop for this window; false once it should close. */
     internal fun step(): Boolean {
+        if (stepping) return true
+        stepping = true
+        try {
+            return pass()
+        } finally {
+            stepping = false
+        }
+    }
+
+    private fun pass(): Boolean {
         val window = handle
         if (glfwWindowShouldClose(window) || closing.get()) return false
         glfwMakeContextCurrent(window)
@@ -311,6 +399,7 @@ class VideoWindow(
         if (minimizing.getAndSet(false)) glfwIconifyWindow(window)
         shownRequest.getAndSet(null)?.let { applyShown(window, it) }
         newTitle.getAndSet(null)?.let { glfwSetWindowTitle(window, it) }
+        streamRequest.getAndSet(null)?.let { applyStream(window, it) }
         resizeRequest.getAndSet(null)?.let { size ->
             // A maximized window keeps filling the screen whatever size it is given.
             if (glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE) glfwRestoreWindow(window)
@@ -354,6 +443,7 @@ class VideoWindow(
             else -> draw(shown, w[0], h[0])
         }
         dim(1f - minOf(cover?.brightness ?: 1f, content.brightness), w[0], h[0])
+        drawFrame(w[0], h[0])
         val shot = screenshotRequest.getAndSet(null)
         if (shot != null && showsHud) {
             // The HUD is ours, not the iPhone's picture: save what the window shows.
@@ -403,6 +493,7 @@ class VideoWindow(
         glDeleteVertexArrays(vao)
         glDeleteProgram(program)
         glDeleteProgram(dimProgram)
+        glDeleteProgram(frameProgram)
         glfwMakeContextCurrent(0)
         glfwDestroyWindow(window)
         handle = 0L
@@ -559,6 +650,24 @@ class VideoWindow(
         glUseProgram(program)
     }
 
+    /** The safe-area frame [showFrame] asked for, while it lasts, over the picture as the window fits it in. */
+    private fun drawFrame(fw: Int, fh: Int) {
+        val request = frame ?: return
+        if (System.nanoTime() >= request.until) {
+            frame = null
+            return
+        }
+        if (fw == 0 || fh == 0) return
+        // Before the first picture, the size the window opened for it.
+        val shape = picture ?: Size(width, height)
+        val rect = safeAreaRect(shape, fw, fh, request.top, request.bottom, request.left, request.right)
+        glViewport(0, 0, fw, fh)
+        glUseProgram(frameProgram)
+        glUniform4f(frameUniform, rect[0], rect[1], rect[2], rect[3])
+        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
+        glUseProgram(program)
+    }
+
     /** Whether a fade is under way, which needs passes of the loop at the screen's pace until it ends. */
     internal val animating: Boolean get() = childFade?.moving == true || hudFade?.moving == true
 
@@ -608,6 +717,22 @@ void main() {
     float u = (texture(planeU, at).r - 128.0 / 255.0) * (255.0 / 224.0);
     float v = (texture(planeV, at).r - 128.0 / 255.0) * (255.0 / 224.0);
     color = vec4(y + 1.5748 * v, y - 0.1873 * u - 0.4681 * v, y + 1.8556 * u, 1.0);
+}"""
+
+        // The safe-area frame: 4 px thick inside the rectangle (left, bottom, right, top), in 4 px dots and gaps.
+        const val FRAME_FRAGMENT = """#version 330 core
+out vec4 color;
+uniform vec4 rect;
+void main() {
+    vec2 p = gl_FragCoord.xy;
+    float t = 4.0;
+    bool inside = p.x >= rect.x && p.x <= rect.z && p.y >= rect.y && p.y <= rect.w;
+    bool inner = p.x >= rect.x + t && p.x <= rect.z - t && p.y >= rect.y + t && p.y <= rect.w - t;
+    if (!inside || inner) discard;
+    bool horizontal = p.y < rect.y + t || p.y > rect.w - t;
+    float along = horizontal ? p.x - rect.x : p.y - rect.y;
+    if (mod(floor(along / t), 2.0) == 1.0) discard;
+    color = vec4(0.188, 0.820, 0.345, 1.0);
 }"""
 
         // Black, blended over what is drawn: the fades' depth.

@@ -66,11 +66,14 @@ describe('CarPlay page, display', () => {
   })
 
   // At 150 % display scale an 800x480 picture is smaller than the window can get: the button could do nothing.
-  it('has no Actual size when the window cannot get as small as the picture', async () => {
-    const mainWindow = { width: 1200, height: 720, pictureWidth: 800, pictureHeight: 480, minWidth: 1200, minHeight: 720 }
-    await carplay(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
+  // At 200 % display scale the window's smallest size outgrows an 800x480 picture: Actual size goes below it.
+  it('offers Actual size though the picture is smaller than the window gets on its own', async () => {
+    const mainWindow = { width: 1600, height: 960, pictureWidth: 800, pictureHeight: 480, minWidth: 1600, minHeight: 960 }
+    const backend = await carplay(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
 
-    expect(screen.queryByRole('button', { name: 'Actual size' })).toBeNull()
+    fireEvent.click(screen.getByRole('button', { name: 'Actual size' }))
+
+    expect(backend.actualSized).toEqual(['main'])
   })
 
   it('has no Actual size while the window is at it', async () => {

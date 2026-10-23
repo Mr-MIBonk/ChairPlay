@@ -54,6 +54,7 @@ import io.github.numberonebot.chairplay.ui.ChairPlayUi
 import io.github.numberonebot.chairplay.ui.FirewallStatus
 import io.github.numberonebot.chairplay.ui.UiActions
 import io.github.numberonebot.chairplay.ui.UiMainWindow
+import io.github.numberonebot.chairplay.ui.UiSafeAreaFrame
 import io.github.numberonebot.chairplay.ui.UiControls
 import org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT
 import org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_ALT
@@ -166,13 +167,13 @@ private fun VideoWindow.asUiWindow() = object : UiWindow {
     override fun setShown(shown: Boolean) = this@asUiWindow.setShown(shown)
 }
 
-/** A window for its page's Actual size; [picture] is the size it shows, null for the display's. */
-private fun VideoWindow.asUiMainWindow(picture: WindowSize? = null) = object : UiMainWindow {
+/** A window for its page's Actual size, which brings it to the picture it shows now. */
+private fun VideoWindow.asUiMainWindow() = object : UiMainWindow {
     override val width get() = framebufferSize.width
     override val height get() = framebufferSize.height
     override val minWidth get() = minimumSize.width
     override val minHeight get() = minimumSize.height
-    override val picture = picture
+    override val picture get() = stream
     override fun resizeTo(width: Int, height: Int) = this@asUiMainWindow.resizeTo(width, height)
 }
 
@@ -189,6 +190,7 @@ private fun runCarPlay() {
         mainWindowTitle(WindowSize(config.displayWidth, config.displayHeight), CONNECTING),
         aspect = WindowSize(config.displayWidth, config.displayHeight).takeIf { config.keepAspect },
         minSize = MAIN_WINDOW_MIN_SIZE,
+        stream = WindowSize(config.displayWidth, config.displayHeight),
     )
     window.onPlacement = { placement ->
         runCatching { placements.save(placement, config.window) }.onFailure { log("window place not saved: $it") }
@@ -218,7 +220,8 @@ private fun runCarPlay() {
         VideoWindow(
             alt.size.width, alt.size.height, altPlacements.load(alt.size), altscreenTitle(alt.size, alt.content, alt.cards),
             aspect = alt.size.takeIf { config.keepAspect }, hideOnClose = true,
-            minSize = WindowSize(ALTSCREEN_MIN_WIDTH, 1).fittedTo(alt.size),
+            minSize = WindowSize(ALTSCREEN_MIN_WIDTH, 1).fittedTo(alt.size), minScales = false,
+            stream = alt.size,
         ).also {
             it.onPlacement = { placement ->
                 runCatching { altPlacements.save(placement, alt.size) }.onFailure { log("altscreen place not saved: $it") }
@@ -267,7 +270,7 @@ private fun runCarPlay() {
     val bindings = AtomicReference(controlsConfig)
     val controls = KeyControls { bindings.get() }
     // The main window's title says when there is no session to show, and why.
-    val stream = WindowSize(config.displayWidth, config.displayHeight)
+    fun stream() = window.stream ?: WindowSize(config.displayWidth, config.displayHeight)
     val reconnecting = AtomicBoolean()
     // Ctrl+R: set once the bootstrap exists; closing a session talks to the network, so not on the GL thread.
     val restartBootstrap = AtomicReference<() -> Unit> {}
@@ -289,7 +292,7 @@ private fun runCarPlay() {
         if (control == Control.Reconnect) {
             log("reconnecting at the user's request")
             reconnecting.set(true)
-            window.setTitle(mainWindowTitle(stream, RECONNECTING))
+            window.setTitle(mainWindowTitle(stream(), RECONNECTING))
             sink.fadeOut(FADE_OUT_MILLIS)
             reconnect()
             return
@@ -330,6 +333,8 @@ private fun runCarPlay() {
     // The controls window's page: a button pressed and released there makes the Controls a key does, through ControlPad.
     // Its window keeps the keyboard; set once the UI exists, the page hands it back after each click.
     val pad = ControlPad()
+    // Whether the iPhone plays, for the play/pause button's glyph; set once the CarPlay data exists, below.
+    val playing = AtomicReference<() -> Boolean> { false }
     val altHeld = AtomicBoolean()
     val giveKeysBack = AtomicReference<() -> Unit> {}
     val pageControls = object : UiControls {
@@ -352,6 +357,7 @@ private fun runCarPlay() {
             "volume" to mapOf("level" to volume.level, "muted" to volume.muted),
             "altscreen" to altscreenContent?.key,
             "altHeld" to altHeld.get(),
+            "playing" to playing.get()(),
         )
     }
     val lockReady = CountDownLatch(1)
@@ -360,7 +366,7 @@ private fun runCarPlay() {
     val ui = ChairPlayUi(dir, config, firewall, object : UiActions {
         override fun connect() = Thread({
             lockReady.await()
-            window.setTitle(mainWindowTitle(stream, CONNECTING))
+            window.setTitle(mainWindowTitle(stream(), CONNECTING))
             startBootstrap.get()()
         }, "connect").apply { isDaemon = true }.start()
         override fun reconnect() = send(Control.Reconnect)
@@ -376,7 +382,8 @@ private fun runCarPlay() {
     }, pageControls, window.asUiMainWindow(), onBindings = { saved ->
         bindings.set(saved)
         log(saved.summary())
-    }, readFirewall = ::readFirewallStatus, altscreenWindow = altscreen?.asUiMainWindow(config.altscreen?.size))
+    }, readFirewall = ::readFirewallStatus, altscreenWindow = altscreen?.asUiMainWindow(),
+        altscreenFrame = altscreen?.let { alt -> UiSafeAreaFrame { top, bottom, left, right -> alt.showFrame(top, bottom, left, right) } })
     // The CarPlay page offers Actual size while the window's size differs from the picture's.
     window.onResize = { ui.windowsChanged() }
     altscreen?.onResize = { ui.windowsChanged() }
@@ -439,6 +446,13 @@ private fun runCarPlay() {
     }
     // The iPhone's route, song, call and battery messages, for later screens and, with log.carplay.data, a file.
     val carPlayData = CarPlayData(if (config.logCarPlayData) CarPlayDataLog(dir.resolve("logs"), log = ::log) else null)
+    // The iPhone's now playing, while a session runs: the controls window's page shows pause or play by it.
+    playing.set { active.get() != null && carPlayData.bus.snapshot().nowPlaying?.playing == true }
+    val wasPlaying = AtomicBoolean()
+    carPlayData.bus.addListener {
+        val now = playing.get()()
+        if (wasPlaying.getAndSet(now) != now) controlsChanged.get()()
+    }
     // The AltScreen's HUD shows the bus's data, drawn again when it changes.
     altscreen?.let { alt ->
         // CHAIRPLAY_HUD_DEMO plays a made-up route instead of the bus's data, for watching the maneuvers (HudDemo).
@@ -458,7 +472,7 @@ private fun runCarPlay() {
             log("AirPlay session active")
             ui.sessionActive()
             reconnecting.set(false)
-            window.setTitle(mainWindowTitle(stream))
+            window.setTitle(mainWindowTitle(stream()))
             sendTheme(session)
         }
         override fun onSessionEnded(session: AirPlaySession) {
@@ -467,7 +481,7 @@ private fun runCarPlay() {
             if (active.compareAndSet(session, null)) {
                 sessionChanged()
                 ui.sessionEnded()
-                window.setTitle(mainWindowTitle(stream, if (reconnecting.get()) RECONNECTING else CONNECTING))
+                window.setTitle(mainWindowTitle(stream(), if (reconnecting.get()) RECONNECTING else CONNECTING))
             }
             log("AirPlay session ended")
         }
@@ -491,9 +505,17 @@ private fun runCarPlay() {
     stopBootstrap.set {
         bootstrap.stop()
         if (active.getAndSet(null) != null) sessionChanged()
-        window.setTitle(mainWindowTitle(stream, NOT_CONNECTED))
+        window.setTitle(mainWindowTitle(stream(), NOT_CONNECTED))
     }
     bootstrap.onStatus = ui::bringUp
+    // A display size saved since comes with the next connection: the window takes the new picture's shape and size.
+    bootstrap.onDisplay = { size ->
+        if (size != window.stream) {
+            log("display ${size.width}x${size.height} px from this connection on")
+            window.setStream(size)
+            window.setTitle(mainWindowTitle(size, if (reconnecting.get()) RECONNECTING else CONNECTING))
+        }
+    }
     Runtime.getRuntime().addShutdownHook(Thread {
         // The window is gone at once; the sound fades over the seconds the session takes to end.
         sink.fadeOut(FADE_OUT_MILLIS)
@@ -508,15 +530,15 @@ private fun runCarPlay() {
     Thread({
         instanceLock.set(InstanceLock.acquire(dir, PREVIOUS_RUN_WAIT_MILLIS) {
             log("the previous run is still closing; waiting for it")
-            window.setTitle(mainWindowTitle(stream, CLOSING_PREVIOUS))
+            window.setTitle(mainWindowTitle(stream(), CLOSING_PREVIOUS))
         })
         lockReady.countDown()
         if (ui.connectsAtStart) {
-            window.setTitle(mainWindowTitle(stream, CONNECTING))
+            window.setTitle(mainWindowTitle(stream(), CONNECTING))
             bootstrap.start()
         } else {
             log(if (config.wifi == null) "no Wi-Fi network set; enter it on the start screen" else "waiting for Connect on the start screen")
-            window.setTitle(mainWindowTitle(stream, NOT_CONNECTED))
+            window.setTitle(mainWindowTitle(stream(), NOT_CONNECTED))
         }
     }, "instance-lock").apply { isDaemon = true }.start()
     // GLFW needs its windows and event loop on this, the main, thread; the bring-up runs on its own.

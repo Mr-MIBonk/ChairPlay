@@ -47,11 +47,16 @@ interface UiMainWindow {
     val minWidth: Int get() = 0
     val minHeight: Int get() = 0
 
-    /** The picture it shows, one screen pixel per picture pixel at Actual size; null for the display size the app started with. */
+    /** The picture it shows now, one screen pixel per picture pixel at Actual size; null for the display size the app started with. */
     val picture: WindowSize? get() = null
 
     /** Safe from any thread: resizes the client area to [width] x [height] screen pixels soon after. */
     fun resizeTo(width: Int, height: Int)
+}
+
+/** The AltScreen's window drawing a safe area for a moment; insets in the picture's pixels. Safe from any thread. */
+fun interface UiSafeAreaFrame {
+    fun show(top: Int, bottom: Int, left: Int, right: Int)
 }
 
 /** The controls window's page: the car's buttons, and what it shows beside them. Safe from any thread. */
@@ -130,6 +135,9 @@ interface UiApi {
      */
     fun actualSize(window: String): Boolean
 
+    /** Shows the AltScreen's saved safe area on its window for a moment; false without an AltScreen. */
+    fun showAltscreenFrame(): Boolean
+
     /** Adds the firewall rules with the administrator's consent; false when it was not given or they failed. */
     fun addFirewallRule(): Boolean
 
@@ -189,6 +197,8 @@ class UiController(
     private val windowsVersion: () -> String = ::windowsVersion,
     /** The AltScreen's window, for the AltScreen page's Actual size; null without an AltScreen. */
     private val altscreenWindow: UiMainWindow? = null,
+    /** The AltScreen's window drawing a safe area, for the AltScreen page's Show frame; null without an AltScreen. */
+    private val altscreenFrame: UiSafeAreaFrame? = null,
 ) : UiApi {
     /** The settings as the app started with them, against which a change waits for the next start. */
     private val startup: Map<String, String> = settings.read()
@@ -230,7 +240,7 @@ class UiController(
     /** Tells the page that a window was shown or hidden, by its trigger or by its own close button, or resized. */
     fun windowsChanged() = changed()
 
-    /** The picture is the display size the app started with, which a change of display.width waits a restart for. */
+    /** The picture is the one the window shows now: a changed display.width comes with the next connection. */
     override fun actualSize(window: String): Boolean {
         val target = when (window) {
             "main" -> mainWindow
@@ -264,6 +274,15 @@ class UiController(
 
     /** Tells the page that the live setup checks found a change. */
     fun setupChanged() = changed()
+
+    /** The insets as saved, so the frame previews them before a restart puts them in force; blank is none. */
+    override fun showAltscreenFrame(): Boolean {
+        val frame = altscreenFrame ?: return false
+        val values = runCatching { settings.read() }.getOrDefault(emptyMap())
+        fun inset(edge: String) = values["altscreen.safe.$edge"]?.trim()?.toIntOrNull()?.coerceAtLeast(0) ?: 0
+        frame.show(inset("top"), inset("bottom"), inset("left"), inset("right"))
+        return true
+    }
 
     override fun forget(): Boolean {
         val store = setupStore ?: return false

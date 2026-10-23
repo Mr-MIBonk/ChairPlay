@@ -110,6 +110,18 @@ describe('ControlsScreen', () => {
     expect(screen.queryByText('Esc')).toBeNull()
   })
 
+  // The iPhone says whether it plays: the button shows what a press does, pause while playing, play otherwise.
+  it('shows pause while the iPhone plays and play otherwise', () => {
+    const state = appState(live)
+    const glyph = () => screen.getByRole('button', { name: 'Play or pause' }).querySelector('svg')?.getAttribute('data-glyph')
+    const { rerender } = render(<ControlsScreen state={state} backend={new FakeBackend()} />)
+    expect(glyph()).toBe('play')
+
+    rerender(<ControlsScreen state={{ ...state, controls: { ...state.controls!, playing: true } }} backend={new FakeBackend()} />)
+
+    expect(glyph()).toBe('pause')
+  })
+
   it('shows the mute button pressed while ChairPlay is muted', () => {
     const state = appState(live)
     const { rerender } = render(<ControlsScreen state={state} backend={new FakeBackend()} />)

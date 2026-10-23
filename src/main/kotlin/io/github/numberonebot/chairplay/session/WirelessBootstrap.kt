@@ -10,6 +10,7 @@ import com.shilapi.xcertplay.airplay.MediaSink
 import io.github.numberonebot.chairplay.bluetooth.WindowsBluetooth
 import io.github.numberonebot.chairplay.bluetooth.selectIphone
 import io.github.numberonebot.chairplay.config.DesktopConfig
+import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.data.CarPlayDataTap
 import io.github.numberonebot.chairplay.data.DataLink
 import io.github.numberonebot.chairplay.data.DataSubscriptions
@@ -152,6 +153,10 @@ class WirelessBootstrap internal constructor(
     @Volatile
     var onStatus: (BringUpStatus) -> Unit = {}
 
+    /** Hears the screen size each bring-up offers the iPhone, as the settings have it then, on its thread. */
+    @Volatile
+    var onDisplay: (WindowSize) -> Unit = {}
+
     private val lock = Any()
     @Volatile private var current: Stack? = null
     private var closed = false
@@ -237,7 +242,8 @@ class WirelessBootstrap internal constructor(
                 ?: throw IOException("Wi-Fi adapter has no usable address")
             val media = parts.media(sink, microphoneEnabled = config.airPlay.microphone)
             val radio = parts.radioAddress()
-            val sessionConfig = config.airPlay.copy(btMac = radio)
+            val sessionConfig = config.airPlayNow().copy(btMac = radio)
+            if (!stack.closed) onDisplay(WindowSize(sessionConfig.main.widthPixels, sessionConfig.main.heightPixels))
             val sessions = sessionListener(stack)
             network.validateReady()
             val airPlay = stack.own(AirPlayListener(

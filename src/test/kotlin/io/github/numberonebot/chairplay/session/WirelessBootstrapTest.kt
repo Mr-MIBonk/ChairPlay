@@ -9,6 +9,8 @@ import com.shilapi.xcertplay.airplay.BplistCodec
 import com.shilapi.xcertplay.airplay.CarPlayMediaEngine
 import com.shilapi.xcertplay.airplay.MediaSink
 import io.github.numberonebot.chairplay.config.DesktopConfig
+import io.github.numberonebot.chairplay.config.SettingsFile
+import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.config.writeTestSettings
 import io.github.numberonebot.chairplay.data.CarPlayDataTap
 import io.github.numberonebot.chairplay.data.DataLink
@@ -35,6 +37,7 @@ import java.net.InetSocketAddress
 import java.net.ServerSocket
 import java.net.Socket
 import java.nio.file.Files
+import java.nio.file.Path
 import java.nio.file.StandardOpenOption
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.LinkedBlockingDeque
@@ -230,6 +233,22 @@ class WirelessBootstrapTest {
         }
     }
 
+    // A display size saved since the start goes to the iPhone at the next connection, and the window hears of it.
+    @Test(timeout = 30_000)
+    fun `each bring-up advertises the screen the settings have now`() {
+        Harness().use { harness ->
+            assertEquals(800, harness.advertised.poll(10, TimeUnit.SECONDS)!!.main.widthPixels)
+            assertEquals(WindowSize(800, 480), harness.displays.poll(10, TimeUnit.SECONDS))
+
+            SettingsFile(harness.dir.resolve("settings.properties")).write(mapOf("display.width" to "1280", "display.height" to "720"))
+            harness.restart()
+
+            val next = harness.advertised.poll(10, TimeUnit.SECONDS)!!.main
+            assertEquals(1280 to 720, next.widthPixels to next.heightPixels)
+            assertEquals(WindowSize(1280, 720), harness.displays.poll(10, TimeUnit.SECONDS))
+        }
+    }
+
     // Missing MFi files stopped the start in the caller's thread, so the reason reached only the console.
     @Test(timeout = 30_000)
     fun `parts that cannot be made fail the bring-up with the reason`() {
@@ -294,25 +313,35 @@ class WirelessBootstrapTest {
         val parts = LinkedBlockingDeque<FakeParts>()
         val previousPortFree = AtomicBoolean()
         val statuses = LinkedBlockingQueue<BringUpStatus>()
+        val advertised = LinkedBlockingQueue<AirPlayConfig>()
+        val displays = LinkedBlockingQueue<WindowSize>()
+        val dir: Path = Files.createTempDirectory("chairplay-bootstrap")
         private val previousPort = AtomicInteger()
         private val advertisedPorts = LinkedBlockingQueue<Int>()
-        private val bootstrap = Files.createTempDirectory("chairplay-bootstrap").let { dir ->
+        private val bootstrap = dir.let { dir ->
             writeTestSettings(dir)
             if (settings.isNotEmpty()) Files.writeString(dir.resolve("settings.properties"), "\n$settings\n", StandardOpenOption.APPEND)
             // An AirPlay pairing record, as the first session with this iPhone leaves.
             if (knownIphone) Files.createDirectories(dir.resolve("pairings")).resolve("6970686f6e65").let { Files.writeString(it, "00") }
             WirelessBootstrap(DesktopConfig(dir), object : MediaSink {}, object : AirPlaySessionListener {}, tap) {
                 if (stacks.incrementAndGet() > 1) previousPortFree.set(bindable(loopback, previousPort.get()))
-                FakeParts(info(listOf(loopback))) { port ->
-                    previousPort.set(port)
-                    advertisedPorts.add(port)
+                FakeParts(info(listOf(loopback))) { config ->
+                    previousPort.set(config.port)
+                    advertisedPorts.add(config.port)
+                    advertised.add(config)
                 }.also(parts::add)
-            }.also { it.onStatus = statuses::add }
+            }.also {
+                it.onStatus = statuses::add
+                it.onDisplay = displays::add
+            }
         }
 
         init {
             bootstrap.start()
         }
+
+        /** Reconnect: ends this bring-up and starts the next. */
+        fun restart() = bootstrap.restart()
 
         fun nextPort(): Int = advertisedPorts.poll(10, TimeUnit.SECONDS)!!
 
@@ -385,7 +414,7 @@ class WirelessBootstrapTest {
     /** No Wi-Fi, Bluetooth or MFi. Each iAP2 run reports ready, then lasts as long as its link. */
     private class FakeParts(
         private val info: WirelessHotspotInfo,
-        private val onAdvertise: (Int) -> Unit,
+        private val onAdvertise: (AirPlayConfig) -> Unit,
     ) : WirelessParts {
         val link = SilentStream()
         val tunnelHandler = AtomicReference<((BlockingDuplexByteStream) -> Boolean)?>()
@@ -411,7 +440,7 @@ class WirelessBootstrapTest {
         }
 
         override fun advertise(config: AirPlayConfig, identity: AirPlayIdentity, addresses: List<InetAddress>): Closeable {
-            onAdvertise(config.port)
+            onAdvertise(config)
             return Closeable {}
         }
 

@@ -23,11 +23,12 @@ object EditableSettings {
     private class Setting(val applies: Applies, val caseless: Boolean = false, val check: (String) -> String?)
 
     private fun switch(applies: Applies) = Setting(applies, caseless = true, check = ::checkBoolean)
-    private fun choice(vararg values: String) = Setting(Applies.RESTART, caseless = true) { value ->
+    private fun choice(vararg values: String, applies: Applies = Applies.RESTART) = Setting(applies, caseless = true) { value ->
         if (value.trim().lowercase() in values) null else "Must be one of ${values.joinToString()}"
     }
 
     // Everything the app reads only as it starts applies after a restart: the iPhone's, the screens', and the sound's.
+    // What the iPhone learns of its screen it asks at each connection, so that applies at the next one.
     private val settings: Map<String, Setting> = mapOf(
         "wifi.ssid" to Setting(Applies.RECONNECT, check = ::checkSsid),
         // Checked together with the security in validate().
@@ -39,21 +40,21 @@ object EditableSettings {
         "device.name" to Setting(Applies.RESTART, check = ::checkDeviceName),
         "iphone.address" to Setting(Applies.RESTART, check = ::checkAddress),
         "iphone.join.seconds" to Setting(Applies.RESTART) { checkPositive(it, "of seconds") },
-        "display.width" to Setting(Applies.RESTART, check = ::checkPositiveEven),
-        "display.height" to Setting(Applies.RESTART, check = ::checkPositiveEven),
-        "display.fps" to Setting(Applies.RESTART, check = ::checkFps),
-        "display.physical.width.mm" to Setting(Applies.RESTART, check = ::checkOptionalPositive),
-        "display.physical.height.mm" to Setting(Applies.RESTART, check = ::checkOptionalPositive),
-        "display.ppi" to Setting(Applies.RESTART, check = ::checkOptionalPositive),
+        "display.width" to Setting(Applies.RECONNECT, check = ::checkPositiveEven),
+        "display.height" to Setting(Applies.RECONNECT, check = ::checkPositiveEven),
+        "display.fps" to Setting(Applies.RECONNECT, check = ::checkFps),
+        "display.physical.width.mm" to Setting(Applies.RECONNECT, check = ::checkOptionalPositive),
+        "display.physical.height.mm" to Setting(Applies.RECONNECT, check = ::checkOptionalPositive),
+        "display.ppi" to Setting(Applies.RECONNECT, check = ::checkOptionalPositive),
         "display.theme" to choice("windows", "light", "dark", "phone"),
-        "display.dock" to choice("auto", "driver", "bottom"),
-        "display.right.hand.drive" to switch(Applies.RESTART),
-        "display.safe.draw.outside" to switch(Applies.RESTART),
-        "display.corners" to choice("rounded", "square"),
-        "display.safe.top" to Setting(Applies.RESTART, check = ::checkNonNegative),
-        "display.safe.bottom" to Setting(Applies.RESTART, check = ::checkNonNegative),
-        "display.safe.left" to Setting(Applies.RESTART, check = ::checkNonNegative),
-        "display.safe.right" to Setting(Applies.RESTART, check = ::checkNonNegative),
+        "display.dock" to choice("auto", "driver", "bottom", applies = Applies.RECONNECT),
+        "display.right.hand.drive" to switch(Applies.RECONNECT),
+        "display.safe.draw.outside" to switch(Applies.RECONNECT),
+        "display.corners" to choice("rounded", "square", applies = Applies.RECONNECT),
+        "display.safe.top" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
+        "display.safe.bottom" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
+        "display.safe.left" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
+        "display.safe.right" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
         "window.width" to Setting(Applies.RESTART) { checkOptionalSize(it, MAIN_WINDOW_MIN_SIZE.width) },
         "window.height" to Setting(Applies.RESTART) { checkOptionalSize(it, MAIN_WINDOW_MIN_SIZE.height) },
         "altscreen.enabled" to switch(Applies.RESTART),

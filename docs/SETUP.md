@@ -252,15 +252,16 @@ Otherwise, whenever CarPlay is not on screen, the window shows the **settings**:
   set.
 - **CarPlay**: the screen's size, with Actual size while the window was resized, to bring it back to one screen
   pixel per picture pixel; frame rate, physical size, theme, dock, driving side, what CarPlay draws outside the safe area, corners, and safe
-  area.
+  area. The iPhone asks how its screen looks at each connection, so all but the theme apply at the next one
+  (Reconnect gets there at once), and the window takes the new size's shape.
 - **AltScreen**, **Audio** (the devices Java Sound lists, or a saved one marked as not found), **Keyboard**, and
   **About**: the build and the DiPlay core it has, the credits, and where to get help. New issue on GitHub and Copy
   details carry the build, the core, and the Windows version, never a setting.
 
 A field saves on Enter or when it loses the focus, a choice at once. Each change goes into `settings.properties`
 or `controls.properties` in place, keeping the comments and every other line, after the same checks the app makes
-when it starts; a refused value stays in red with the reason. A setting that applies only after a restart is
-marked ⟳, and its page in the list, and the toolbar says Restart needed until then.
+when it starts; a refused value stays in red with the reason. A changed setting that applies only after a restart
+or at the next connection is marked ⟳, and its page in the list; the toolbar says Restart needed until a restart.
 
 The **Keyboard** page lists every action with its keys: click a key to press another in its place, + adds one (up
 to three), right-click removes one, and Reset puts back an action's defaults. A key another action has moves at

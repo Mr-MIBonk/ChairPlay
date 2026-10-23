@@ -16,13 +16,25 @@ data class WindowPlacement(val x: Int, val y: Int, val width: Int, val height: I
 /** The main window is never smaller: its screens are laid out to fit this, in the web view's pixels. */
 val MAIN_WINDOW_MIN_SIZE = WindowSize(800, 480)
 
-/** The AltScreen window is never narrower; its height follows the picture's shape. */
-const val ALTSCREEN_MIN_WIDTH = 800
+/**
+ * The AltScreen window is never narrower, in screen pixels (it shows no page to scale with the display), unless its
+ * picture is; its height follows the picture's shape.
+ */
+const val ALTSCREEN_MIN_WIDTH = 1280
 
 /** This size in screen pixels at Windows' display [scale] (1.5 at 150 %); a scale unknown (0) leaves it. */
 fun WindowSize.scaledBy(scale: Float): WindowSize {
     val factor = scale.takeIf { it > 0f } ?: 1f
     return WindowSize(Math.round(width * factor), Math.round(height * factor))
+}
+
+/**
+ * A window's smallest size: this minimum [scaledBy] the display's scale, but never bigger than the [picture] it shows,
+ * so the window can always come down to one screen pixel per picture pixel.
+ */
+fun WindowSize.limitFor(scale: Float, picture: WindowSize?): WindowSize {
+    val scaled = scaledBy(scale)
+    return picture?.let { WindowSize(minOf(scaled.width, it.width), minOf(scaled.height, it.height)) } ?: scaled
 }
 
 /** The smallest size with the shape of [aspect] that is at least this big, so a minimum gives a picture no bars. */

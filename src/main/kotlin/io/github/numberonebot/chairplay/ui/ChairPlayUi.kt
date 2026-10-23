@@ -37,6 +37,8 @@ class ChairPlayUi(
     mainWindow: UiMainWindow? = null,
     /** The AltScreen's window, for the AltScreen page's Actual size. */
     altscreenWindow: UiMainWindow? = null,
+    /** The AltScreen's window drawing its safe area, for the AltScreen page's Show frame. */
+    altscreenFrame: UiSafeAreaFrame? = null,
     /** Puts the bindings the Keyboard page saved in force. */
     onBindings: (ControlsConfig) -> Unit = {},
     /** Reads the firewall again, quietly, for the live setup checks. */
@@ -71,6 +73,7 @@ class ChairPlayUi(
         controls,
         mainWindow = mainWindow,
         altscreenWindow = altscreenWindow,
+        altscreenFrame = altscreenFrame,
         bindings = ControlsFile(dir),
         onBindings = onBindings,
         checks = checks,

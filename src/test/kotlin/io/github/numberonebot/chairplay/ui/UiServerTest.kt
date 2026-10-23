@@ -141,6 +141,10 @@ class UiServerTest {
         assertEquals(400, post("/api/open", "{}").statusCode())
         assertEquals(listOf("open bluetooth", "open cmd.exe"), api.calls.drop(11))
 
+        // The AltScreen page's Show frame.
+        assertEquals(200, post("/api/altscreen-frame", "{}").statusCode())
+        api.calls.removeAll { it == "altscreen frame" }
+
         // Forget this iPhone.
         assertEquals(200, post("/api/forget", "{}").statusCode())
         api.calls.removeAll { it == "forget" }
@@ -243,6 +247,10 @@ class UiServerTest {
         override fun open(place: String): Boolean {
             calls += "open $place"
             return place == "bluetooth"
+        }
+        override fun showAltscreenFrame(): Boolean {
+            calls += "altscreen frame"
+            return true
         }
         override fun forget(): Boolean {
             calls += "forget"

@@ -938,6 +938,10 @@ html:has(.shell) {
   margin-left: 8px;
 }
 
+.shell .btn.show-frame {
+  margin-left: 14px;
+}
+
 .shell .btn .shield {
   width: 12px;
   height: 14px;
@@ -1414,6 +1418,11 @@ html:has(.shell) {
 
 .shell .seg.compact button {
   min-width: 56px;
+}
+
+/* Each choice as wide as its own word, for a group too long to line up with the others */
+.shell .seg.fit button {
+  min-width: 0;
 }
 
 /* Short figures: the group half as long as two ordinary choices */

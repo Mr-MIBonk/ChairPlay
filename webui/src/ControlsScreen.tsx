@@ -187,7 +187,7 @@ export function ControlsScreen({ state, backend }: { state: AppState; backend: B
         </div>
         <div className="key-row three">
           <Key {...shared} action="media.previous" label="Previous track" icon={icons.previous} />
-          <Key {...shared} action="media.playpause" label="Play or pause" icon={icons.playPause} />
+          <Key {...shared} action="media.playpause" label="Play or pause" icon={controls?.playing ? icons.pause : icons.play} />
           <Key {...shared} action="media.next" label="Next track" icon={icons.next} />
         </div>
         <div className="key-row three">

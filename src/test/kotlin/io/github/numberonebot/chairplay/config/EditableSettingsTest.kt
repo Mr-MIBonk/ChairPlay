@@ -165,9 +165,16 @@ class EditableSettingsTest {
         assertEquals(Applies.RESTART, EditableSettings.applies("altscreen.enabled"))
         assertEquals(Applies.RESTART, EditableSettings.applies("window.width"))
         // The app reads these once, as it starts.
-        for (key in listOf("device.name", "iphone.address", "iphone.join.seconds", "display.width", "display.theme",
-            "display.safe.top", "altscreen.content", "altscreen.safe.left", "audio.output", "audio.echo.cancellation")) {
+        for (key in listOf("device.name", "iphone.address", "iphone.join.seconds", "display.theme",
+            "altscreen.content", "altscreen.safe.left", "audio.output", "audio.echo.cancellation")) {
             assertEquals(key, Applies.RESTART, EditableSettings.applies(key))
+        }
+        // What the iPhone learns of its screen it asks at each connection.
+        for (key in listOf("display.width", "display.height", "display.fps", "display.physical.width.mm",
+            "display.physical.height.mm", "display.ppi", "display.dock", "display.right.hand.drive",
+            "display.safe.draw.outside", "display.corners", "display.safe.top", "display.safe.bottom", "display.safe.left",
+            "display.safe.right")) {
+            assertEquals(key, Applies.RECONNECT, EditableSettings.applies(key))
         }
     }
 }

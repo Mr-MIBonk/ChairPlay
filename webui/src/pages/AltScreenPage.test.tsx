@@ -67,15 +67,55 @@ describe('AltScreen page', () => {
     expect(backend.actualSized).toEqual(['altscreen'])
   })
 
-  it('saves what it starts with, Map and Auto until set', async () => {
+  // The saved insets drawn on the AltScreen for a moment: a dotted green frame round what stays clear.
+  it('shows the safe area on the AltScreen window, which it needs', async () => {
+    const altscreenWindow = { width: 1440, height: 540, pictureWidth: 1440, pictureHeight: 540, minWidth: 0, minHeight: 0 }
+    const backend = await altscreen(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, altscreenWindow }))
+
+    const show = within(textbox('Top').closest('.row') as HTMLElement).getByRole('button', { name: 'Show frame' })
+    expect(show.title).toBe('Show the safe area on the AltScreen for 3 seconds')
+    fireEvent.click(show)
+
+    expect(backend.framesShown).toBe(1)
+    cleanup()
+    await altscreen()
+    expect(screen.queryByRole('button', { name: 'Show frame' })).toBeNull()
+  })
+
+  // The view as the controls window switches it: what the AltScreen shows now, changed at once.
+  it('switches what the AltScreen shows, as the controls window does', async () => {
     const backend = await altscreen()
-    expect(chosen('Content')).toEqual(['Map'])
+    expect(chosen('View')).toEqual(['Map'])
+
+    fireEvent.click(radio('View', 'Map + card'))
+
+    expect(backend.altscreens).toEqual(['map-card'])
+    expect(backend.saved).toEqual([])
+  })
+
+  // Without a session there is no map to show: the group is off and shows nothing chosen.
+  it('keeps the view off without a session', async () => {
+    const backend = await altscreen(new FakeBackend(), appState({ phase: 'calling', canShowCarPlay: false }))
+
+    expect(chosen('View')).toEqual([])
+    fireEvent.click(radio('View', 'HUD'))
+    expect(backend.altscreens).toEqual([])
+  })
+
+  it('saves where the turn card starts, Auto until set', async () => {
+    const backend = await altscreen()
     expect(chosen('Turn card')).toEqual(['Auto'])
 
-    fireEvent.click(radio('Content', 'Map + card'))
     fireEvent.click(radio('Turn card', 'Top'))
 
-    await waitFor(() => expect(backend.saved).toEqual([{ 'altscreen.content': 'map-card' }, { 'altscreen.cards': 'top' }]))
+    await waitFor(() => expect(backend.saved).toEqual([{ 'altscreen.cards': 'top' }]))
+  })
+
+  // Five short words: each as wide as itself, not padded out to the other rows' widest choice.
+  it('fits the turn card choices to their words', async () => {
+    await altscreen()
+
+    expect(screen.getByRole('radiogroup', { name: 'Turn card' }).classList.contains('fit')).toBe(true)
   })
 
   it('saves the safe area', async () => {

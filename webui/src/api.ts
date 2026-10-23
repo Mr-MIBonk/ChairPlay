@@ -25,6 +25,8 @@ export interface ControlsState {
   altscreen: AltscreenContent | null
   /** Alt is held in one of ChairPlay's windows: the buttons show their keys. */
   altHeld: boolean
+  /** The iPhone plays (its now playing says so): the play/pause button shows pause. */
+  playing: boolean
 }
 
 /** A window's client area, the picture it shows, and the smallest it gets, in screen pixels, for Actual size. */
@@ -153,6 +155,8 @@ export interface Backend {
   addFirewallRule(): Promise<boolean>
   /** Forget this iPhone: ChairPlay's pairing records go, and Get started opens. */
   forget(): Promise<boolean>
+  /** Frames the AltScreen's saved safe area on its window for a moment; false without an AltScreen. */
+  showAltscreenFrame(): Promise<boolean>
   /** The key bindings; null when the app has none to change. */
   keyBindings(): Promise<ControlsData | null>
   /** Saves controls.properties changes; the actions a key moved from are among those saved. */
@@ -188,6 +192,10 @@ export class Api implements Backend {
 
   async save(changes: Record<string, string>): Promise<SaveOutcome> {
     return this.saveTo('settings', changes)
+  }
+
+  async showAltscreenFrame(): Promise<boolean> {
+    return (await this.request('POST', 'altscreen-frame', {})).status === 200
   }
 
   async forget(): Promise<boolean> {

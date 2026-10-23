@@ -113,13 +113,12 @@ export function SizeRows(props: {
 }
 
 /**
- * Brings a window dragged to another size back to one screen pixel per picture pixel; not there while it is, nor
- * when the window cannot get as small as its picture. The picture is the size the app started with, which a size
- * saved on the page replaces only after a restart.
+ * Brings a window dragged to another size back to one screen pixel per picture pixel; not there while it is. The
+ * window's smallest size never outgrows its picture, so it can always get there. The picture is the size the app
+ * started with, which a size saved on the page replaces only after a restart.
  */
 export function ActualSize({ sizes, window, backend }: { sizes: WindowSizes | null; window: PictureWindow; backend: Backend }) {
   if (!sizes || (sizes.width === sizes.pictureWidth && sizes.height === sizes.pictureHeight)) return null
-  if (sizes.pictureWidth < sizes.minWidth || sizes.pictureHeight < sizes.minHeight) return null
   return (
     <button
       type="button"
@@ -143,7 +142,7 @@ const EDGES = [
  * Four numbers round a little frame, one for each edge of [prefix] ("display.safe" or "altscreen.safe"): top and
  * bottom centred, the sides against the frame. A refused one turns red, with its reason under the frame.
  */
-export function SafeArea(props: { settings: Settings; prefix: string; label: string; pending?: Pending }) {
+export function SafeArea(props: { settings: Settings; prefix: string; label: string; pending?: Pending; after?: ReactNode }) {
   const { settings, prefix, label } = props
   const reason = EDGES.map(([edge]) => settings.error(`${prefix}.${edge}`)).find(Boolean)
   const [top, left, right, bottom] = EDGES.map(([edge, name, align]) => {
@@ -175,6 +174,7 @@ export function SafeArea(props: { settings: Settings; prefix: string; label: str
         {bottom}
         <span />
       </span>
+      {props.after}
       <Changed keys={EDGES.map(([edge]) => `${prefix}.${edge}`)} pending={props.pending ?? NOTHING_PENDING} />
       {reason && <span className="errtext">{reason}</span>}
     </Row>

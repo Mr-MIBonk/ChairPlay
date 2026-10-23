@@ -1,9 +1,10 @@
 // The controls window's icons, drawn on a 16-pixel grid in the button's text colour.
 import type { ReactNode } from 'react'
 
-function Icon({ children }: { children: ReactNode }) {
+/** [glyph] names an icon that changes with the state (play or pause), so the page and its tests can tell which shows. */
+function Icon({ children, glyph }: { children: ReactNode; glyph?: string }) {
   return (
-    <svg viewBox="0 0 16 16" aria-hidden="true">
+    <svg viewBox="0 0 16 16" aria-hidden="true" data-glyph={glyph}>
       {children}
     </svg>
   )
@@ -28,10 +29,15 @@ export const icons = {
     </Icon>
   ),
   previous: <Icon><path d="M3 3v10M13 3L5 8l8 5z" fill="currentColor" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" /></Icon>,
-  playPause: (
-    <Icon>
-      <path d="M3 3l6 5-6 5z" fill="currentColor" />
-      <path d="M11 3v10M14 3v10" stroke="currentColor" strokeWidth={1.6} />
+  // What a press does: play while the iPhone is paused or stopped, pause while it plays.
+  play: (
+    <Icon glyph="play">
+      <path d="M4.5 2.5l9 5.5-9 5.5z" fill="currentColor" />
+    </Icon>
+  ),
+  pause: (
+    <Icon glyph="pause">
+      <path d="M5 3v10M11 3v10" stroke="currentColor" strokeWidth={2.4} />
     </Icon>
   ),
   next: <Icon><path d="M13 3v10M3 3l8 5-8 5z" fill="currentColor" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" /></Icon>,
