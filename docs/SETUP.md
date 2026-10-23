@@ -151,19 +151,21 @@ The files below live in the app folder, next to `ChairPlay.exe`.
      window still fills the screen. `false` lets them take any shape;
    - `altscreen.enabled` (experimental, default `false`): `true` declares a second CarPlay screen, the car's
      instrument cluster, and shows it in a window of its own (place and size remembered under `altscreen.` in
-     `window.properties`). The iPhone learns of it when it connects, so a change applies at the next connection.
+     `window.properties`). The iPhone learns of it when it connects, so a change applies at the next connection:
+     the window appears, hides, or takes its new size then.
      `altscreen.width` and `altscreen.height` set its size in pixels (default 1440 x 540, Audi's Virtual Cockpit
      panel), and `altscreen.content` what it starts with: `map`, `card` (the turn card) or `map-card`. F11
      (`key.altscreen.content`) switches between them without reconnecting, and the mouse wheel over the window
      or + and − on either keyboard (`key.altscreen.zoom.in`/`out`) zoom the map, as a car's zoom control does. `altscreen.cards` places the navigation app's ETA and turn
      card: `auto` (default, CarPlay decides; with a wide cluster it keeps a column at the left free), `left`,
-     `right`, `top`, or `off` (the map alone); Shift+F11 (`key.altscreen.cards`) moves them on the fly. The
+     `right`, `top`, or `off` (the map alone); Shift+F11 (`key.altscreen.cards`) moves them on the fly, and so does
+     a change on the AltScreen page. The
      AltScreen opens on the content and layout F11 and Shift+F11 left it on (kept in `window.properties`), unless
      these two settings changed since. `altscreen.safe.top`/`bottom`/`left`/`right` (default 0) are
      pixels at each edge the iPhone keeps its map attribution and car marker out of, for an overlay of our own;
      all zero uses the whole panel, since nothing covers a window on a PC;
    - `display.theme`: `windows` (default: follows the Windows dark mode, also while running), `light`, `dark`, or
-     `phone` (the iPhone decides by itself);
+     `phone` (the iPhone decides by itself); a change on the CarPlay page applies at once, as a car's headlights do;
    - `display.right.hand.drive` (`true` puts the dock and controls on the right), `display.dock` (`auto`, `driver` or
      `bottom`), `display.safe.top`/`bottom`/`left`/`right` (pixels CarPlay keeps its controls out of) with
      `display.safe.draw.outside`, and `display.corners` (`square`, the default, fills the window to its corners; `rounded` keeps CarPlay's rounded corners).
@@ -252,7 +254,7 @@ Otherwise, whenever CarPlay is not on screen, the window shows the **settings**:
   set.
 - **CarPlay**: the screen's size, with Actual size while the window was resized, to bring it back to one screen
   pixel per picture pixel; frame rate, physical size, theme, dock, driving side, what CarPlay draws outside the safe area, corners, and safe
-  area. The iPhone asks how its screen looks at each connection, so all but the theme apply at the next one
+  area. The theme applies at once; the iPhone asks how its screen looks at each connection, so the rest apply at the next one
   (Reconnect gets there at once), and the window takes the new size's shape.
 - **AltScreen**, **Audio** (the devices Java Sound lists, or a saved one marked as not found), **Keyboard**, and
   **About**: the build and the DiPlay core it has, the credits, and where to get help. New issue on GitHub and Copy

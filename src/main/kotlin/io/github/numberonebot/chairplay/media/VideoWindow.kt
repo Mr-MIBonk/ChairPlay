@@ -45,7 +45,7 @@ class VideoWindow(
     /** False keeps the window at its size: no resizing by its edges, no maximize button. */
     private val resizable: Boolean = true,
     /** The smallest size its edges can be dragged to, before Windows' display scale; null leaves it to Windows. */
-    private val minSize: WindowSize? = null,
+    private var minSize: WindowSize? = null,
     /** False when [minSize] is in screen pixels already, for a window with no page to scale with the display. */
     private val minScales: Boolean = true,
     /** True makes the close button hide the window, which [setShown] brings back, instead of closing it. */
@@ -65,6 +65,7 @@ class VideoWindow(
     var stream: WindowSize? = stream
         private set
     private val streamRequest = AtomicReference<WindowSize?>()
+    private val minRequest = AtomicReference<WindowSize?>()
     // The picture the window last took the shape and size of, on the GL thread.
     private var appliedStream: WindowSize? = stream
     private val latest = AtomicReference<DecodedFrame?>()
@@ -102,10 +103,12 @@ class VideoWindow(
     /**
      * Safe from any thread: the picture is [size] from now on, as a connection with another display size brings. The
      * window takes its shape, if it keeps one, and its smallest size; one at one pixel per pixel of the old picture
-     * goes to the new one's size, another keeps its width.
+     * goes to the new one's size, another keeps its width. [min] replaces the smallest size, for a minimum that follows
+     * the picture's shape.
      */
-    fun setStream(size: WindowSize) {
+    fun setStream(size: WindowSize, min: WindowSize? = null) {
         stream = size
+        minRequest.set(min)
         streamRequest.set(size)
         wake()
     }
@@ -399,7 +402,10 @@ class VideoWindow(
         if (minimizing.getAndSet(false)) glfwIconifyWindow(window)
         shownRequest.getAndSet(null)?.let { applyShown(window, it) }
         newTitle.getAndSet(null)?.let { glfwSetWindowTitle(window, it) }
-        streamRequest.getAndSet(null)?.let { applyStream(window, it) }
+        streamRequest.getAndSet(null)?.let { size ->
+            minRequest.getAndSet(null)?.let { minSize = it }
+            applyStream(window, size)
+        }
         resizeRequest.getAndSet(null)?.let { size ->
             // A maximized window keeps filling the screen whatever size it is given.
             if (glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE) glfwRestoreWindow(window)

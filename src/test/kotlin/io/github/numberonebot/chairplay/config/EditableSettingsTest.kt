@@ -162,12 +162,18 @@ class EditableSettingsTest {
         assertEquals(Applies.RECONNECT, EditableSettings.applies("wifi.passphrase"))
         assertEquals(Applies.NOW, EditableSettings.applies("ui.autoshow"))
         assertEquals(Applies.RESTART, EditableSettings.applies("ui.autoconnect"))
-        assertEquals(Applies.RESTART, EditableSettings.applies("altscreen.enabled"))
         assertEquals(Applies.RESTART, EditableSettings.applies("window.width"))
         // The app reads these once, as it starts.
-        for (key in listOf("device.name", "iphone.address", "iphone.join.seconds", "display.theme",
-            "altscreen.content", "altscreen.safe.left", "audio.output", "audio.echo.cancellation")) {
+        for (key in listOf("device.name", "iphone.address", "iphone.join.seconds", "audio.output", "audio.echo.cancellation")) {
             assertEquals(key, Applies.RESTART, EditableSettings.applies(key))
+        }
+        // CarPlay takes these while it runs, as F11 and Shift+F11 change the AltScreen's.
+        assertEquals(Applies.NOW, EditableSettings.applies("display.theme"))
+        assertEquals(Applies.NOW, EditableSettings.applies("altscreen.cards"))
+        // The iPhone learns of the AltScreen as it connects.
+        for (key in listOf("altscreen.enabled", "altscreen.width", "altscreen.height", "altscreen.content",
+            "altscreen.safe.top", "altscreen.safe.bottom", "altscreen.safe.left", "altscreen.safe.right")) {
+            assertEquals(key, Applies.RECONNECT, EditableSettings.applies(key))
         }
         // What the iPhone learns of its screen it asks at each connection.
         for (key in listOf("display.width", "display.height", "display.fps", "display.physical.width.mm",

@@ -91,7 +91,6 @@ export function SizeRows(props: {
       <Row label="Size">
         <Segmented
           label="Size"
-          className="presets"
           value={refused ? '' : `${width}x${height}`}
           options={props.presets.map(([w, h, cars]) => [`${w}x${h}`, `${w}×${h}`, cars])}
           onChange={(preset) => {

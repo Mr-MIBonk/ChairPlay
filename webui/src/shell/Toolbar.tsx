@@ -9,7 +9,8 @@ const DOT = { ok: 'ok', busy: 'busy', warn: 'warn', idle: '' } as const
 
 /**
  * The bar over every page: CarPlay and the app's other windows at the left; at the right what waits for a restart,
- * where the connection stands, and Connect, or Reconnect and Disconnect once connecting has begun.
+ * where the connection stands, and Connect, or Reconnect and Disconnect once connecting has begun. In a narrow window
+ * the window buttons show their icons alone, and the status gives way before the buttons do.
  */
 export function Toolbar({ state, backend, guide }: { state: AppState; backend: Backend; guide?: Steps | null }) {
   const session = state.canShowCarPlay
@@ -28,12 +29,13 @@ export function Toolbar({ state, backend, guide }: { state: AppState; backend: B
       <button
         type="button"
         className="btn"
+        aria-label="CarPlay"
         disabled={!session || !state.embedded}
         title={!session ? 'Connect the iPhone first' : state.embedded ? 'Show CarPlay (Esc)' : "CarPlay shows in ChairPlay's window"}
         onClick={() => backend.show('carplay')}
       >
         <CarPlayIcon />
-        CarPlay
+        <span className="label">CarPlay</span>
       </button>
       <WindowButton state={state} backend={backend} name="altscreen" label="AltScreen" icon={<AltScreenIcon />} />
       <WindowButton state={state} backend={backend} name="controls" label="Controls" icon={<ControlsIcon />} />
@@ -104,13 +106,14 @@ function WindowButton(props: { state: AppState; backend: Backend; name: WindowNa
     <button
       type="button"
       className={`btn ${shown ? 'on' : ''}`}
+      aria-label={props.label}
       aria-pressed={shown}
       disabled={!session || !available}
       title={title}
       onClick={() => props.backend.window(props.name, !visible)}
     >
       {props.icon}
-      {props.label}
+      <span className="label">{props.label}</span>
     </button>
   )
 }

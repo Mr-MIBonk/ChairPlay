@@ -52,7 +52,7 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
         />
       </Row>
       <Row label="Turn card" title="Where the turn card starts; Shift+F11 moves it while CarPlay runs">
-        {choice('altscreen.cards', 'Turn card', 'auto', [['auto', 'Auto'], ['left', 'Left'], ['right', 'Right'], ['top', 'Top'], ['off', 'Off']], 'fit')}
+        {choice('altscreen.cards', 'Turn card', 'auto', [['auto', 'Auto'], ['left', 'Left'], ['right', 'Right'], ['top', 'Top'], ['off', 'Off']])}
       </Row>
       <Group title="Safe area" note="Pixels at each edge" />
       <SafeArea

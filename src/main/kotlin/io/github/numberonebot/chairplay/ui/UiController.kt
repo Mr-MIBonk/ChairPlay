@@ -33,12 +33,18 @@ interface UiActions {
 interface UiWindow {
     val visible: Boolean
 
+    /** False while the window waits, hidden, for a setting to turn it on: the AltScreen's while altscreen.enabled is off. */
+    val available: Boolean get() = true
+
     /** Safe from any thread: the window shows or hides on its own thread soon after. */
     fun setShown(shown: Boolean)
 }
 
 /** A window that shows a picture, for its page's Actual size: the main window, the AltScreen's. */
 interface UiMainWindow {
+    /** False while the window waits, hidden, for a setting to turn it on: it has no Actual size meanwhile. */
+    val available: Boolean get() = true
+
     /** The client area, in screen pixels. */
     val width: Int
     val height: Int
@@ -199,6 +205,8 @@ class UiController(
     private val altscreenWindow: UiMainWindow? = null,
     /** The AltScreen's window drawing a safe area, for the AltScreen page's Show frame; null without an AltScreen. */
     private val altscreenFrame: UiSafeAreaFrame? = null,
+    /** Hears each save that changed settings, with the changed ones, for those that apply at once. */
+    private val onSaved: (Map<String, String>) -> Unit = {},
 ) : UiApi {
     /** The settings as the app started with them, against which a change waits for the next start. */
     private val startup: Map<String, String> = settings.read()
@@ -246,7 +254,7 @@ class UiController(
             "main" -> mainWindow
             "altscreen" -> altscreenWindow
             else -> null
-        } ?: return false
+        }?.takeIf { it.available } ?: return false
         val picture = pictureOf(target)
         target.resizeTo(picture.width, picture.height)
         return true
@@ -264,7 +272,7 @@ class UiController(
     }
 
     override fun window(name: String, visible: Boolean): Boolean {
-        val window = windows[name] ?: return false
+        val window = windows[name]?.takeIf { it.available } ?: return false
         window.setShown(visible)
         return true
     }
@@ -415,6 +423,7 @@ class UiController(
             "knownIphone" to state.knownIphone,
             "canShowCarPlay" to state.canShowCarPlay,
             "autoshow" to state.autoshow,
+            "waiting" to state.waiting,
             "embedded" to embedded,
             "wifi" to mapOf(
                 "ssid" to values["wifi.ssid"].orEmpty(),
@@ -422,11 +431,11 @@ class UiController(
                 "passphraseSet" to !values["wifi.passphrase"].isNullOrEmpty(),
             ),
             "windows" to WINDOWS.associateWith { name ->
-                val window = windows[name]
+                val window = windows[name]?.takeIf { it.available }
                 mapOf("available" to (window != null), "visible" to (window?.visible ?: false))
             },
             "mainWindow" to mainWindow?.let(::sizes),
-            "altscreenWindow" to altscreenWindow?.let(::sizes),
+            "altscreenWindow" to altscreenWindow?.takeIf { it.available }?.let(::sizes),
             "controls" to controls?.state(),
             "controlsKeys" to (values["ui.controls.keys"]?.trim() == "true"),
             "setupDone" to setupDone,
@@ -472,6 +481,7 @@ class UiController(
         val applies = normalized.keys.associateWith { appliesName(EditableSettings.applies(it)) }
         if (saved.isNotEmpty()) log("settings saved: ${saved.keys.joinToString()}")
         saved["ui.autoshow"]?.let { model.setAutoshow(it == "true") }
+        if (saved.isNotEmpty()) onSaved(saved)
         val now = settings.read()
         val restart = EditableSettings.keys.filter { EditableSettings.applies(it) == Applies.RESTART && now[it].orEmpty() != startup[it].orEmpty() }
         val running = phase != Phase.SETUP && phase != Phase.IDLE

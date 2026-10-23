@@ -170,9 +170,12 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
      * altscreen.*: DiPlay's cluster display, with even margins as for its virtual cluster rather than a BYD
      * cluster's crop; null when off. The iPhone learns of it only when it connects.
      */
+    /** altscreen.width and altscreen.height, on or off: the AltScreen's window waits at this size while it is off. */
+    val altscreenSize = WindowSize(evenSetting("altscreen.width", DEFAULT_ALTSCREEN_WIDTH), evenSetting("altscreen.height", DEFAULT_ALTSCREEN_HEIGHT))
+
     val altscreen: Altscreen? = if (!booleanSetting("altscreen.enabled", false)) null else {
         val content = choiceSetting("altscreen.content", AltscreenContent.MAP, AltscreenContent.entries.associateBy { it.key })
-        val size = WindowSize(evenSetting("altscreen.width", DEFAULT_ALTSCREEN_WIDTH), evenSetting("altscreen.height", DEFAULT_ALTSCREEN_HEIGHT))
+        val size = altscreenSize
         val cards = choiceSetting("altscreen.cards", AltscreenCards.AUTO, AltscreenCards.entries.associateBy { it.key })
         // The view F11 and Shift+F11 left it on, unless these settings changed since.
         val (viewContent, viewCards) = AltscreenViewStore(dir).load(content, cards)
@@ -309,13 +312,14 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
         icons = listOf(carIcon()),
     )
 
+    /** The settings as settings.properties has them now, with this start's identity and pairings. */
+    fun now(): DesktopConfig = DesktopConfig(dir, this)
+
     /**
-     * [airPlay] for the next connection: what the iPhone learns of its screen, which it asks at each connection, as
-     * settings.properties has it now; the name and the AltScreen as the app started with them, as the radio and the
-     * AltScreen window keep them.
+     * [airPlay] for the next connection: what the iPhone learns of its screens, which it asks at each connection, as
+     * [now] has it; the name as the app started with it, as the radio keeps it.
      */
-    fun airPlayNow(): AirPlayConfig =
-        DesktopConfig(dir, this).airPlay.copy(deviceName = airPlay.deviceName, cluster = airPlay.cluster)
+    fun airPlayNow(now: DesktopConfig = now()): AirPlayConfig = now.airPlay.copy(deviceName = airPlay.deviceName)
 
     fun mfiDirectory(): File = dir.resolve("offline-mfi").toFile()
 

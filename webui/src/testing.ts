@@ -13,6 +13,7 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     knownIphone: false,
     canShowCarPlay: false,
     autoshow: true,
+    waiting: false,
     embedded: true,
     wifi: { ssid: 'Home', security: 'WPA_WPA2', passphraseSet: true },
     reconnectPending: [],

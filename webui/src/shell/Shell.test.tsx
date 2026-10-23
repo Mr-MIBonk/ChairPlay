@@ -8,7 +8,37 @@ afterEach(cleanup)
 const button = (name: string) => screen.getByRole('button', { name }) as HTMLButtonElement
 const live = { phase: 'active', canShowCarPlay: true } as const
 
+describe('Waiting screen', () => {
+  // Connecting on its own, the app shows black with where the connection stands, not the settings.
+  it('shows where the connection stands instead of the settings while the app connects on its own', () => {
+    render(<Shell state={appState({ phase: 'calling', waiting: true })} backend={new FakeBackend()} />)
+
+    expect(screen.getByRole('status').textContent).toContain('Waiting for the iPhone')
+    expect(screen.queryByRole('tablist')).toBeNull()
+    expect(screen.queryByRole('button', { name: 'Connect' })).toBeNull()
+  })
+
+  it('opens the settings when asked', () => {
+    const backend = new FakeBackend()
+    render(<Shell state={appState({ phase: 'starting', waiting: true })} backend={backend} />)
+
+    fireEvent.click(button('Settings'))
+
+    expect(backend.shown).toEqual(['settings'])
+  })
+})
+
 describe('Shell toolbar', () => {
+  // A narrow window shows the buttons' icons alone (CSS); each keeps its name for the screen reader and the tests.
+  it('names each window button whether or not its label shows', () => {
+    render(<Shell state={appState(live)} backend={new FakeBackend()} />)
+
+    for (const name of ['CarPlay', 'AltScreen', 'Controls']) {
+      expect(button(name).getAttribute('aria-label')).toBe(name)
+      expect(button(name).querySelector('.label')?.textContent).toBe(name)
+    }
+  })
+
   it('before the Wi-Fi is set, Connect and the windows are off and say why', () => {
     render(<Shell state={appState({ phase: 'setup' })} backend={new FakeBackend()} />)
 

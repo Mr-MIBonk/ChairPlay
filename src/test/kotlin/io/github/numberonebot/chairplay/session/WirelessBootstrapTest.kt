@@ -233,19 +233,24 @@ class WirelessBootstrapTest {
         }
     }
 
-    // A display size saved since the start goes to the iPhone at the next connection, and the window hears of it.
+    // Screens saved since the start go to the iPhone at the next connection, and the windows hear of them.
     @Test(timeout = 30_000)
-    fun `each bring-up advertises the screen the settings have now`() {
+    fun `each bring-up advertises the screens the settings have now`() {
         Harness().use { harness ->
             assertEquals(800, harness.advertised.poll(10, TimeUnit.SECONDS)!!.main.widthPixels)
             assertEquals(WindowSize(800, 480), harness.displays.poll(10, TimeUnit.SECONDS))
+            assertNull(harness.altscreens.poll(10, TimeUnit.SECONDS)!!.size)
 
-            SettingsFile(harness.dir.resolve("settings.properties")).write(mapOf("display.width" to "1280", "display.height" to "720"))
+            SettingsFile(harness.dir.resolve("settings.properties")).write(
+                mapOf("display.width" to "1280", "display.height" to "720", "altscreen.enabled" to "true"),
+            )
             harness.restart()
 
-            val next = harness.advertised.poll(10, TimeUnit.SECONDS)!!.main
-            assertEquals(1280 to 720, next.widthPixels to next.heightPixels)
+            val next = harness.advertised.poll(10, TimeUnit.SECONDS)!!
+            assertEquals(1280 to 720, next.main.widthPixels to next.main.heightPixels)
+            assertEquals(1440, next.cluster?.widthPixels)
             assertEquals(WindowSize(1280, 720), harness.displays.poll(10, TimeUnit.SECONDS))
+            assertEquals(WindowSize(1440, 540), harness.altscreens.poll(10, TimeUnit.SECONDS)!!.size)
         }
     }
 
@@ -302,6 +307,8 @@ class WirelessBootstrapTest {
         }
     }
 
+    private data class Holder(val size: WindowSize?)
+
     /** A bootstrap over fakes on 127.0.0.1; each stack's parts and advertised port are recorded. */
     private inner class Harness(
         tap: CarPlayDataTap = CarPlayDataTap.NONE,
@@ -315,6 +322,8 @@ class WirelessBootstrapTest {
         val statuses = LinkedBlockingQueue<BringUpStatus>()
         val advertised = LinkedBlockingQueue<AirPlayConfig>()
         val displays = LinkedBlockingQueue<WindowSize>()
+        // The AltScreen's size each bring-up read, null while it is off (a queue holds no nulls).
+        val altscreens = LinkedBlockingQueue<Holder>()
         val dir: Path = Files.createTempDirectory("chairplay-bootstrap")
         private val previousPort = AtomicInteger()
         private val advertisedPorts = LinkedBlockingQueue<Int>()
@@ -332,7 +341,10 @@ class WirelessBootstrapTest {
                 }.also(parts::add)
             }.also {
                 it.onStatus = statuses::add
-                it.onDisplay = displays::add
+                it.onConnection = { now ->
+                    displays.add(WindowSize(now.displayWidth, now.displayHeight))
+                    altscreens.add(Holder(now.altscreen?.size))
+                }
             }
         }
 

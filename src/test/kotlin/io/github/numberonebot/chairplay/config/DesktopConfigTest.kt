@@ -214,10 +214,10 @@ class DesktopConfigTest {
         assertEquals("secret123", config.currentWifi()?.passphrase)
     }
 
-    // What the iPhone learns of its screen it asks at each connection, so a changed one applies at the next; the name
-    // and the AltScreen stay as the app started with them, as the radio and the AltScreen window do.
+    // What the iPhone learns of its screens it asks at each connection, so a changed one applies at the next; the name
+    // stays as the app started with it, as the radio keeps it.
     @Test
-    fun `the next connection takes the screen from the file as it is now`() {
+    fun `the next connection takes the screens from the file as it is now`() {
         val dir = Files.createTempDirectory("chairplay-config")
         Files.writeString(dir.resolve("settings.properties"), "display.width=800\ndisplay.height=480\n")
         val config = DesktopConfig(dir)
@@ -235,8 +235,10 @@ class DesktopConfigTest {
         assertEquals(10, next.main.safeArea?.top)
         assertTrue(next.rightHandDrive)
         assertEquals(DesktopConfig.DEFAULT_DEVICE_NAME, next.deviceName)
-        assertNull(next.cluster)
+        assertEquals(1440 to 540, next.cluster?.widthPixels to next.cluster?.heightPixels)
+        assertEquals(WindowSize(1440, 540), config.now().altscreen?.size)
         assertEquals(800, config.displayWidth)
+        assertNull(config.altscreen)
     }
 
     // Upstream ships its call echo canceller off, as an experiment; so does the desktop.

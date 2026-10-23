@@ -9,15 +9,62 @@ import org.junit.Test
 import java.time.LocalTime
 
 class UiModelTest {
-    private fun model(wifi: Boolean = true, autoconnect: Boolean = true, autoshow: Boolean = true) =
-        UiModel(wifi, autoconnect, autoshow) { LocalTime.of(14, 3, 5) }
+    private fun model(wifi: Boolean = true, autoconnect: Boolean = true, autoshow: Boolean = true, setupDone: Boolean = true) =
+        UiModel(wifi, autoconnect, autoshow, setupDone) { LocalTime.of(14, 3, 5) }
 
     @Test
     fun `the start screen opens first and says whether the app is connecting`() {
-        assertEquals(UiState(Phase.STARTING, Screen.START, autoshow = true), model().state)
+        assertEquals(UiState(Phase.STARTING, Screen.START, autoshow = true, waiting = true), model().state)
         assertEquals(Phase.IDLE, model(autoconnect = false).state.phase)
         assertEquals(Phase.SETUP, model(wifi = false).state.phase)
         assertTrue(model().state.showsUi)
+    }
+
+    // Connecting on its own, the app shows a black screen that waits for CarPlay; the settings come only when there is
+    // something to do: Get started, no network, no autoconnect, or a failed attempt.
+    @Test
+    fun `the start waits for the connection the app makes on its own`() {
+        assertTrue(model().state.waiting)
+        assertFalse(model(autoconnect = false).state.waiting)
+        assertFalse(model(wifi = false).state.waiting)
+        assertFalse(model(setupDone = false).state.waiting)
+
+        val failing = model()
+        failing.bringUp(BringUpStatus.CallingIphone)
+        assertTrue(failing.state.waiting)
+        failing.bringUp(BringUpStatus.Failed("Bluetooth control ended TIMED_OUT", 5_000))
+        assertFalse(failing.state.waiting)
+        failing.bringUp(BringUpStatus.Starting)
+        assertFalse(failing.state.waiting)
+    }
+
+    // CarPlay covers the waiting screen without the settings showing between; a session lost from CarPlay waits again.
+    @Test
+    fun `the waiting screen gives way to CarPlay and comes back when the session ends`() {
+        val model = model()
+
+        model.sessionActive()
+        assertEquals(Screen.CARPLAY, model.state.screen)
+        model.sessionEnded()
+        assertEquals(Screen.START, model.state.screen)
+        assertTrue(model.state.waiting)
+
+        model.show(Screen.SETTINGS)
+        assertFalse(model.state.waiting)
+        model.sessionActive()
+        model.sessionEnded()
+        assertFalse(model.state.waiting)
+    }
+
+    @Test
+    fun `the settings end the wait when asked for, and so does Disconnect`() {
+        val shown = model().apply { show(Screen.SETTINGS) }
+        assertFalse(shown.state.waiting)
+        val stopped = model().apply { disconnected() }
+        assertFalse(stopped.state.waiting)
+        // Without autoshow the session leaves the start screen to the settings, with Show CarPlay.
+        val manual = model(autoshow = false).apply { sessionActive() }
+        assertFalse(manual.state.waiting)
     }
 
     @Test

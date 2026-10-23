@@ -161,14 +161,16 @@ private fun probeBluetooth(address: String?): Boolean {
  * Wireless CarPlay with the screen shown in a window and its sound played through Java Sound. Runs until the window
  * is closed or the process is stopped; every session end or failure restarts the bring-up.
  */
-/** A window as the settings screen's triggers see it. */
-private fun VideoWindow.asUiWindow() = object : UiWindow {
+/** A window as the settings screen's triggers see it; there for them while [available] says so. */
+private fun VideoWindow.asUiWindow(available: () -> Boolean = { true }) = object : UiWindow {
     override val visible get() = this@asUiWindow.visible
+    override val available get() = available()
     override fun setShown(shown: Boolean) = this@asUiWindow.setShown(shown)
 }
 
-/** A window for its page's Actual size, which brings it to the picture it shows now. */
-private fun VideoWindow.asUiMainWindow() = object : UiMainWindow {
+/** A window for its page's Actual size, which brings it to the picture it shows now; there while [available] says so. */
+private fun VideoWindow.asUiMainWindow(available: () -> Boolean = { true }) = object : UiMainWindow {
+    override val available get() = available()
     override val width get() = framebufferSize.width
     override val height get() = framebufferSize.height
     override val minWidth get() = minimumSize.width
@@ -213,28 +215,35 @@ private fun runCarPlay() {
             }
         }
     }
-    val altscreen = config.altscreen?.let { alt ->
-        log("altscreen ${alt.size.width}x${alt.size.height} px, starting with ${alt.content.key}")
-        val altPlacements = WindowPlacementStore(dir, prefix = "altscreen.")
-        // Its close button hides it, and the settings screen's trigger shows it again; it opens at every start.
+    // The AltScreen as the last connection had it (altscreen.*), null while altscreen.enabled is off; a connection
+    // reads it again, on the touch thread like everything that changes its view.
+    val altSettings = AtomicReference(config.altscreen)
+    altSettings.get()?.let { log("altscreen ${it.size.width}x${it.size.height} px, starting with ${it.content.key}") }
+    val altPlacements = WindowPlacementStore(dir, prefix = "altscreen.")
+    // Its close button hides it, and the settings screen's trigger shows it again; it opens at every start it is on
+    // for, and waits hidden while it is off, until a connection turns it on.
+    val altscreen = config.altscreenSize.let { size ->
+        val alt = config.altscreen
         VideoWindow(
-            alt.size.width, alt.size.height, altPlacements.load(alt.size), altscreenTitle(alt.size, alt.content, alt.cards),
-            aspect = alt.size.takeIf { config.keepAspect }, hideOnClose = true,
-            minSize = WindowSize(ALTSCREEN_MIN_WIDTH, 1).fittedTo(alt.size), minScales = false,
-            stream = alt.size,
+            size.width, size.height, altPlacements.load(size),
+            altscreenTitle(size, alt?.content ?: AltscreenContent.MAP, alt?.cards ?: AltscreenCards.AUTO),
+            aspect = size.takeIf { config.keepAspect }, hideOnClose = true, shown = alt != null,
+            minSize = WindowSize(ALTSCREEN_MIN_WIDTH, 1).fittedTo(size), minScales = false,
+            stream = size,
         ).also {
             it.onPlacement = { placement ->
-                runCatching { altPlacements.save(placement, alt.size) }.onFailure { log("altscreen place not saved: $it") }
+                val now = it.stream ?: size
+                runCatching { altPlacements.save(placement, now) }.onFailure { error -> log("altscreen place not saved: $error") }
             }
         }
     }
     var altscreenContent = config.altscreen?.content
-    altscreen?.hud = altscreenContent == AltscreenContent.HUD
+    altscreen.hud = altscreenContent == AltscreenContent.HUD
     var altscreenCards = config.altscreen?.cards ?: AltscreenCards.AUTO
     // F12 saves both screens, each at the size the iPhone draws it.
     fun screenshots() {
         window.screenshot { image -> saveScreenshot(image, dir, ::log) }
-        altscreen?.screenshot { image -> saveScreenshot(image, dir, ::log, "altscreen") }
+        if (altSettings.get() != null) altscreen.screenshot { image -> saveScreenshot(image, dir, ::log, "altscreen") }
     }
     // A device name matching nothing stops here, before any connection, with the devices listed.
     val output = AudioDevices.output(config.audioOutput)
@@ -275,6 +284,20 @@ private fun runCarPlay() {
     // Ctrl+R: set once the bootstrap exists; closing a session talks to the network, so not on the GL thread.
     val restartBootstrap = AtomicReference<() -> Unit> {}
     fun reconnect() = Thread({ restartBootstrap.get()() }, "reconnect").apply { isDaemon = true }.start()
+    // The AltScreen's view as it is now, on the touch thread: the HUD or the iPhone's picture, the cluster URL a running
+    // [session] is asked for, the title, the view remembered for the next start, and the controls window's page.
+    fun showAltscreenView(session: AirPlaySession?) {
+        val alt = altSettings.get() ?: return
+        val content = altscreenContent ?: return
+        altscreen.hud = content == AltscreenContent.HUD
+        val url = altscreenUrl(content, altscreenCards)
+        val sent = session?.setClusterUrl(url, send = true)
+        if (session != null) log("altscreen ${content.key}, cards ${altscreenCards.key}: $url sent=$sent")
+        altscreen.setTitle(altscreenTitle(alt.size, content, altscreenCards) + if (sent == false) " (not sent)" else "")
+        runCatching { AltscreenViewStore(dir).save(content, altscreenCards, alt.configured) }
+            .onFailure { log("AltScreen view not saved: $it") }
+        controlsChanged.get()()
+    }
     fun send(control: Control?) {
         control ?: return
         if (control == Control.Screenshot) {
@@ -314,15 +337,7 @@ private fun runCarPlay() {
                         is Control.ShowAltscreenContent -> altscreenContent = control.content
                         else -> altscreenCards = altscreenCards.next()
                     }
-                    altscreen?.hud = altscreenContent == AltscreenContent.HUD
-                    val url = altscreenUrl(altscreenContent!!, altscreenCards)
-                    val sent = session.setClusterUrl(url, send = true)
-                    log("altscreen ${altscreenContent!!.key}, cards ${altscreenCards.key}: $url sent=$sent")
-                    val size = config.altscreen!!.size
-                    altscreen?.setTitle(altscreenTitle(size, altscreenContent!!, altscreenCards) + if (sent) "" else " (not sent)")
-                    runCatching { AltscreenViewStore(dir).save(altscreenContent!!, altscreenCards, config.altscreen!!.configured) }
-                        .onFailure { log("AltScreen view not saved: $it") }
-                    controlsChanged.get()()
+                    showAltscreenView(session)
                 }
                 Control.Screenshot, Control.Reconnect, is Control.VolumeStep, Control.MuteToggle -> Unit
             }
@@ -363,6 +378,8 @@ private fun runCarPlay() {
     val lockReady = CountDownLatch(1)
     val startBootstrap = AtomicReference<() -> Unit> {}
     val stopBootstrap = AtomicReference<() -> Unit> {}
+    // A theme the CarPlay page saved; set once the session's theme sending exists, below.
+    val themeSaved = AtomicReference<(String) -> Unit> {}
     val ui = ChairPlayUi(dir, config, firewall, object : UiActions {
         override fun connect() = Thread({
             lockReady.await()
@@ -377,22 +394,32 @@ private fun runCarPlay() {
             Thread({ stopBootstrap.get()() }, "disconnect").apply { isDaemon = true }.start()
         }
     }, window::repaint, ::log, buildMap {
-        altscreen?.let { put("altscreen", it.asUiWindow()) }
+        put("altscreen", altscreen.asUiWindow { altSettings.get() != null })
         put("controls", controlsWindow.asUiWindow())
     }, pageControls, window.asUiMainWindow(), onBindings = { saved ->
         bindings.set(saved)
         log(saved.summary())
-    }, readFirewall = ::readFirewallStatus, altscreenWindow = altscreen?.asUiMainWindow(),
-        altscreenFrame = altscreen?.let { alt -> UiSafeAreaFrame { top, bottom, left, right -> alt.showFrame(top, bottom, left, right) } })
+    }, readFirewall = ::readFirewallStatus, altscreenWindow = altscreen.asUiMainWindow { altSettings.get() != null },
+        altscreenFrame = UiSafeAreaFrame { top, bottom, left, right -> altscreen.showFrame(top, bottom, left, right) },
+        onSaved = { saved ->
+            saved["display.theme"]?.let { themeSaved.get()(it) }
+            // A saved turn card moves at once, as Shift+F11 moves it.
+            saved["altscreen.cards"]?.let { value ->
+                touchSender.execute {
+                    altscreenCards = AltscreenCards.entries.firstOrNull { it.key == value.trim().lowercase() } ?: AltscreenCards.AUTO
+                    showAltscreenView(active.get())
+                }
+            }
+        })
     // The CarPlay page offers Actual size while the window's size differs from the picture's.
     window.onResize = { ui.windowsChanged() }
-    altscreen?.onResize = { ui.windowsChanged() }
+    altscreen.onResize = { ui.windowsChanged() }
     controlsChanged.set { ui.controlsChanged() }
     giveKeysBack.set {
         ui.controlsView?.giveKeysBack()
         controlsWindow.repaint()
     }
-    altscreen?.onVisibility = { ui.windowsChanged() }
+    altscreen.onVisibility = { ui.windowsChanged() }
     controlsWindow.onVisibility = { shown ->
         runCatching { controlsShown.save(shown) }.onFailure { log("controls window state not saved: $it") }
         ui.windowsChanged()
@@ -409,7 +436,7 @@ private fun runCarPlay() {
         if (!ui.coversWindow) send(controls.key(key, action, mods))
     }
     // The same keys work while the altscreen or the controls window has the focus; all run on the one GL thread.
-    altscreen?.keyHandler = window.keyHandler
+    altscreen.keyHandler = window.keyHandler
     controlsWindow.keyHandler = window.keyHandler
     // Diagnostics: CHAIRPLAY_SCREENSHOT_AFTER=<seconds> saves one screenshot that long after the first picture, or
     // after half a minute without one, so the windows the app draws itself can be looked at without an iPhone.
@@ -422,27 +449,33 @@ private fun runCarPlay() {
         }, "screenshot-timer").apply { isDaemon = true }.start()
     }
     window.scrollHandler = { dy -> if (!ui.coversWindow) send(controls.scroll(dy)) }
-    altscreen?.scrollHandler = { dy -> send(controls.altscreenScroll(dy)) }
+    altscreen.scrollHandler = { dy -> send(controls.altscreenScroll(dy)) }
     fun sessionChanged() {
         pending.clear()
         tracker.reset()
         // The HUD's waiting line and the session's parts rise and fade as the session comes and goes.
-        altscreen?.let { if (it.hud) it.repaint() }
+        if (altscreen.hud) altscreen.repaint()
     }
-    // The theme goes out once a session is active; with display.theme=windows a change of the Windows theme follows.
+    // The theme goes out once a session is active, and again when the CarPlay page saves another, as a car's headlights
+    // turn CarPlay dark while it runs; with display.theme=windows a change of the Windows theme follows.
     // Set from the session thread and read by the watch thread.
+    val theme = AtomicReference(config.theme)
     val lastNight = AtomicReference<Boolean?>()
     fun sendTheme(session: AirPlaySession) {
-        val night = nightMode(config.theme, ::windowsAppsDark) ?: return
+        val night = nightMode(theme.get(), ::windowsAppsDark) ?: return
         lastNight.set(night)
         touchSender.execute { log("CarPlay theme ${if (night) "dark" else "light"} sent=${session.setNightMode(night)}") }
     }
     val themeWatch = Executors.newSingleThreadScheduledExecutor { Thread(it, "theme-watch").apply { isDaemon = true } }
-    if (config.theme == Theme.WINDOWS) {
-        themeWatch.scheduleWithFixedDelay({
-            val session = active.get()
-            if (session != null && nightMode(config.theme, ::windowsAppsDark) != lastNight.get()) sendTheme(session)
-        }, THEME_POLL_SECONDS, THEME_POLL_SECONDS, TimeUnit.SECONDS)
+    themeWatch.scheduleWithFixedDelay({
+        val session = active.get()
+        if (session != null && theme.get() == Theme.WINDOWS && nightMode(Theme.WINDOWS, ::windowsAppsDark) != lastNight.get()) {
+            sendTheme(session)
+        }
+    }, THEME_POLL_SECONDS, THEME_POLL_SECONDS, TimeUnit.SECONDS)
+    themeSaved.set { value ->
+        theme.set(Theme.entries.firstOrNull { it.name.lowercase() == value.trim().lowercase() } ?: Theme.WINDOWS)
+        active.get()?.let(::sendTheme)
     }
     // The iPhone's route, song, call and battery messages, for later screens and, with log.carplay.data, a file.
     val carPlayData = CarPlayData(if (config.logCarPlayData) CarPlayDataLog(dir.resolve("logs"), log = ::log) else null)
@@ -454,7 +487,7 @@ private fun runCarPlay() {
         if (wasPlaying.getAndSet(now) != now) controlsChanged.get()()
     }
     // The AltScreen's HUD shows the bus's data, drawn again when it changes.
-    altscreen?.let { alt ->
+    altscreen.let { alt ->
         // CHAIRPLAY_HUD_DEMO plays a made-up route instead of the bus's data, for watching the maneuvers (HudDemo).
         val demo = HudDemo.fromEnvironment()?.start(alt::repaint) { name ->
             alt.screenshot { image -> saveScreenshot(image, dir, ::log, "altscreen-demo-$name") }
@@ -509,11 +542,37 @@ private fun runCarPlay() {
     }
     bootstrap.onStatus = ui::bringUp
     // A display size saved since comes with the next connection: the window takes the new picture's shape and size.
-    bootstrap.onDisplay = { size ->
+    // The screens saved since come with the next connection: the main window takes the new picture's shape and size,
+    // and the AltScreen turns on or off, or takes its new size and the view it starts with.
+    bootstrap.onConnection = { now ->
+        val size = WindowSize(now.displayWidth, now.displayHeight)
         if (size != window.stream) {
             log("display ${size.width}x${size.height} px from this connection on")
             window.setStream(size)
             window.setTitle(mainWindowTitle(size, if (reconnecting.get()) RECONNECTING else CONNECTING))
+        }
+        touchSender.execute {
+            val alt = now.altscreen
+            val was = altSettings.getAndSet(alt)
+            if (alt == null) {
+                if (was != null) {
+                    log("altscreen off from this connection on")
+                    altscreenContent = null
+                    altscreen.setShown(false)
+                    controlsChanged.get()()
+                    ui.windowsChanged()
+                }
+            } else {
+                if (alt.size != altscreen.stream) altscreen.setStream(alt.size, WindowSize(ALTSCREEN_MIN_WIDTH, 1).fittedTo(alt.size))
+                if (alt.size != was?.size) log("altscreen ${alt.size.width}x${alt.size.height} px from this connection on")
+                altscreenContent = alt.content
+                altscreenCards = alt.cards
+                showAltscreenView(null)
+                if (was == null) {
+                    altscreen.setShown(true)
+                    ui.windowsChanged()
+                }
+            }
         }
     }
     Runtime.getRuntime().addShutdownHook(Thread {

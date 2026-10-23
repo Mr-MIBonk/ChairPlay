@@ -43,6 +43,7 @@ class UiControllerTest {
         about: BuildInfo = BuildInfo(Commit("4e6d50df", "2026-10-23"), Commit("143f4674", "2026-10-21")),
         altscreenWindow: UiMainWindow? = null,
         altscreenFrame: UiSafeAreaFrame? = null,
+        onSaved: (Map<String, String>) -> Unit = {},
     ): UiController {
         Files.writeString(file, settings)
         val values = SettingsFile(file).read()
@@ -61,7 +62,8 @@ class UiControllerTest {
                 reconnects.incrementAndGet()
             }
         }, logged::add, autoconnect, windows, controls, launch, audio, mainWindow, bindings, applied::add, checks, elevate, setupStore,
-            about, windowsVersion = { "Windows 11 24H2 (build 26300)" }, altscreenWindow = altscreenWindow, altscreenFrame = altscreenFrame)
+            about, windowsVersion = { "Windows 11 24H2 (build 26300)" }, altscreenWindow = altscreenWindow, altscreenFrame = altscreenFrame,
+            onSaved = onSaved)
     }
 
     // Copy details and New issue carry the same text: the build, the DiPlay core, and Windows; never a setting.
@@ -142,6 +144,26 @@ class UiControllerTest {
 
         assertEquals(listOf("display.corners", "display.safe.draw.outside"), ui.state()["reconnectPending"])
         assertEquals(emptyList<String>(), ui.state()["restartPending"])
+    }
+
+    // The page shows the black waiting screen instead of the settings while the app connects on its own.
+    @Test
+    fun `the page hears whether the start waits for the connection`() {
+        assertEquals(true, controller().state()["waiting"])
+        assertEquals(false, controller(autoconnect = false).state()["waiting"])
+    }
+
+    // CarPlay turns dark or light while it runs, as a car's headlights tell it to: a saved theme goes out at once.
+    @Test
+    fun `a saved theme reaches the app at once and waits for nothing`() {
+        val saved = mutableListOf<Map<String, String>>()
+        val ui = controller(onSaved = { saved += it })
+
+        ui.saveSettings(mapOf("display.theme" to "dark"))
+
+        assertEquals(listOf(mapOf("display.theme" to "dark")), saved)
+        assertEquals(emptyList<String>(), ui.state()["restartPending"])
+        assertEquals(emptyList<String>(), ui.state()["reconnectPending"])
     }
 
     // Show frame previews the safe area saved on the AltScreen page, before a restart puts it in force.
@@ -321,6 +343,7 @@ class UiControllerTest {
 
     /** A main window at [width] x [height] that records the sizes it was asked for. */
     private class FakeMainWindow(override var width: Int, override var height: Int) : UiMainWindow {
+        override var available = true
         override var minWidth = 0
         override var minHeight = 0
         override var picture: WindowSize? = null
@@ -369,6 +392,24 @@ class UiControllerTest {
         assertNull(controller().state()["altscreenWindow"])
     }
 
+    // The AltScreen's window waits, hidden, while altscreen.enabled is off: the page sees no AltScreen until a
+    // connection turns it on.
+    @Test
+    fun `an AltScreen that is off is not there for the page`() {
+        val trigger = FakeWindow(visible = false, available = false)
+        val alt = FakeMainWindow(1440, 540).apply { picture = WindowSize(1440, 540); available = false }
+        val ui = controller(windows = mapOf("altscreen" to trigger), altscreenWindow = alt)
+
+        assertEquals(mapOf("available" to false, "visible" to false), (ui.state()["windows"] as Map<*, *>)["altscreen"])
+        assertNull(ui.state()["altscreenWindow"])
+        assertFalse(ui.actualSize("altscreen"))
+
+        trigger.available = true
+        alt.available = true
+        assertEquals(mapOf("available" to true, "visible" to false), (ui.state()["windows"] as Map<*, *>)["altscreen"])
+        assertEquals(1440, (ui.state()["altscreenWindow"] as Map<*, *>)["pictureWidth"])
+    }
+
     @Test
     fun `a main window resized moves the version on`() {
         val ui = controller(mainWindow = FakeMainWindow(1024, 576))
@@ -388,7 +429,7 @@ class UiControllerTest {
     }
 
     /** A window that only records what it was asked. */
-    private class FakeWindow(override var visible: Boolean) : UiWindow {
+    private class FakeWindow(override var visible: Boolean, override var available: Boolean = true) : UiWindow {
         override fun setShown(shown: Boolean) {
             visible = shown
         }
@@ -417,7 +458,7 @@ class UiControllerTest {
         assertTrue(result.errors.isEmpty())
         val text = Files.readString(file)
         assertTrue(text, "window.width=1600\n" in text && "altscreen.enabled=true\n" in text)
-        assertEquals(mapOf("window.width" to "restart", "altscreen.enabled" to "restart"), result.applies)
+        assertEquals(mapOf("window.width" to "restart", "altscreen.enabled" to "reconnect"), result.applies)
     }
 
     @Test

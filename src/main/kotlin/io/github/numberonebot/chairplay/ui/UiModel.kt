@@ -43,6 +43,13 @@ data class UiState(
     val reconnectPending: Set<String> = emptySet(),
     /** Saved settings that differ from what the app started with and apply at the next start. */
     val restartPending: Set<String> = emptySet(),
+    /**
+     * The start screen waits, black, for a connection the app makes on its own: as it starts with ui.autoconnect, and
+     * when a session shown as CarPlay ends. A failed attempt, the settings asked for, or Disconnect end the wait, and
+     * the settings show; CarPlay covers it as the session starts, the wait kept until then so the settings never show
+     * between the two.
+     */
+    val waiting: Boolean = false,
 ) {
     /** The web UI covers the window; otherwise CarPlay's picture shows and takes the keys. */
     val showsUi: Boolean get() = screen != Screen.CARPLAY
@@ -60,6 +67,8 @@ class UiModel(
     wifiSet: Boolean,
     autoconnect: Boolean,
     autoshow: Boolean,
+    /** Get started is done; until then it shows, not the waiting screen. */
+    setupDone: Boolean = true,
     private val clock: () -> LocalTime = LocalTime::now,
 ) {
     @Volatile
@@ -71,6 +80,7 @@ class UiModel(
         },
         screen = Screen.START,
         autoshow = autoshow,
+        waiting = wifiSet && autoconnect && setupDone,
     )
         private set
 
@@ -96,7 +106,7 @@ class UiModel(
             BringUpStatus.Starting -> state.copy(phase = Phase.STARTING, reconnectPending = emptySet())
             BringUpStatus.CallingIphone -> state.copy(phase = Phase.CALLING)
             is BringUpStatus.Joining -> state.copy(phase = Phase.JOINING, knownIphone = status.knownIphone)
-            is BringUpStatus.Failed -> state.copy(phase = Phase.RETRYING, error = UiError(status.message, clock()))
+            is BringUpStatus.Failed -> state.copy(phase = Phase.RETRYING, error = UiError(status.message, clock()), waiting = false)
         }
     }
 
@@ -105,29 +115,31 @@ class UiModel(
 
     fun sessionActive() = update { state ->
         val screen = if (state.autoshow && state.screen == Screen.START) Screen.CARPLAY else state.screen
-        state.copy(phase = Phase.ACTIVE, error = null, screen = screen)
+        state.copy(phase = Phase.ACTIVE, error = null, screen = screen, waiting = state.waiting && screen == Screen.CARPLAY)
     }
 
-    /** The bring-up starts over after a session, so the start screen says so at once. */
+    /** The bring-up starts over after a session, so the start screen says so at once; from CarPlay it waits, black. */
     fun sessionEnded() = update { state ->
         if (state.phase != Phase.ACTIVE) return@update state
-        state.copy(phase = Phase.STARTING, screen = if (state.screen == Screen.CARPLAY) Screen.START else state.screen)
+        val fromCarPlay = state.screen == Screen.CARPLAY
+        state.copy(phase = Phase.STARTING, screen = if (fromCarPlay) Screen.START else state.screen, waiting = fromCarPlay)
     }
 
     /** Disconnect: no session and no bring-up until Connect; CarPlay's picture gives way to the start screen. */
     fun disconnected() = update { state ->
-        state.copy(phase = Phase.IDLE, screen = if (state.screen == Screen.CARPLAY) Screen.START else state.screen)
+        state.copy(phase = Phase.IDLE, screen = if (state.screen == Screen.CARPLAY) Screen.START else state.screen, waiting = false)
     }
 
     /** The car button on the CarPlay home screen. */
-    fun carButton() = update { it.copy(screen = Screen.SETTINGS) }
+    fun carButton() = update { it.copy(screen = Screen.SETTINGS, waiting = false) }
 
     /** Shows [screen]; CarPlay only with a session. Returns whether it is shown. */
     fun show(screen: Screen): Boolean {
         var shown = false
         update { state ->
             shown = screen != Screen.CARPLAY || state.phase == Phase.ACTIVE
-            if (shown) state.copy(screen = screen) else state
+            // The settings asked for end the wait; CarPlay keeps it, for the session's end to wait again.
+            if (shown) state.copy(screen = screen, waiting = state.waiting && screen == Screen.CARPLAY) else state
         }
         return shown
     }

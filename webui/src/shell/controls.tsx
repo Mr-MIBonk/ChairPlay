@@ -148,8 +148,10 @@ export function Select(props: {
 export type Choice = readonly [value: string, text: string, title?: string]
 
 /**
- * Choices side by side, the chosen one a lit plate. A disabled group shows none chosen. [className] picks the
- * segments' width: none for the usual, "compact", "half" for short figures, or "fit" for each its own word's.
+ * Choices side by side, the chosen one a lit plate. A disabled group shows none chosen. Two or three choices are equal
+ * plates; four or more ("wide") keep to the length of a row's controls, and are as long as four plates where the page
+ * has room, and five where it has room for that. [className] sets the width by hand instead: "compact", or "half" for
+ * short figures.
  */
 export function Segmented(props: {
   label: string
@@ -160,7 +162,12 @@ export function Segmented(props: {
   className?: string
 }) {
   return (
-    <span className={`seg ${props.className ?? ''}`} role="radiogroup" aria-label={props.label}>
+    <span
+      className={`seg ${props.className ?? (props.options.length >= 4 ? 'wide' : '')}`}
+      data-items={props.options.length}
+      role="radiogroup"
+      aria-label={props.label}
+    >
       {props.options.map(([value, text, title]) => {
         const chosen = !props.disabled && value === props.value
         return (

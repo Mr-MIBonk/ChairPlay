@@ -111,11 +111,14 @@ describe('AltScreen page', () => {
     await waitFor(() => expect(backend.saved).toEqual([{ 'altscreen.cards': 'top' }]))
   })
 
-  // Five short words: each as wide as itself, not padded out to the other rows' widest choice.
-  it('fits the turn card choices to their words', async () => {
+  // Four choices or more share the length of a row's controls, the network's name and security on Connection.
+  it('stretches the long groups to the length of a row', async () => {
     await altscreen()
 
-    expect(screen.getByRole('radiogroup', { name: 'Turn card' }).classList.contains('fit')).toBe(true)
+    for (const name of ['View', 'Turn card']) {
+      expect(screen.getByRole('radiogroup', { name }).classList.contains('wide')).toBe(true)
+    }
+    expect(screen.getByRole('radiogroup', { name: 'Size' }).classList.contains('wide')).toBe(false)
   })
 
   it('saves the safe area', async () => {

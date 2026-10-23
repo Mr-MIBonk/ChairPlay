@@ -43,8 +43,10 @@ class ChairPlayUi(
     onBindings: (ControlsConfig) -> Unit = {},
     /** Reads the firewall again, quietly, for the live setup checks. */
     readFirewall: () -> FirewallStatus = { firewall },
+    /** Hears the settings each save changed, for those that apply at once. */
+    onSaved: (Map<String, String>) -> Unit = {},
 ) : Closeable {
-    val model = UiModel(config.wifi != null, config.autoconnect, config.autoshow)
+    val model = UiModel(config.wifi != null, config.autoconnect, config.autoshow, setupDone = SetupStore(dir).done())
 
     private val checks = SetupChecks(
         pairedIphone = { pairedIphoneName(WindowsBluetooth.pairedDevices(), config.iphoneAddress) },
@@ -79,6 +81,7 @@ class ChairPlayUi(
         checks = checks,
         elevate = ::addFirewallRules,
         setupStore = SetupStore(dir),
+        onSaved = onSaved,
     )
 
     private val checking = checks.start { controller.setupChanged() }

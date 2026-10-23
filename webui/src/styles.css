@@ -556,7 +556,7 @@ code {
  * from the toolbar to the window's bottom edge, and the window itself never does.
  */
 html:has(.shell) {
-  overflow-y: hidden;
+  overflow: hidden;
 }
 
 .shell {
@@ -576,6 +576,8 @@ html:has(.shell) {
   --lighten: linear-gradient(rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.09));
   --ui: 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
   display: grid;
+  /* As wide as the window whatever the page needs: only the page scrolls, in either direction */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: 58px minmax(0, 1fr);
   height: 100vh;
   background: var(--bg);
@@ -602,12 +604,49 @@ html:has(.shell) {
   transition: opacity 150ms ease;
 }
 
+/* Waiting for the connection the app makes on its own: black, as CarPlay's picture will be, the icon over the status */
+.shell.waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: #000;
+  text-align: center;
+}
+
+.shell.waiting img {
+  width: 64px;
+  height: 64px;
+}
+
+.shell.waiting p {
+  margin: 0;
+}
+
+.shell.waiting .title {
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.shell.waiting .detail {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.shell.waiting .btn {
+  margin-top: 6px;
+}
+
 /* Toolbar: 38 px buttons in a 58 px bar, 10 px round them as between them */
+/* Its own width decides whether the window buttons show their labels; what never fits is cut off, never scrolled */
 .shell .tb {
+  container-type: inline-size;
   display: flex;
   align-items: center;
   gap: 7px;
   min-width: 0;
+  overflow: hidden;
   padding: 10px;
   background: var(--bar);
 }
@@ -628,14 +667,18 @@ html:has(.shell) {
   display: flex;
   align-items: center;
   gap: 7px;
+  min-width: 0;
   overflow: hidden;
   color: var(--muted);
   white-space: nowrap;
 }
 
+/* In a narrow window the status gives way before the buttons do */
 .shell .chip b {
+  overflow: hidden;
   color: var(--text);
   font-weight: 400;
+  text-overflow: ellipsis;
 }
 
 .shell .dot {
@@ -652,8 +695,11 @@ html:has(.shell) {
 .shell .dot.busy { background: var(--accent); }
 
 .shell .pending {
+  min-width: 0;
+  overflow: hidden;
   color: var(--orange);
   white-space: nowrap;
+  text-overflow: ellipsis;
   cursor: help;
 }
 
@@ -732,6 +778,19 @@ html:has(.shell) {
   padding: 0;
 }
 
+/* Narrower than the bar's buttons with every label (505 px inside its padding), the window buttons are icons alone */
+@container (max-width: 509px) {
+  .shell .tb .btn .label {
+    display: none;
+  }
+
+  .shell .tb .btn:has(.label) {
+    justify-content: center;
+    width: 38px;
+    padding: 0;
+  }
+}
+
 /*
  * Buttons side by side 10 px apart, as far as a button is from a separator (the bar's 7 px gap and the separator's
  * 3 px margin). Connect takes the place of Reconnect and Disconnect, two squares and that gap, so nothing shifts.
@@ -754,10 +813,21 @@ html:has(.shell) {
     0 0 16px 4px color-mix(in srgb, var(--accent) 45%, transparent);
 }
 
-/* The section list and the page */
+/*
+ * The section list and the page. The list narrows evenly with the window, from its full width at 800 px down to what
+ * "Connection" needs at 640 px, leaving as much after it as before its icon, with no step between.
+ *
+ * A row's controls are as long as Connection's first, the network's name and its security (--row-width); the longest
+ * segmented groups stay within it where the page is narrow. The label column is what "Bluetooth address" needs (118 px)
+ * and a quarter of what the page has past 450 px, so a wide page moves the rows toward its middle without leaving the
+ * left half empty.
+ */
 .shell .body {
+  --nav-width: clamp(146px, 13.75vw + 58px, 168px);
+  --row-width: 326px;
+  --label-width: max(118px, 118px + (100cqw - 450px) / 4);
   display: grid;
-  grid-template-columns: 168px minmax(0, 1fr);
+  grid-template-columns: var(--nav-width) minmax(0, 1fr);
   min-height: 0;
 }
 
@@ -825,9 +895,11 @@ html:has(.shell) {
   overflow-y: scroll;
 }
 
-/* In a larger window the grid keeps its widths */
+/* In a larger window the page keeps to the middle; the label column (100cqw) grows with it */
 .shell .page-inner {
+  container-type: inline-size;
   max-width: 824px;
+  margin: 0 auto;
 }
 
 /* Property grid: groups under a header, rows of a label and its controls */
@@ -860,7 +932,7 @@ html:has(.shell) {
 
 .shell .row {
   display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
+  grid-template-columns: var(--label-width) minmax(0, 1fr);
   align-items: center;
   min-height: 34px;
 }
@@ -1016,7 +1088,7 @@ html:has(.shell) {
 /* About: the app's icon, then its name over what it is, on the property grid */
 .shell .about-head {
   display: grid;
-  grid-template-columns: 140px minmax(0, 1fr);
+  grid-template-columns: var(--label-width) minmax(0, 1fr);
   align-items: center;
   padding: 2px 0 4px;
 }
@@ -1392,6 +1464,7 @@ html:has(.shell) {
  * short separators between them that stop short of the frame and drop away beside the plate
  */
 .shell .seg {
+  --choice: 80px;
   display: inline-flex;
   padding: 2px;
   border: 1px solid var(--edge);
@@ -1399,15 +1472,15 @@ html:has(.shell) {
   background: var(--ground);
 }
 
-/* As wide as the widest choice ("Right-hand"), so segments line up from row to row */
+/* Plates line up from row to row: 80 px on a narrow page, 90 px on a wider one (see .seg.wide below) */
 .shell .seg button {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 90px;
+  min-width: var(--choice);
   height: 20px;
-  padding: 0 11px;
+  padding: 0 10px;
   border: 0;
   border-radius: 1px;
   background: transparent;
@@ -1420,9 +1493,45 @@ html:has(.shell) {
   min-width: 56px;
 }
 
-/* Each choice as wide as its own word, for a group too long to line up with the others */
-.shell .seg.fit button {
-  min-width: 0;
+/*
+ * Where the page is narrow, an ordinary plate is 80 px, so that four and the frame are as long as a row's controls
+ * (--row-width, 326 px), and every group of four choices or more is that long, a group of five squeezed into it.
+ * Where the row beside the labels holds four 90 px plates, every plate is 90 px and those groups are four plates long;
+ * where it holds five or six, such a group gets them all. Beside a label column of 118 + (page - 450) / 4 the row has
+ * 0.75 page - 5.5 px: four plates and the frame (366 px) need a page of 496 px, five (456 px) 616 px, six (546 px)
+ * 736 px.
+ */
+.shell .seg.wide {
+  box-sizing: border-box;
+  width: var(--row-width);
+}
+
+@container (min-width: 496px) {
+  .shell .seg {
+    --choice: 90px;
+  }
+
+  .shell .seg.wide {
+    width: calc(4 * var(--choice) + 6px);
+  }
+}
+
+@container (min-width: 616px) {
+  .shell .seg.wide[data-items='5'] {
+    width: calc(5 * var(--choice) + 6px);
+  }
+}
+
+@container (min-width: 736px) {
+  .shell .seg.wide[data-items='6'] {
+    width: calc(6 * var(--choice) + 6px);
+  }
+}
+
+.shell .seg.wide button {
+  flex: 1 1 0;
+  min-width: auto;
+  padding: 0 6px;
 }
 
 /* Short figures: the group half as long as two ordinary choices */

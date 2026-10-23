@@ -62,6 +62,8 @@ export interface AppState {
   knownIphone: boolean
   canShowCarPlay: boolean
   autoshow: boolean
+  /** The app connects on its own (ui.autoconnect, or a session lost from CarPlay): the page waits, black, until it fails. */
+  waiting: boolean
   /** The page is inside ChairPlay's window rather than a browser. */
   embedded: boolean
   wifi: { ssid: string; security: string; passphraseSet: boolean }

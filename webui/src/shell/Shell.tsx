@@ -12,6 +12,7 @@ import { Message } from './controls'
 import { SECTIONS, sectionsOf, type Section } from './sections'
 import { Toolbar } from './Toolbar'
 import { useSettings } from './useSettings'
+import { Waiting } from './Waiting'
 
 export type { Section } from './sections'
 
@@ -46,6 +47,9 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [backend, showable])
+
+  // Connecting on its own the app waits, black, instead of showing the settings, until CarPlay covers it.
+  if (state.waiting) return <Waiting state={state} backend={backend} />
 
   // CarPlay is to show: the window hides the page a fade's time later (Fade.kt), so it fades to black meanwhile.
   const away = state.embedded && state.screen === 'carplay'

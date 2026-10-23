@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Checkbox, Field, Group, Message, Row, Segmented } from './controls'
+import { Checkbox, Field, Group, Message, Row, Segmented, type Choice } from './controls'
 
 afterEach(cleanup)
 
@@ -112,6 +112,24 @@ describe('Segmented', () => {
 
     expect(screen.getByRole('radio', { name: 'Knob' }).getAttribute('aria-checked')).toBe('false')
     expect(onChange).not.toHaveBeenCalled()
+  })
+
+  // Two or three choices are equal plates; four or more share a row's length, which a wide page lifts (CSS).
+  it('makes a group of four choices or more a wide one, knowing how many it has', () => {
+    const four: Choice[] = [['a', 'A'], ['b', 'B'], ['c', 'C'], ['d', 'D']]
+    render(
+      <>
+        <Segmented label="Four" value="a" options={four} onChange={() => {}} />
+        <Segmented label="Three" value="a" options={four.slice(0, 3)} onChange={() => {}} />
+        <Segmented label="Kept" value="a" options={four} onChange={() => {}} className="compact" />
+      </>,
+    )
+
+    const group = screen.getByRole('radiogroup', { name: 'Four' })
+    expect(group.classList.contains('wide')).toBe(true)
+    expect(group.dataset.items).toBe('4')
+    expect(screen.getByRole('radiogroup', { name: 'Three' }).classList.contains('wide')).toBe(false)
+    expect(screen.getByRole('radiogroup', { name: 'Kept' }).classList.contains('wide')).toBe(false)
   })
 
   it('gives an item its tooltip', () => {
