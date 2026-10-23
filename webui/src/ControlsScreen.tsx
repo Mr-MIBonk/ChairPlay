@@ -117,7 +117,7 @@ function Knob(props: Shared & { onTurn: (forward: boolean) => void }) {
 }
 
 /**
- * The controls window (518x218): the AltScreen's zoom and modes on the left, the knob, then the CarPlay, media,
+ * The controls window (518x215): the AltScreen's zoom and modes on the left, the knob, then the CarPlay, media,
  * volume and call keys. A button press reaches the app at once; the window keeps the keyboard, so the keys work as
  * in the main window, and Alt held there or here shows each button its key.
  */
@@ -142,7 +142,8 @@ export function ControlsScreen({ state, backend }: { state: AppState; backend: B
 
   const shared: Shared = { backend, keys: controls?.keys ?? {}, showKeys: Boolean(controls?.altHeld || altHere || state.controlsKeys) }
   const altscreen = controls?.altscreen ?? null
-  const altOn = altscreen !== null && state.windows.altscreen.available && state.canShowCarPlay
+  // Only an AltScreen on screen has something to zoom and switch.
+  const altOn = altscreen !== null && state.windows.altscreen.available && state.windows.altscreen.visible && state.canShowCarPlay
   // Disabled, the modes show none chosen.
   const chosen = altOn ? altscreen : null
   const turn = (forward: boolean) => {

@@ -15,6 +15,9 @@ const DISPLAY_KEYS = ['altscreen.enabled', 'altscreen.width', 'altscreen.height'
 /** What the AltScreen can show, as the controls window lists it. */
 const VIEWS: readonly Choice[] = [['hud', 'HUD'], ['map', 'Map'], ['map-card', 'Map + card'], ['card', 'Turn card']]
 
+/** The size blank altscreen.width and .height mean, as the app reads them. */
+const ALTSCREEN_FALLBACK = { width: 1440, height: 540 }
+
 /** The second, cluster-sized window: whether it opens, its size, what it starts with, and its safe area. */
 export function AltScreenPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
   const pending = pendingOf(state)
@@ -36,8 +39,17 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
         settings={settings}
         prefix="altscreen"
         presets={PRESETS}
-        fallback={{ width: 1440, height: 540 }}
-        after={<ActualSize sizes={state.altscreenWindow} window="altscreen" backend={backend} />}
+        fallback={ALTSCREEN_FALLBACK}
+        after={
+          <ActualSize
+            sizes={state.altscreenWindow}
+            window="altscreen"
+            backend={backend}
+            settings={settings}
+            prefix="altscreen"
+            fallback={ALTSCREEN_FALLBACK}
+          />
+        }
         pending={pending}
       />
       <Group title="View" note="Also on the controls window" />

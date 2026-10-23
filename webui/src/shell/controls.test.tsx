@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Checkbox, Field, Group, Message, Row, Segmented, type Choice } from './controls'
+import { Checkbox, Field, Group, Message, PasswordField, Row, Segmented, type Choice } from './controls'
 
 afterEach(cleanup)
 
@@ -138,6 +138,26 @@ describe('Segmented', () => {
     )
 
     expect(screen.getByRole('radio', { name: '1440×540' }).title).toBe('Audi Virtual Cockpit, 12.3 inch')
+  })
+})
+
+describe('PasswordField', () => {
+  // The password is in settings.properties as written; the eye asks the app for it, and hides it again.
+  it('shows the saved password on the eye, and hides it again', async () => {
+    const onCommit = vi.fn()
+    render(<PasswordField label="Password" set onCommit={onCommit} saved={async () => 'secret123'} />)
+    const field = screen.getByLabelText('Password') as HTMLInputElement
+    expect(field.value).toBe('')
+
+    await act(async () => fireEvent.click(screen.getByRole('button', { name: 'Show the password' })))
+    expect(field.value).toBe('secret123')
+    expect(field.type).toBe('text')
+    fireEvent.blur(field)
+    expect(onCommit).not.toHaveBeenCalled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Hide the password' }))
+    expect(field.value).toBe('')
+    expect(field.type).toBe('password')
   })
 })
 

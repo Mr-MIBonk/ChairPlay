@@ -70,6 +70,15 @@ describe('ControlsScreen', () => {
     expect(backend.altscreens).toEqual([])
   })
 
+  // A hidden AltScreen shows nothing to zoom or switch: its buttons wait for the window to be on screen.
+  it('disables the AltScreen buttons while its window is hidden', () => {
+    const windows = { altscreen: { available: true, visible: false }, controls: { available: true, visible: true } }
+    render(<ControlsScreen state={appState({ ...live, windows })} backend={new FakeBackend()} />)
+
+    expect((screen.getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement).disabled).toBe(true)
+    expect((screen.getByRole('radio', { name: 'HUD' }) as HTMLButtonElement).disabled).toBe(true)
+  })
+
   // A disabled choice shows nothing chosen: the mode the AltScreen last had is not one it shows now.
   it('marks no AltScreen mode while there is no AltScreen to work', () => {
     render(<ControlsScreen state={appState({ canShowCarPlay: false })} backend={new FakeBackend()} />)

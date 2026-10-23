@@ -68,6 +68,13 @@ class UiServerTest {
         assertEquals(mapOf("version" to 0L, "phase" to "idle"), Json.parse(response.body()))
     }
 
+    // The eye beside the password asks for the saved one alone, with the token like every other call.
+    @Test
+    fun `the saved password comes only when asked for, with the token`() {
+        assertEquals(401, get("/api/passphrase", token = null).statusCode())
+        assertEquals(mapOf("passphrase" to "secret123"), Json.parse(get("/api/passphrase").body()))
+    }
+
     @Test
     fun `settings are saved or refused with the reasons`() {
         val saved = post("/api/settings", """{"changes":{"window.width":"1600"}}""")
@@ -204,6 +211,7 @@ class UiServerTest {
         private val lock = Object()
         private var phase = "idle"
         @Volatile override var version = 0L
+        override fun savedPassphrase() = "secret123"
         var saved: Map<String, String>? = null
         var connectError: String? = null
         val calls = mutableListOf<String>()

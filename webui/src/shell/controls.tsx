@@ -93,12 +93,28 @@ export function Field(props: {
 }
 
 /**
- * A password field. The saved password never reaches the page: the field is empty, with dots for a saved one, and
- * saves what is typed; the eye shows what is typed.
+ * A password field: empty, with dots for a saved password, and saves what is typed. The eye shows what is typed, and
+ * the saved password itself, which it asks the app for ([saved]) only then; hiding it empties the field again.
  */
-export function PasswordField(props: { label: string; set: boolean; onCommit: (value: string) => unknown; error?: string }) {
+export function PasswordField(props: {
+  label: string
+  set: boolean
+  onCommit: (value: string) => unknown
+  error?: string
+  saved?: () => Promise<string | null>
+}) {
   const [reveal, setReveal] = useState(false)
+  const [shown, setShown] = useState<string | null>(null)
   const eye = reveal ? 'Hide the password' : 'Show the password'
+  const toggle = async () => {
+    if (reveal) {
+      setReveal(false)
+      setShown(null)
+      return
+    }
+    if (props.set && props.saved) setShown(await props.saved())
+    setReveal(true)
+  }
   return (
     <>
       <span className="pw">
@@ -107,11 +123,11 @@ export function PasswordField(props: { label: string; set: boolean; onCommit: (v
           type={reveal ? 'text' : 'password'}
           // Red by class only: a reason passed to the field would make it send the empty saved value again.
           className={`w200 ${props.set ? 'set' : ''} ${props.error ? 'err' : ''}`}
-          value=""
+          value={shown ?? ''}
           placeholder={props.set ? '••••••••••' : 'Not set'}
           onCommit={props.onCommit}
         />
-        <button type="button" className="eye" aria-label={eye} title={eye} onClick={() => setReveal(!reveal)}>
+        <button type="button" className="eye" aria-label={eye} title={eye} onClick={() => void toggle()}>
           <EyeIcon />
         </button>
       </span>

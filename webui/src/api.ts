@@ -137,6 +137,8 @@ export type SaveOutcome =
 export interface Backend {
   settings(): Promise<SettingsData>
   save(changes: Record<string, string>): Promise<SaveOutcome>
+  /** The saved Wi-Fi password, for the eye beside it; null when none is saved. Nothing else carries it. */
+  savedPassphrase(): Promise<string | null>
   /** Null when connecting started, else why not. */
   connect(): Promise<string | null>
   reconnect(): Promise<void>
@@ -194,6 +196,10 @@ export class Api implements Backend {
 
   async save(changes: Record<string, string>): Promise<SaveOutcome> {
     return this.saveTo('settings', changes)
+  }
+
+  async savedPassphrase(): Promise<string | null> {
+    return ((await this.request('GET', 'passphrase')).data as { passphrase: string | null }).passphrase
   }
 
   async showAltscreenFrame(): Promise<boolean> {

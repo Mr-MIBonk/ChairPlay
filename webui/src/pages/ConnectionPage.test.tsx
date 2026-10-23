@@ -65,11 +65,12 @@ describe('Connection page, Wi-Fi', () => {
     expect(password().placeholder).toBe('Not set')
   })
 
-  it('shows the typed password with the eye', async () => {
+  it('shows the saved password with the eye, asking the app for it', async () => {
     await connection()
 
     fireEvent.click(screen.getByRole('button', { name: 'Show the password' }))
 
+    await waitFor(() => expect(password().value).toBe('secret123'))
     expect(password().type).toBe('text')
     expect(screen.getByRole('button', { name: 'Hide the password' })).toBeTruthy()
   })

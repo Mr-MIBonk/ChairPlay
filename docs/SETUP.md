@@ -122,7 +122,7 @@ The files below live in the app folder, next to `ChairPlay.exe`.
    - `log.carplay.data` (default `false`): `true` writes every message the iPhone sends about the route, the song,
      calls and its battery to a file in `logs\` (see [The CarPlay data log](#the-carplay-data-log));
    - `display.width` and `display.height`: the CarPlay screen size in pixels, positive even numbers
-     (default 800 x 480, the smallest window), and `display.fps`, 30 to 60 (default 60). The size alone decides how iOS draws:
+     (default 1280 x 720), and `display.fps`, 30 to 60 (default 60). The size alone decides how iOS draws:
      at @3x when both sides are at least about 1280 x 720, at @2x below that (the switch lies between 1200 x 676
      and 1280 x 720; 960 x 720 and 1280 x 540 are still @2x). Above the switch more pixels give room for more,
      not sharper: at 1920 x 1080 the home screen holds 5 x 3 icons of the same size instead of 4 x 2. Tested on
@@ -173,7 +173,7 @@ The files below live in the app folder, next to `ChairPlay.exe`.
    The settings apply at the next start (the Wi-Fi network with the next connection, `ui.autoshow` and
    `ui.controls.keys` at once); the
    console prints what the iPhone was told, for example
-   `display 800x480 px, 200x120 mm (102 ppi), 60 fps; window 800x480`.
+   `display 1280x720 px, 200x113 mm (163 ppi), 60 fps; window 1280x720`.
 4. **Firewall.** Windows Firewall drops the iPhone's inbound connections. Add the rule, in Get started and on the
    Connection page, adds these rules with the administrator's consent (Windows asks once); or add them yourself, once,
    from Terminal (Admin) (the paths are those of the packaged exe; adjust them if you move the folder). The app
@@ -250,8 +250,8 @@ Otherwise, whenever CarPlay is not on screen, the window shows the **settings**:
   the firewall, no paired iPhone), then the Wi-Fi network and the iPhone: the paired iPhone with Forget, which
   deletes ChairPlay's pairing records in `pairings\` and opens Get started (Windows' pairing stays, and the running
   app keeps the pairing it loaded until it restarts), its name on the iPhone, its address, the time it has to join,
-  and the two switches. The stored password is never shown or sent to the page, which only learns whether one is
-  set.
+  and the two switches. The stored password, in `settings.properties` as written, shows only when the eye beside it
+  is clicked, which asks the app for it; the page's state and the log only say whether one is set.
 - **CarPlay**: the screen's size, with Actual size while the window was resized, to bring it back to one screen
   pixel per picture pixel; frame rate, physical size, theme, dock, driving side, what CarPlay draws outside the safe area, corners, and safe
   area. The theme applies at once; the iPhone asks how its screen looks at each connection, so the rest apply at the next one

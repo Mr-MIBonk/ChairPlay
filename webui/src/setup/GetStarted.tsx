@@ -140,6 +140,7 @@ export function GetStarted(props: {
             label="Password"
             set={state.wifi.passphraseSet}
             error={settings.error('wifi.passphrase')}
+            saved={() => backend.savedPassphrase()}
             onCommit={async (text) => {
               const changes: Record<string, string> = { 'wifi.passphrase': text }
               if (!settings.value('wifi.ssid') && network) changes['wifi.ssid'] = network

@@ -164,6 +164,17 @@ describe('Shell fading', () => {
 })
 
 describe('Shell', () => {
+  // A narrow window shows the sections' icons alone (CSS): each keeps its name, and says it when hovered.
+  it('names each section whether or not its label shows', () => {
+    render(<Shell state={appState({ ...live, restartPending: ['display.width'] })} backend={new FakeBackend()} />)
+
+    for (const name of ['Connection', 'CarPlay', 'AltScreen', 'Keyboard', 'Audio', 'About']) {
+      const tab = screen.getByRole('tab', { name })
+      expect(tab.title).toBe(name)
+      expect(tab.querySelector('.label')?.textContent).toBe(name)
+    }
+  })
+
   it('opens on Connection and switches pages from the section list', () => {
     render(<Shell state={appState(live)} backend={new FakeBackend()} />)
 

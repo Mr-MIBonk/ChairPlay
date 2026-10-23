@@ -47,6 +47,7 @@ export function ConnectionPage(props: { state: AppState; backend: Backend; setti
           set={state.wifi.passphraseSet}
           error={error('wifi.passphrase')}
           onCommit={commit('wifi.passphrase')}
+          saved={() => backend.savedPassphrase()}
         />
         {later('wifi.passphrase')}
       </Row>

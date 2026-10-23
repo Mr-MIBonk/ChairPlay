@@ -123,7 +123,7 @@ code {
 }
 
 /*
- * The controls window (ControlsScreen), 518x218 and not resizable, after the desktop mockups: the knob a puck with a
+ * The controls window (ControlsScreen), 518x215 and not resizable, after the desktop mockups: the knob a puck with a
  * knurled bezel, keys lit from above and lifted off the window, the AltScreen's modes sunk into a track. Labels are
  * in the HUD's wide Roboto Flex, the keys bound to them in Segoe UI.
  */
@@ -142,7 +142,8 @@ code {
   box-sizing: border-box;
   height: 100vh;
   overflow: hidden;
-  padding: 6px;
+  /* Half as much at the top: the black title bar over the black page already reads as space there */
+  padding: 3px 6px 6px;
   display: grid;
   grid-template-columns: 81px 206px 1fr;
   gap: 12px;
@@ -576,9 +577,12 @@ html:has(.shell) {
   --lighten: linear-gradient(rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.09));
   --ui: 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
   display: grid;
+  /* The window's width decides how the toolbar fits (its narrow form below) */
+  container: shell / inline-size;
   /* As wide as the window whatever the page needs: only the page scrolls, in either direction */
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 58px minmax(0, 1fr);
+  /* The toolbar as tall as its buttons and padding: 58 px, 48 px in a narrow window */
+  grid-template-rows: auto minmax(0, 1fr);
   height: 100vh;
   background: var(--bg);
   color: var(--text);
@@ -638,10 +642,8 @@ html:has(.shell) {
   margin-top: 6px;
 }
 
-/* Toolbar: 38 px buttons in a 58 px bar, 10 px round them as between them */
-/* Its own width decides whether the window buttons show their labels; what never fits is cut off, never scrolled */
+/* Toolbar: 38 px buttons in a 58 px bar, 10 px round them as between them; what never fits is cut off, never scrolled */
 .shell .tb {
-  container-type: inline-size;
   display: flex;
   align-items: center;
   gap: 7px;
@@ -778,8 +780,20 @@ html:has(.shell) {
   padding: 0;
 }
 
-/* Narrower than the bar's buttons with every label (505 px inside its padding), the window buttons are icons alone */
-@container (max-width: 509px) {
+/*
+ * A window narrower than the bar with every label (525 px): the window buttons are squares with their icons alone,
+ * the AltScreen's wide one smaller to keep clear of the square's edges, and the bar's padding and gaps are halved.
+ */
+@container shell (max-width: 529px) {
+  .shell .tb {
+    gap: 3.5px;
+    padding: 5px;
+  }
+
+  .shell .tb .sep {
+    margin: 0 1.5px;
+  }
+
   .shell .tb .btn .label {
     display: none;
   }
@@ -788,6 +802,11 @@ html:has(.shell) {
     justify-content: center;
     width: 38px;
     padding: 0;
+  }
+
+  .shell .tb .btn svg.wide {
+    width: 26px;
+    height: 16px;
   }
 }
 
@@ -828,12 +847,18 @@ html:has(.shell) {
   --label-width: max(118px, 118px + (100cqw - 450px) / 4);
   display: grid;
   grid-template-columns: var(--nav-width) minmax(0, 1fr);
+  /* As tall as the window leaves, whatever the list needs: a taller list would push the page past the window's edge */
+  grid-template-rows: minmax(0, 1fr);
   min-height: 0;
 }
 
+/* Taller than a low window, the list scrolls with the wheel, without a bar to narrow it */
 .shell .nav {
+  min-height: 0;
+  overflow-y: auto;
   padding: 8px;
   background: var(--panel);
+  scrollbar-width: none;
 }
 
 .shell .nav button {
@@ -886,6 +911,52 @@ html:has(.shell) {
   margin-left: auto;
   color: var(--orange);
   font-size: 12px;
+}
+
+/*
+ * In a window as narrow as the toolbar's icons-only form (above), the section list too shows the icons alone, each
+ * named when hovered: 30 px squares 1 px apart in 2 px of padding, so that all six fit the 192 px a window of 240 px
+ * leaves under the bar (190 px); the icons smaller to keep clear of the squares' edges, and the ⟳ in a corner.
+ */
+@container shell (max-width: 529px) {
+  .shell .body {
+    --nav-width: 34px;
+  }
+
+  .shell .nav {
+    padding: 2px;
+  }
+
+  .shell .nav .label {
+    display: none;
+  }
+
+  .shell .nav button {
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    margin-bottom: 1px;
+    padding: 0;
+  }
+
+  .shell .nav svg {
+    width: 24px;
+    height: 15px;
+  }
+
+  .shell .nav button.sel::before {
+    top: 8px;
+    bottom: 8px;
+    width: 2px;
+  }
+
+  .shell .nav .badge {
+    position: absolute;
+    top: 0;
+    right: 1px;
+    margin: 0;
+    font-size: 10px;
+  }
 }
 
 /* The scrollbar always there, its track empty while nothing scrolls, so the page keeps its width as it grows */
@@ -1090,6 +1161,8 @@ html:has(.shell) {
   display: grid;
   grid-template-columns: var(--label-width) minmax(0, 1fr);
   align-items: center;
+  /* Clear of the page's top, as a group's header is by its own padding */
+  margin-top: 12px;
   padding: 2px 0 4px;
 }
 
@@ -1706,4 +1779,44 @@ html:has(.shell) {
 .shell .alert .link:hover,
 .shell .alert a:hover {
   text-decoration-color: var(--text);
+}
+
+/*
+ * In a window as narrow as the toolbar's icons-only form, the page is one column: each label over its controls, which
+ * take the page's width, wrap rather than run past its edge, and keep the longer segmented groups within it. Last in
+ * the file, so it outweighs the rows', steps', and groups' own rules.
+ */
+@container shell (max-width: 529px) {
+  .shell .row,
+  .shell .step .row {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+    padding: 4px 0;
+  }
+
+  .shell .row > label,
+  .shell .step .row > label {
+    padding: 0 0 4px;
+    text-align: left;
+  }
+
+  .shell .row > label:empty {
+    display: none;
+  }
+
+  .shell .ctl {
+    flex-wrap: wrap;
+  }
+
+  .shell .seg.wide {
+    width: min(var(--row-width), 100%);
+  }
+
+  .shell .about-head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .shell .about-head img {
+    justify-self: start;
+  }
 }

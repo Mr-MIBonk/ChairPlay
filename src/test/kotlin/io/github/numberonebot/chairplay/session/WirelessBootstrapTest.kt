@@ -237,19 +237,19 @@ class WirelessBootstrapTest {
     @Test(timeout = 30_000)
     fun `each bring-up advertises the screens the settings have now`() {
         Harness().use { harness ->
-            assertEquals(800, harness.advertised.poll(10, TimeUnit.SECONDS)!!.main.widthPixels)
-            assertEquals(WindowSize(800, 480), harness.displays.poll(10, TimeUnit.SECONDS))
+            assertEquals(1280, harness.advertised.poll(10, TimeUnit.SECONDS)!!.main.widthPixels)
+            assertEquals(WindowSize(1280, 720), harness.displays.poll(10, TimeUnit.SECONDS))
             assertNull(harness.altscreens.poll(10, TimeUnit.SECONDS)!!.size)
 
             SettingsFile(harness.dir.resolve("settings.properties")).write(
-                mapOf("display.width" to "1280", "display.height" to "720", "altscreen.enabled" to "true"),
+                mapOf("display.width" to "800", "display.height" to "480", "altscreen.enabled" to "true"),
             )
             harness.restart()
 
             val next = harness.advertised.poll(10, TimeUnit.SECONDS)!!
-            assertEquals(1280 to 720, next.main.widthPixels to next.main.heightPixels)
+            assertEquals(800 to 480, next.main.widthPixels to next.main.heightPixels)
             assertEquals(1440, next.cluster?.widthPixels)
-            assertEquals(WindowSize(1280, 720), harness.displays.poll(10, TimeUnit.SECONDS))
+            assertEquals(WindowSize(800, 480), harness.displays.poll(10, TimeUnit.SECONDS))
             assertEquals(WindowSize(1440, 540), harness.altscreens.poll(10, TimeUnit.SECONDS)!!.size)
         }
     }

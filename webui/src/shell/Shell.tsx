@@ -82,10 +82,12 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
                 aria-controls={`${ids}-page`}
                 aria-selected={section === id}
                 className={section === id ? 'sel' : ''}
+                aria-label={title}
+                title={title}
                 onClick={() => setSection(id)}
               >
                 {icon}
-                {title}
+                <span className="label">{title}</span>
                 {restart.has(id) && (
                   <span className="badge" title="Applies after restart">
                     ⟳

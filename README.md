@@ -24,7 +24,7 @@ endorsed by DiPlay's authors or by Apple.
   windows, where the connection stands, and Connect, or Reconnect and Disconnect; and pages for the connection, the
   CarPlay screen, the AltScreen, the keyboard, audio, and about. Each change is saved into `settings.properties` or
   `controls.properties` in place and says when it applies; what is wrong shows above the settings, with what to do.
-- **Video** in a resizable window, 800×480 at 60 fps by default, H.264 decoded in software.
+- **Video** in a resizable window, 1280×720 at 60 fps by default, H.264 decoded in software.
 - **Touch** with the mouse: taps, drags, scrolling lists and the map.
 - **Car controls on the keyboard**: arrows tilt CarPlay's knob, Tab turns it, Enter selects, Esc goes back, plus
   media keys, call keys and Siri. Every binding can be changed on the Keyboard page, and applies at once.

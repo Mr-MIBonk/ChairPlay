@@ -89,7 +89,7 @@ private fun log(message: String) = println("${LocalTime.now()} $message")
 
 /** How often display.theme=windows looks at the Windows theme. */
 private const val CONNECTING = "connecting…"
-private val CONTROLS_SIZE = WindowSize(518, 218)
+private val CONTROLS_SIZE = WindowSize(518, 215)
 private const val SCREENSHOT_PICTURE_WAIT_NANOS = 30_000_000_000L
 private const val CLOSING_PREVIOUS = "closing previous run…"
 private const val PREVIOUS_RUN_WAIT_MILLIS = 15_000L

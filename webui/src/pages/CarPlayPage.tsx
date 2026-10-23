@@ -17,6 +17,7 @@ const LOOK_KEYS = ['display.theme', 'display.dock', 'display.right.hand.drive', 
 export function CarPlayPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
   const pending = pendingOf(state)
   const { field, choice, note } = parts(settings, pending)
+  const displayFallback = settings.data?.display ?? { width: 1280, height: 720 }
   return (
     <>
       <Group title="Display" note={note(DISPLAY_KEYS)} />
@@ -25,8 +26,10 @@ export function CarPlayPage({ state, backend, settings }: { state: AppState; bac
         settings={settings}
         prefix="display"
         presets={PRESETS}
-        fallback={settings.data?.display ?? { width: 800, height: 480 }}
-        after={<ActualSize sizes={state.mainWindow} window="main" backend={backend} />}
+        fallback={displayFallback}
+        after={
+          <ActualSize sizes={state.mainWindow} window="main" backend={backend} settings={settings} prefix="display" fallback={displayFallback} />
+        }
         pending={pending}
       />
       <Row label="Frame rate">

@@ -115,6 +115,12 @@ interface UiApi {
     fun settings(): Map<String, Any?>
     fun saveSettings(changes: Map<String, String>): SaveResult
 
+    /**
+     * The saved Wi-Fi password, for the eye beside it; null when none is saved. It is in settings.properties as
+     * written, so the page may show it when asked; the state, the settings, and the log never carry it.
+     */
+    fun savedPassphrase(): String? = null
+
     /** Null when connecting started, else why it cannot. */
     fun connect(): String?
     fun reconnect()
@@ -456,6 +462,8 @@ class UiController(
     }
 
     private fun commitMap(commit: Commit) = mapOf("commit" to commit.id, "date" to commit.date)
+
+    override fun savedPassphrase(): String? = settings.read()[PASSPHRASE]?.ifEmpty { null }
 
     override fun settings(): Map<String, Any?> {
         val values = settings.read()

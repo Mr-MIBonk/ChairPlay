@@ -131,9 +131,9 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
         name
     }
 
-    // The smallest picture by default, as the main window's minimum: it fits any screen.
-    val displayWidth = evenSetting("display.width", 800)
-    val displayHeight = evenSetting("display.height", 480)
+    // 1280x720 by default: iOS draws at @3x from about that size, and a window of it fits most screens.
+    val displayWidth = evenSetting("display.width", 1280)
+    val displayHeight = evenSetting("display.height", 720)
     private val fps = (positiveSetting("display.fps") ?: 60).also {
         require(it in 30..60) { "display.fps must be between 30 and 60, not $it" }
     }
@@ -501,7 +501,7 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
             SettingBlock(
                 "The CarPlay screen the iPhone draws, in pixels (positive even numbers), and its frame rate (30-60).\n" +
                     "iOS draws at @3x from about 1280x720 on both sides, at @2x below; more pixels fit more on screen.",
-                "display.width" to "800", "display.height" to "480", "display.fps" to "60",
+                "display.width" to "1280", "display.height" to "720", "display.fps" to "60",
             ),
             SettingBlock(
                 "Its physical size: the millimetres, or a pixel density. Blank (best) uses 200 mm wide with the height\n" +

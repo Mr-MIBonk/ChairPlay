@@ -123,6 +123,13 @@ export class FakeBackend implements Backend {
     return this.data
   }
 
+  /** The password settings.properties holds, which only the eye asks for. */
+  passphrase: string | null = 'secret123'
+
+  async savedPassphrase() {
+    return this.passphrase
+  }
+
   async save(changes: Record<string, string>): Promise<SaveOutcome> {
     this.saved.push(changes)
     const outcome = this.nextOutcome

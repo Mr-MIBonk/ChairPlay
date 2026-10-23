@@ -435,9 +435,9 @@ class UiControllerTest {
         }
     }
 
-    // The page and the log may be seen by others: the stored password is only ever "set" or "not set".
+    // The state, the settings, and the log may be seen by others: there the stored password is only "set" or "not set".
     @Test
-    fun `the password never leaves the app`() {
+    fun `the password stays out of the state, the settings, and the log`() {
         val ui = controller()
 
         ui.saveSettings(mapOf("wifi.passphrase" to "brand new pass"))
@@ -447,6 +447,18 @@ class UiControllerTest {
         assertEquals(true, (ui.state()["wifi"] as Map<*, *>)["passphraseSet"])
         assertEquals(true, ui.settings()["passphraseSet"])
         assertFalse((ui.settings()["values"] as Map<*, *>).containsKey("wifi.passphrase"))
+    }
+
+    // It is in settings.properties as written: the eye beside it asks for it, and gets it alone.
+    @Test
+    fun `the saved password is given when asked for`() {
+        val ui = controller()
+        assertEquals("secret123", ui.savedPassphrase())
+
+        ui.saveSettings(mapOf("wifi.passphrase" to "brand new pass"))
+        assertEquals("brand new pass", ui.savedPassphrase())
+        assertNull(controller(settings = "wifi.ssid=Home\n").savedPassphrase())
+        assertFalse(logged.any { "brand new pass" in it })
     }
 
     @Test

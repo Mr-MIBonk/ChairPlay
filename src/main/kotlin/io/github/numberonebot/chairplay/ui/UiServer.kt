@@ -95,11 +95,12 @@ class UiServer(
         }
         val method = exchange.requestMethod
         val posts = setOf("settings", "controls", "connect", "reconnect", "disconnect", "screen", "window", "control", "altscreen", "open", "window-size", "firewall-rule", "forget", "altscreen-frame")
-        val gets = setOf("state", "settings", "controls", "events")
+        val gets = setOf("state", "settings", "passphrase", "controls", "events")
         when {
             method == "GET" && route in gets -> when (route) {
                 "state" -> json(exchange, 200, api.state())
                 "settings" -> json(exchange, 200, api.settings())
+                "passphrase" -> json(exchange, 200, mapOf("passphrase" to api.savedPassphrase()))
                 "controls" -> api.controls()?.let { json(exchange, 200, it) } ?: json(exchange, 404, mapOf("error" to "no key bindings"))
                 else -> events(exchange)
             }

@@ -49,17 +49,17 @@ class DesktopConfigTest {
         return DesktopConfig(dir)
     }
 
-    // The smallest picture, as the main window's minimum is: 800x480 fits any screen. Upstream's default physical
-    // width is 200 mm; the height follows the aspect ratio, as /info computes it.
+    // A new install draws CarPlay at 1280x720, a window of a size most screens take. Upstream's default physical width
+    // is 200 mm; the height follows the aspect ratio, as /info computes it.
     @Test
-    fun `the display defaults to 800x480 at 60 fps and 200 mm wide`() {
+    fun `the display defaults to 1280x720 at 60 fps and 200 mm wide`() {
         val config = configWith()
         val main = config.airPlay.main
 
-        assertEquals(800 to 480, main.widthPixels to main.heightPixels)
+        assertEquals(1280 to 720, main.widthPixels to main.heightPixels)
         assertEquals(60, main.fps)
-        assertEquals(200 to 120, main.widthPhysicalMm to main.heightPhysicalMm)
-        assertEquals(WindowSize(800, 480), config.window)
+        assertEquals(200 to 113, main.widthPhysicalMm to main.heightPhysicalMm)
+        assertEquals(WindowSize(1280, 720), config.window)
     }
 
     // iOS picks its 2x or 3x rendering from pixels against millimetres, so ppi is the convenient knob.
