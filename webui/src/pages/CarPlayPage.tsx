@@ -50,26 +50,26 @@ export function CarPlayPage({ state, backend, settings }: { state: AppState; bac
       </Row>
       <Group title="Look" note={note(LOOK_KEYS)} />
       <Row label="Theme">
-        {choice('display.theme', 'Theme', 'windows', [['windows', 'Windows'], ['light', 'Light'], ['dark', 'Dark'], ['phone', 'Phone']])}
+        {choice('display.theme', 'Theme', 'windows', [['windows', 'Windows'], ['phone', 'Phone'], ['light', 'Light'], ['dark', 'Dark']])}
+      </Row>
+      <Row label="Touchscreen" title="The touchscreen CarPlay is told of: with one, CarPlay shows scroll buttons in its lists">
+        {choice('display.touch', 'Touchscreen', 'none', [
+          ['none', 'None', 'No touchscreen: CarPlay leaves out its scroll buttons; the mouse still taps and drags, the keys move the focus'],
+          ['swipe', 'Swipe', 'A touchscreen that swipes: CarPlay shows scroll buttons, and lists also scroll by swiping'],
+          ['tap', 'Tap only', 'A touchscreen that only taps: CarPlay shows scroll buttons for its lists'],
+        ])}
       </Row>
       <Row label="Dock">
         {choice('display.dock', 'Dock', 'auto', [['auto', 'Auto'], ['driver', 'Driver side'], ['bottom', 'Bottom']])}
       </Row>
-      <Row label="Driving side">
-        {choice('display.right.hand.drive', 'Driving side', 'false', [['false', 'Left-hand'], ['true', 'Right-hand']])}
+      <Row label="Driver side" title="The side the driver sits on: CarPlay puts its dock and controls there">
+        {choice('display.right.hand.drive', 'Driver side', 'false', [['false', 'Left'], ['true', 'Right']])}
       </Row>
       <Row label="Outside safe area" title="What CarPlay draws outside the safe area (drawUIOutsideSafeArea)">
-        {choice('display.safe.draw.outside', 'Outside safe area', 'true', [['false', 'Black'], ['true', 'Draw UI']])}
+        {choice('display.safe.draw.outside', 'Outside safe area', 'true', [['false', 'Black'], ['true', 'Wallpaper']])}
       </Row>
       <Row label="Corners">
-        {choice('display.corners', 'Corners', 'square', [['rounded', 'Rounded'], ['square', 'Square']])}
-      </Row>
-      <Row label="Touchscreen" title="The touchscreen CarPlay is told of: with one, CarPlay shows scroll buttons in its lists">
-        {choice('display.touch', 'Touchscreen', 'none', [
-          ['swipe', 'Swipe', 'A touchscreen that swipes: CarPlay shows scroll buttons, and lists also scroll by swiping'],
-          ['tap', 'Tap only', 'A touchscreen that only taps: CarPlay shows scroll buttons for its lists'],
-          ['none', 'None', 'No touchscreen: CarPlay leaves out its scroll buttons; the mouse still taps and drags, the keys move the focus'],
-        ])}
+        {choice('display.corners', 'Corners', 'square', [['square', 'Square'], ['rounded', 'Rounded']])}
       </Row>
       <Group title="Safe area" note="Pixels at each edge" />
       <SafeArea settings={settings} prefix="display.safe" label="Insets" pending={pending} />

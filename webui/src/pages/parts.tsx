@@ -168,8 +168,8 @@ export function SafeArea(props: {
         label={name}
         title={name}
         className={`short ${align}`}
-        value={settings.value(key)}
-        placeholder="0"
+        // A blank edge is no margin: it reads 0 as a saved 0 does, and stays blank in the file until it is changed.
+        value={settings.value(key) || '0'}
         error={settings.error(key)}
         showReason={false}
         disabled={props.disabled}

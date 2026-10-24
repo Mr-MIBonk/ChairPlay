@@ -112,13 +112,6 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
             <div className="page-inner">
               {settings.loadError && <Message tone="bad" head="Couldn't read the settings." text={settings.loadError} />}
               {settings.data && section === 'connection' && <ConnectionPage state={state} backend={backend} settings={settings} onShowGuide={showGuide} />}
-              {held && (
-                <Message
-                  tone="warn"
-                  head="Connecting."
-                  text="CarPlay reads these settings as it connects. Change them once it is connected, or disconnect first."
-                />
-              )}
               {/* Only around the pages it may hold: before any other, it would take its first group's place. */}
               {settings.data && (section === 'carplay' || section === 'altscreen') && (
                 <div className={held ? 'held' : undefined} inert={held}>

@@ -201,7 +201,9 @@ describe('AltScreen page', () => {
     // Under the view and where its turn card goes, as long as the view's own choice.
     const labels = [...document.querySelectorAll('.row > label')].map((label) => label.textContent)
     expect(labels.indexOf('Area')).toBe(labels.indexOf('Card position') + 1)
-    expect(parts.classList.contains('wide')).toBe(true)
+    // Not a wide group of six, which a large window stretches to six plates: as long as Content's four (CSS).
+    expect(parts.classList.contains('wide')).toBe(false)
+    expect(parts.classList.contains('view-areas')).toBe(true)
     fireEvent.click(within(parts).getByRole('radio', { name: 'Center 3/8' }))
     fireEvent.change(inRow('Insets', 'Top'), { target: { value: '10' } })
     fireEvent.blur(inRow('Insets', 'Top'))

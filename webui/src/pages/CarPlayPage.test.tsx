@@ -142,6 +142,11 @@ describe('CarPlay page, display', () => {
   it('saves what the touchscreen can do, None until set', async () => {
     const backend = await carplay()
     expect(chosen('Touchscreen')).toEqual(['None'])
+    // None first, the default; the row right above Dock, which the touchscreen goes with.
+    const touch = within(screen.getByRole('radiogroup', { name: 'Touchscreen' })).getAllByRole('radio')
+    expect(touch.map((choice) => choice.textContent)).toEqual(['None', 'Swipe', 'Tap only'])
+    const labels = [...document.querySelectorAll('.row > label')].map((label) => label.textContent)
+    expect(labels.indexOf('Touchscreen')).toBe(labels.indexOf('Dock') - 1)
     expect(radio('Touchscreen', 'None').title).toBe(
       'No touchscreen: CarPlay leaves out its scroll buttons; the mouse still taps and drags, the keys move the focus',
     )
@@ -186,9 +191,19 @@ describe('CarPlay page, look', () => {
 
     expect(chosen('Theme')).toEqual(['Windows'])
     expect(chosen('Dock')).toEqual(['Auto'])
-    expect(chosen('Driving side')).toEqual(['Left-hand'])
-    expect(chosen('Outside safe area')).toEqual(['Draw UI'])
+    expect(chosen('Driver side')).toEqual(['Left'])
+    // One word with Dock's Driver side, which goes to it.
+    expect(screen.getByText('Driver side', { selector: 'label' }).closest('.row')!.getAttribute('title')).toBe(
+      'The side the driver sits on: CarPlay puts its dock and controls there',
+    )
+    expect(chosen('Outside safe area')).toEqual(['Wallpaper'])
     expect(chosen('Corners')).toEqual(['Square'])
+    // The default first, as None is on Touchscreen.
+    const corners = within(screen.getByRole('radiogroup', { name: 'Corners' })).getAllByRole('radio')
+    expect(corners.map((choice) => choice.textContent)).toEqual(['Square', 'Rounded'])
+    // The themes that follow something first, Windows' the default, then the fixed ones.
+    const themes = within(screen.getByRole('radiogroup', { name: 'Theme' })).getAllByRole('radio')
+    expect(themes.map((choice) => choice.textContent)).toEqual(['Windows', 'Phone', 'Light', 'Dark'])
   })
 
   it('saves each choice under its key', async () => {
@@ -196,7 +211,7 @@ describe('CarPlay page, look', () => {
 
     fireEvent.click(radio('Theme', 'Dark'))
     fireEvent.click(radio('Dock', 'Driver side'))
-    fireEvent.click(radio('Driving side', 'Right-hand'))
+    fireEvent.click(radio('Driver side', 'Right'))
     fireEvent.click(radio('Outside safe area', 'Black'))
     fireEvent.click(radio('Corners', 'Rounded'))
 
@@ -230,7 +245,10 @@ describe('CarPlay page, safe area', () => {
   it('saves each edge, and gives a refused one its reason under the frame', async () => {
     const backend = await carplay()
     expect(textbox('Top').closest('.row')?.querySelector('label')?.textContent).toBe('Insets')
-    expect(textbox('Top').placeholder).toBe('0')
+    // A blank edge is no margin: it reads 0 as a saved 0 does, not as a dim hint, and leaving it saves nothing.
+    expect(textbox('Top').value).toBe('0')
+    fireEvent.focus(textbox('Left'))
+    fireEvent.blur(textbox('Left'))
 
     fireEvent.change(textbox('Top'), { target: { value: '40' } })
     fireEvent.blur(textbox('Top'))

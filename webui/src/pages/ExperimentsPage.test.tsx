@@ -15,13 +15,20 @@ async function experiments(state: AppState = appState(live), backend = new FakeB
   return backend
 }
 
+/** A backend whose settings have the AltScreen on, which the demos play on. */
+function altscreenOn() {
+  const backend = new FakeBackend()
+  backend.data = { ...backend.data, values: { ...backend.data.values, 'altscreen.enabled': 'true' } }
+  return backend
+}
+
 const button = (row: string) =>
   screen.getByText(row, { selector: 'label' }).parentElement!.querySelector('button') as HTMLButtonElement
 
 describe('Experiments page', () => {
   // The HUD's demos play on the AltScreen, for watching its maneuvers and lanes without an iPhone.
   it('plays the HUD demos on the AltScreen', async () => {
-    const backend = await experiments()
+    const backend = await experiments(appState(live), altscreenOn())
 
     expect(button('Maneuvers').textContent).toBe('Play')
     expect(button('Maneuvers').title).toBe("Play a made-up route on the AltScreen's HUD")
@@ -32,10 +39,23 @@ describe('Experiments page', () => {
   })
 
   it('stops the demo playing', async () => {
-    const backend = await experiments(appState({ ...live, demo: { playing: 'lanes', available: true } }))
+    const backend = await experiments(appState({ ...live, demo: { playing: 'lanes', available: true } }), altscreenOn())
 
     expect(button('Lane changes').textContent).toBe('Stop')
     expect(button('Maneuvers').textContent).toBe('Play')
+    fireEvent.click(button('Lane changes'))
+
+    await waitFor(() => expect(backend.demos).toEqual([null]))
+  })
+
+  // Unticked on its page, the AltScreen is off, though this connection still has it: no demo to start; one playing
+  // can still be stopped.
+  it('starts no demo while the AltScreen is turned off', async () => {
+    const backend = await experiments(appState({ ...live, demo: { playing: 'lanes', available: true } }))
+
+    expect(button('Maneuvers').disabled).toBe(true)
+    expect(button('Maneuvers').title).toBe('Turn on the AltScreen on its page first')
+    expect(button('Lane changes').disabled).toBe(false)
     fireEvent.click(button('Lane changes'))
 
     await waitFor(() => expect(backend.demos).toEqual([null]))

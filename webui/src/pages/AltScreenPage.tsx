@@ -111,7 +111,7 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
             label="Area"
             value={settings.value(areaKey) || 'full'}
             options={AREA_CHOICES}
-            className="rows wide view-areas"
+            className="rows view-areas"
             disabled={!areaView}
             onChange={(preset) => settings.save({ [areaKey]: preset })}
           />

@@ -30,13 +30,15 @@ export function ExperimentsPage({ state, backend, settings }: { state: AppState;
       <Group title="HUD demo" note="On the AltScreen's HUD" />
       {DEMOS.map(([kind, label, title]) => {
         const playing = demo?.playing === kind
+        // No AltScreen in this connection, or one turned off on its page since: no demo starts; one playing can stop.
+        const off = !demo?.available || settings.value('altscreen.enabled') !== 'true'
         return (
           <Row key={kind} label={label}>
             <button
               type="button"
               className="btn small"
-              disabled={!demo?.available}
-              title={!demo?.available ? 'Turn on the AltScreen on its page first' : playing ? 'Stop the demo' : title}
+              disabled={off && !playing}
+              title={playing ? 'Stop the demo' : off ? 'Turn on the AltScreen on its page first' : title}
               onClick={() => backend.demo(playing ? null : kind)}
             >
               {playing ? 'Stop' : 'Play'}

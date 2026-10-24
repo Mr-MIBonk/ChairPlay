@@ -974,18 +974,12 @@ html:has(.shell) {
   margin: 0 auto;
 }
 
-/* A page the connection reads, off while it is made (inert keeps the pointer and the keys out) */
-.shell .held {
-  opacity: 0.45;
-}
-
-/* Held twice over, as an AltScreen turned off while CarPlay connects, it dims once */
-.shell .held .held {
-  opacity: 1;
-}
-
-/* In a held page a group is as one that is off: black, and none chosen */
+/*
+ * A held page (the connection reads it while it is made, or the AltScreen is off): inert keeps the pointer and the keys
+ * out, and each control on it looks as one turned off on its own does, no dimmer, its label as it was.
+ */
 .shell .held .seg {
+  opacity: 0.45;
   background: var(--bg);
 }
 
@@ -1000,11 +994,20 @@ html:has(.shell) {
   display: block;
 }
 
+.shell .held .btn,
+.shell .held .chk {
+  opacity: 0.45;
+}
+
 .shell .held input.t,
 .shell .held select {
   border-color: var(--line);
   background: var(--bg);
   color: var(--dim);
+}
+
+.shell .held input.t::placeholder {
+  color: var(--line);
 }
 
 /* Property grid: groups under a header, rows of a label and its controls */

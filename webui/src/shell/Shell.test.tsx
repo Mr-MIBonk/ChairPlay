@@ -186,7 +186,7 @@ describe('Shell fading', () => {
 
 describe('Shell', () => {
   // The connection reads the CarPlay and AltScreen pages as it is made: changed meanwhile, who knows which value it
-  // took. While it connects they wait, off, and say so; the pages that apply at once, and Connection, stay live.
+  // took. While it connects they wait, off, with no message; the pages that apply at once, and Connection, stay live.
   it('holds the pages the connection reads while it connects', async () => {
     for (const phase of ['starting', 'calling', 'joining', 'retrying'] as const) {
       render(<Shell state={appState({ phase, canShowCarPlay: true })} backend={new FakeBackend()} />)
@@ -198,7 +198,7 @@ describe('Shell', () => {
         const held = screen.getByRole('tabpanel').querySelector('[inert]')
         expect(held, `${phase} ${name}`).not.toBeNull()
         expect(held!.contains(screen.getByRole('radiogroup', { name: name === 'CarPlay' ? 'Frame rate' : 'Area' }))).toBe(true)
-        expect(screen.getByText('Connecting.')).toBeTruthy()
+        expect(screen.queryByRole('alert')).toBeNull()
       }
       fireEvent.click(screen.getByRole('tab', { name: 'Audio' }))
       expect(document.querySelector('[inert]')).toBeNull()
