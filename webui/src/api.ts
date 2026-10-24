@@ -30,6 +30,7 @@ export type WindowsPlace =
   | 'source'
   | 'releases'
   | 'notices'
+  | 'location'
   | 'diplay'
   | 'xcertplay'
   | 'rgi'
@@ -180,6 +181,9 @@ export interface ControlsData {
 
 export type SaveOutcome = { ok: true; applies: Record<string, Applies> } | { ok: false; errors: Record<string, string> }
 
+/** Where Windows locates this PC (WindowsLocation.kt), or why it does not say. */
+export type WindowsLocation = { latitude: number; longitude: number } | { error: 'denied' | 'unknown' }
+
 /** What the screens need from the app; tests pass a fake. */
 export interface Backend {
   settings(): Promise<SettingsData>
@@ -190,6 +194,8 @@ export interface Backend {
   demo(kind: DemoKind | null): Promise<boolean>
   /** Sets the app's volume to [level] percent, unmuting it. */
   volume(level: number): Promise<boolean>
+  /** Where Windows locates this PC, or why it does not say: location off or not let ("denied"), or no fix. */
+  windowsLocation(): Promise<WindowsLocation>
   /** Null when connecting started, else why not. */
   connect(): Promise<string | null>
   reconnect(): Promise<void>

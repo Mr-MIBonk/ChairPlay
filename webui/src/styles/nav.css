@@ -36,7 +36,7 @@
   gap: 10px;
   width: 100%;
   height: 34px;
-  margin-bottom: 3px;
+  margin-bottom: 2px;
   padding: 0 10px;
   border: 0;
   border-radius: 4px;
@@ -44,6 +44,11 @@
   color: var(--muted);
   text-align: left;
   cursor: default;
+}
+
+/* Nothing under the last: the eight pages fit a window 360 px tall (a 720 px one at 200 %) exactly */
+.shell .nav button:last-child {
+  margin-bottom: 0;
 }
 
 /* Every icon in a slot as wide as the widest (the AltScreen's), so the names line up */

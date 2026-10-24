@@ -1,0 +1,28 @@
+package io.github.numberonebot.chairplay.config
+
+import io.github.numberonebot.chairplay.drive.CarSpec
+import io.github.numberonebot.chairplay.drive.Coordinates
+import io.github.numberonebot.chairplay.drive.GpsSettings
+import io.github.numberonebot.chairplay.drive.NmeaDialect
+import java.util.Properties
+
+/** gps.*: the spoofed GPS and the car that drives it; the iPhone learns of the GPS when it connects. */
+internal fun Properties.gpsSettings() = GpsSettings(
+    enabled = booleanSetting("gps.enabled", false),
+    wheelSpeed = booleanSetting("gps.wheel.speed", true),
+    satellites = booleanSetting("gps.satellites", false),
+    start = getProperty("gps.start")?.trim()?.ifEmpty { null }?.let { text ->
+        requireNotNull(Coordinates.parse(text)) { "gps.start must be a latitude and longitude or a map link, not $text" }
+    },
+    headingDegrees = getProperty("gps.heading")?.trim()?.ifEmpty { null }?.let { text ->
+        requireNotNull(GpsSettings.heading(text)) { "gps.heading must be a number of degrees from 0 to 359, not $text" }
+    } ?: 0.0,
+    resume = booleanSetting("gps.resume", true),
+    car = CarSpec(
+        massKg = decimalSetting("gps.car.mass.kg", CarSpec().massKg, GpsSettings.MASS_KG),
+        powerHp = decimalSetting("gps.car.power.hp", CarSpec().powerHp, GpsSettings.POWER_HP),
+    ),
+    gauges = booleanSetting("gps.gauges", true),
+    rate = choiceSetting("gps.rate", 4, GpsSettings.RATES.associateBy { it.toString() }),
+    nmea = choiceSetting("gps.nmea", NmeaDialect.CLASSIC, NmeaDialect.entries.associateBy { it.key }),
+)

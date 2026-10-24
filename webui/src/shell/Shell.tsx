@@ -128,7 +128,7 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
               {settings.data && section === 'audio' && (
                 <AudioPage state={state} backend={backend} settings={settings} />
               )}
-              {settings.data && section === 'gps' && <GpsPage state={state} settings={settings} />}
+              {settings.data && section === 'gps' && <GpsPage state={state} backend={backend} settings={settings} />}
               {settings.data && section === 'experiments' && (
                 <ExperimentsPage state={state} backend={backend} settings={settings} />
               )}

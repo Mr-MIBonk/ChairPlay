@@ -12,6 +12,7 @@ import type {
   Screen,
   SettingsData,
   WindowName,
+  WindowsLocation,
   WindowsPlace,
 } from './api'
 
@@ -56,6 +57,10 @@ export class Api implements Backend {
 
   async volume(level: number): Promise<boolean> {
     return (await this.request('POST', 'volume', { level })).status === 200
+  }
+
+  async windowsLocation(): Promise<WindowsLocation> {
+    return (await this.request('POST', 'windows-location', {})).data as WindowsLocation
   }
 
   async showAltscreenFrame(view?: string): Promise<boolean> {

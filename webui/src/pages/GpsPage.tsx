@@ -1,11 +1,12 @@
 import { useId } from 'react'
-import type { AppState, GpsState } from '../api'
+import type { AppState, Backend, GpsState } from '../api'
 import { keyLabel } from '../ControlsScreen'
 import { Checkbox, Group, Row, Segmented, type Choice } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
 import { CITIES, cityAt } from './cities'
 import { Compass, HeadingField, placeOf, PositionFields } from './gpsFields'
 import { Changed, parts, pendingOf } from './parts'
+import { WindowsLocationButton } from './WindowsLocationButton'
 
 /** What the iPhone learns as it connects: whether there is a GPS, and what it sends besides the position. */
 const LINK_KEYS = ['gps.enabled', 'gps.wheel.speed', 'gps.satellites']
@@ -46,7 +47,7 @@ function status(car: GpsState, driveKey: string | null | undefined) {
  * where the car is and which way it faces, following it as it drives, and a city to put it in; the car itself and its
  * gauges; and how it goes and what the iPhone takes.
  */
-export function GpsPage({ state, settings }: { state: AppState; settings: Settings }) {
+export function GpsPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
   const pending = pendingOf(state)
   const { field, note } = parts(settings, pending)
   const { value, save } = settings
@@ -130,6 +131,7 @@ export function GpsPage({ state, settings }: { state: AppState; settings: Settin
         >
           <HeadingField settings={settings} shown={heading} id={`${ids}-heading`} />
           <Compass heading={Number(heading) || 0} />
+          <WindowsLocationButton backend={backend} settings={settings} heading={heading} />
         </Row>
         <Row label="City presets" title="Put the car on a busy road in one of these cities, facing along it">
           <Segmented

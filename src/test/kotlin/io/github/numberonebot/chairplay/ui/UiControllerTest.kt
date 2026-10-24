@@ -3,6 +3,8 @@ package io.github.numberonebot.chairplay.ui
 import io.github.numberonebot.chairplay.config.SettingsFile
 import io.github.numberonebot.chairplay.config.SetupStore
 import io.github.numberonebot.chairplay.config.WindowSize
+import io.github.numberonebot.chairplay.drive.GeoPoint
+import io.github.numberonebot.chairplay.drive.WindowsLocation
 import io.github.numberonebot.chairplay.input.ControlAction
 import io.github.numberonebot.chairplay.input.ControlsConfig
 import io.github.numberonebot.chairplay.input.ControlsFile
@@ -47,6 +49,7 @@ class UiControllerTest {
         onSaved: (Map<String, String>) -> Unit = {},
         demo: UiDemo? = null,
         gps: (() -> Map<String, Any?>)? = null,
+        locate: () -> WindowsLocation.Result = { WindowsLocation.Unknown },
     ): UiController {
         Files.writeString(file, settings)
         val values = SettingsFile(file).read()
@@ -66,7 +69,18 @@ class UiControllerTest {
             }
         }, logged::add, autoconnect, windows, controls, launch, audio, mainWindow, bindings, applied::add, checks, elevate, setupStore,
             about, windowsVersion = { "Windows 11 24H2 (build 26300)" }, altscreenWindow = altscreenWindow, altscreenFrame = altscreenFrame,
-            onSaved = onSaved, demo = demo, gps = gps)
+            onSaved = onSaved, demo = demo, gps = gps, locate = locate)
+    }
+
+    // The GPS page's Windows location: the place Windows found, or why there is none.
+    @Test
+    fun `Windows' location comes as a place or a reason`() {
+        assertEquals(
+            mapOf("latitude" to 48.85, "longitude" to 2.29),
+            controller(locate = { WindowsLocation.Found(GeoPoint(48.85, 2.29)) }).windowsLocation(),
+        )
+        assertEquals(mapOf("error" to "denied"), controller(locate = { WindowsLocation.Denied }).windowsLocation())
+        assertEquals(mapOf("error" to "unknown"), controller(locate = { WindowsLocation.Unknown }).windowsLocation())
     }
 
     // Copy details and New issue carry the same text: the build, the DiPlay core, and Windows; never a setting.
@@ -777,6 +791,7 @@ class UiControllerTest {
         assertTrue(ui.open("bluetooth"))
         assertTrue(ui.open("wifi"))
         assertTrue(ui.open("firewall"))
+        assertTrue(ui.open("location"))
         assertFalse(ui.open("calc.exe"))
         assertFalse(ui.open("ms-settings:bluetooth"))
 
@@ -785,6 +800,7 @@ class UiControllerTest {
                 listOf("explorer.exe", "ms-settings:bluetooth"),
                 listOf("explorer.exe", "ms-settings:network-wifi"),
                 listOf("explorer.exe", "windowsdefender://network/"),
+                listOf("explorer.exe", "ms-settings:privacy-location"),
             ),
             launched,
         )

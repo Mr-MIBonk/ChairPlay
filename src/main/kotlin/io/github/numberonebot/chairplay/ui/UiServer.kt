@@ -94,7 +94,7 @@ class UiServer(
             return
         }
         val method = exchange.requestMethod
-        val posts = setOf("settings", "controls", "connect", "reconnect", "disconnect", "screen", "window", "control", "key", "altscreen", "open", "window-size", "firewall-rule", "forget", "altscreen-frame", "demo", "volume")
+        val posts = setOf("settings", "controls", "connect", "reconnect", "disconnect", "screen", "window", "control", "key", "altscreen", "open", "window-size", "firewall-rule", "forget", "altscreen-frame", "demo", "volume", "windows-location")
         val gets = setOf("state", "settings", "passphrase", "controls", "events")
         when {
             method == "GET" && route in gets -> when (route) {
@@ -219,6 +219,7 @@ class UiServer(
                     else -> json(exchange, 404, mapOf("error" to "no volume"))
                 }
             }
+            "windows-location" -> json(exchange, 200, api.windowsLocation())
             "firewall-rule" ->
                 if (api.addFirewallRule()) json(exchange, 200, mapOf("ok" to true))
                 else json(exchange, 409, mapOf("error" to "The rule was not added"))

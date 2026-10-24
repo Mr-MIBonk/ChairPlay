@@ -10,6 +10,7 @@ import type {
   Screen,
   SettingsData,
   WindowName,
+  WindowsLocation,
   WindowsPlace,
 } from './api'
 import { controlsData } from './testing'
@@ -76,6 +77,13 @@ export class FakeBackend implements Backend {
   async volume(level: number) {
     this.volumes.push(level)
     return true
+  }
+
+  /** What Windows answers for where this PC is. */
+  location: WindowsLocation = { error: 'unknown' }
+
+  async windowsLocation() {
+    return this.location
   }
 
   async save(changes: Record<string, string>): Promise<SaveOutcome> {

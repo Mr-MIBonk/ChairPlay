@@ -1,13 +1,16 @@
 /* The settings window's toolbar: its buttons, connection chip and status dot */
 
-/* Toolbar: 38 px buttons in a 58 px bar, 10 px round them as between them; what never fits is cut off, never scrolled */
+/*
+ * Toolbar: 38 px buttons in a 48 px bar, 5 px above and below them and 10 px at its ends; what never fits is cut off,
+ * never scrolled
+ */
 .shell .tb {
   display: flex;
   align-items: center;
   gap: 7px;
   min-width: 0;
   overflow: hidden;
-  padding: 10px;
+  padding: 5px 10px;
   background: var(--bar);
 }
 

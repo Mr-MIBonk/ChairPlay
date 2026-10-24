@@ -52,6 +52,32 @@ function gpsBackend(on: boolean) {
   return backend
 }
 
+describe('GPS page, Windows location', () => {
+  // The button puts the car where Windows locates this PC, as typed coordinates do.
+  it('puts the car where Windows locates this PC', async () => {
+    const backend = gpsBackend(true)
+    backend.location = { latitude: 48.85837, longitude: 2.294481 }
+    await gps(appState(live), backend)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Windows location' }))
+
+    await waitFor(() => expect(backend.saved).toEqual([{ 'gps.start': '48.85837, 2.294481', 'gps.heading': '0' }]))
+  })
+
+  // Location off, or desktop apps not let use it: nothing moves, and the reason comes with a way to Windows' settings.
+  it('moves nothing when Windows will not tell, and opens its location settings', async () => {
+    const backend = gpsBackend(true)
+    backend.location = { error: 'denied' }
+    await gps(appState(live), backend)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Windows location' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Location settings' }))
+
+    expect(backend.saved).toEqual([])
+    expect(backend.opened).toEqual(['location'])
+  })
+})
+
 async function gps(state: AppState = appState(live), backend = gpsBackend(true)) {
   render(<Shell state={state} backend={backend} />)
   await screen.findByRole('textbox', { name: 'Network' })

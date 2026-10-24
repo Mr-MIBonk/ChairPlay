@@ -75,9 +75,11 @@ export function AboutPage({
         {link('source', 'github.com/NumberOneBot/ChairPlay')} ·{' '}
         {link('releases', 'Releases', 'Every version, with what changed')}
       </Row>
-      <div className="hint trademarks">
-        CarPlay, iPhone, AirPlay, and Siri are trademarks of Apple Inc. ChairPlay is not affiliated with Apple.
-      </div>
+      <Row className="hint-row">
+        <span className="hint">
+          CarPlay, iPhone, AirPlay, and Siri are trademarks of Apple Inc. ChairPlay is not affiliated with Apple.
+        </span>
+      </Row>
     </div>
   )
 }

@@ -1,5 +1,6 @@
 package io.github.numberonebot.chairplay.ui
 
+import io.github.numberonebot.chairplay.drive.WindowsLocation
 import io.github.numberonebot.chairplay.config.AREA_VIEWS
 import io.github.numberonebot.chairplay.config.AltscreenViewParts
 import io.github.numberonebot.chairplay.config.Applies
@@ -193,6 +194,9 @@ interface UiApi {
     /** Sets the app's volume to [level] percent, from the Audio page's slider; false without a volume to set. */
     fun volume(level: Int): Boolean = false
 
+    /** Where Windows locates this PC, as latitude and longitude, or the error "denied" or "unknown". */
+    fun windowsLocation(): Map<String, Any?> = mapOf("error" to "unknown")
+
     /**
      * The Keyboard page's bindings: each action's keys, defaults and fixed keys, and the wheel and repeat settings as
      * controls.properties names them; null when the app has none to change.
@@ -254,6 +258,8 @@ class UiController(
     private val demo: UiDemo? = null,
     /** The GPS car as the GPS page shows it; null without one. */
     private val gps: (() -> Map<String, Any?>)? = null,
+    /** Asks Windows where this PC is, for the GPS page. */
+    private val locate: () -> WindowsLocation.Result = WindowsLocation::read,
 ) : UiApi {
     /** The settings as the app started with them, against which a change waits for the next start. */
     private val startup: Map<String, String> = settings.read()
@@ -372,6 +378,12 @@ class UiController(
     // The controls' volume, which tells the pages of the change itself.
     override fun volume(level: Int): Boolean = controls?.volume(level) ?: false
 
+    override fun windowsLocation(): Map<String, Any?> = when (val found = locate()) {
+        is WindowsLocation.Found -> mapOf("latitude" to found.place.latitude, "longitude" to found.place.longitude)
+        WindowsLocation.Denied -> mapOf("error" to "denied")
+        WindowsLocation.Unknown -> mapOf("error" to "unknown")
+    }
+
     override fun demo(kind: String?): Boolean {
         val demo = demo ?: return false
         if (kind != null && kind !in DEMOS) return false
@@ -454,6 +466,7 @@ class UiController(
         "bluetooth" -> "ms-settings:bluetooth"
         "wifi" -> "ms-settings:network-wifi"
         "firewall" -> "windowsdefender://network/"
+        "location" -> "ms-settings:privacy-location"
         "firewall-rules" -> Path.of(System.getenv("SystemRoot") ?: "C:/Windows", "System32", "wf.msc").toString()
         "issues" -> "$PROJECT/issues/new?body=" +
             URLEncoder.encode("What happened, and what you expected:\n\n\n---\n${details()}", Charsets.UTF_8).replace("+", "%20")
@@ -625,7 +638,7 @@ class UiController(
         val DEMOS = listOf("maneuvers", "lanes")
         /** The Windows pages and folder the screens may open, by the name the page gives ([open]). */
         val PLACES = listOf(
-            "bluetooth", "wifi", "firewall", "firewall-rules", "mfi-folder",
+            "bluetooth", "wifi", "firewall", "firewall-rules", "mfi-folder", "location",
             "issues", "discussions", "pull-requests", "author", "source", "releases", "notices", "diplay", "xcertplay", "rgi",
             "logs", "screenshots",
         )
