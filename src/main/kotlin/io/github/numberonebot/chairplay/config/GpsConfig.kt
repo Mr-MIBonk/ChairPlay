@@ -2,7 +2,9 @@ package io.github.numberonebot.chairplay.config
 
 import io.github.numberonebot.chairplay.drive.CarSpec
 import io.github.numberonebot.chairplay.drive.Coordinates
+import io.github.numberonebot.chairplay.drive.GaugeSize
 import io.github.numberonebot.chairplay.drive.GpsSettings
+import io.github.numberonebot.chairplay.drive.Handling
 import io.github.numberonebot.chairplay.drive.NmeaDialect
 import io.github.numberonebot.chairplay.drive.NmeaFraming
 import java.util.Properties
@@ -22,8 +24,10 @@ internal fun Properties.gpsSettings() = GpsSettings(
     car = CarSpec(
         massKg = decimalSetting("gps.car.mass.kg", CarSpec().massKg, GpsSettings.MASS_KG),
         powerHp = decimalSetting("gps.car.power.hp", CarSpec().powerHp, GpsSettings.POWER_HP),
+        handling = choiceSetting("gps.car.handling", Handling.NORMAL, Handling.entries.associateBy { it.key }),
     ),
     rate = choiceSetting("gps.rate", 4, GpsSettings.RATES.associateBy { it.toString() }),
     nmea = choiceSetting("gps.nmea", NmeaDialect.CLASSIC, NmeaDialect.entries.associateBy { it.key }),
     framing = choiceSetting("gps.framing", NmeaFraming.PARAMETERS, NmeaFraming.entries.associateBy { it.key }),
+    gauges = choiceSetting("gps.gauges", GaugeSize.LARGE, GaugeSize.entries.associateBy { it.key }),
 )

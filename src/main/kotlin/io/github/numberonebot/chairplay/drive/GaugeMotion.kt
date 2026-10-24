@@ -16,6 +16,13 @@ class GaugeMotion(private val nanoTime: () -> Long = System::nanoTime) {
     /** Whether the gauges are still on their way in or out, so the window keeps drawing at its pace. */
     val animating: Boolean get() = last != null && progress < 1.0
 
+    /**
+     * How far in the gauges were at the last [frame], linear in time: 0 gone, 1 in place, the way out as the way in
+     * backwards. The HUD makes room for them by it, so the two move together. Read from any thread.
+     */
+    @Volatile var there = 0f
+        private set
+
     /** The frame for the gauges' [now] view, null when they are gone. */
     fun frame(now: GaugeView?): Frame? {
         val time = nanoTime()
@@ -27,12 +34,14 @@ class GaugeMotion(private val nanoTime: () -> Long = System::nanoTime) {
             startNanos = time - (from * seconds() * 1e9).toLong()
         }
         if (now != null) last = now
-        val view = last ?: return null
+        val view = last ?: return null.also { there = 0f }
         progress = ((time - startNanos) / 1e9 / seconds()).coerceIn(0.0, 1.0)
         if (!coming && progress >= 1.0) {
             last = null
+            there = 0f
             return null
         }
+        there = (if (coming) progress else 1 - progress).toFloat()
         return Frame(view, coming, progress)
     }
 

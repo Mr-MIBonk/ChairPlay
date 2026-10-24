@@ -50,6 +50,26 @@ class GaugeMotionTest {
         assertFalse(motion.animating)
     }
 
+    // How far in the gauges are, for the HUD to make room in step: 0 gone, 1 in place, the way back as the way in.
+    @Test
+    fun `the gauges say how far in they are`() {
+        assertEquals(0f, motion.there, 0f)
+        motion.frame(view)
+        at(GaugeMotion.IN_SECONDS / 2)
+        motion.frame(view)
+        assertEquals(0.5f, motion.there, 1e-4f)
+        at(5.0)
+        motion.frame(view)
+        assertEquals(1f, motion.there, 0f)
+        motion.frame(null)
+        at(5.0 + GaugeMotion.OUT_SECONDS / 4)
+        motion.frame(null)
+        assertEquals(0.75f, motion.there, 1e-4f)
+        at(10.0)
+        motion.frame(null)
+        assertEquals(0f, motion.there, 0f)
+    }
+
     // Turned back on as they leave, they come back from as far as they had gone, not from nothing.
     @Test
     fun `turned back on as they leave, they come back from where they are`() {

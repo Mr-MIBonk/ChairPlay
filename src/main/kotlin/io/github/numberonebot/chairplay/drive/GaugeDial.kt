@@ -159,5 +159,4 @@ internal object GaugeStyle {
     const val EDGE = 0xFF3A3A3F.toInt()
     const val FACE_LIGHT = 0xFF29292D.toInt()
     const val HUB_FILL = 0xFF0B0B0D.toInt()
-    const val TRACK = 0xFF2A2A2E.toInt()
 }

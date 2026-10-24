@@ -159,9 +159,27 @@ class CarModelTest {
         fast.run(1.0, CarInput(steer = 1.0, throttle = 0.3))
         assertTrue("slow ${slow.state.headingDegrees}", slow.state.headingDegrees in 30.0..120.0)
         assertTrue("fast ${fast.state.headingDegrees}", fast.state.headingDegrees in 5.0..slow.state.headingDegrees - 5)
+        // Slow, it turns sharply, on a circle of a few metres: at 15 km/h over 70 degrees in a second.
+        val crawl = CarModel(CarSpec(), CarState(speed = 15 / 3.6, gear = 1))
+        crawl.run(1.0, CarInput(steer = 1.0, throttle = 0.05))
+        assertTrue("crawl ${crawl.state.headingDegrees}", crawl.state.headingDegrees in 70.0..120.0)
         val left = CarModel(CarSpec(), CarState(speed = 50 / 3.6, gear = 3))
         left.run(1.0, CarInput(steer = -1.0, throttle = 0.3))
         assertTrue(left.state.headingDegrees > 180.0)
+    }
+
+    // Sharp handling turns harder than gentle, slow and fast alike; normal sits between.
+    @Test
+    fun `sharp handling turns harder than gentle`() {
+        fun turned(handling: Handling, kmh: Double): Double {
+            val car = CarModel(CarSpec(handling = handling), CarState(speed = kmh / 3.6, gear = 3))
+            car.run(0.5, CarInput(steer = 1.0, throttle = 0.3))
+            return car.state.headingDegrees
+        }
+        for (kmh in listOf(15.0, 80.0)) {
+            assertTrue("$kmh km/h", turned(Handling.GENTLE, kmh) < turned(Handling.NORMAL, kmh))
+            assertTrue("$kmh km/h", turned(Handling.NORMAL, kmh) < turned(Handling.SHARP, kmh))
+        }
     }
 
     // The tachometer: the engine idles at rest, revs with the throttle as the clutch slips at a launch.

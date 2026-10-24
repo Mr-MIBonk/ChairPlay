@@ -17,6 +17,8 @@ data class GpsSettings(
     val rate: Int = 4,
     val nmea: NmeaDialect = NmeaDialect.CLASSIC,
     val framing: NmeaFraming = NmeaFraming.PARAMETERS,
+    /** How large drive mode's gauges show, gps.gauges. */
+    val gauges: GaugeSize = GaugeSize.LARGE,
 ) {
     companion object {
         val RATES = listOf(1, 4, 10)
@@ -26,4 +28,12 @@ data class GpsSettings(
         /** A heading in degrees, from 0 up to but not 360. */
         fun heading(text: String): Double? = text.trim().toDoubleOrNull()?.takeIf { it >= 0.0 && it < 360.0 }
     }
+}
+
+/** How large drive mode's gauges show: as tall as the window, or half that, down in its corners. */
+enum class GaugeSize(val key: String) {
+    LARGE("large"),
+    SMALL("small");
+
+    fun other(): GaugeSize = if (this == LARGE) SMALL else LARGE
 }

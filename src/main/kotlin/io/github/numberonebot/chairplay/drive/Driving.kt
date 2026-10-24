@@ -70,7 +70,7 @@ class Driving(
 
     /**
      * The gps.* settings saved as [now], [keys] among them: a place puts the car there facing the heading, a heading
-     * alone turns it where it is, and a power or mass remakes it.
+     * alone turns it where it is, and a power, mass or handling remakes it.
      */
     fun saved(now: GpsSettings, keys: Set<String>) {
         settings = now
@@ -84,9 +84,9 @@ class Driving(
             drive.turn(now.headingDegrees)
             log("GPS car turned to ${now.headingDegrees}°")
         }
-        if ("gps.car.power.hp" in keys || "gps.car.mass.kg" in keys) {
+        if (keys.any { it in CAR_KEYS }) {
             drive.respec(now.car)
-            log("GPS car ${now.car.powerHp.roundToInt()} hp, ${now.car.massKg.roundToInt()} kg")
+            log("GPS car ${now.car.powerHp.roundToInt()} hp, ${now.car.massKg.roundToInt()} kg, ${now.car.handling.key} handling")
         }
     }
 
@@ -140,5 +140,6 @@ class Driving(
     private companion object {
         /** 0xFFFA's selectors, identification fields 17 to 20 less 16. */
         val SENTENCES = mapOf(1 to "GGA", 2 to "RMC", 3 to "GSV", 4 to "PASCD")
+        val CAR_KEYS = setOf("gps.car.power.hp", "gps.car.mass.kg", "gps.car.handling")
     }
 }

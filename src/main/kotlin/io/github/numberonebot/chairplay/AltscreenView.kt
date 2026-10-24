@@ -14,6 +14,7 @@ import io.github.numberonebot.chairplay.config.altscreenUrl
 import io.github.numberonebot.chairplay.config.fittedTo
 import io.github.numberonebot.chairplay.data.CarPlayData
 import io.github.numberonebot.chairplay.drive.Driving
+import io.github.numberonebot.chairplay.drive.GaugeMotion
 import io.github.numberonebot.chairplay.drive.GaugePainter
 import io.github.numberonebot.chairplay.hud.HudDemo
 import io.github.numberonebot.chairplay.hud.HudPainter
@@ -117,6 +118,8 @@ internal class AltscreenView(
             )(area)
             if (moved) {
                 currentArea.set(area)
+                // From the HUD the window goes black at once and waits there for the view the move asks for later.
+                if (window.hud) window.showView(false, seen)
                 return
             }
         }
@@ -245,14 +248,16 @@ internal class AltscreenView(
                 window.screenshot { image -> saveScreenshot(image, dir, ::log, "altscreen-demo-$name") }
             })
         }
+        // The wells' coming and going, which the HUD follows to make room in step with them.
+        val gaugeMotion = GaugeMotion()
         window.overlay = HudPainter({
             val demo = hudDemo.get()?.second
             val live = data.bus.snapshot()
             val snapshot = demo?.over(live) ?: live
-            HudView(demo != null || active() != null, hudState(snapshot), snapshot.artwork, drive = driving.gauges() != null)
+            HudView(demo != null || active() != null, hudState(snapshot), snapshot.artwork, drive = gaugeMotion.there)
         }, ::log, window::repaint, accent)
         data.bus.addListener { if (window.hud) window.repaint() }
-        window.topLayer = GaugePainter(driving::gauges, ::log, accent)
+        window.topLayer = GaugePainter(driving::gauges, ::log, accent, gaugeMotion)
     }
 
     /**

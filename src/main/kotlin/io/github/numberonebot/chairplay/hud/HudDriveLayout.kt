@@ -30,23 +30,8 @@ fun driveSlots(width: Float, height: Float, route: Float, media: Float): Pair<Hu
         HudRect(stage.left, stage.top + half * route, stage.right, stage.bottom)
 }
 
-/**
- * The song's [box] of an [h] high HUD, [driving] of the way to drive mode's: narrowed about its middle until the lines
- * beside the cover take a column [DRIVE_TEXT] covers wide, a squarer block that fits the room between the wells larger.
- */
-fun driveMediaBox(box: HudBox, h: Float, driving: Float): HudBox {
-    if (driving <= 0f) return box
-    val middle = (box.left + box.right) / 2
-    val narrow = box.cover * (1 + DRIVE_TEXT) + MEDIA_GAP * h
-    val width = lerp(box.right - box.left, minOf(narrow, box.right - box.left), driving)
-    return box.copy(left = middle - width / 2, right = middle + width / 2)
-}
-
 /** The scale that fits a block of [width] x [height] into [slot], keeping its shape; never above 1. */
 fun fitScale(width: Float, height: Float, slot: HudRect): Float = minOf(slot.width / width, slot.height / height, 1f)
 
 /** The gap between a well and the HUD's blocks, in the HUD's width. */
 private const val DRIVE_GAP = 0.01f
-
-/** The song's lines in drive mode, in its cover's width. */
-private const val DRIVE_TEXT = 1.2f

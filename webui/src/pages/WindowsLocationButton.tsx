@@ -39,7 +39,7 @@ export function WindowsLocationButton({
         disabled={asking}
         onClick={() => void locate()}
       >
-        Windows location
+        Use Windows location
       </button>
       {problem === 'denied' && (
         <span className="errtext">

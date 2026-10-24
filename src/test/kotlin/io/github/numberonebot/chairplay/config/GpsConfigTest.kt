@@ -1,6 +1,8 @@
 package io.github.numberonebot.chairplay.config
 
 import io.github.numberonebot.chairplay.drive.CarSpec
+import io.github.numberonebot.chairplay.drive.GaugeSize
+import io.github.numberonebot.chairplay.drive.Handling
 import io.github.numberonebot.chairplay.drive.GeoPoint
 import io.github.numberonebot.chairplay.drive.GpsSettings
 import io.github.numberonebot.chairplay.drive.NmeaDialect
@@ -44,11 +46,22 @@ class GpsConfigTest {
         )
     }
 
+    // The car's handling and the gauges' size, as the GPS page sets them: normal and large unless set.
+    @Test
+    fun `the car's handling and the gauges' size`() {
+        val plain = configWith().gps
+        assertEquals(Handling.NORMAL, plain.car.handling)
+        assertEquals(GaugeSize.LARGE, plain.gauges)
+        val set = configWith("gps.car.handling=sharp", "gps.gauges=small").gps
+        assertEquals(Handling.SHARP, set.car.handling)
+        assertEquals(GaugeSize.SMALL, set.gauges)
+    }
+
     @Test
     fun `rejects GPS values the car cannot have`() {
         for (bad in listOf(
             "gps.start=Kyiv", "gps.heading=north", "gps.heading=360", "gps.car.power.hp=5", "gps.car.mass.kg=50", "gps.rate=3",
-            "gps.nmea=ancient", "gps.framing=pigeons",
+            "gps.nmea=ancient", "gps.framing=pigeons", "gps.car.handling=wild", "gps.gauges=huge",
         )) {
             val key = bad.substringBefore('=')
             val error = assertThrows(IllegalArgumentException::class.java) { configWith(bad).gps }

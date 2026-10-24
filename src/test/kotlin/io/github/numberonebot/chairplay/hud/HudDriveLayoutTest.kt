@@ -37,17 +37,11 @@ class HudDriveLayoutTest {
         assertEquals(song.bottom, below.bottom, 0.01f)
     }
 
-    // In drive mode the song's lines take a column 1.2 covers wide, so its block is squarer and fits its slot larger;
-    // out of it the song keeps its box.
+    // The song's lines take a column 1.5 covers wide, alone as between the wells, so drive mode only scales the block.
     @Test
-    fun `in drive mode the song's lines are 1_2 covers wide, and the song fits larger`() {
+    fun `the song's lines are 1_5 covers wide, alone or in drive mode`() {
         val alone = mediaBox(w, h, 0f)
-        assertEquals(alone, driveMediaBox(alone, h, 0f))
-        val narrow = driveMediaBox(alone, h, 1f)
-        assertEquals(1.2f * narrow.cover, mediaBlockWidth(narrow, h) - narrow.cover - MEDIA_GAP * h, 0.01f)
-        assertEquals((alone.left + alone.right) / 2, (narrow.left + narrow.right) / 2, 0.01f)
-        val (_, slot) = driveSlots(w, h, route = 0f, media = 1f)
-        assertTrue(fitScale(mediaBlockWidth(narrow, h), narrow.cover, slot) > fitScale(mediaBlockWidth(alone, h), alone.cover, slot))
+        assertEquals(1.5f * alone.cover, mediaBlockWidth(alone, h) - alone.cover - MEDIA_GAP * h, 0.01f)
     }
 
     // A block shrinks to fit its slot, keeping its shape, and never grows past its own size.

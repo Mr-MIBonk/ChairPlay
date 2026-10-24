@@ -151,8 +151,9 @@ internal val SETTINGS_TEMPLATE = listOf(
         "gps.start" to "", "gps.heading" to "0", "gps.resume" to "true",
     ),
     SettingBlock(
-        "The car: its power in hp (20-2000) and its mass in kg (300-10000).",
-        "gps.car.power.hp" to "300", "gps.car.mass.kg" to "1500",
+        "The car: its power in hp (20-2000) and its mass in kg (300-10000); how it turns, 'gentle', 'normal' or\n" +
+            "'sharp'; and drive mode's gauges, 'large' or 'small' in the window's lower corners (Shift+F10).",
+        "gps.car.power.hp" to "300", "gps.car.mass.kg" to "1500", "gps.car.handling" to "normal", "gps.gauges" to "large",
     ),
     SettingBlock(
         "Experiments in what the iPhone takes from the GPS: fixes a second, '1', '4' (as the iPhone asks) or '10';\n" +

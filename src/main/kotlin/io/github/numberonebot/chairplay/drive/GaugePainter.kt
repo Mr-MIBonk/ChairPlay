@@ -13,7 +13,6 @@ import io.github.numberonebot.chairplay.drive.GaugeStyle.ITALIC
 import io.github.numberonebot.chairplay.drive.GaugeStyle.OPAQUE
 import io.github.numberonebot.chairplay.drive.GaugeStyle.PANEL
 import io.github.numberonebot.chairplay.drive.GaugeStyle.RED
-import io.github.numberonebot.chairplay.drive.GaugeStyle.TRACK
 import io.github.numberonebot.chairplay.drive.GaugeStyle.WIDE
 import io.github.numberonebot.chairplay.media.WindowOverlay
 import org.lwjgl.nanovg.NanoVG.*
@@ -208,7 +207,7 @@ class GaugePainter(
         val lines = listOf(position.latitude, position.longitude).map { String.format(Locale.ROOT, "%.5f", it) } + "$degrees° $point"
         val width = lines.maxOf { pen.textWidth(it, size, REGULAR) } + height * 0.26f
         val x = centerX - width / 2
-        val corner = height * 0.18f
+        val corner = height * 0.12f
         nvgBeginPath(vg)
         nvgRoundedRect(vg, x, y, width, height, corner)
         pen.fill(HUB_FILL)
@@ -222,12 +221,12 @@ class GaugePainter(
         for ((i, line) in lines.withIndex()) pen.text(line, centerX, y + height * (0.24f + 0.29f * i), size, CAPTION, REGULAR)
     }
 
-    /** A pedal's travel: a dark track edged as the wheel is, filled as far as the pedal is pressed. */
+    /** A pedal's travel: a track filled and edged as the wheel is, filled in colour as far as the pedal is pressed. */
     private fun pedalBar(pen: NanoPen, cx: Float, cy: Float, width: Float, height: Float, pressed: Double, rgb: Int) {
         val vg = pen.vg
         nvgBeginPath(vg)
         nvgRoundedRect(vg, cx - width / 2, cy - height / 2, width, height, height / 2)
-        pen.fill(TRACK)
+        pen.fill(WHEEL)
         if (pressed > 0) {
             nvgBeginPath(vg)
             nvgRoundedRect(vg, cx - width / 2, cy - height / 2, maxOf(height, width * pressed.toFloat()), height, height / 2)

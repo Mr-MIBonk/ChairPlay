@@ -16,9 +16,10 @@ import java.nio.ByteBuffer
 
 /**
  * What the HUD needs at a moment: whether a session runs, its data, the cover the iPhone sent last, and whether the GPS
- * car's wells are on screen ([drive]), which keeps the route and the song between them.
+ * car's wells are in ([drive]: 0 gone, 1 in place, linear in time, as GaugeMotion.there gives it), which keeps the
+ * route and the song between them.
  */
-class HudView(val connected: Boolean, val state: HudState, val artwork: Artwork?, val drive: Boolean = false)
+class HudView(val connected: Boolean, val state: HudState, val artwork: Artwork?, val drive: Float = 0f)
 
 /**
  * Draws the HUD with NanoVG on black, centred, as desktop-docs/hud-spec.md lays it out:
@@ -56,8 +57,6 @@ class HudPainter(
     private val frames = repaint?.let { RepaintTimer(it) }
     internal val maneuverView = ManeuverView(frames, log)
     private val motion = HudMotion()
-    // Drive mode's coming and going, in step with the wells'.
-    private val drive = Presence(inMillis = (GaugeMotion.IN_SECONDS * 1000).toLong(), outMillis = (GaugeMotion.OUT_SECONDS * 1000).toLong())
     // What each part showed last, kept while it fades into the dark after its data is gone.
     private var shownMedia: HudMedia? = null
     private var shownManeuver: HudManeuver? = null
@@ -116,8 +115,8 @@ class HudPainter(
         // In the app's display face, as the main window's waiting screen says where the connection stands.
         emerging(shown.waiting, w / 2, h / 2) { centred(HUD_WAITING, w / 2, h / 2, 0.07f * h, GREY, WIDE) }
         // In drive mode the route and the song each lay out as alone, the route over the song between the wells.
-        // On the wells' own curve, so the blocks move as the wells do.
-        val driving = GaugeMotion.eased(drive.update(now.drive, System.nanoTime()))
+        // By the wells' own motion and curve, so the blocks move as the wells do; the window draws on while they move.
+        val driving = GaugeMotion.eased(now.drive)
         val (routeSlot, mediaSlot) = driveSlots(w, h, shown.route, shown.media)
         val alone = routeBox(w, h, 0f)
         shownManeuver?.let { maneuver ->
@@ -127,16 +126,16 @@ class HudPainter(
             }
         }
         shownMedia?.let { song ->
-            val narrow = driveMediaBox(mediaBox(w, h, 0f), h, 1f)
-            fitted(driving, w, h, mediaBlockWidth(narrow, h), narrow.cover, mediaSlot) {
-                media(song, now, driveMediaBox(mediaBox(w, h, lerp(shown.mediaPlace, 0f, driving)), h, driving), h, shown.media)
+            val alone = mediaBox(w, h, 0f)
+            fitted(driving, w, h, mediaBlockWidth(alone, h), alone.cover, mediaSlot) {
+                media(song, now, mediaBox(w, h, lerp(shown.mediaPlace, 0f, driving)), h, shown.media)
             }
         }
         shownCall?.let { call ->
             fitted(driving, w, h, w * (1 - 2 * HUD_SIDE), 0.30f * h, driveStage(w, h)) { callCard(call, w, h, shown.call) }
         }
         nvgEndFrame(vg)
-        if (shown.moving || drive.moving) frames?.after(FRAME_MILLIS)
+        if (shown.moving) frames?.after(FRAME_MILLIS)
     }
 
     /**

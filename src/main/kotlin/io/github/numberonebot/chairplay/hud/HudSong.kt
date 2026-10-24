@@ -23,10 +23,14 @@ internal fun HudPainter.media(media: HudMedia, now: HudView, box: HudBox, h: Flo
 }
 
 /**
- * How wide the song's block is in [box] of an [h] high HUD: alone it keeps to 80 % of the width its lines could take
- * beside the cover; beside the route its column bounds it. It is as tall as its cover.
+ * How wide the song's block is in [box] of an [h] high HUD: its lines take a column [MEDIA_TEXT] covers wide beside the
+ * cover, alone as between the GPS car's wells, so drive mode only scales it; beside the route its column bounds it. It
+ * is as tall as its cover.
  */
-internal fun mediaBlockWidth(box: HudBox, h: Float): Float = min(box.right - box.left, (0.9f * h * 1.4f + MEDIA_GAP * h + box.cover) * 0.8f)
+internal fun mediaBlockWidth(box: HudBox, h: Float): Float = min(box.right - box.left, box.cover * (1 + MEDIA_TEXT) + MEDIA_GAP * h)
+
+/** The song's lines, in its cover's width. */
+private const val MEDIA_TEXT = 1.5f
 
 /** The gap between the cover and the lines, in the HUD's height: 40 px on the 540 px AltScreen. */
 internal const val MEDIA_GAP = 0.074f

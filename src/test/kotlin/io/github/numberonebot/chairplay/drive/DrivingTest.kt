@@ -54,6 +54,9 @@ class DrivingTest {
         assertEquals(lviv, driving.drive.snapshot().position)
         assertEquals(600.0, driving.settings.car.powerHp, 0.0)
         assertEquals(600.0, driving.drive.spec.powerHp, 0.0)
+
+        driving.saved(strong.copy(car = strong.car.copy(handling = Handling.SHARP)), setOf("gps.car.handling"))
+        assertEquals(Handling.SHARP, driving.drive.spec.handling)
     }
 
     // The page's heading field turns the car where it stands, rather than sending it back to the start point.

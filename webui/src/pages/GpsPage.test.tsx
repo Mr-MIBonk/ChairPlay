@@ -58,7 +58,7 @@ describe('GPS page, Windows location', () => {
     backend.location = { latitude: 48.85837, longitude: 2.294481 }
     await gps(appState(live), backend)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Windows location' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use Windows location' }))
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'gps.start': '48.85837, 2.294481', 'gps.heading': '0' }]))
   })
@@ -69,7 +69,7 @@ describe('GPS page, Windows location', () => {
     backend.location = { error: 'denied' }
     await gps(appState(live), backend)
 
-    fireEvent.click(screen.getByRole('button', { name: 'Windows location' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use Windows location' }))
     fireEvent.click(await screen.findByRole('button', { name: 'Location settings' }))
 
     expect(backend.saved).toEqual([])

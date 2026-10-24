@@ -24,6 +24,7 @@ data class CarSpec(
     val rollingResistance: Double = 0.012,
     /** Where the engine stops pulling, in km/h. */
     val limiterKmh: Double = 250.0,
+    val handling: Handling = Handling.NORMAL,
     /**
      * Whether the brake held at a standstill backs the car up. Off for now, at the owner's wish (2026-10-24): the brake
      * only holds the car. Make the default true to have it back.
@@ -128,7 +129,8 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         val yawRate = if (average == 0.0) {
             steer * Math.toRadians(SPOT_TURN_DEGREES)
         } else {
-            steer * sign(average) * min(abs(average) / TIGHTEST_RADIUS, LATERAL_ACCELERATION / maxOf(abs(average), 1.0))
+            val turn = spec.handling
+            steer * sign(average) * min(abs(average) / turn.tightestRadiusMeters, turn.lateralAcceleration / maxOf(abs(average), 1.0))
         }
         val heading = ((state.headingDegrees + Math.toDegrees(yawRate * dt)) % 360 + 360) % 360
 
@@ -173,8 +175,8 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         private const val DRIVETRAIN_EFFICIENCY = 0.85
         private const val GRAVITY = 9.81
         private const val AIR_DENSITY = 1.2
-        /** What the driven wheels grip at a launch, in the car's weight: all four, on sports tyres. */
-        private const val DRIVEN_GRIP = 0.9
+        /** What the driven wheels grip at a launch, in the car's weight: all four, on a grip of 1. */
+        private const val DRIVEN_GRIP = 1.0
         /** Below it the pull is the grip's, not power over a speed near zero. */
         private const val POWER_FLOOR_SPEED = 3.0
         /** m/s² at full brake, a sports car's on sticky tyres: about 25 m from 100 km/h. */
@@ -198,10 +200,17 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         private const val SHIFT_BELOW_REDLINE = 200.0
         private const val SHIFT_DOWN_GENTLE = 1200.0
         private const val SHIFT_DOWN_FULL = 2700.0
-        private const val TIGHTEST_RADIUS = 5.0
         /** Degrees a second a standing car turns on the spot at full lock. */
         private const val SPOT_TURN_DEGREES = 90.0
-        /** Arcade grip in a corner, more than a road car's 9 m/s². */
-        private const val LATERAL_ACCELERATION = 12.0
     }
+}
+
+/**
+ * How the car turns, gps.car.handling: the tightest circle it drives at low speed, and the grip in a corner that bounds
+ * it at speed ([lateralAcceleration] in m/s², a road car's about 9).
+ */
+enum class Handling(val key: String, val tightestRadiusMeters: Double, val lateralAcceleration: Double) {
+    GENTLE("gentle", 5.0, 9.0),
+    NORMAL("normal", 3.0, 12.0),
+    SHARP("sharp", 2.0, 16.0),
 }
