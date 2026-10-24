@@ -40,8 +40,8 @@ class Fade<T>(initial: T, private val millis: Long = FADE_MILLIS, private val no
 
     companion object {
         /**
-         * Each half of a fade. The page's own fade (styles.css, .shell) comes back up as long; it goes away faster, so
-         * the web view is black before the window hides it.
+         * Each half of a fade. The page's own fade (webui/src/styles/shell.css, .shell) comes back up as long; it goes
+         * away faster, so the web view is black before the window hides it.
          */
         const val FADE_MILLIS = 150L
     }

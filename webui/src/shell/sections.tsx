@@ -1,5 +1,14 @@
 import type { ReactNode } from 'react'
-import { AboutIcon, AltScreenLineIcon, AudioIcon, CarPlayLineIcon, FlaskIcon, GpsIcon, KeyboardIcon, WifiIcon } from './icons'
+import {
+  AboutIcon,
+  AltScreenLineIcon,
+  AudioIcon,
+  CarPlayLineIcon,
+  FlaskIcon,
+  GpsIcon,
+  KeyboardIcon,
+  WifiIcon,
+} from './icons'
 
 /** The settings' pages, in the section list's order; the first opens. */
 export const SECTIONS = [

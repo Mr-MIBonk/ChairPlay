@@ -1,0 +1,90 @@
+/* The Keyboard page: an action's keys, adding and resetting them */
+
+/* Key bindings: keycaps in a row per action; + shows on the hovered row only */
+.shell .keys-row {
+  min-height: 32px;
+}
+
+.shell .keys-row .ctl {
+  gap: 4px;
+}
+
+.shell .keys-row:hover,
+.shell .keys-row:focus-within {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.shell .kbd {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 6px;
+  border: 1px solid var(--edge);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  background-color: var(--raised);
+  color: var(--text);
+  font: 12px var(--ui);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.shell button.kbd:hover {
+  background-image: var(--lighten);
+}
+
+.shell .kbd.wait {
+  border-color: var(--accent);
+  background-color: var(--accent-bg);
+  color: var(--accent);
+}
+
+/* A fixed key: no hover, a small lock after its name */
+.shell .kbd.lock {
+  gap: 4px;
+  border-bottom-width: 1px;
+  background-color: transparent;
+  color: var(--muted);
+}
+
+.shell .kbd.lock svg {
+  width: 9px;
+  height: 9px;
+  opacity: 0.7;
+}
+
+.shell .add {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 21px;
+  height: 21px;
+  padding: 0;
+  border: 1px dashed var(--edge);
+  border-radius: 2px;
+  background: none;
+  color: var(--muted);
+  cursor: default;
+}
+
+.shell .keys-row:hover .add,
+.shell .keys-row:focus-within .add {
+  display: inline-flex;
+}
+
+.shell .add:hover {
+  border-color: #5a5a62;
+  color: var(--text);
+}
+
+.shell .off {
+  color: var(--dim);
+}
+
+.shell .reset {
+  margin-left: 6px;
+}
+
+.shell .gap {
+  width: 6px;
+}

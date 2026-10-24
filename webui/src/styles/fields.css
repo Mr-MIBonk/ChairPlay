@@ -1,0 +1,143 @@
+/* Text fields, drop-down lists, and the reasons under refused ones */
+
+/* Fields */
+.shell input.t {
+  height: 24px;
+  padding: 0 6px;
+  border: 1px solid var(--edge);
+  border-radius: 2px;
+  outline: 0;
+  background: var(--ground);
+  color: var(--text);
+  font: 12px var(--ui);
+}
+
+.shell input.t::placeholder {
+  color: var(--dim);
+}
+
+.shell input.t:hover:not(:disabled) {
+  border-color: #5a5a62;
+  background-image: linear-gradient(rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.03));
+}
+
+.shell input.t:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.shell input.t.err {
+  border-color: var(--red);
+}
+
+.shell .t.n {
+  width: 60px;
+  text-align: right;
+}
+.shell .t.n3 {
+  width: 46px;
+  text-align: right;
+}
+/* A screen's size and insets, a size centred; a size's two fields and its × are as long as the Frame rate group */
+.shell .t.short {
+  width: 44px;
+  text-align: right;
+}
+.shell .t.short.c {
+  text-align: center;
+}
+/* The × between a size's fields: a set width, so that the Frame rate group (.seg.half) can be as long as the pair */
+.shell .x.times {
+  width: 9px;
+  text-align: center;
+}
+/* A coordinate, -122.41942 at most, beside its name */
+.shell .t.w96 {
+  width: 96px;
+}
+.shell .t.w120 {
+  width: 120px;
+}
+.shell .t.w160 {
+  width: 160px;
+}
+.shell .t.w200 {
+  width: 200px;
+}
+.shell .t.w280 {
+  width: 280px;
+}
+
+/* A drop-down list drawn as a field, with a small caret at its right end */
+.shell select.t {
+  appearance: none;
+  height: 24px;
+  padding: 0 20px 0 6px;
+  border: 1px solid var(--edge);
+  border-radius: 2px;
+  outline: 0;
+  background: var(--ground)
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M0 0h8L4 4z' fill='%238b8b92'/%3E%3C/svg%3E")
+    no-repeat right 7px center;
+  color: var(--text);
+  font: 12px var(--ui);
+  cursor: default;
+}
+
+.shell select.t:hover {
+  border-color: #5a5a62;
+}
+
+.shell select.t:focus-visible {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+/* The reason beside a refused value may run to two lines */
+.shell .errtext {
+  min-width: 0;
+  line-height: 15px;
+}
+
+/* In a row, the reason goes on a line of its own under the controls, so it never pushes apart two fields */
+.shell .ctl:has(> .errtext) {
+  flex-wrap: wrap;
+}
+
+.shell .ctl > .errtext {
+  order: 1;
+  flex-basis: 100%;
+}
+
+/*
+ * Beside its label, such a row grows downwards: its controls (24 px, keys 22 px) and its label keep the places they
+ * have centred in a row without the reason (34 px, keys 32 px).
+ */
+@container shell (min-width: 530px) {
+  .shell .row:has(> .ctl > .errtext) {
+    align-items: start;
+  }
+
+  .shell .ctl:has(> .errtext),
+  .shell .row:has(> .ctl > .errtext) > label {
+    padding-top: 5px;
+  }
+
+  .shell .row:has(> .ctl > .errtext) > label {
+    line-height: 24px;
+  }
+
+  .shell .keys-row:has(> .ctl > .errtext) > label {
+    line-height: 22px;
+  }
+
+  /* The safe area's row has its own padding, and its label beside the middle of the 78 px frame */
+  .shell .safe-row > .ctl:has(> .errtext) {
+    padding-top: 0;
+  }
+
+  .shell .safe-row:has(> .ctl > .errtext) > label {
+    padding-top: 0;
+    line-height: 78px;
+  }
+}

@@ -14,7 +14,15 @@ function Commit({ commit }: { commit: BuildCommit | null }) {
 }
 
 /** Which app and build this is, whose work it is built on, and where to get help. */
-export function AboutPage({ state, backend, onShowGuide }: { state: AppState; backend: Backend; onShowGuide: () => void }) {
+export function AboutPage({
+  state,
+  backend,
+  onShowGuide,
+}: {
+  state: AppState
+  backend: Backend
+  onShowGuide: () => void
+}) {
   // The links open in the browser, or the notices in Notepad; they are buttons that read as links.
   const link = (place: WindowsPlace, text: string, title?: string): ReactNode => (
     <button type="button" className="link" title={title} onClick={() => backend.open(place)}>
@@ -38,15 +46,9 @@ export function AboutPage({ state, backend, onShowGuide }: { state: AppState; ba
       </Row>
       <Group title="Credits" />
       <Row label="Author">{link('author', 'Oleksiy Strelets', "Open the author's GitHub profile")}</Row>
-      <Row label="CarPlay core">
-        {link('diplay', 'DiPlay')} by shihabal3amri
-      </Row>
-      <Row label="HUD maneuvers">
-        LuKa, {link('rgi', 'mib2q-carplay-rgi')}
-      </Row>
-      <Row label="License">
-        GPL-3.0 · {link('notices', 'Third-party notices')}
-      </Row>
+      <Row label="CarPlay core">{link('diplay', 'DiPlay')} by shihabal3amri</Row>
+      <Row label="HUD maneuvers">LuKa, {link('rgi', 'mib2q-carplay-rgi')}</Row>
+      <Row label="License">GPL-3.0 · {link('notices', 'Third-party notices')}</Row>
       <Group title="Support" />
       <Row label="Get started">
         <button type="button" className="btn small" title="Go through the setup steps again" onClick={onShowGuide}>
@@ -56,7 +58,11 @@ export function AboutPage({ state, backend, onShowGuide }: { state: AppState; ba
       <Row label="Report a problem">
         {link('issues', 'New issue on GitHub', 'Open a new issue on GitHub, with this build filled in')}
         <span className="copy-details">
-          <CopyButton text={state.about.details} label="Copy details" title="Copy the build, the DiPlay core, and the Windows version" />
+          <CopyButton
+            text={state.about.details}
+            label="Copy details"
+            title="Copy the build, the DiPlay core, and the Windows version"
+          />
         </span>
       </Row>
       <Row label="Community">
@@ -64,7 +70,8 @@ export function AboutPage({ state, backend, onShowGuide }: { state: AppState; ba
         {link('pull-requests', 'Pull requests', 'How to send a change')}
       </Row>
       <Row label="Source">
-        {link('source', 'github.com/NumberOneBot/ChairPlay')} · {link('releases', 'Releases', 'Every version, with what changed')}
+        {link('source', 'github.com/NumberOneBot/ChairPlay')} ·{' '}
+        {link('releases', 'Releases', 'Every version, with what changed')}
       </Row>
       <div className="hint trademarks">
         CarPlay, iPhone, AirPlay, and Siri are trademarks of Apple Inc. ChairPlay is not affiliated with Apple.

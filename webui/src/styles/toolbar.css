@@ -1,0 +1,199 @@
+/* The settings window's toolbar: its buttons, connection chip and status dot */
+
+/* Toolbar: 38 px buttons in a 58 px bar, 10 px round them as between them; what never fits is cut off, never scrolled */
+.shell .tb {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+  padding: 10px;
+  background: var(--bar);
+}
+
+.shell .tb .grow {
+  flex: 1;
+}
+
+.shell .tb .sep {
+  flex: none;
+  width: 1px;
+  height: 18px;
+  margin: 0 3px;
+  background: #3a3a40;
+}
+
+.shell .chip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+/* In a narrow window the status gives way before the buttons do */
+.shell .chip b {
+  overflow: hidden;
+  color: var(--text);
+  font-weight: 400;
+  text-overflow: ellipsis;
+}
+
+.shell .dot {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--dim);
+}
+
+.shell .dot.ok {
+  background: var(--green);
+}
+.shell .dot.warn {
+  background: var(--orange);
+}
+.shell .dot.bad {
+  background: var(--red);
+}
+.shell .dot.busy {
+  background: var(--accent);
+}
+
+.shell .pending {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--orange);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  cursor: help;
+}
+
+.shell .pending::before {
+  content: '⟳ ';
+}
+
+/* Buttons; background-color, not background, so the hover's layer stays on top of every variant */
+.shell .btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 26px;
+  padding: 0 11px;
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  background-color: var(--raised);
+  color: var(--text);
+  font: 13px var(--ui);
+  white-space: nowrap;
+  cursor: default;
+}
+
+.shell .btn svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+}
+
+.shell .btn.on {
+  border-color: var(--accent);
+  background-color: var(--accent-bg);
+}
+
+.shell .btn.primary {
+  border-color: var(--accent);
+  background-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+.shell .btn:disabled {
+  opacity: 0.45;
+}
+
+.shell .btn:not(:disabled):hover {
+  background-image: var(--lighten);
+}
+
+.shell .tb .btn {
+  gap: 8px;
+  height: 38px;
+  padding: 0 15px;
+  font: 600 13.5px var(--wide);
+}
+
+.shell .tb .btn:not(.on):not(.primary) {
+  border-color: #3e3e44;
+  background-color: #2c2c31;
+}
+
+.shell .tb .btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.shell .tb .btn svg.wide {
+  width: 32px;
+}
+
+/* A button with its icon alone: square, as tall as the others */
+.shell .tb .btn.icon {
+  justify-content: center;
+  width: 38px;
+  padding: 0;
+}
+
+/*
+ * A window narrower than the bar with every label (525 px): the window buttons are squares with their icons alone,
+ * the AltScreen's wide one smaller to keep clear of the square's edges, and the bar's padding and gaps are halved.
+ */
+@container shell (max-width: 529px) {
+  .shell .tb {
+    gap: 3.5px;
+    padding: 5px;
+  }
+
+  .shell .tb .sep {
+    margin: 0 1.5px;
+  }
+
+  .shell .tb .btn .label {
+    display: none;
+  }
+
+  .shell .tb .btn:has(.label) {
+    justify-content: center;
+    width: 38px;
+    padding: 0;
+  }
+
+  .shell .tb .btn svg.wide {
+    width: 26px;
+    height: 16px;
+  }
+}
+
+/*
+ * Buttons side by side 10 px apart, as far as a button is from a separator (the bar's 7 px gap and the separator's
+ * 3 px margin). Connect takes the place of Reconnect and Disconnect, two squares and that gap, so nothing shifts.
+ */
+.shell .tb > .btn + .btn {
+  margin-left: 3px;
+}
+
+.shell .tb .btn.primary {
+  justify-content: center;
+  width: 86px;
+  padding: 0;
+}
+
+/* Connect when Get started's last step points to it: a ring and a glow in the accent colour */
+.shell .tb .btn.primary.lit {
+  box-shadow:
+    0 0 0 2px var(--bar),
+    0 0 0 4px color-mix(in srgb, var(--accent) 55%, transparent),
+    0 0 16px 4px color-mix(in srgb, var(--accent) 45%, transparent);
+}

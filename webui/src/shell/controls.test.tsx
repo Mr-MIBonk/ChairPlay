@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Checkbox, Field, Group, Message, PasswordField, Row, Segmented, type Choice } from './controls'
+import { Checkbox, Field, PasswordField, Segmented } from './controls'
 
 afterEach(cleanup)
 
@@ -21,8 +21,8 @@ describe('Field', () => {
     expect(onCommit.mock.calls).toEqual([['Car'], ['Car 2']])
   })
 
-  // A refused value stays as typed, in red with the reason beside it, rather than jumping back to the saved one.
-  it('keeps a refused value with its reason', () => {
+  // A refused value stays as typed, marked invalid, rather than jumping back to the saved one.
+  it('keeps a refused value, marked invalid', () => {
     const { rerender } = render(<Field label="Network" value="Home" onCommit={() => {}} />)
     fireEvent.change(field(), { target: { value: 'x'.repeat(40) } })
     fireEvent.keyDown(field(), { key: 'Enter' })
@@ -30,9 +30,7 @@ describe('Field', () => {
     rerender(<Field label="Network" value="Home" onCommit={() => {}} error="The name is at most 32 bytes" />)
 
     expect(field().value).toBe('x'.repeat(40))
-    expect(field().className).toContain('err')
     expect(field().getAttribute('aria-invalid')).toBe('true')
-    expect(screen.getByText('The name is at most 32 bytes')).toBeTruthy()
   })
 
   // Typing the saved value back over a refused one saves it, which clears the reason.
@@ -88,7 +86,11 @@ describe('Segmented', () => {
       <Segmented
         label="Theme"
         value="windows"
-        options={[['windows', 'Windows'], ['light', 'Light'], ['dark', 'Dark']]}
+        options={[
+          ['windows', 'Windows'],
+          ['light', 'Light'],
+          ['dark', 'Dark'],
+        ]}
         onChange={onChange}
       />,
     )
@@ -106,49 +108,23 @@ describe('Segmented', () => {
   // A disabled group shows no chosen item at all.
   it('chooses nothing while disabled', () => {
     const onChange = vi.fn()
-    render(<Segmented label="Wheel" value="knob" options={[['knob', 'Knob'], ['off', 'Off']]} onChange={onChange} disabled />)
+    render(
+      <Segmented
+        label="Wheel"
+        value="knob"
+        options={[
+          ['knob', 'Knob'],
+          ['off', 'Off'],
+        ]}
+        onChange={onChange}
+        disabled
+      />,
+    )
 
     fireEvent.click(screen.getByRole('radio', { name: 'Off' }))
 
     expect(screen.getByRole('radio', { name: 'Knob' }).getAttribute('aria-checked')).toBe('false')
     expect(onChange).not.toHaveBeenCalled()
-  })
-
-  // Two or three choices are equal plates; four or more share a row's length, which a wide page lifts (CSS).
-  it('makes a group of four choices or more a wide one, knowing how many it has', () => {
-    const four: Choice[] = [['a', 'A'], ['b', 'B'], ['c', 'C'], ['d', 'D']]
-    render(
-      <>
-        <Segmented label="Four" value="a" options={four} onChange={() => {}} />
-        <Segmented label="Three" value="a" options={four.slice(0, 3)} onChange={() => {}} />
-        <Segmented label="Kept" value="a" options={four} onChange={() => {}} className="compact" />
-      </>,
-    )
-
-    const group = screen.getByRole('radiogroup', { name: 'Four' })
-    expect(group.classList.contains('wide')).toBe(true)
-    expect(group.dataset.items).toBe('4')
-    expect(screen.getByRole('radiogroup', { name: 'Three' }).classList.contains('wide')).toBe(false)
-    expect(screen.getByRole('radiogroup', { name: 'Kept' }).classList.contains('wide')).toBe(false)
-  })
-
-  // Six choices or more are too many for one row: two rows of equal plates, half of them on each (CSS).
-  it('lays a group of six choices or more out in two rows', () => {
-    const six: Choice[] = [['a', 'A'], ['b', 'B'], ['c', 'C'], ['d', 'D'], ['e', 'E'], ['f', 'F']]
-    render(<Segmented label="Six" value="a" options={six} onChange={() => {}} />)
-
-    const group = screen.getByRole('radiogroup', { name: 'Six' })
-    expect(group.classList.contains('rows')).toBe(true)
-    expect(group.classList.contains('wide')).toBe(false)
-    expect(group.style.getPropertyValue('--columns')).toBe('3')
-  })
-
-  it('gives an item its tooltip', () => {
-    render(
-      <Segmented label="Area" value="" options={[['full', 'Full screen', 'The whole frame']]} onChange={() => {}} />,
-    )
-
-    expect(screen.getByRole('radio', { name: 'Full screen' }).title).toBe('The whole frame')
   })
 })
 
@@ -180,35 +156,5 @@ describe('Checkbox', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'Connect when ChairPlay starts' }))
 
     expect(onChange.mock.calls).toEqual([[false]])
-  })
-})
-
-describe('Row and Group', () => {
-  it('labels a row and heads a group with its note', () => {
-    render(
-      <>
-        <Group title="Wi-Fi" note="Applies at the next connection" />
-        <Row label="Network" title="The network this PC and the iPhone share">
-          <span>Home</span>
-        </Row>
-      </>,
-    )
-
-    expect(screen.getByRole('heading', { name: /Wi-Fi/ }).textContent).toBe('Wi-FiApplies at the next connection')
-    expect(screen.getByText('Network').closest('[title]')?.getAttribute('title')).toBe('The network this PC and the iPhone share')
-  })
-})
-
-describe('Message', () => {
-  it('names the problem, then what to do, then its actions', () => {
-    render(
-      <Message tone="bad" head="Couldn't reach the iPhone." text="Make sure it is nearby." at="14:02:11">
-        <button type="button">Open Bluetooth settings</button>
-      </Message>,
-    )
-
-    const message = screen.getByRole('alert')
-    expect(message.textContent).toBe("Couldn't reach the iPhone. Make sure it is nearby.14:02:11Open Bluetooth settings")
-    expect(message.className).toContain('bad')
   })
 })

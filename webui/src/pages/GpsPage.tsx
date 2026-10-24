@@ -23,13 +23,13 @@ const SENTENCES: readonly Choice[] = [
 ]
 
 /**
- * What the iPhone takes, for the GPS group's note; and how the car goes and what drives it, for the Car group's (where
- * it is and which way it faces are in the fields).
+ * What the iPhone takes, for the iPhone row under the fixes; and how the car goes and what drives it, for the Car
+ * group's note (where it is and which way it faces are in the fields).
  */
 function status(car: GpsState, driveKey: string | null | undefined) {
   const updates = `${car.sent} ${car.sent === 1 ? 'update' : 'updates'} sent`
   return {
-    iphone: car.listening ? `iPhone listening: ${(car.sentences ?? []).join(', ')}; ${updates}` : 'iPhone not listening',
+    iphone: car.listening ? `Listening: ${(car.sentences ?? []).join(', ')}; ${updates}` : 'Not listening',
     going: [
       `${car.speed} km/h`,
       `${car.rpm} rpm`,
@@ -108,12 +108,9 @@ function PositionFields({ settings, car, heading }: { settings: Settings; car: G
   }
 
   const id = useId()
-  // Each field named before it, as a placeholder says nothing once the field is filled.
-  const input = (field: 'latitude' | 'longitude', label: string) => (
+  // Each field named after it, as a unit is, since a placeholder says nothing once the field is filled.
+  const input = (field: 'latitude' | 'longitude') => (
     <>
-      <label className="x" htmlFor={`${id}-${field}`}>
-        {label}
-      </label>
       <input
         id={`${id}-${field}`}
         className={`t w96 ${error ? 'err' : ''}`}
@@ -125,12 +122,15 @@ function PositionFields({ settings, car, heading }: { settings: Settings; car: G
         onKeyDown={onKeyDown}
         onBlur={commit}
       />
+      <label className="unit" htmlFor={`${id}-${field}`}>
+        {field}
+      </label>
     </>
   )
   return (
     <>
-      {input('latitude', 'Latitude')}
-      {input('longitude', 'Longitude')}
+      {input('latitude')}
+      {input('longitude')}
       {error && <span className="errtext">{error}</span>}
     </>
   )
@@ -182,13 +182,37 @@ function HeadingField({ settings, shown, id }: { settings: Settings; shown: stri
  */
 function Compass({ heading }: { heading: number }) {
   return (
-    <svg viewBox="-16 -16 32 32" width="26" height="26" role="img" aria-label={`Heading ${heading}°`} style={{ flex: 'none' }}>
+    <svg
+      viewBox="-16 -16 32 32"
+      width="26"
+      height="26"
+      role="img"
+      aria-label={`Heading ${heading}°`}
+      style={{ flex: 'none' }}
+    >
       <circle r="14.5" fill="none" stroke="currentColor" strokeWidth="1" opacity="0.4" />
       {[45, 135, 225, 315].map((angle) => (
-        <line key={angle} y1="-14.5" y2="-12.5" transform={`rotate(${angle})`} stroke="currentColor" strokeWidth="1" opacity="0.4" />
+        <line
+          key={angle}
+          y1="-14.5"
+          y2="-12.5"
+          transform={`rotate(${angle})`}
+          stroke="currentColor"
+          strokeWidth="1"
+          opacity="0.4"
+        />
       ))}
       {[0, 90, 180, 270].map((angle) => (
-        <line data-quarter key={angle} y1="-14.5" y2="-11" transform={`rotate(${angle})`} stroke="currentColor" strokeWidth="1.2" opacity="0.7" />
+        <line
+          data-quarter
+          key={angle}
+          y1="-14.5"
+          y2="-11"
+          transform={`rotate(${angle})`}
+          stroke="currentColor"
+          strokeWidth="1.2"
+          opacity="0.7"
+        />
       ))}
       <path
         data-arrow
@@ -233,7 +257,7 @@ export function GpsPage({ state, settings }: { state: AppState; settings: Settin
   )
   return (
     <>
-      <Group title="GPS" note={[now?.iphone, note(LINK_KEYS)].filter(Boolean).join(' · ') || undefined} />
+      <Group title="GPS" note={note(LINK_KEYS)} />
       {check(
         'gps.enabled',
         "Spoof the iPhone's GPS",
@@ -250,9 +274,15 @@ export function GpsPage({ state, settings }: { state: AppState; settings: Settin
           "The car's speed ten times a second, as a car's wheel sensors give it, so the iPhone moves on smoothly between position updates",
           true,
         )}
-        {check('gps.satellites', 'Send satellites in view', 'A clear sky of ten satellites; try it if the iPhone keeps to its own GPS', false, true)}
+        {check(
+          'gps.satellites',
+          'Send satellites in view',
+          'A clear sky of ten satellites; try it if the iPhone keeps to its own GPS',
+          false,
+          true,
+        )}
         {/* Experiments in what the iPhone takes, from the next fix: how often the position goes, and in which sentences. */}
-        <Row label="Fixes" title="How often the car's position goes to the iPhone while it listens, and in which NMEA sentences">
+        <Row label="Fixes" title="How often the car's position goes to the iPhone while it listens">
           <Segmented
             label="Fixes"
             className="compact"
@@ -261,7 +291,8 @@ export function GpsPage({ state, settings }: { state: AppState; settings: Settin
             onChange={(rate) => save({ 'gps.rate': rate })}
           />
           <span className="unit">a second</span>
-          <span className="x">Sentences</span>
+        </Row>
+        <Row label="Sentences" title="The NMEA sentences the position goes to the iPhone in">
           <Segmented
             label="Sentences"
             className="compact"
@@ -270,14 +301,20 @@ export function GpsPage({ state, settings }: { state: AppState; settings: Settin
             onChange={(nmea) => save({ 'gps.nmea': nmea })}
           />
         </Row>
-        <Group title="Car" note={now?.going} />
+        {now && <Row label="iPhone">{now.iphone}</Row>}
+        {/* Where the car is, apart from the car itself, whose own settings grow. */}
+        <Group title="Position" />
         <Row
-          label="Position"
+          label="Coordinates"
           title="Where the car is now, following it as it drives; change it to move the car there, or paste a map link"
         >
           <PositionFields settings={settings} car={state.gps} heading={heading} />
         </Row>
-        <Row label="Heading" htmlFor={`${ids}-heading`} title="Which way the car faces now: 0° is north, 90° east; change it to turn the car">
+        <Row
+          label="Heading"
+          htmlFor={`${ids}-heading`}
+          title="Which way the car faces now: 0° is north, 90° east; change it to turn the car"
+        >
           <HeadingField settings={settings} shown={heading} id={`${ids}-heading`} />
           <Compass heading={Number(heading) || 0} />
         </Row>
@@ -289,35 +326,30 @@ export function GpsPage({ state, settings }: { state: AppState; settings: Settin
             options={CITIES.map((city) => [city.code, city.code, `${city.name}: ${city.road}`])}
             onChange={(code) => {
               const city = CITIES.find((each) => each.code === code)
-              if (city) void save({ 'gps.start': `${city.latitude}, ${city.longitude}`, 'gps.heading': String(city.heading) })
+              if (city)
+                void save({ 'gps.start': `${city.latitude}, ${city.longitude}`, 'gps.heading': String(city.heading) })
             }}
           />
         </Row>
-        <Row title="The car's power and mass, which set how it pulls and how fast it goes">
-          {/* Each named before it and its unit after it, as the position's fields */}
-          <span className="x">Power</span>
+        {check(
+          'gps.resume',
+          'Start where the car last stopped',
+          'Where the car last came to a stop, or where ChairPlay closed, rather than where the fields last put it',
+          true,
+        )}
+        <Group title="Car" note={now?.going} />
+        <Row label="Power and mass" title="The car's power and mass, which set how it pulls and how fast it goes">
           {field('gps.car.power.hp', 'Power', '150')}
           <span className="unit">hp</span>
-          <span className="x">Mass</span>
           {field('gps.car.mass.kg', 'Mass', '1300')}
           <span className="unit">kg</span>
         </Row>
-        <Row>
-          <span title="Where the car last came to a stop, or where ChairPlay closed, rather than where the fields last put it">
-            <Checkbox
-              label="Start where the car last stopped"
-              checked={value('gps.resume') !== 'false'}
-              onChange={(checked) => save({ 'gps.resume': String(checked) })}
-            />
-          </span>
-          <span title="The speedometer and tachometer, while the car is driven and for five seconds after it stops">
-            <Checkbox
-              label="Show gauges on the AltScreen"
-              checked={value('gps.gauges') !== 'false'}
-              onChange={(checked) => save({ 'gps.gauges': String(checked) })}
-            />
-          </span>
-        </Row>
+        {check(
+          'gps.gauges',
+          'Show gauges on the AltScreen',
+          'The speedometer and tachometer, while the car is driven and for five seconds after it stops',
+          true,
+        )}
       </div>
     </>
   )

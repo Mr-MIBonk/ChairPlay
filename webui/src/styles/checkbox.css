@@ -1,0 +1,46 @@
+/* Checkboxes */
+
+/* Checkboxes */
+.shell .chk {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.shell .chk input {
+  appearance: none;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin: 0;
+  border: 1px solid var(--edge);
+  border-radius: 2px;
+  background: var(--field);
+  cursor: default;
+}
+
+.shell .chk input:not(:disabled):hover {
+  border-color: #5a5a62;
+}
+
+.shell .chk input:checked {
+  border-color: var(--accent);
+  background: var(--accent);
+}
+
+.shell .chk input:checked::after {
+  content: '';
+  width: 8px;
+  height: 4px;
+  border-left: 2px solid #fff;
+  border-bottom: 2px solid #fff;
+  transform: rotate(-45deg) translate(1px, -1px);
+}
+
+.shell .chk:has(input:disabled) {
+  opacity: 0.45;
+}

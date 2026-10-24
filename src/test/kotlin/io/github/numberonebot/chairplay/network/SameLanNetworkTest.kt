@@ -7,6 +7,7 @@ import java.net.InetAddress
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -50,12 +51,7 @@ class SameLanNetworkTest {
 
     @Test
     fun `no wlan connection throws`() {
-        try {
-            hotspotInfoFor(emptyList(), listOf(wifiNic), saved)
-            fail("expected an exception")
-        } catch (e: IllegalStateException) {
-            assertTrue(e.message, e.message!!.contains("not connected to Wi-Fi"))
-        }
+        assertThrows(IllegalStateException::class.java) { hotspotInfoFor(emptyList(), listOf(wifiNic), saved) }
     }
 
     @Test

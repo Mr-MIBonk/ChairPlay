@@ -53,7 +53,13 @@ export function ControlsIcon() {
           <path d="M8 5.6V8.8" stroke="#000" strokeWidth="1.3" strokeLinecap="round" />
         </mask>
       </defs>
-      <path d="M2.7 13.4A6.9 6.9 0 1 1 13.3 13.4" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" />
+      <path
+        d="M2.7 13.4A6.9 6.9 0 1 1 13.3 13.4"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinecap="round"
+      />
       <circle cx="8" cy="9" r="4.6" fill="currentColor" mask={`url(#${mask})`} />
     </svg>
   )
@@ -91,7 +97,12 @@ export function DisconnectIcon() {
 export function WifiIcon() {
   return (
     <svg viewBox="0 0 14 14" aria-hidden="true">
-      <path d="M1.5 5.5a8 8 0 0 1 11 0M3.5 7.8a5 5 0 0 1 7 0M5.5 10a2 2 0 0 1 3 0" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path
+        d="M1.5 5.5a8 8 0 0 1 11 0M3.5 7.8a5 5 0 0 1 7 0M5.5 10a2 2 0 0 1 3 0"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+      />
     </svg>
   )
 }
@@ -140,7 +151,13 @@ export function AudioIcon() {
 export function GpsIcon() {
   return (
     <svg viewBox="0 0 14 14" aria-hidden="true">
-      <path d="M7 1.6L11.6 12.2L7 9.6L2.4 12.2Z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+      <path
+        d="M7 1.6L11.6 12.2L7 9.6L2.4 12.2Z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
@@ -174,7 +191,12 @@ export function AboutIcon() {
 export function EyeIcon() {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true">
-      <path d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path
+        d="M1.5 8s2.4-4.5 6.5-4.5S14.5 8 14.5 8 12.1 12.5 8 12.5 1.5 8 1.5 8z"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+      />
       <circle cx="8" cy="8" r="2" fill="currentColor" />
     </svg>
   )

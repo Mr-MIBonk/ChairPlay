@@ -1,5 +1,5 @@
 /**
- * Colours the page with ui.accent: every shade of the accent in styles.css is made from --accent, so setting it on
+ * Colours the page with ui.accent: every shade of the accent in the stylesheets (styles/base.css) is made from --accent, so setting it on
  * the root recolours both pages. Anything but #rrggbb leaves the stylesheet's own colour.
  */
 export function applyAccent(accent: string | undefined) {

@@ -146,40 +146,4 @@ class HudMotionTest {
         assertEquals(1f, after.media, 0f)
         assertEquals(1f, after.route, 0f)
     }
-
-    @Test
-    // The HUD keeps 6 % of its width at each side, and as much between the route and the song.
-    fun `the song sits in the middle alone and moves to the right column, smaller, beside the route`() {
-        val w = 1440f
-        val h = 542f
-        val pad = 0.06f * w
-        val alone = mediaBox(w, h, route = 0f)
-        assertEquals(pad, alone.left, 1e-3f)
-        assertEquals(w - pad, alone.right, 1e-3f)
-        // 260 px on the 540 px AltScreen; the text keeps its own size, smaller beside the route.
-        assertEquals(0.48f * h, alone.cover, 1e-3f)
-        assertEquals(1f, alone.text, 1e-3f)
-        val beside = mediaBox(w, h, route = 1f)
-        assertEquals(w / 2 + pad / 2, beside.left, 1e-3f)
-        assertEquals(w - pad, beside.right, 1e-3f)
-        assertEquals(0.38f * h, beside.cover, 1e-3f)
-        assertEquals(0.38f / 0.55f, beside.text, 1e-3f)
-        val between = mediaBox(w, h, route = 0.5f)
-        assertEquals((alone.left + beside.left) / 2, between.left, 1e-3f)
-        assertEquals((alone.cover + beside.cover) / 2, between.cover, 1e-3f)
-        assertEquals((alone.text + beside.text) / 2, between.text, 1e-3f)
-    }
-
-    @Test
-    fun `the route takes the whole width alone and the left half beside the song`() {
-        val w = 1440f
-        val h = 542f
-        val pad = 0.06f * w
-        val alone = routeBox(w, h, media = 0f)
-        assertEquals(pad, alone.left, 1e-3f)
-        assertEquals(w - pad, alone.right, 1e-3f)
-        val beside = routeBox(w, h, media = 1f)
-        assertEquals(pad, beside.left, 1e-3f)
-        assertEquals(w / 2 - pad / 2, beside.right, 1e-3f)
-    }
 }

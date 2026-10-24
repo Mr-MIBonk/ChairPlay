@@ -71,12 +71,18 @@ export function AudioPage({ state, backend, settings }: { state: AppState; backe
         {field('audio.start.silence.ms', 'Buffering pause', '2000')}
         <span className="unit">ms</span>
       </Row>
-      <Row label="Fade" title="How long the music takes to rise after the pause, and to fade out as CarPlay disconnects or ChairPlay closes">
+      <Row
+        label="Fade"
+        title="How long the music takes to rise after the pause, and to fade out as CarPlay disconnects or ChairPlay closes"
+      >
         {field('audio.start.fade.ms', 'Fade', '800')}
         <span className="unit">ms</span>
       </Row>
       <Group title="Navigation prompts" note="From the next prompt" />
-      <Row label="Music at" title="How loud the music stays under a prompt: -14 dB, Apple's own, is a fifth of its volume">
+      <Row
+        label="Music at"
+        title="How loud the music stays under a prompt: -14 dB, Apple's own, is a fifth of its volume"
+      >
         <Slider
           label="Music at"
           min={-30}

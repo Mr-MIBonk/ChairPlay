@@ -13,11 +13,35 @@ const MODES: { content: AltscreenContent; label: string }[] = [
 
 /** Key names as Windows writes them: controls.properties says Escape, Equal and KP_Add for Esc, = and Num +. */
 const KEY_LABELS: Record<string, string> = {
-  escape: 'Esc', equal: '=', minus: '−', kp_add: 'Num +', kp_subtract: 'Num −', kp_enter: 'Num Enter',
-  kp_multiply: 'Num *', kp_divide: 'Num /', kp_decimal: 'Num .', pageup: 'Page Up', pagedown: 'Page Down',
-  backspace: 'Backspace', capslock: 'Caps Lock', printscreen: 'Print Screen', ctrl: 'Ctrl', shift: 'Shift', alt: 'Alt',
-  scrolllock: 'Scroll Lock', numlock: 'Num Lock', leftbracket: '[', rightbracket: ']', backslash: '\\', semicolon: ';',
-  apostrophe: "'", comma: ',', period: '.', slash: '/', graveaccent: '`', kp_equal: 'Num =',
+  escape: 'Esc',
+  equal: '=',
+  minus: '−',
+  kp_add: 'Num +',
+  kp_subtract: 'Num −',
+  kp_enter: 'Num Enter',
+  kp_multiply: 'Num *',
+  kp_divide: 'Num /',
+  kp_decimal: 'Num .',
+  pageup: 'Page Up',
+  pagedown: 'Page Down',
+  backspace: 'Backspace',
+  capslock: 'Caps Lock',
+  printscreen: 'Print Screen',
+  ctrl: 'Ctrl',
+  shift: 'Shift',
+  alt: 'Alt',
+  scrolllock: 'Scroll Lock',
+  numlock: 'Num Lock',
+  leftbracket: '[',
+  rightbracket: ']',
+  backslash: '\\',
+  semicolon: ';',
+  apostrophe: "'",
+  comma: ',',
+  period: '.',
+  slash: '/',
+  graveaccent: '`',
+  kp_equal: 'Num =',
 }
 
 export function keyLabel(name: string): string {
@@ -43,16 +67,18 @@ interface Shared {
  * A button that holds its control while the pointer holds it, as a key does: down on the press, up on the release,
  * wherever the pointer goes meanwhile. Its key shows while Alt is held.
  */
-function Key(props: Shared & {
-  action: string
-  label: string
-  icon: ReactNode
-  /** Shown under the icon; none for the media and volume keys, whose icons say it. */
-  text?: string
-  className?: string
-  disabled?: boolean
-  pressed?: boolean
-}) {
+function Key(
+  props: Shared & {
+    action: string
+    label: string
+    icon: ReactNode
+    /** Shown under the icon; none for the media and volume keys, whose icons say it. */
+    text?: string
+    className?: string
+    disabled?: boolean
+    pressed?: boolean
+  },
+) {
   const held = useRef(false)
   const [down, setDown] = useState(false)
   const key = props.keys[props.action]
@@ -144,10 +170,15 @@ export function ControlsScreen({ state, backend }: { state: AppState; backend: B
     }
   }, [])
 
-  const shared: Shared = { backend, keys: controls?.keys ?? {}, showKeys: Boolean(controls?.altHeld || altHere || state.controlsKeys) }
+  const shared: Shared = {
+    backend,
+    keys: controls?.keys ?? {},
+    showKeys: Boolean(controls?.altHeld || altHere || state.controlsKeys),
+  }
   const altscreen = controls?.altscreen ?? null
   // Only an AltScreen on screen has something to zoom and switch.
-  const altOn = altscreen !== null && state.windows.altscreen.available && state.windows.altscreen.visible && state.canShowCarPlay
+  const altOn =
+    altscreen !== null && state.windows.altscreen.available && state.windows.altscreen.visible && state.canShowCarPlay
   // Disabled, the modes show none chosen.
   const chosen = altOn ? altscreen : null
   const turn = (forward: boolean) => {
@@ -164,7 +195,12 @@ export function ControlsScreen({ state, backend }: { state: AppState; backend: B
           <Key {...shared} action="altscreen.zoom.in" label="Zoom in" icon={icons.zoomIn} disabled={!altOn} />
           <Key {...shared} action="altscreen.zoom.out" label="Zoom out" icon={icons.zoomOut} disabled={!altOn} />
         </div>
-        <div className="mode-group" role="radiogroup" aria-label="AltScreen content" title={modesKey ? `${keyLabel(modesKey)} steps through them` : undefined}>
+        <div
+          className="mode-group"
+          role="radiogroup"
+          aria-label="AltScreen content"
+          title={modesKey ? `${keyLabel(modesKey)} steps through them` : undefined}
+        >
           {MODES.map((mode) => (
             <button
               key={mode.content}
@@ -192,12 +228,23 @@ export function ControlsScreen({ state, backend }: { state: AppState; backend: B
         </div>
         <div className="key-row three">
           <Key {...shared} action="media.previous" label="Previous track" icon={icons.previous} />
-          <Key {...shared} action="media.playpause" label="Play or pause" icon={controls?.playing ? icons.pause : icons.play} />
+          <Key
+            {...shared}
+            action="media.playpause"
+            label="Play or pause"
+            icon={controls?.playing ? icons.pause : icons.play}
+          />
           <Key {...shared} action="media.next" label="Next track" icon={icons.next} />
         </div>
         <div className="key-row three">
           <Key {...shared} action="volume.down" label="Volume down" icon={icons.volumeDown} />
-          <Key {...shared} action="volume.mute" label="Mute" icon={icons.mute} pressed={controls?.volume.muted ?? false} />
+          <Key
+            {...shared}
+            action="volume.mute"
+            label="Mute"
+            icon={icons.mute}
+            pressed={controls?.volume.muted ?? false}
+          />
           <Key {...shared} action="volume.up" label="Volume up" icon={icons.volumeUp} />
         </div>
         <div className="key-row two">

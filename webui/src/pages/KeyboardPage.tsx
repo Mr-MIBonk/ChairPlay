@@ -8,41 +8,56 @@ import { bindingName, isModifier } from './keyNames'
 
 /** The actions by group, in the page's order: each setting, the name the page gives it, and its tooltip. */
 const GROUPS: [group: string, actions: [key: string, label: string, title?: string][]][] = [
-  ['Knob', [
-    ['key.knob.left', 'Left', 'Tilt the knob left to move the focus left'],
-    ['key.knob.right', 'Right', 'Tilt the knob right'],
-    ['key.knob.up', 'Up', 'Tilt the knob up'],
-    ['key.knob.down', 'Down', 'Tilt the knob down'],
-    ['key.knob.next', 'Turn forward', 'Turn the knob one step forward'],
-    ['key.knob.previous', 'Turn back', 'Turn the knob one step back'],
-    ['key.select', 'Select', 'Press the knob'],
-    ['key.back', 'Back'],
-  ]],
-  ['CarPlay', [
-    ['key.home', 'Home', 'CarPlay home screen'],
-    ['key.siri', 'Siri'],
-    ['key.media.previous', 'Previous track'],
-    ['key.media.playpause', 'Play or pause'],
-    ['key.media.next', 'Next track'],
-    ['key.call.answer', 'Answer call'],
-    ['key.call.end', 'End call'],
-  ]],
-  ['AltScreen', [
-    ['key.altscreen.content', 'Next content', 'HUD, map, map and turn card, turn card'],
-    ['key.altscreen.cards', 'Move cards', 'Auto, left, right, top'],
-    ['key.altscreen.zoom.in', 'Zoom in', 'Zoom the AltScreen map in'],
-    ['key.altscreen.zoom.out', 'Zoom out', 'Zoom the AltScreen map out'],
-  ]],
-  ['Volume', [
-    ['key.volume.up', 'Volume up', "ChairPlay's own volume; the Windows volume stays"],
-    ['key.volume.down', 'Volume down'],
-    ['key.volume.mute', 'Mute'],
-  ]],
-  ['App', [
-    ['key.reconnect', 'Reconnect', 'End the CarPlay session gracefully and connect again'],
-    ['key.screenshot', 'Screenshot', 'Save the CarPlay screen as a PNG file in the screenshots folder'],
-    ['key.drive', 'Drive mode', 'Drive the GPS car with the arrows instead of the knob, until pressed again'],
-  ]],
+  [
+    'Knob',
+    [
+      ['key.knob.left', 'Left', 'Tilt the knob left to move the focus left'],
+      ['key.knob.right', 'Right', 'Tilt the knob right'],
+      ['key.knob.up', 'Up', 'Tilt the knob up'],
+      ['key.knob.down', 'Down', 'Tilt the knob down'],
+      ['key.knob.next', 'Turn forward', 'Turn the knob one step forward'],
+      ['key.knob.previous', 'Turn back', 'Turn the knob one step back'],
+      ['key.select', 'Select', 'Press the knob'],
+      ['key.back', 'Back'],
+    ],
+  ],
+  [
+    'CarPlay',
+    [
+      ['key.home', 'Home', 'CarPlay home screen'],
+      ['key.siri', 'Siri'],
+      ['key.media.previous', 'Previous track'],
+      ['key.media.playpause', 'Play or pause'],
+      ['key.media.next', 'Next track'],
+      ['key.call.answer', 'Answer call'],
+      ['key.call.end', 'End call'],
+    ],
+  ],
+  [
+    'AltScreen',
+    [
+      ['key.altscreen.content', 'Next content', 'HUD, map, map and turn card, turn card'],
+      ['key.altscreen.cards', 'Move cards', 'Auto, left, right, top'],
+      ['key.altscreen.zoom.in', 'Zoom in', 'Zoom the AltScreen map in'],
+      ['key.altscreen.zoom.out', 'Zoom out', 'Zoom the AltScreen map out'],
+    ],
+  ],
+  [
+    'Volume',
+    [
+      ['key.volume.up', 'Volume up', "ChairPlay's own volume; the Windows volume stays"],
+      ['key.volume.down', 'Volume down'],
+      ['key.volume.mute', 'Mute'],
+    ],
+  ],
+  [
+    'App',
+    [
+      ['key.reconnect', 'Reconnect', 'End the CarPlay session gracefully and connect again'],
+      ['key.screenshot', 'Screenshot', 'Save the CarPlay screen as a PNG file in the screenshots folder'],
+      ['key.drive', 'Drive mode', 'Drive the GPS car with the arrows instead of the knob, until pressed again'],
+    ],
+  ],
 ]
 
 /** Why a fixed key stays where it is. */
@@ -110,15 +125,17 @@ export function KeyboardPage({ backend, settings }: { backend: Backend; settings
       const name = bindingName(event)
       if (!name) return setNotice("This key can't be used")
       const lower = name.toLowerCase()
-      const owner = Object.entries(data.actions).find(([key, action]) =>
-        key !== wait.action && action.fixed.some((fixed) => fixed.toLowerCase() === lower),
+      const owner = Object.entries(data.actions).find(
+        ([key, action]) => key !== wait.action && action.fixed.some((fixed) => fixed.toLowerCase() === lower),
       )
       if (owner) return setNotice(FIXED_REASON[lower])
       const keys = [...data.actions[wait.action].keys]
       if (wait.index === null) keys.push(name)
       else keys[wait.index] = name
       // A key the action has already is not a second one.
-      const unique = keys.filter((key, index) => keys.findIndex((other) => other.toLowerCase() === key.toLowerCase()) === index)
+      const unique = keys.filter(
+        (key, index) => keys.findIndex((other) => other.toLowerCase() === key.toLowerCase()) === index,
+      )
       stopWaiting()
       if (unique.join() !== data.actions[wait.action].keys.join()) void saveKeys(wait.action, unique)
     }
@@ -127,11 +144,19 @@ export function KeyboardPage({ backend, settings }: { backend: Backend; settings
   }, [wait, data])
 
   if (!loaded) return null
-  if (!data) return <Message tone="warn" head="No key bindings." text="This ChairPlay has no controls.properties to change." />
+  if (!data)
+    return <Message tone="warn" head="No key bindings." text="This ChairPlay has no controls.properties to change." />
 
   const value = (key: string) => data.settings[key] ?? ''
   const numberField = (key: string, label: string) => (
-    <Field label={label} className="n3" value={value(key)} placeholder="" error={errors[key]} onCommit={(text) => save({ [key]: text })} />
+    <Field
+      label={label}
+      className="n3"
+      value={value(key)}
+      placeholder=""
+      error={errors[key]}
+      onCommit={(text) => save({ [key]: text })}
+    />
   )
 
   function actionRow([key, label, title]: [string, string, string?]) {
@@ -169,7 +194,10 @@ export function KeyboardPage({ backend, settings }: { backend: Backend; settings
               }}
               onContextMenu={(event) => {
                 event.preventDefault()
-                void saveKeys(key, action.keys.filter((_, other) => other !== index))
+                void saveKeys(
+                  key,
+                  action.keys.filter((_, other) => other !== index),
+                )
               }}
             >
               {keyLabel(name)}
@@ -230,11 +258,18 @@ export function KeyboardPage({ backend, settings }: { backend: Backend; settings
           label="Wheel"
           className="compact"
           value={value('wheel.action')}
-          options={[['knob', 'Knob'], ['none', 'Off']]}
+          options={[
+            ['knob', 'Knob'],
+            ['none', 'Off'],
+          ]}
           onChange={(chosen) => void save({ 'wheel.action': chosen })}
         />
         <span className="gap" />
-        <Checkbox label="Invert" checked={value('wheel.invert') === 'true'} onChange={(checked) => void save({ 'wheel.invert': String(checked) })} />
+        <Checkbox
+          label="Invert"
+          checked={value('wheel.invert') === 'true'}
+          onChange={(checked) => void save({ 'wheel.invert': String(checked) })}
+        />
         {errors['wheel.action'] && <span className="errtext">{errors['wheel.action']}</span>}
       </Row>
       <Row label="Step" title="Wheel notches for one knob step">
@@ -242,10 +277,10 @@ export function KeyboardPage({ backend, settings }: { backend: Backend; settings
         <span className="unit">notches</span>
       </Row>
       <Group title="Held keys" />
-      <Row label="Repeat" title="A held key acts on every Nth repeat. The AltScreen zoom has its own setting.">
-        <span className="unit">every</span>
+      <Row label="Repeat every" title="A held key acts on every Nth repeat">
         {numberField('key.repeat.every', 'Repeat every')}
-        <span className="unit">· zoom</span>
+      </Row>
+      <Row label="Zoom repeat every" title="A held AltScreen zoom key acts on every Nth repeat">
         {numberField('key.zoom.repeat.every', 'Zoom repeat every')}
       </Row>
     </div>

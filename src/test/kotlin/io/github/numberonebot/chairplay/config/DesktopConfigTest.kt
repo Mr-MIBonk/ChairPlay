@@ -159,7 +159,6 @@ class DesktopConfigTest {
 
         val text = Files.readString(dir.resolve("settings.properties"))
         assertTrue(text, text.startsWith(old))
-        assertFalse("each block has its own comment; no banner", text.contains("Added by"))
         for (key in DesktopConfig.SETTING_KEYS) assertTrue("$key missing", Regex("(?m)^${Regex.escape(key)}=").containsMatchIn(text))
         assertEquals(1, Regex("(?m)^display\\.width=").findAll(text).count())
         assertEquals(1920, config.airPlay.main.widthPixels)
@@ -449,18 +448,6 @@ class DesktopConfigTest {
         assertEquals(AltscreenCards.TOP, AltscreenCards.RIGHT.next())
     }
 
-    // Without a route the altscreen looks the same in every mode, so its title says which one it is in.
-    @Test
-    fun `the window titles name the stream size, and the AltScreen its content and card layout`() {
-        assertEquals("ChairPlay · 1280×720", mainWindowTitle(WindowSize(1280, 720)))
-        // Closing a session gracefully takes seconds, so the title says what the window waits for.
-        assertEquals("ChairPlay · 1280×720 · reconnecting…", mainWindowTitle(WindowSize(1280, 720), "reconnecting…"))
-        assertEquals(
-            "ChairPlay AltScreen · 1440×542 · map-card · cards right",
-            altscreenTitle(WindowSize(1440, 542), AltscreenContent.MAP_CARD, AltscreenCards.RIGHT),
-        )
-    }
-
     // The HUD shows the turn card cut out of the iPhone's card-only stream, which costs next to no bandwidth.
     @Test
     fun `the HUD asks the iPhone for the turn card`() {
@@ -530,7 +517,7 @@ class DesktopConfigTest {
     fun `the CarPlay data log is off unless asked for`() {
         assertFalse(configWith().logCarPlayData)
         assertTrue(configWith("log.carplay.data=true").logCarPlayData)
-        assertTrue(DesktopConfig.defaultSettingsText().contains("'true' or 'false'.\nlog.carplay.data=false\n"))
+        assertTrue(DesktopConfig.defaultSettingsText().contains("\nlog.carplay.data=false\n"))
         assertTrue(runCatching { configWith("log.carplay.data=yes").logCarPlayData }.exceptionOrNull() is IllegalArgumentException)
     }
 

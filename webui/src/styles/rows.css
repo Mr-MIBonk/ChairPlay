@@ -1,0 +1,191 @@
+/* A settings page: its groups and rows, labels, units, hints, and the page's buttons */
+
+/* The scrollbar always there, its track empty while nothing scrolls, so the page keeps its width as it grows */
+.shell .page {
+  position: relative;
+  padding: 12px 18px 10px;
+  overflow-y: scroll;
+}
+
+/* In a larger window the page keeps to the middle; the label column (100cqw) grows with it */
+.shell .page-inner {
+  container-type: inline-size;
+  max-width: 824px;
+  margin: 0 auto;
+}
+
+/*
+ * A held page (the connection reads it while it is made, or the AltScreen is off): inert keeps the pointer and the keys
+ * out, and each control on it looks as one turned off on its own does, no dimmer, its label as it was.
+ */
+.shell .held .seg {
+  opacity: 0.45;
+  background: var(--bg);
+}
+
+.shell .held .seg button.on {
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.shell .held .seg button.on::before,
+.shell .held .seg button.on + button::before {
+  display: block;
+}
+
+.shell .held .btn,
+.shell .held .chk {
+  opacity: 0.45;
+}
+
+.shell .held input.t,
+.shell .held select {
+  border-color: var(--line);
+  background: var(--bg);
+  color: var(--dim);
+}
+
+.shell .held input.t::placeholder {
+  color: var(--line);
+}
+
+/* Property grid: groups under a header, rows of a label and its controls */
+.shell .grp {
+  display: flex;
+  gap: 8px;
+  margin: 0 0 4px;
+  padding: 16px 0 6px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  color: var(--muted);
+  font: 600 11px/15px var(--wide);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  /* Heavier than the font's one weight: its strokes thickened with an outline of their own colour */
+  -webkit-text-stroke: 0.35px currentColor;
+}
+
+.shell .grp:first-child {
+  padding-top: 0;
+}
+
+.shell .grp span {
+  margin-left: auto;
+  color: var(--dim);
+  font: 400 11px/15px var(--ui);
+  letter-spacing: 0;
+  text-transform: none;
+  -webkit-text-stroke: 0;
+}
+
+.shell .row {
+  display: grid;
+  grid-template-columns: var(--label-width) minmax(0, 1fr);
+  align-items: center;
+  min-height: 34px;
+}
+
+/*
+ * A group of choices in several rows (.seg.rows) is taller than the row's 34 px: it keeps the 4 px above and below that
+ * a one-line group of 26 px gets, so the gaps between the page's rows stay even.
+ */
+.shell .row:has(.seg.rows) {
+  padding-block: 4px;
+}
+
+/*
+ * A hint under the rows it is about: twice the usual 13 px or so between a control and the text below it, which the
+ * row above leaves 4 to 5 px of; the usual 9 px under it
+ */
+.shell .row.hint-row {
+  align-items: start;
+  min-height: 0;
+  padding: 18px 0 9px;
+}
+
+.shell .row > label {
+  padding-right: 14px;
+  color: var(--muted);
+  text-align: right;
+  white-space: nowrap;
+}
+
+.shell .ctl {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* A unit or an inline name is one piece: it never breaks onto a second line beside its field */
+.shell .x,
+.shell .unit {
+  color: var(--dim);
+  white-space: nowrap;
+  flex: none;
+}
+
+.shell .hint {
+  color: var(--dim);
+  font-size: 12px;
+}
+
+.shell .errtext {
+  color: var(--red);
+  font-size: 12px;
+}
+
+.shell .mono {
+  color: #c9c9cf;
+  font:
+    12px Consolas,
+    monospace;
+}
+
+.shell a {
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.shell .exp {
+  padding: 0 4px;
+  border: 1px solid rgba(255, 159, 10, 0.5);
+  border-radius: 2px;
+  color: var(--orange);
+  font-size: 11px;
+  line-height: 16px;
+}
+
+/* A setting that applies only after a restart or the next connection */
+.shell .later {
+  color: var(--orange);
+  font-size: 14px;
+  line-height: 1;
+  cursor: help;
+}
+
+/* Buttons on a page as tall as a field and with its corners; the toolbar's keep their own */
+.shell .page .btn {
+  height: 24px;
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+.shell .btn.small {
+  padding: 0 9px;
+}
+
+.shell .btn.actual,
+.shell .btn.forget {
+  margin-left: 8px;
+}
+
+.shell .btn.show-frame {
+  margin-left: 14px;
+}
+
+.shell .btn .shield {
+  width: 12px;
+  height: 14px;
+}

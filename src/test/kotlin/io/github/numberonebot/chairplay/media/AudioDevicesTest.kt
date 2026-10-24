@@ -36,6 +36,6 @@ class AudioDevicesTest {
 
         val several = runCatching { matchDevice("audio.output", "(", outputs) }.exceptionOrNull()
         assertTrue(several is IllegalArgumentException)
-        assertTrue(several!!.message!!, "several" in several.message!!)
+        assertTrue(several!!.message!!, "audio.output" in several.message!!)
     }
 }

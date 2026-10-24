@@ -1,0 +1,31 @@
+/* The chosen choice, and disabled choices, lists and fields */
+
+.shell .seg button.on {
+  z-index: 1;
+  background: var(--accent);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.shell .seg button:not(.on):not(:disabled):hover {
+  background: rgba(255, 255, 255, 0.07);
+  color: var(--text);
+}
+
+/* A control that does nothing now goes black, as the page under it */
+.shell .seg:has(button:disabled) {
+  opacity: 0.45;
+  background: var(--bg);
+}
+
+.shell input.t:disabled,
+.shell select:disabled {
+  border-color: var(--line);
+  background: var(--bg);
+  color: var(--dim);
+  cursor: default;
+}
+
+.shell input.t:disabled::placeholder {
+  color: var(--line);
+}

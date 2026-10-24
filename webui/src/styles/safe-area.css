@@ -1,0 +1,30 @@
+/* The safe area's four fields round a frame */
+
+/* Safe-area cross: four numbers round a little frame */
+.shell .safe-row {
+  padding-top: 4px;
+}
+
+.shell .safe {
+  display: grid;
+  grid-template-columns: 50px 80px 50px;
+  grid-template-rows: 24px 26px 24px;
+  align-items: center;
+  justify-items: center;
+  gap: 2px 6px;
+}
+
+.shell .safe .frame {
+  width: 80px;
+  height: 26px;
+  border: 1px dashed var(--edge);
+  border-radius: 2px;
+}
+
+/* Top and bottom centred; the side numbers sit against the frame: left one to the right, right one to the left */
+.shell .safe input.c {
+  text-align: center;
+}
+.shell .safe input.l {
+  text-align: left;
+}

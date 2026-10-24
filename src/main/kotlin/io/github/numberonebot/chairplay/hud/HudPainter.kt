@@ -114,7 +114,7 @@ class HudPainter(
         val w = width.toFloat()
         // No clock, signal or battery: the CarPlay screen always shows them.
         // In the app's display face, as the main window's waiting screen says where the connection stands.
-        emerging(shown.waiting, w / 2, h / 2) { centred("Waiting for iPhone", w / 2, h / 2, 0.07f * h, GREY, WIDE) }
+        emerging(shown.waiting, w / 2, h / 2) { centred(HUD_WAITING, w / 2, h / 2, 0.07f * h, GREY, WIDE) }
         shownManeuver?.let { navigation(it, shownArrival, routeBox(w, h, shown.routePlace), routeBox(w, h, 0f), h, shown.route) }
         shownMedia?.let { media(it, now, mediaBox(w, h, shown.mediaPlace), h, shown.media) }
         shownCall?.let { callCard(it, w, h, shown.call) }
@@ -502,3 +502,6 @@ class HudPainter(
         )
     }
 }
+
+/** What the HUD says while no iPhone is connected, in the main window's words. */
+internal const val HUD_WAITING = "Waiting for the iPhone"

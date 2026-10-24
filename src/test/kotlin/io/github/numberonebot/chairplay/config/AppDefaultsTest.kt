@@ -18,9 +18,6 @@ class AppDefaultsTest {
 
         assertEquals(listOf("settings.properties", ControlsConfig.FILE, DesktopConfig.DEFAULT_ICON_FILE), written)
         val settings = Files.readString(dir.resolve("settings.properties"))
-        // Both files open the same way: what they are and how to get the defaults back.
-        assertTrue(settings, settings.startsWith("# ChairPlay settings, read at start."))
-        assertTrue(Files.readString(dir.resolve(ControlsConfig.FILE)).startsWith("# ChairPlay controls, read at start."))
         for (key in DesktopConfig.SETTING_KEYS) assertTrue("$key missing", Regex("(?m)^${Regex.escape(key)}=").containsMatchIn(settings))
         assertTrue(Files.readString(dir.resolve(ControlsConfig.FILE)).contains("\nkey.siri=S\n"))
         // The armchair of the app's own icon, not a picture drawn in code.

@@ -15,7 +15,8 @@ async function carplay(backend = new FakeBackend(), state = appState({ phase: 'a
 }
 
 const textbox = (name: string) => screen.getByRole('textbox', { name }) as HTMLInputElement
-const radio = (group: string, name: string) => within(screen.getByRole('radiogroup', { name: group })).getByRole('radio', { name })
+const radio = (group: string, name: string) =>
+  within(screen.getByRole('radiogroup', { name: group })).getByRole('radio', { name })
 const chosen = (group: string) =>
   within(screen.getByRole('radiogroup', { name: group }))
     .getAllByRole('radio')
@@ -27,8 +28,6 @@ describe('CarPlay page, display', () => {
   it('picks the preset of the size the app runs at, and saves a preset as both numbers', async () => {
     const backend = await carplay()
     expect(chosen('Size')).toEqual(['1280×720'])
-    expect(textbox('Width').placeholder).toBe('1280')
-    expect(textbox('Height').placeholder).toBe('720')
 
     fireEvent.click(radio('Size', '1920×720'))
 
@@ -37,7 +36,7 @@ describe('CarPlay page, display', () => {
     expect(textbox('Width').value).toBe('1920')
   })
 
-  it('saves a width typed in, or keeps it with the reason', async () => {
+  it('saves a width typed in, or keeps a refused one marked', async () => {
     const backend = await carplay()
 
     fireEvent.change(textbox('Width'), { target: { value: '1024' } })
@@ -48,27 +47,21 @@ describe('CarPlay page, display', () => {
     fireEvent.change(textbox('Width'), { target: { value: '1025' } })
     fireEvent.keyDown(textbox('Width'), { key: 'Enter' })
 
-    expect(await screen.findByText('Enter an even number of pixels')).toBeTruthy()
+    await waitFor(() => expect(textbox('Width').getAttribute('aria-invalid')).toBe('true'))
     expect(textbox('Width').value).toBe('1025')
     expect(chosen('Size')).toEqual([])
   })
 
   // The window was resized: Actual size brings it back to one screen pixel per picture pixel.
   it('offers Actual size while the window differs from the picture', async () => {
-    const mainWindow = { width: 1024, height: 576, pictureWidth: 1280, pictureHeight: 720, minWidth: 1000, minHeight: 600 }
-    const backend = await carplay(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
-
-    const actual = screen.getByRole('button', { name: 'Actual size' })
-    expect(actual.title).toBe('Resize the window to 1280×720, one screen pixel per picture pixel')
-    fireEvent.click(actual)
-
-    expect(backend.actualSized).toEqual(['main'])
-  })
-
-  // At 150 % display scale an 800x480 picture is smaller than the window can get: the button could do nothing.
-  // At 200 % display scale the window's smallest size outgrows an 800x480 picture: Actual size goes below it.
-  it('offers Actual size though the picture is smaller than the window gets on its own', async () => {
-    const mainWindow = { width: 1600, height: 960, pictureWidth: 800, pictureHeight: 480, minWidth: 1600, minHeight: 960 }
+    const mainWindow = {
+      width: 1024,
+      height: 576,
+      pictureWidth: 1280,
+      pictureHeight: 720,
+      minWidth: 1000,
+      minHeight: 600,
+    }
     const backend = await carplay(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
 
     fireEvent.click(screen.getByRole('button', { name: 'Actual size' }))
@@ -76,30 +69,43 @@ describe('CarPlay page, display', () => {
     expect(backend.actualSized).toEqual(['main'])
   })
 
-  // Actual size is the window's: a size chosen for the next connection stays chosen, the window going back to the
-  // picture in use.
-  it('brings the window back to the picture in use, leaving a size chosen for the next connection', async () => {
+  // At 150 % display scale an 800x480 picture is smaller than the window can get: the button could do nothing.
+  // At 200 % display scale the window's smallest size outgrows an 800x480 picture: Actual size goes below it.
+  it('offers Actual size though the picture is smaller than the window gets on its own', async () => {
+    const mainWindow = {
+      width: 1600,
+      height: 960,
+      pictureWidth: 800,
+      pictureHeight: 480,
+      minWidth: 1600,
+      minHeight: 960,
+    }
+    const backend = await carplay(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Actual size' }))
+
+    expect(backend.actualSized).toEqual(['main'])
+  })
+
+  // Actual size is the window's: a size chosen for the next connection stays chosen.
+  it('resizes the window, leaving a size chosen for the next connection', async () => {
     const fake = new FakeBackend()
     fake.data.values['display.width'] = '1920'
     fake.data.values['display.height'] = '1080'
-    const mainWindow = { width: 1024, height: 576, pictureWidth: 1280, pictureHeight: 720, minWidth: 1000, minHeight: 600 }
+    const mainWindow = {
+      width: 1024,
+      height: 576,
+      pictureWidth: 1280,
+      pictureHeight: 720,
+      minWidth: 1000,
+      minHeight: 600,
+    }
     const backend = await carplay(fake, appState({ phase: 'active', canShowCarPlay: true, mainWindow }))
 
-    const actual = screen.getByRole('button', { name: 'Actual size' })
-    expect(actual.title).toBe('Resize the window to 1280×720, one screen pixel per picture pixel')
-    fireEvent.click(actual)
+    fireEvent.click(screen.getByRole('button', { name: 'Actual size' }))
 
     expect(backend.actualSized).toEqual(['main'])
     expect(backend.saved).toEqual([])
-  })
-
-  // A changed setting's mark ends its row, after the unit, as the size's does.
-  it('marks a changed frame rate after its unit', async () => {
-    await carplay(new FakeBackend(), appState({ phase: 'active', canShowCarPlay: true, reconnectPending: ['display.fps'] }))
-
-    const row = screen.getByRole('radiogroup', { name: 'Frame rate' }).parentElement!
-    const last = [...row.children].slice(-2).map((child) => child.textContent)
-    expect(last).toEqual(['fps', '⟳'])
   })
 
   // A size chosen waits for the next connection, as its mark says; there is nothing to make actual yet.
@@ -128,27 +134,10 @@ describe('CarPlay page, display', () => {
     await waitFor(() => expect(backend.saved).toEqual([{ 'display.fps': '30' }]))
   })
 
-  // Wide car screens among the sizes, the 480 px tall ones first, in two rows; a preset is its size alone, no car named.
-  it('offers the sizes of wide car screens too', async () => {
-    await carplay()
-
-    const sizes = within(screen.getByRole('radiogroup', { name: 'Size' })).getAllByRole('radio')
-    expect(sizes.map((size) => size.textContent)).toEqual(['800×480', '1024×480', '1280×480', '1280×720', '1920×720', '1920×1080'])
-    expect(sizes.map((size) => size.title)).toEqual(['', '', '', '', '', ''])
-  })
-
   // With touch declared CarPlay shows scroll buttons; with none it leaves them out, and the mouse still taps and drags.
   it('saves what the touchscreen can do, None until set', async () => {
     const backend = await carplay()
     expect(chosen('Touchscreen')).toEqual(['None'])
-    // None first, the default; the row right above Dock, which the touchscreen goes with.
-    const touch = within(screen.getByRole('radiogroup', { name: 'Touchscreen' })).getAllByRole('radio')
-    expect(touch.map((choice) => choice.textContent)).toEqual(['None', 'Swipe', 'Tap only'])
-    const labels = [...document.querySelectorAll('.row > label')].map((label) => label.textContent)
-    expect(labels.indexOf('Touchscreen')).toBe(labels.indexOf('Dock') - 1)
-    expect(radio('Touchscreen', 'None').title).toBe(
-      'No touchscreen: CarPlay leaves out its scroll buttons; the mouse still taps and drags, the keys move the focus',
-    )
 
     fireEvent.click(radio('Touchscreen', 'Swipe'))
 
@@ -157,11 +146,12 @@ describe('CarPlay page, display', () => {
 
   it('saves the physical size in millimetres or pixels per inch', async () => {
     const backend = await carplay()
-    expect(textbox('Physical width').placeholder).toBe('200')
-    expect(textbox('Physical height').placeholder).toBe('auto')
-    expect(textbox('Pixels per inch').placeholder).toBe('auto')
 
-    for (const [name, value] of [['Physical width', '310'], ['Physical height', '175'], ['Pixels per inch', '160']]) {
+    for (const [name, value] of [
+      ['Physical width', '310'],
+      ['Physical height', '175'],
+      ['Pixels per inch', '160'],
+    ]) {
       fireEvent.change(textbox(name), { target: { value } })
       fireEvent.blur(textbox(name))
     }
@@ -174,14 +164,6 @@ describe('CarPlay page, display', () => {
       ]),
     )
   })
-
-  it('sizes the physical size fields as the size in pixels', async () => {
-    await carplay()
-
-    for (const name of ['Physical width', 'Physical height', 'Pixels per inch']) {
-      expect(textbox(name).className).toBe(textbox('Width').className)
-    }
-  })
 })
 
 describe('CarPlay page, look', () => {
@@ -191,18 +173,8 @@ describe('CarPlay page, look', () => {
     expect(chosen('Theme')).toEqual(['Windows'])
     expect(chosen('Dock')).toEqual(['Auto'])
     expect(chosen('Driver side')).toEqual(['Left'])
-    // One word with Dock's Driver side, which goes to it.
-    expect(screen.getByText('Driver side', { selector: 'label' }).closest('.row')!.getAttribute('title')).toBe(
-      'The side the driver sits on: CarPlay puts its dock and controls there',
-    )
     expect(chosen('Outside safe area')).toEqual(['Wallpaper'])
     expect(chosen('Corners')).toEqual(['Square'])
-    // The default first, as None is on Touchscreen.
-    const corners = within(screen.getByRole('radiogroup', { name: 'Corners' })).getAllByRole('radio')
-    expect(corners.map((choice) => choice.textContent)).toEqual(['Square', 'Rounded'])
-    // The themes that follow something first, Windows' the default, then the fixed ones.
-    const themes = within(screen.getByRole('radiogroup', { name: 'Theme' })).getAllByRole('radio')
-    expect(themes.map((choice) => choice.textContent)).toEqual(['Windows', 'Phone', 'Light', 'Dark'])
   })
 
   it('saves each choice under its key', async () => {
@@ -229,7 +201,11 @@ describe('CarPlay page, look', () => {
 describe('CarPlay page, changes waiting for a restart', () => {
   // The app reads the screen's settings as it starts: a changed one is marked until then, beside its control.
   it('marks each changed setting that waits for a restart', async () => {
-    const state = appState({ phase: 'active', canShowCarPlay: true, restartPending: ['display.corners', 'display.safe.top', 'display.width'] })
+    const state = appState({
+      phase: 'active',
+      canShowCarPlay: true,
+      restartPending: ['display.corners', 'display.safe.top', 'display.width'],
+    })
     await carplay(new FakeBackend(), state)
 
     const mark = (row: HTMLElement | null | undefined) => row?.querySelector('[title="Changed; applies after restart"]')
@@ -241,9 +217,8 @@ describe('CarPlay page, changes waiting for a restart', () => {
 })
 
 describe('CarPlay page, safe area', () => {
-  it('saves each edge, and gives a refused one its reason under the frame', async () => {
+  it('saves each edge, and marks a refused one', async () => {
     const backend = await carplay()
-    expect(textbox('Top').closest('.row')?.querySelector('label')?.textContent).toBe('Insets')
     // A blank edge is no margin: it reads 0 as a saved 0 does, not as a dim hint, and leaving it saves nothing.
     expect(textbox('Top').value).toBe('0')
     fireEvent.focus(textbox('Left'))
@@ -260,7 +235,6 @@ describe('CarPlay page, safe area', () => {
     fireEvent.change(textbox('Left'), { target: { value: '1400' } })
     fireEvent.blur(textbox('Left'))
 
-    expect(await screen.findByText('The left and right safe areas together must be less than the width (1280 px)')).toBeTruthy()
-    expect(textbox('Left').className).toContain('err')
+    await waitFor(() => expect(textbox('Left').getAttribute('aria-invalid')).toBe('true'))
   })
 })

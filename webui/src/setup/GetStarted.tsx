@@ -10,7 +10,14 @@ import type { Steps, StepState } from './steps'
 function Tick() {
   return (
     <svg viewBox="0 0 12 12" aria-hidden="true">
-      <path d="M2.5 6.3l2.4 2.4 4.6-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d="M2.5 6.3l2.4 2.4 4.6-5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
@@ -72,8 +79,8 @@ export function GetStarted(props: {
           {setup.firewall === 'blocked' ? (
             <>
               <span>
-                A rule in Windows Defender Firewall blocks ChairPlay, so the iPhone cannot reach it. Delete the rule, or set it
-                to Allow, then come back.
+                A rule in Windows Defender Firewall blocks ChairPlay, so the iPhone cannot reach it. Delete the rule, or
+                set it to Allow, then come back.
               </span>
               <div className="acts">
                 <button
@@ -90,7 +97,9 @@ export function GetStarted(props: {
             </>
           ) : (
             <>
-              <span>Windows Firewall is on and has no rule for ChairPlay, so it may drop the iPhone's connections.</span>
+              <span>
+                Windows Firewall is on and has no rule for ChairPlay, so it may drop the iPhone's connections.
+              </span>
               <AddRule backend={backend} />
               <div className="acts">
                 <CodeLine text={setup.firewallCommands}>
@@ -102,9 +111,16 @@ export function GetStarted(props: {
         </Step>
       )}
       <Step n={2 + n} title="Pair the iPhone" {...steps.pair}>
-        <span>Turn on Bluetooth on the iPhone, then pair it with this PC in Settings › Bluetooth &amp; devices › Add device.</span>
+        <span>
+          Turn on Bluetooth on the iPhone, then pair it with this PC in Settings › Bluetooth &amp; devices › Add device.
+        </span>
         <div className="acts">
-          <button type="button" className="btn" title="Open Bluetooth settings" onClick={() => backend.open('bluetooth')}>
+          <button
+            type="button"
+            className="btn"
+            title="Open Bluetooth settings"
+            onClick={() => backend.open('bluetooth')}
+          >
             Open Bluetooth settings
           </button>
           <Waiting>Waiting for a paired iPhone…</Waiting>
@@ -112,11 +128,18 @@ export function GetStarted(props: {
       </Step>
       <Step n={3 + n} title="Wi-Fi network" {...steps.wifi}>
         {problem?.kind === 'failed' ? (
-          <span className="errtext">The iPhone didn’t join “{problem.ssid}”. Check the password and save it again.</span>
+          <span className="errtext">
+            The iPhone didn’t join “{problem.ssid}”. Check the password and save it again.
+          </span>
         ) : problem?.kind === 'other-network' ? (
-          <span className="errtext">This PC is on “{problem.pcWifi}”. The iPhone has to join the network this PC is on.</span>
+          <span className="errtext">
+            This PC is on “{problem.pcWifi}”. The iPhone has to join the network this PC is on.
+          </span>
         ) : (
-          <span>The network this PC and the iPhone share; the iPhone joins it for CarPlay. It starts with the network this PC is on.</span>
+          <span>
+            The network this PC and the iPhone share; the iPhone joins it for CarPlay. It starts with the network this
+            PC is on.
+          </span>
         )}
         <Row label="Network">
           <Field

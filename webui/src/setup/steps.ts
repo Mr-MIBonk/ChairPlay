@@ -32,7 +32,8 @@ export interface Steps {
 export function setupSteps(state: AppState, joinFailureSeen: string | null): Steps {
   const { setup, wifi, error } = state
   const firewallDone = setup.firewall !== 'missing' && setup.firewall !== 'blocked'
-  const failed = error !== null && state.phase !== 'active' && errorKind(error.message) === 'join' && error.at !== joinFailureSeen
+  const failed =
+    error !== null && state.phase !== 'active' && errorKind(error.message) === 'join' && error.at !== joinFailureSeen
   const passwordNeeded = wifi.security !== 'NONE' && !wifi.passphraseSet
   const otherNetwork = wifi.ssid !== '' && setup.pcWifi !== null && setup.pcWifi !== wifi.ssid
   const wifiDone = wifi.ssid !== '' && !passwordNeeded && !otherNetwork && !failed
@@ -40,7 +41,11 @@ export function setupSteps(state: AppState, joinFailureSeen: string | null): Ste
   const open = done.indexOf(false)
   const stateOf = (index: number): StepState => (done[index] ? 'done' : index === open ? 'now' : 'todo')
   const firewallNote = {
-    present: 'Rule added', unknown: 'Not checked', missing: 'Rule missing', blocked: 'Blocked by a rule', off: 'Firewall off',
+    present: 'Rule added',
+    unknown: 'Not checked',
+    missing: 'Rule missing',
+    blocked: 'Blocked by a rule',
+    off: 'Firewall off',
   }[setup.firewall]
   const wifiNote = wifiDone
     ? wifi.ssid

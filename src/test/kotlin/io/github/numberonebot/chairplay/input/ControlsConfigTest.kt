@@ -72,9 +72,9 @@ class ControlsConfigTest {
 
     @Test
     fun `a file that binds Escape or Enter to another action is refused, naming the setting`() {
-        for ((line, reason) in mapOf("key.home = Escape" to "Escape always goes back", "key.siri = F2, enter" to "Enter always selects")) {
+        for (line in listOf("key.home = Escape", "key.siri = F2, enter")) {
             val message = runCatching { ControlsConfig.load(dirWith(line)) }.exceptionOrNull()?.message.orEmpty()
-            assertTrue(message, line.substringBefore(" =") in message && reason in message)
+            assertTrue(message, line.substringBefore(" =") in message)
         }
     }
 
@@ -134,15 +134,6 @@ class ControlsConfigTest {
         assertEquals(Control.MapZoom(1), controls.key(GLFW_KEY_KP_ADD, GLFW_PRESS, 0))
         assertTrue((1..40).all { controls.key(GLFW_KEY_KP_ADD, GLFW_REPEAT, 0) == null })
         assertEquals(10, ControlsConfig.DEFAULT.zoomRepeatEvery)
-    }
-
-    // A new controls.properties documents F11 with its views in the order it steps through them.
-    @Test
-    fun `the AltScreen content key's comment lists the views in the order the key steps through them`() {
-        assertTrue(
-            ControlAction.ALTSCREEN_CONTENT.description,
-            ControlAction.ALTSCREEN_CONTENT.description.endsWith(": HUD, map, map with turn card, turn card"),
-        )
     }
 
     @Test

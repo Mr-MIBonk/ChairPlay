@@ -14,7 +14,12 @@ export const SECURITY_CHOICES: readonly Choice[] = [
 ]
 
 /** What is wrong, if anything; then the Wi-Fi the iPhone joins, and how the iPhone is called and shown. */
-export function ConnectionPage(props: { state: AppState; backend: Backend; settings: Settings; onShowGuide?: () => void }) {
+export function ConnectionPage(props: {
+  state: AppState
+  backend: Backend
+  settings: Settings
+  onShowGuide?: () => void
+}) {
   const { state, backend, settings } = props
   const { value, error, save } = settings
   const commit = (key: string) => (text: string) => save({ [key]: text })
@@ -22,7 +27,14 @@ export function ConnectionPage(props: { state: AppState; backend: Backend; setti
   const pending = pendingOf(state)
   const later = (key: string) => <Changed keys={[key]} pending={pending} />
   const field = (key: string, label: string, placeholder: string, className = 'w200') => (
-    <Field label={label} className={className} value={value(key)} placeholder={placeholder} error={error(key)} onCommit={commit(key)} />
+    <Field
+      label={label}
+      className={className}
+      value={value(key)}
+      placeholder={placeholder}
+      error={error(key)}
+      onCommit={commit(key)}
+    />
   )
   return (
     <>
@@ -69,7 +81,10 @@ export function ConnectionPage(props: { state: AppState; backend: Backend; setti
           <span className="hint">None</span>
         </Row>
       )}
-      <Row label="Name on iPhone" title="The name the iPhone shows for this car in CarPlay settings and in its Wi-Fi list">
+      <Row
+        label="Name on iPhone"
+        title="The name the iPhone shows for this car in CarPlay settings and in its Wi-Fi list"
+      >
         {field('device.name', 'Name on iPhone', 'ChairPlay')}
         {later('device.name')}
       </Row>
@@ -77,7 +92,10 @@ export function ConnectionPage(props: { state: AppState; backend: Backend; setti
         {field('iphone.address', 'Bluetooth address', 'Any paired iPhone')}
         {later('iphone.address')}
       </Row>
-      <Row label="Time to join Wi-Fi" title="How long a known iPhone has to join the Wi-Fi before ChairPlay tries again">
+      <Row
+        label="Time to join Wi-Fi"
+        title="How long a known iPhone has to join the Wi-Fi before ChairPlay tries again"
+      >
         {field('iphone.join.seconds', 'Time to join Wi-Fi', '30', 'n')}
         <span className="unit">s</span>
         {later('iphone.join.seconds')}
@@ -100,7 +118,12 @@ export function ConnectionPage(props: { state: AppState; backend: Backend; setti
       </Row>
       {props.onShowGuide && (
         <Row label="Get started">
-          <button type="button" className="btn small" title="Go through the setup steps again" onClick={props.onShowGuide}>
+          <button
+            type="button"
+            className="btn small"
+            title="Go through the setup steps again"
+            onClick={props.onShowGuide}
+          >
             Show again
           </button>
         </Row>

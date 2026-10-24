@@ -1,0 +1,128 @@
+/* The fonts, the colour and size tokens, and the page itself */
+
+/*
+ * Dark like the HUD (HudPainter.kt): black ground, its blue, green, orange, and red. Text is in Windows' own Segoe UI,
+ * the accents in the HUD's wide Roboto Flex, from the same file.
+ */
+@font-face {
+  font-family: 'Roboto Flex Wide';
+  font-weight: 600;
+  font-display: block;
+  src: url('@fonts/RobotoFlexWide-SemiBold.ttf') format('truetype');
+}
+
+:root {
+  --bg: #000;
+  --text: #fff;
+  --muted: #9a9aa0;
+  /*
+   * The accent, ui.accent in settings.properties, which the page sets here (accent.ts); every lighter, darker, or
+   * fainter shade of it is made from it, on both pages.
+   */
+  --accent: #0a84ff;
+  --accent-light: color-mix(in srgb, var(--accent), white 20%);
+  --accent-dark: color-mix(in srgb, var(--accent), black 12%);
+  --green: #30d158;
+  --orange: #ff9f0a;
+  --red: #ff453a;
+  --wide: 'Roboto Flex Wide', 'Segoe UI', sans-serif;
+  color-scheme: dark;
+  font:
+    13px/18px 'Segoe UI Variable Text',
+    'Segoe UI',
+    sans-serif;
+  color: var(--text);
+  background: var(--bg);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  background: var(--bg);
+}
+
+/*
+ * The scrollbar always there, its track empty while nothing scrolls: a classic scrollbar takes width in WebView2, so
+ * one that came and went would shift the page sideways as its content grew past the window.
+ */
+html {
+  overflow-y: scroll;
+}
+
+/*
+ * Thin and barely there: a dark grey thumb on no track, and no arrow buttons, which Chromium draws on Windows even for
+ * scrollbar-width: thin, and even on a track with nothing to scroll. These pseudo-elements are what hides them; they
+ * are ignored on an element that sets scrollbar-width or scrollbar-color, so neither is set.
+ */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-button {
+  display: none;
+}
+
+::-webkit-scrollbar-track,
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  border: 2px solid transparent;
+  border-radius: 4px;
+  background: #38383c padding-box;
+}
+
+/* The controls window's page fits its window and never scrolls. */
+html:has(.controls-screen) {
+  overflow-y: hidden;
+}
+
+/*
+ * Text stays put on a touch screen: no accidental selection while tapping. The pointer stays an arrow over text, as
+ * over a Windows dialog's; only a field to type in shows the text cursor.
+ */
+body {
+  user-select: none;
+  cursor: default;
+}
+
+input:not([type='checkbox']):not([type='radio']):not([type='range']),
+textarea {
+  cursor: text;
+}
+
+input,
+select,
+textarea,
+pre,
+code {
+  user-select: text;
+}
+
+/* What the page says before the app's state is in, or without the key in its address */
+.app-message {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  margin: 0;
+  color: var(--muted);
+}
+
+/* Lost contact with the app: a strip over the window's bottom edge until it answers again */
+.lost {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2;
+  padding: 6px 12px;
+  background: #3a2a10;
+  color: var(--orange);
+}

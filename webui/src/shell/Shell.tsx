@@ -111,8 +111,12 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
           </nav>
           <div className="page" role="tabpanel" id={`${ids}-page`} aria-labelledby={`${ids}-tab-${section}`}>
             <div className="page-inner">
-              {settings.loadError && <Message tone="bad" head="Couldn't read the settings." text={settings.loadError} />}
-              {settings.data && section === 'connection' && <ConnectionPage state={state} backend={backend} settings={settings} onShowGuide={showGuide} />}
+              {settings.loadError && (
+                <Message tone="bad" head="Couldn't read the settings." text={settings.loadError} />
+              )}
+              {settings.data && section === 'connection' && (
+                <ConnectionPage state={state} backend={backend} settings={settings} onShowGuide={showGuide} />
+              )}
               {/* Only around the pages it may hold: before any other, it would take its first group's place. */}
               {settings.data && (section === 'carplay' || section === 'altscreen') && (
                 <div className={held ? 'held' : undefined} inert={held}>
@@ -121,9 +125,13 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
                 </div>
               )}
               {settings.data && section === 'keyboard' && <KeyboardPage backend={backend} settings={settings} />}
-              {settings.data && section === 'audio' && <AudioPage state={state} backend={backend} settings={settings} />}
+              {settings.data && section === 'audio' && (
+                <AudioPage state={state} backend={backend} settings={settings} />
+              )}
               {settings.data && section === 'gps' && <GpsPage state={state} settings={settings} />}
-              {settings.data && section === 'experiments' && <ExperimentsPage state={state} backend={backend} settings={settings} />}
+              {settings.data && section === 'experiments' && (
+                <ExperimentsPage state={state} backend={backend} settings={settings} />
+              )}
               {section === 'about' && <AboutPage state={state} backend={backend} onShowGuide={showGuide} />}
             </div>
           </div>

@@ -14,7 +14,13 @@ export function Group({ title, note }: { title: string; note?: string }) {
 }
 
 /** One line of the property grid: the label right-aligned in its column, the controls beside it. */
-export function Row(props: { label?: string; htmlFor?: string; title?: string; className?: string; children: ReactNode }) {
+export function Row(props: {
+  label?: string
+  htmlFor?: string
+  title?: string
+  className?: string
+  children: ReactNode
+}) {
   return (
     <div className={`row ${props.className ?? ''}`} title={props.title}>
       <label htmlFor={props.htmlFor}>{props.label}</label>
@@ -263,7 +269,12 @@ export function Slider(props: {
   )
 }
 
-export function Checkbox(props: { label: string; checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }) {
+export function Checkbox(props: {
+  label: string
+  checked: boolean
+  onChange: (checked: boolean) => void
+  disabled?: boolean
+}) {
   return (
     <label className="chk">
       <input

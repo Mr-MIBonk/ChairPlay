@@ -18,9 +18,22 @@ export type AltscreenContent = 'hud' | 'map' | 'map-card' | 'card'
 export type DemoKind = 'maneuvers' | 'lanes'
 
 export type WindowsPlace =
-  | 'bluetooth' | 'wifi' | 'firewall' | 'firewall-rules' | 'mfi-folder'
-  | 'issues' | 'discussions' | 'pull-requests' | 'author' | 'source' | 'releases' | 'notices' | 'diplay' | 'rgi'
-  | 'logs' | 'screenshots'
+  | 'bluetooth'
+  | 'wifi'
+  | 'firewall'
+  | 'firewall-rules'
+  | 'mfi-folder'
+  | 'issues'
+  | 'discussions'
+  | 'pull-requests'
+  | 'author'
+  | 'source'
+  | 'releases'
+  | 'notices'
+  | 'diplay'
+  | 'rgi'
+  | 'logs'
+  | 'screenshots'
 
 /** What the controls window shows beside its buttons (UiControls in Main.kt). */
 export interface ControlsState {
@@ -164,9 +177,7 @@ export interface ControlsData {
   settings: Record<string, string>
 }
 
-export type SaveOutcome =
-  | { ok: true; applies: Record<string, Applies> }
-  | { ok: false; errors: Record<string, string> }
+export type SaveOutcome = { ok: true; applies: Record<string, Applies> } | { ok: false; errors: Record<string, string> }
 
 /** What the screens need from the app; tests pass a fake. */
 export interface Backend {

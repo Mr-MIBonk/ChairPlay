@@ -1,0 +1,40 @@
+/* The About page */
+
+/* About: the app's icon, then its name over what it is, on the property grid */
+.shell .about-head {
+  display: grid;
+  grid-template-columns: var(--label-width) minmax(0, 1fr);
+  align-items: center;
+  /* Clear of the page's top, as a group's header is by its own padding */
+  margin-top: 12px;
+  padding: 2px 0 4px;
+}
+
+.shell .about-head img {
+  grid-row: 1 / 3;
+  justify-self: end;
+  width: 44px;
+  height: 44px;
+  margin-right: 14px;
+}
+
+.shell .about-head .hint {
+  line-height: 16px;
+}
+
+.shell .about-name {
+  color: #fff;
+  font: 600 20px/26px var(--wide);
+}
+
+.shell .about .ctl {
+  display: block;
+}
+
+.shell .trademarks {
+  margin-top: 8px;
+}
+
+.shell .copy-details {
+  margin-left: 10px;
+}

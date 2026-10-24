@@ -1,0 +1,179 @@
+/* Groups of choices: their widths, rows, the view areas and the city presets */
+
+/*
+ * Segmented groups: one rounded frame on the fields' ground; the chosen item a lit plate inside it, the others with
+ * short separators between them that stop short of the frame and drop away beside the plate
+ */
+.shell .seg {
+  --choice: 80px;
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--edge);
+  border-radius: 2px;
+  background: var(--ground);
+}
+
+/* Plates line up from row to row: 80 px on a narrow page, 90 px on a wider one (see .seg.wide below) */
+.shell .seg button {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--choice);
+  height: 20px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 1px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: default;
+}
+
+.shell .seg.compact button {
+  min-width: 56px;
+}
+
+/*
+ * Where the page is narrow, an ordinary plate is 80 px, so that four and the frame are as long as a row's controls
+ * (--row-width, 326 px), and every group of four choices or more is that long, a group of five squeezed into it.
+ * Where the row beside the labels holds four 90 px plates, every plate is 90 px and those groups are four plates long;
+ * where it holds five or six, such a group gets them all. Beside a label column of 118 + (page - 450) / 4 the row has
+ * 0.75 page - 5.5 px: four plates and the frame (366 px) need a page of 496 px, five (456 px) 616 px, six (546 px)
+ * 736 px.
+ */
+.shell .seg.wide {
+  box-sizing: border-box;
+  width: var(--row-width);
+}
+
+@container (min-width: 496px) {
+  .shell .seg {
+    --choice: 90px;
+  }
+
+  .shell .seg.wide {
+    width: calc(4 * var(--choice) + 6px);
+  }
+}
+
+@container (min-width: 616px) {
+  .shell .seg.wide[data-items='5'] {
+    width: calc(5 * var(--choice) + 6px);
+  }
+}
+
+@container (min-width: 736px) {
+  .shell .seg.wide[data-items='6'] {
+    width: calc(6 * var(--choice) + 6px);
+  }
+}
+
+.shell .seg.wide button {
+  flex: 1 1 0;
+  min-width: auto;
+  padding: 0 6px;
+}
+
+/* Short figures: the group as long as a size's two fields (.t.short), its × (.x.times) and the gaps (.ctl) */
+.shell .seg.half {
+  box-sizing: border-box;
+  width: calc(2 * 44px + 9px + 2 * 6px);
+}
+
+.shell .seg.half button {
+  flex: 1 1 0;
+  min-width: auto;
+  padding: 0 6px;
+}
+
+.shell .seg button + button::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 5px;
+  bottom: 5px;
+  width: 1px;
+  background: var(--edge);
+}
+
+.shell .seg button.on::before,
+.shell .seg button.on + button::before {
+  display: none;
+}
+
+/*
+ * Six choices or more: two rows of ordinary plates, half of them in each (--columns, set by the group), as long as a
+ * group of as many plates as a row holds, three for six; the second row starts without a separator.
+ */
+.shell .seg.rows {
+  box-sizing: border-box;
+  display: inline-grid;
+  grid-template-columns: repeat(var(--columns), minmax(0, 1fr));
+  row-gap: 2px;
+  width: calc(var(--columns) * var(--choice) + 6px);
+}
+
+.shell .seg.rows button {
+  min-width: 0;
+}
+
+/* The AltScreen's view areas: three plates a row, each with its part of an 8:3 frame before its name */
+/* As long as a group of four, as Content above it, at every width of the page */
+.shell .seg.view-areas {
+  width: var(--row-width);
+}
+
+@container (min-width: 496px) {
+  .shell .seg.view-areas {
+    width: calc(4 * var(--choice) + 6px);
+  }
+}
+
+/* The GPS page's city presets: two rows of five, as long as a group of four, as the view areas are */
+.shell .seg.cities {
+  width: var(--row-width);
+}
+
+@container (min-width: 496px) {
+  .shell .seg.cities {
+    width: calc(4 * var(--choice) + 6px);
+  }
+}
+
+/* The picture at the left, the name centred in the rest */
+.shell .seg.view-areas button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 6px;
+  justify-items: center;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+/* An empty frame cut into its parts, the one shown filled */
+.shell .area-icon {
+  flex: none;
+  width: 24px;
+  height: 9px;
+}
+
+.shell .area-icon .frame,
+.shell .area-icon line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+.shell .area-icon .part {
+  fill: currentColor;
+  opacity: 0.75;
+}
+
+.shell .seg.rows[data-items='6'] button:nth-child(4)::before,
+.shell .seg.rows[data-items='7'] button:nth-child(5)::before,
+.shell .seg.rows[data-items='8'] button:nth-child(5)::before,
+.shell .seg.view-areas button:nth-child(3n + 1)::before,
+.shell .seg.cities button:nth-child(5n + 1)::before {
+  display: none;
+}

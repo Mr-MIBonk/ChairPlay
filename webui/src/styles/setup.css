@@ -1,0 +1,183 @@
+/* Get started: its steps and the waiting spinner */
+
+/*
+ * Get started: the main window before the first connection. One column of steps the app checks on its own; a step
+ * done folds to its line with a tick, the open one shows what to do.
+ */
+.shell .body.setup-body {
+  display: block;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.shell .setup {
+  position: relative;
+  min-height: 100%;
+  padding: 14px 24px 34px;
+}
+
+.shell .setup h2 {
+  margin: 0;
+  color: #fff;
+  font: 600 18px/24px var(--wide);
+}
+
+.shell .setup .sub {
+  margin: 2px 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.shell .step {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr);
+  align-items: center;
+  column-gap: 12px;
+  padding: 7px 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.07);
+}
+
+.shell .step .mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--edge);
+  border-radius: 50%;
+  color: var(--muted);
+  font: 600 13px var(--wide);
+}
+
+.shell .step .mark svg {
+  width: 13px;
+  height: 13px;
+}
+
+.shell .step.done .mark {
+  border-color: transparent;
+  background: rgba(48, 209, 88, 0.18);
+  color: var(--green);
+}
+
+.shell .step.now .mark {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+}
+
+/* You're all set: its tick filled green */
+.shell .step.all-set .mark {
+  background: var(--green);
+  color: #000;
+}
+
+/* A step's title heads it, in the accent font as the settings' group headers are; its note stays in Segoe UI */
+.shell .step .st {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 20px;
+  color: var(--text);
+  font: 600 13px var(--wide);
+}
+
+.shell .step.todo .st {
+  color: var(--dim);
+}
+
+.shell .step .st .note {
+  margin-left: auto;
+  color: var(--muted);
+  font: 400 12px var(--ui);
+}
+
+.shell .step.done .st .note {
+  color: var(--green);
+}
+
+.shell .step .bd {
+  grid-column: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 6px;
+  color: var(--muted);
+}
+
+.shell .step .acts {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shell .step .acts .code {
+  flex: 1;
+  min-width: 0;
+}
+
+.shell .step .btn {
+  height: 24px;
+  border-radius: 2px;
+  font-size: 12px;
+}
+
+/* Fields in a step: a narrow label column against the step's own text, not the settings' wide one */
+.shell .step .row {
+  grid-template-columns: 72px minmax(0, 1fr);
+  min-height: 30px;
+}
+
+.shell .step .row > label {
+  padding-right: 0;
+  text-align: left;
+}
+
+/* A button named in a step's text: only whiter than the text round it; the button itself is lit in the toolbar */
+.shell .step .ref {
+  color: #fff;
+}
+
+/* Waiting for something the app checks by itself: a ring that turns */
+.shell .waiting {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.shell .waiting::before {
+  content: '';
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--edge);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: shell-turn 1.2s linear infinite;
+}
+
+@keyframes shell-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.shell .setup .skip {
+  position: absolute;
+  right: 24px;
+  bottom: 12px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--muted);
+  font-size: 12px;
+  text-decoration: underline;
+  text-decoration-color: rgba(255, 255, 255, 0.3);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.shell .setup .skip:hover {
+  color: var(--text);
+}

@@ -1,7 +1,17 @@
 // Fakes for the tests: an app state and a backend that records what the screens ask for.
 import type {
-  AltscreenContent, AppState, Backend, ControlsData, DemoKind, KeyPhase, PictureWindow, SaveOutcome, Screen, SettingsData,
-  WindowName, WindowsPlace,
+  AltscreenContent,
+  AppState,
+  Backend,
+  ControlsData,
+  DemoKind,
+  KeyPhase,
+  PictureWindow,
+  SaveOutcome,
+  Screen,
+  SettingsData,
+  WindowName,
+  WindowsPlace,
 } from './api'
 
 export function appState(overrides: Partial<AppState> = {}): AppState {
@@ -33,11 +43,30 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     },
     controls: {
       keys: {
-        'knob.left': 'Left', 'knob.right': 'Right', 'knob.up': 'Up', 'knob.down': 'Down', 'knob.next': 'Tab',
-        'knob.previous': 'Shift+Tab', select: 'Enter', back: 'Escape', home: 'Home', siri: 'S',
-        'media.previous': 'F7', 'media.playpause': 'F8', 'media.next': 'F9', 'call.answer': 'F3', 'call.end': 'F4',
-        reconnect: 'Ctrl+R', screenshot: 'F12', 'altscreen.content': 'F11', 'altscreen.zoom.in': 'Equal',
-        'altscreen.zoom.out': 'Minus', 'altscreen.cards': 'Shift+F11', 'volume.up': 'Ctrl+Up', 'volume.down': 'Ctrl+Down', 'volume.mute': 'Ctrl+M',
+        'knob.left': 'Left',
+        'knob.right': 'Right',
+        'knob.up': 'Up',
+        'knob.down': 'Down',
+        'knob.next': 'Tab',
+        'knob.previous': 'Shift+Tab',
+        select: 'Enter',
+        back: 'Escape',
+        home: 'Home',
+        siri: 'S',
+        'media.previous': 'F7',
+        'media.playpause': 'F8',
+        'media.next': 'F9',
+        'call.answer': 'F3',
+        'call.end': 'F4',
+        reconnect: 'Ctrl+R',
+        screenshot: 'F12',
+        'altscreen.content': 'F11',
+        'altscreen.zoom.in': 'Equal',
+        'altscreen.zoom.out': 'Minus',
+        'altscreen.cards': 'Shift+F11',
+        'volume.up': 'Ctrl+Up',
+        'volume.down': 'Ctrl+Down',
+        'volume.mute': 'Ctrl+M',
         drive: 'F10',
       },
       volume: { level: 60, muted: false },
@@ -65,14 +94,31 @@ export function withKeys(state: AppState, keys: Record<string, string | null>): 
 
 /** ControlAction's settings and default keys, in its order. */
 const DEFAULT_KEYS: [string, string[]][] = [
-  ['key.knob.left', ['Left']], ['key.knob.right', ['Right']], ['key.knob.up', ['Up']], ['key.knob.down', ['Down']],
-  ['key.knob.next', ['Tab']], ['key.knob.previous', ['Shift+Tab']], ['key.select', ['Enter', 'KP_Enter', 'Space']],
-  ['key.back', ['Escape', 'Backspace']], ['key.home', ['Home']], ['key.media.previous', ['F7']],
-  ['key.media.playpause', ['F8']], ['key.media.next', ['F9']], ['key.call.answer', ['F3']], ['key.call.end', ['F4']],
-  ['key.siri', ['S']], ['key.reconnect', ['Ctrl+R']], ['key.screenshot', ['F12']], ['key.altscreen.content', ['F11']],
-  ['key.altscreen.zoom.in', ['Equal', 'Shift+Equal', 'KP_Add']], ['key.altscreen.zoom.out', ['Minus', 'KP_Subtract']],
-  ['key.altscreen.cards', ['Shift+F11']], ['key.volume.up', ['Ctrl+Up']], ['key.volume.down', ['Ctrl+Down']],
-  ['key.volume.mute', ['Ctrl+M']], ['key.drive', ['F10']],
+  ['key.knob.left', ['Left']],
+  ['key.knob.right', ['Right']],
+  ['key.knob.up', ['Up']],
+  ['key.knob.down', ['Down']],
+  ['key.knob.next', ['Tab']],
+  ['key.knob.previous', ['Shift+Tab']],
+  ['key.select', ['Enter', 'KP_Enter', 'Space']],
+  ['key.back', ['Escape', 'Backspace']],
+  ['key.home', ['Home']],
+  ['key.media.previous', ['F7']],
+  ['key.media.playpause', ['F8']],
+  ['key.media.next', ['F9']],
+  ['key.call.answer', ['F3']],
+  ['key.call.end', ['F4']],
+  ['key.siri', ['S']],
+  ['key.reconnect', ['Ctrl+R']],
+  ['key.screenshot', ['F12']],
+  ['key.altscreen.content', ['F11']],
+  ['key.altscreen.zoom.in', ['Equal', 'Shift+Equal', 'KP_Add']],
+  ['key.altscreen.zoom.out', ['Minus', 'KP_Subtract']],
+  ['key.altscreen.cards', ['Shift+F11']],
+  ['key.volume.up', ['Ctrl+Up']],
+  ['key.volume.down', ['Ctrl+Down']],
+  ['key.volume.mute', ['Ctrl+M']],
+  ['key.drive', ['F10']],
 ]
 
 /** The bindings as a fresh controls.properties has them. */
@@ -81,11 +127,18 @@ export function controlsData(): ControlsData {
     actions: Object.fromEntries(
       DEFAULT_KEYS.map(([key, keys]) => [
         key,
-        { keys: [...keys], defaults: [...keys], fixed: key === 'key.back' ? ['Escape'] : key === 'key.select' ? ['Enter'] : [] },
+        {
+          keys: [...keys],
+          defaults: [...keys],
+          fixed: key === 'key.back' ? ['Escape'] : key === 'key.select' ? ['Enter'] : [],
+        },
       ]),
     ),
     settings: {
-      'wheel.action': 'knob', 'wheel.invert': 'false', 'wheel.notches.per.step': '1', 'key.repeat.every': '3',
+      'wheel.action': 'knob',
+      'wheel.invert': 'false',
+      'wheel.notches.per.step': '1',
+      'key.repeat.every': '3',
       'key.zoom.repeat.every': '10',
     },
   }
@@ -271,7 +324,10 @@ export class FakeBackend implements Backend {
         data.settings[key] = value
         continue
       }
-      const keys = value.split(',').map((name) => name.trim()).filter(Boolean)
+      const keys = value
+        .split(',')
+        .map((name) => name.trim())
+        .filter(Boolean)
       data.actions[key].keys = keys
       for (const [other, action] of Object.entries(data.actions)) {
         if (other === key || !action.keys.some((name) => keys.includes(name))) continue

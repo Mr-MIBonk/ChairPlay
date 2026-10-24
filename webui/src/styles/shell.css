@@ -1,0 +1,97 @@
+/* The settings window: its frame and the waiting screen */
+
+/*
+ * The settings shell (shell/), as desktop-docs/mockups/desktop-ui.html draws it: a toolbar over a section list and the
+ * chosen page, dense for a mouse and fitting 800x480. Text in Windows' own Segoe UI; the accents (toolbar buttons,
+ * group headers, message heads) in the HUD's wide Roboto Flex. The page scrolls on its own, so its scrollbar runs
+ * from the toolbar to the window's bottom edge, and the window itself never does.
+ */
+html:has(.shell) {
+  overflow: hidden;
+}
+
+.shell {
+  --panel: #111113;
+  --raised: #1c1c1f;
+  --bar: #212125;
+  --field: #08080a;
+  /* A light ground in the fields and under the segmented groups, so they read as places to type and choose */
+  --ground: #121214;
+  --line: #2a2a2e;
+  --edge: #3a3a3f;
+  --text: #e9e9eb;
+  --muted: #8b8b92;
+  --dim: #5c5c63;
+  --accent-bg: color-mix(in srgb, var(--accent) 18%, transparent);
+  /* Hover lightens a control's own colours with a thin white layer, so a button on an amber message stays amber */
+  --lighten: linear-gradient(rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.09));
+  --ui: 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
+  display: grid;
+  /* The window's width decides how the toolbar fits (its narrow form below) */
+  container: shell / inline-size;
+  /* As wide as the window whatever the page needs: only the page scrolls, in either direction */
+  grid-template-columns: minmax(0, 1fr);
+  /* The toolbar as tall as its buttons and padding: 58 px, 48 px in a narrow window */
+  grid-template-rows: auto minmax(0, 1fr);
+  height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/18px var(--ui);
+}
+
+.shell button {
+  color: inherit;
+  font: inherit;
+}
+
+/*
+ * Through black, in step with the window's own fade (Fade.kt, 150 ms each half): going away the page dims at once,
+ * faster than the window, so it is black well before the window hides it and the frame the web view keeps hidden is
+ * black too (one a little behind showed for a moment as the page came back); coming back it waits while the picture
+ * dims, then comes up as the window shows it.
+ */
+.shell {
+  transition: opacity 150ms ease 150ms;
+}
+
+.shell.away {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 100ms ease;
+}
+
+/* Waiting for the connection the app makes on its own: black, as CarPlay's picture will be, the icon over the status */
+.shell.waiting {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 0 16px;
+  background: #000;
+  text-align: center;
+}
+
+.shell.waiting img {
+  width: 64px;
+  height: 64px;
+}
+
+.shell.waiting p {
+  margin: 0;
+}
+
+/* The status in the app's display face, as the toolbar's buttons and the group headers are, large on the black */
+.shell.waiting .title {
+  color: #fff;
+  font: 600 22px/30px var(--wide);
+}
+
+.shell.waiting .detail {
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.shell.waiting .btn {
+  margin-top: 6px;
+}

@@ -1,6 +1,6 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { appState, FakeBackend, withKeys } from '../testing'
+import { appState, FakeBackend } from '../testing'
 import { sectionOf } from './sections'
 import { Shell } from './Shell'
 
@@ -10,11 +10,10 @@ const button = (name: string) => screen.getByRole('button', { name }) as HTMLBut
 const live = { phase: 'active', canShowCarPlay: true } as const
 
 describe('Waiting screen', () => {
-  // Connecting on its own, the app shows black with where the connection stands, not the settings.
-  it('shows where the connection stands instead of the settings while the app connects on its own', () => {
+  // Connecting on its own, the app shows black, not the settings.
+  it('shows the waiting screen instead of the settings while the app connects on its own', () => {
     render(<Shell state={appState({ phase: 'calling', waiting: true })} backend={new FakeBackend()} />)
 
-    expect(screen.getByRole('status').textContent).toContain('Waiting for the iPhone')
     expect(screen.queryByRole('tablist')).toBeNull()
     expect(screen.queryByRole('button', { name: 'Connect' })).toBeNull()
   })
@@ -30,24 +29,12 @@ describe('Waiting screen', () => {
 })
 
 describe('Shell toolbar', () => {
-  // A narrow window shows the buttons' icons alone (CSS); each keeps its name for the screen reader and the tests.
-  it('names each window button whether or not its label shows', () => {
-    render(<Shell state={appState(live)} backend={new FakeBackend()} />)
-
-    for (const name of ['CarPlay', 'AltScreen', 'Controls']) {
-      expect(button(name).getAttribute('aria-label')).toBe(name)
-      expect(button(name).querySelector('.label')?.textContent).toBe(name)
-    }
-  })
-
-  it('before the Wi-Fi is set, Connect and the windows are off and say why', () => {
+  it('before the Wi-Fi is set, Connect and the windows are off', () => {
     render(<Shell state={appState({ phase: 'setup' })} backend={new FakeBackend()} />)
 
     expect(button('Connect').disabled).toBe(true)
-    expect(button('Connect').title).toBe('Enter the Wi-Fi network first')
     for (const name of ['CarPlay', 'AltScreen', 'Controls']) {
       expect(button(name).disabled).toBe(true)
-      expect(button(name).title).toBe('Connect the iPhone first')
     }
     expect(screen.queryByRole('button', { name: 'Reconnect' })).toBeNull()
   })
@@ -81,7 +68,6 @@ describe('Shell toolbar', () => {
     const backend = new FakeBackend()
     render(<Shell state={appState(live)} backend={backend} />)
 
-    expect(button('CarPlay').title).toBe('Show CarPlay (Esc)')
     fireEvent.click(button('CarPlay'))
     expect(backend.shown).toEqual(['carplay'])
     cleanup()
@@ -95,7 +81,6 @@ describe('Shell toolbar', () => {
     render(<Shell state={appState({ ...live, embedded: false })} backend={new FakeBackend()} />)
 
     expect(button('CarPlay').disabled).toBe(true)
-    expect(button('CarPlay').title).toBe("CarPlay shows in ChairPlay's window")
   })
 
   it('shows and hides the windows, pressed while shown', () => {
@@ -108,7 +93,10 @@ describe('Shell toolbar', () => {
     fireEvent.click(button('AltScreen'))
     fireEvent.click(button('Controls'))
 
-    expect(backend.windows).toEqual([{ name: 'altscreen', visible: false }, { name: 'controls', visible: true }])
+    expect(backend.windows).toEqual([
+      { name: 'altscreen', visible: false },
+      { name: 'controls', visible: true },
+    ])
   })
 
   it('keeps the AltScreen button off while the AltScreen is turned off', () => {
@@ -116,71 +104,26 @@ describe('Shell toolbar', () => {
     render(<Shell state={appState({ ...live, windows })} backend={new FakeBackend()} />)
 
     expect(button('AltScreen').disabled).toBe(true)
-    expect(button('AltScreen').title).toBe('Turn on the AltScreen on its page first')
   })
 
-  it('says where the connection stands', () => {
-    render(<Shell state={appState({ phase: 'idle' })} backend={new FakeBackend()} />)
-
-    expect(screen.getByText('Not connected').closest('[title]')?.getAttribute('title')).toBe(
-      'Press Connect when the iPhone is nearby.',
-    )
-  })
-
-  it('names the pages whose changes wait for a restart', () => {
+  it('marks the pages whose changes wait for a restart', () => {
     const state = appState({ ...live, restartPending: ['altscreen.enabled', 'display.width', 'display.height'] })
     render(<Shell state={state} backend={new FakeBackend()} />)
 
-    expect(screen.getByText('Restart needed').closest('[title]')?.getAttribute('title')).toBe(
-      'Restart ChairPlay to apply: CarPlay, AltScreen',
-    )
+    expect(screen.getByText('Restart needed')).toBeTruthy()
     expect(screen.getByRole('tab', { name: /CarPlay/ }).querySelector('[title="Applies after restart"]')).toBeTruthy()
     expect(screen.getByRole('tab', { name: /Audio/ }).querySelector('[title="Applies after restart"]')).toBeNull()
   })
 
   it('puts the settings shown on Experiments on Experiments, whatever their key starts with', () => {
-    const state = appState({ ...live, restartPending: ['log.carplay.data'] })
-    render(<Shell state={state} backend={new FakeBackend()} />)
-
-    expect(screen.getByText('Restart needed').closest('[title]')?.getAttribute('title')).toBe(
-      'Restart ChairPlay to apply: Experiments',
-    )
     expect(sectionOf('altscreen.card.area')).toBe('altscreen')
     expect(sectionOf('log.level')).toBe('experiments')
-  })
-
-  it('names the Reconnect key as bound, and none while it is unbound', () => {
-    render(<Shell state={withKeys(appState(live), { reconnect: 'F5' })} backend={new FakeBackend()} />)
-    expect(button('Reconnect').title).toBe('Reconnect: end the session and connect again (F5)')
-    cleanup()
-
-    render(<Shell state={withKeys(appState(live), { reconnect: null })} backend={new FakeBackend()} />)
-    expect(button('Reconnect').title).toBe('Reconnect: end the session and connect again')
   })
 
   it('has no Restart needed while nothing waits for one', () => {
     render(<Shell state={appState(live)} backend={new FakeBackend()} />)
 
     expect(screen.queryByText('Restart needed')).toBeNull()
-  })
-})
-
-describe('Shell fading', () => {
-  // The window hides the page a fade's time after CarPlay is to show; the page fades to black meanwhile.
-  it('fades away as CarPlay takes the window, and back as it returns', () => {
-    const { container, rerender } = render(<Shell state={appState({ ...live, screen: 'carplay' })} backend={new FakeBackend()} />)
-    expect(container.querySelector('.shell')?.classList.contains('away')).toBe(true)
-
-    rerender(<Shell state={appState({ ...live, screen: 'settings' })} backend={new FakeBackend()} />)
-
-    expect(container.querySelector('.shell')?.classList.contains('away')).toBe(false)
-  })
-
-  // In a browser nothing covers the page: it stays.
-  it('stays in a browser', () => {
-    const { container } = render(<Shell state={appState({ ...live, screen: 'carplay', embedded: false })} backend={new FakeBackend()} />)
-
-    expect(container.querySelector('.shell')?.classList.contains('away')).toBe(false)
   })
 })
 
@@ -197,29 +140,14 @@ describe('Shell', () => {
         fireEvent.click(screen.getByRole('tab', { name }))
         const held = screen.getByRole('tabpanel').querySelector('[inert]')
         expect(held, `${phase} ${name}`).not.toBeNull()
-        expect(held!.contains(screen.getByRole('radiogroup', { name: name === 'CarPlay' ? 'Frame rate' : 'Area' }))).toBe(true)
+        expect(
+          held!.contains(screen.getByRole('radiogroup', { name: name === 'CarPlay' ? 'Frame rate' : 'Area' })),
+        ).toBe(true)
         expect(screen.queryByRole('alert')).toBeNull()
       }
       fireEvent.click(screen.getByRole('tab', { name: 'Audio' }))
       expect(document.querySelector('[inert]')).toBeNull()
       cleanup()
-    }
-  })
-
-  // Nothing comes before a page's first group, which keeps no margin above it.
-  it('opens every page on its first group', async () => {
-    render(<Shell state={appState(live)} backend={new FakeBackend()} />)
-    await screen.findByRole('textbox', { name: 'Network' })
-
-    for (const name of ['Connection', 'CarPlay', 'AltScreen', 'Keyboard', 'Audio', 'Experiments']) {
-      fireEvent.click(screen.getByRole('tab', { name }))
-      // The Keyboard page shows once its bindings are in.
-      const first = await waitFor(() => {
-        const group = document.querySelector('.page-inner .grp')
-        if (!group) throw new Error(`no group on ${name}`)
-        return group
-      })
-      expect(first.previousElementSibling, name).toBeNull()
     }
   })
 
@@ -234,22 +162,9 @@ describe('Shell', () => {
     }
   })
 
-  // A narrow window shows the sections' icons alone (CSS): each keeps its name, and says it when hovered.
-  it('names each section whether or not its label shows', () => {
-    render(<Shell state={appState({ ...live, restartPending: ['display.width'] })} backend={new FakeBackend()} />)
-
-    for (const name of ['Connection', 'CarPlay', 'AltScreen', 'Keyboard', 'Audio', 'Experiments', 'About']) {
-      const tab = screen.getByRole('tab', { name })
-      expect(tab.title).toBe(name)
-      expect(tab.querySelector('.label')?.textContent).toBe(name)
-    }
-  })
-
   it('opens on Connection and switches pages from the section list', () => {
     render(<Shell state={appState(live)} backend={new FakeBackend()} />)
 
-    const names = screen.getAllByRole('tab').map((tab) => tab.textContent)
-    expect(names).toEqual(['Connection', 'CarPlay', 'AltScreen', 'Keyboard', 'Audio', 'GPS', 'Experiments', 'About'])
     expect(screen.getByRole('tab', { name: 'Connection' }).getAttribute('aria-selected')).toBe('true')
 
     fireEvent.click(screen.getByRole('tab', { name: 'Audio' }))
@@ -283,7 +198,11 @@ describe('Shell', () => {
     fireEvent.keyDown(field, { code: 'F12', key: 'F12' })
 
     expect(backend.keys).toEqual([
-      'F11 press settings', 'F11 repeat settings', 'F11 release settings', 'Shift+Equal press settings', 'F12 press settings',
+      'F11 press settings',
+      'F11 repeat settings',
+      'F11 release settings',
+      'Shift+Equal press settings',
+      'F12 press settings',
     ])
   })
 

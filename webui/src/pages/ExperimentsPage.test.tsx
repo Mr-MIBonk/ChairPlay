@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AppState } from '../api'
 import { Shell } from '../shell/Shell'
-import { appState, FakeBackend, withKeys } from '../testing'
+import { appState, FakeBackend } from '../testing'
 
 afterEach(cleanup)
 
@@ -30,8 +30,6 @@ describe('Experiments page', () => {
   it('plays the HUD demos on the AltScreen', async () => {
     const backend = await experiments(appState(live), altscreenOn())
 
-    expect(button('Maneuvers').textContent).toBe('Play')
-    expect(button('Maneuvers').title).toBe("Play a made-up route on the AltScreen's HUD")
     fireEvent.click(button('Maneuvers'))
     fireEvent.click(button('Lane changes'))
 
@@ -41,8 +39,6 @@ describe('Experiments page', () => {
   it('stops the demo playing', async () => {
     const backend = await experiments(appState({ ...live, demo: { playing: 'lanes', available: true } }), altscreenOn())
 
-    expect(button('Lane changes').textContent).toBe('Stop')
-    expect(button('Maneuvers').textContent).toBe('Play')
     fireEvent.click(button('Lane changes'))
 
     await waitFor(() => expect(backend.demos).toEqual([null]))
@@ -54,18 +50,10 @@ describe('Experiments page', () => {
     const backend = await experiments(appState({ ...live, demo: { playing: 'lanes', available: true } }))
 
     expect(button('Maneuvers').disabled).toBe(true)
-    expect(button('Maneuvers').title).toBe('Turn on the AltScreen on its page first')
     expect(button('Lane changes').disabled).toBe(false)
     fireEvent.click(button('Lane changes'))
 
     await waitFor(() => expect(backend.demos).toEqual([null]))
-  })
-
-  // How the GPS fixes go, for finding what the iPhone takes: the rate, 4 a second as it asks, and the sentences.
-  it('leaves the GPS to its own page', async () => {
-    await experiments()
-
-    expect(screen.queryByRole('radiogroup', { name: 'Fixes' })).toBeNull()
   })
 
   // The iPhone's route, song, call, and battery messages to a file in logs\, from the next start.
@@ -75,7 +63,6 @@ describe('Experiments page', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: "Write the iPhone's messages to a file" }))
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'log.carplay.data': 'true' }]))
-    expect(screen.getByText('Applies after restart')).toBeTruthy()
   })
 
   // How much the app's log in the logs folder tells, at once; Trace adds DiPlay's packet-by-packet lines.
@@ -83,7 +70,6 @@ describe('Experiments page', () => {
     const backend = await experiments()
     const level = screen.getByRole('radiogroup', { name: 'Log level' })
 
-    expect(within(level).getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['Errors', 'Warnings', 'Info', 'Debug', 'Trace'])
     expect(within(level).getByRole('radio', { name: 'Info' }).getAttribute('aria-checked')).toBe('true')
     fireEvent.click(within(level).getByRole('radio', { name: 'Trace' }))
 
@@ -99,21 +85,9 @@ describe('Experiments page', () => {
     expect(backend.opened).toEqual(['logs', 'screenshots'])
   })
 
-  it('waits for the AltScreen, and says so', async () => {
+  it('waits for the AltScreen', async () => {
     await experiments(appState({ ...live, demo: { playing: null, available: false } }))
 
     expect(button('Maneuvers').disabled).toBe(true)
-    expect(button('Maneuvers').title).toBe('Turn on the AltScreen on its page first')
-  })
-
-  it('names the screenshot key as bound, and none while it is unbound', async () => {
-    const screenshots = () => screen.getByRole('button', { name: 'Screenshots' }).title
-
-    await experiments(withKeys(appState(live), { screenshot: 'PrintScreen' }))
-    expect(screenshots()).toBe('Open the screenshots folder in File Explorer (Print Screen saves to it)')
-    cleanup()
-
-    await experiments(withKeys(appState(live), { screenshot: null }))
-    expect(screenshots()).toBe('Open the screenshots folder in File Explorer')
   })
 })

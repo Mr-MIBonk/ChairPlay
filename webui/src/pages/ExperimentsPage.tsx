@@ -21,7 +21,15 @@ const DEMOS: readonly (readonly [kind: DemoKind, label: string, title: string])[
  * What is still being tried, and what helps to look into it: the HUD's demos, played on the AltScreen without an iPhone,
  * the app log's level, the CarPlay data log, and the folders the logs and the screenshots go to.
  */
-export function ExperimentsPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
+export function ExperimentsPage({
+  state,
+  backend,
+  settings,
+}: {
+  state: AppState
+  backend: Backend
+  settings: Settings
+}) {
   const demo = state.demo
   const { note } = parts(settings)
   const screenshotKey = state.controls?.keys.screenshot
@@ -55,7 +63,10 @@ export function ExperimentsPage({ state, backend, settings }: { state: AppState;
           onChange={(level) => settings.save({ 'log.level': level })}
         />
       </Row>
-      <Row label="CarPlay data" title="The iPhone's route, song, call, and battery messages, one JSON object a line, in the logs folder">
+      <Row
+        label="CarPlay data"
+        title="The iPhone's route, song, call, and battery messages, one JSON object a line, in the logs folder"
+      >
         <Checkbox
           label="Write the iPhone's messages to a file"
           checked={settings.value('log.carplay.data') === 'true'}
@@ -64,7 +75,12 @@ export function ExperimentsPage({ state, backend, settings }: { state: AppState;
         <Changed keys={['log.carplay.data']} pending={pendingOf(state)} />
       </Row>
       <Row label="Folders">
-        <button type="button" className="btn small" title="Open the logs folder in File Explorer" onClick={() => backend.open('logs')}>
+        <button
+          type="button"
+          className="btn small"
+          title="Open the logs folder in File Explorer"
+          onClick={() => backend.open('logs')}
+        >
           Logs
         </button>
         <button

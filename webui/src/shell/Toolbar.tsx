@@ -33,7 +33,13 @@ export function Toolbar({ state, backend, guide }: { state: AppState; backend: B
         className="btn"
         aria-label="CarPlay"
         disabled={!session || !state.embedded}
-        title={!session ? 'Connect the iPhone first' : state.embedded ? 'Show CarPlay (Esc)' : "CarPlay shows in ChairPlay's window"}
+        title={
+          !session
+            ? 'Connect the iPhone first'
+            : state.embedded
+              ? 'Show CarPlay (Esc)'
+              : "CarPlay shows in ChairPlay's window"
+        }
         onClick={() => backend.show('carplay')}
       >
         <CarPlayIcon />

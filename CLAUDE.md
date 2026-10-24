@@ -41,6 +41,24 @@ submodule; its `AGENTS.md` and CI command are for the Android app and do not app
 - Every commit must build on its own. When splitting a change into several commits, compile the earlier one
   alone (a temporary `git worktree` at that commit) before calling it done.
 - Write the failing test first and watch it fail for the expected reason (superpowers:test-driven-development).
+- Except for texts and layout: no test pins what the app says or how it is laid out. No assertion on a label,
+  caption, tooltip, message, title, the settings file's comments or any other wording; on the order, count,
+  placement or grouping of elements; or on CSS classes, styles, sizes or drawing constants. Such tests only restate
+  the code, catch no bug and double the cost of every change the owner asks for; check those changes with a
+  screenshot of the page instead. Tests stay for behavior: what a control saves, sends or asks the app for, which
+  state enables, disables or holds a control, which page or status a state leads to, parsing, validation, geometry
+  and protocol. A text may still find an element (`getByRole('button', { name: 'Connect' })`).
+
+## Size of files
+
+- A code file (Kotlin, TypeScript, CSS, C, scripts, build files, tests alike) stays under 300 lines, split by what it
+  is about: a stylesheet per screen or component, a class or concern per Kotlin file, a test file per subject.
+- A longer file needs a reason, written in a comment at its top ("Over 300 lines: …"), such as a protocol catalog kept
+  whole. Length alone, or "it grew", is no reason.
+- Copies and forks of others' code stay as they are, whatever their length and with no comment added: the files that
+  replace DiPlay's (`com.shilapi.xcertplay`), and code taken from other projects (`native/maneuver`, from MHI2Q).
+- A change that would take a file past 300 lines splits it first. A file already over the limit without a reason
+  gets no longer; its split is a refactoring of its own (the list is in desktop-docs/file-size-refactor.md).
 
 ## Editing files
 
@@ -71,6 +89,20 @@ Guide:
   this folder:".
 - US English (License, color), and a comma before the last "and" of a list.
 - No caption explains what happens when a switch is off or a field is blank: hover explains a field.
+
+## Layout of the settings pages
+
+- Every page fits 640 CSS px wide (a 1280 px window at 200 %) with no horizontal scroll, and still reads at
+  800x480. After changing a page, open it at 640 and at 800 width (Playwright against the running app) and check
+  that no element's right edge passes the viewport and no scroll container's `scrollWidth` exceeds its
+  `clientWidth`; look at a screenshot too.
+- Wrap early: a row holds one field, one group of choices, or one checkbox. Two fields share a row only when they
+  are one value's parts (width × height, latitude and longitude, power and mass) and fit at 640.
+- A row's label is on its left. In a row of several fields, the row's label names the whole, and each field's own
+  name or unit goes to its right, in the unit's style ("[150] hp [1300] kg", "[48.85] latitude [2.29] longitude"),
+  never before it. The same holds on every page.
+- Nothing in a row breaks or is cut: a label, unit, choice, or button keeps its text on one line and whole. A row that
+  does not fit at 640 gets split into rows, never squeezed.
 
 ## Running the app and background work
 

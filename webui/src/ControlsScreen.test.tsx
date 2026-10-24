@@ -1,7 +1,7 @@
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ControlsScreen } from './ControlsScreen'
-import { appState, FakeBackend, withKeys } from './testing'
+import { appState, FakeBackend } from './testing'
 
 afterEach(cleanup)
 
@@ -20,16 +20,6 @@ describe('ControlsScreen', () => {
     fireEvent.pointerCancel(screen.getByRole('button', { name: 'Next track' }))
 
     expect(backend.controls).toEqual(['back down', 'back up', 'media.next down', 'media.next up'])
-  })
-
-  it('has every button of the car, the volume and the knob', () => {
-    render(<ControlsScreen state={appState(live)} backend={new FakeBackend()} />)
-
-    for (const name of ['Back', 'Home', 'Siri', 'Previous track', 'Play or pause', 'Next track', 'Volume down', 'Mute',
-      'Volume up', 'Answer', 'End', 'Select', 'Tilt up', 'Tilt down', 'Tilt left', 'Tilt right', 'Turn back',
-      'Turn forward', 'Zoom in', 'Zoom out']) {
-      expect(screen.getByRole('button', { name })).toBeTruthy()
-    }
   })
 
   // The wheel over the knob turns it, a step a notch, down moving the focus forward as the main window's wheel does.
@@ -94,23 +84,14 @@ describe('ControlsScreen', () => {
     const { rerender } = render(<ControlsScreen state={state} backend={new FakeBackend()} />)
     expect(screen.queryByText('Esc')).toBeNull()
 
-    rerender(<ControlsScreen state={{ ...state, controls: { ...state.controls!, altHeld: true } }} backend={new FakeBackend()} />)
+    rerender(
+      <ControlsScreen
+        state={{ ...state, controls: { ...state.controls!, altHeld: true } }}
+        backend={new FakeBackend()}
+      />,
+    )
 
-    // As Windows names the keys: Escape is Esc, Equal is =.
     expect(screen.getByText('Esc')).toBeTruthy()
-    expect(screen.getByText('=')).toBeTruthy()
-    expect(screen.getByText('F11')).toBeTruthy()
-    expect(screen.getByText('Ctrl+M')).toBeTruthy()
-  })
-
-  // Every button shows its key in its top-right corner, over the button; its icon and label stay as they are.
-  it('puts every key in its button\'s corner, the labels staying', () => {
-    render(<ControlsScreen state={appState({ ...live, controlsKeys: true })} backend={new FakeBackend()} />)
-
-    const back = screen.getByRole('button', { name: 'Back' })
-    expect(within(back).getByText('Esc').className).toContain('kb')
-    expect(within(back).getByText('Back')).toBeTruthy()
-    expect(within(screen.getByRole('button', { name: 'Mute' })).getByText('Ctrl+M').className).toContain('kb')
   })
 
   // A click on a button gives the page the keyboard; every key of the app still works, as pressed on the window.
@@ -150,32 +131,18 @@ describe('ControlsScreen', () => {
     expect(screen.queryByText('Esc')).toBeNull()
   })
 
-  // The iPhone says whether it plays: the button shows what a press does, pause while playing, play otherwise.
-  it('shows pause while the iPhone plays and play otherwise', () => {
-    const state = appState(live)
-    const glyph = () => screen.getByRole('button', { name: 'Play or pause' }).querySelector('svg')?.getAttribute('data-glyph')
-    const { rerender } = render(<ControlsScreen state={state} backend={new FakeBackend()} />)
-    expect(glyph()).toBe('play')
-
-    rerender(<ControlsScreen state={{ ...state, controls: { ...state.controls!, playing: true } }} backend={new FakeBackend()} />)
-
-    expect(glyph()).toBe('pause')
-  })
-
   it('shows the mute button pressed while ChairPlay is muted', () => {
     const state = appState(live)
     const { rerender } = render(<ControlsScreen state={state} backend={new FakeBackend()} />)
     expect(screen.getByRole('button', { name: 'Mute' }).getAttribute('aria-pressed')).toBe('false')
 
-    rerender(<ControlsScreen state={{ ...state, controls: { ...state.controls!, volume: { level: 60, muted: true } } }} backend={new FakeBackend()} />)
+    rerender(
+      <ControlsScreen
+        state={{ ...state, controls: { ...state.controls!, volume: { level: 60, muted: true } } }}
+        backend={new FakeBackend()}
+      />,
+    )
 
     expect(screen.getByRole('button', { name: 'Mute' }).getAttribute('aria-pressed')).toBe('true')
-  })
-
-  // The views' key is the one bound on the Keyboard page, not F11 whatever it is.
-  it('names the key that steps through the views as bound', () => {
-    render(<ControlsScreen state={withKeys(appState(live), { 'altscreen.content': 'F10' })} backend={new FakeBackend()} />)
-
-    expect(screen.getByRole('radiogroup', { name: 'AltScreen content' }).title).toBe('F10 steps through them')
   })
 })

@@ -13,8 +13,22 @@ const PRESETS = [
   [1920, 1080],
 ] as const
 
-const DISPLAY_KEYS = ['display.width', 'display.height', 'display.fps', 'display.physical.width.mm', 'display.physical.height.mm', 'display.ppi']
-const LOOK_KEYS = ['display.theme', 'display.dock', 'display.right.hand.drive', 'display.safe.draw.outside', 'display.corners', 'display.touch']
+const DISPLAY_KEYS = [
+  'display.width',
+  'display.height',
+  'display.fps',
+  'display.physical.width.mm',
+  'display.physical.height.mm',
+  'display.ppi',
+]
+const LOOK_KEYS = [
+  'display.theme',
+  'display.dock',
+  'display.right.hand.drive',
+  'display.safe.draw.outside',
+  'display.corners',
+  'display.touch',
+]
 
 /** The picture CarPlay draws: its size and frame rate, how large it is, its look, and the safe area. */
 export function CarPlayPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
@@ -30,13 +44,21 @@ export function CarPlayPage({ state, backend, settings }: { state: AppState; bac
         prefix="display"
         presets={PRESETS}
         fallback={displayFallback}
-        after={
-          <ActualSize sizes={state.mainWindow} window="main" backend={backend} />
-        }
+        after={<ActualSize sizes={state.mainWindow} window="main" backend={backend} />}
         pending={pending}
       />
       <Row label="Frame rate">
-        {choice('display.fps', 'Frame rate', '60', [['30', '30'], ['60', '60']], 'half', 'fps')}
+        {choice(
+          'display.fps',
+          'Frame rate',
+          '60',
+          [
+            ['30', '30'],
+            ['60', '60'],
+          ],
+          'half',
+          'fps',
+        )}
       </Row>
       <Row label="Physical size" title="Leave blank for 200 mm wide, with the height from the aspect ratio">
         {field('display.physical.width.mm', 'Physical width', '200', 'short c')}
@@ -50,26 +72,55 @@ export function CarPlayPage({ state, backend, settings }: { state: AppState; bac
       </Row>
       <Group title="Look" note={note(LOOK_KEYS)} />
       <Row label="Theme">
-        {choice('display.theme', 'Theme', 'windows', [['windows', 'Windows'], ['phone', 'Phone'], ['light', 'Light'], ['dark', 'Dark']])}
+        {choice('display.theme', 'Theme', 'windows', [
+          ['windows', 'Windows'],
+          ['phone', 'Phone'],
+          ['light', 'Light'],
+          ['dark', 'Dark'],
+        ])}
       </Row>
-      <Row label="Touchscreen" title="The touchscreen CarPlay is told of: with one, CarPlay shows scroll buttons in its lists">
+      <Row
+        label="Touchscreen"
+        title="The touchscreen CarPlay is told of: with one, CarPlay shows scroll buttons in its lists"
+      >
         {choice('display.touch', 'Touchscreen', 'none', [
-          ['none', 'None', 'No touchscreen: CarPlay leaves out its scroll buttons; the mouse still taps and drags, the keys move the focus'],
-          ['swipe', 'Swipe', 'A touchscreen that swipes: CarPlay shows scroll buttons, and lists also scroll by swiping'],
+          [
+            'none',
+            'None',
+            'No touchscreen: CarPlay leaves out its scroll buttons; the mouse still taps and drags, the keys move the focus',
+          ],
+          [
+            'swipe',
+            'Swipe',
+            'A touchscreen that swipes: CarPlay shows scroll buttons, and lists also scroll by swiping',
+          ],
           ['tap', 'Tap only', 'A touchscreen that only taps: CarPlay shows scroll buttons for its lists'],
         ])}
       </Row>
       <Row label="Dock">
-        {choice('display.dock', 'Dock', 'auto', [['auto', 'Auto'], ['driver', 'Driver side'], ['bottom', 'Bottom']])}
+        {choice('display.dock', 'Dock', 'auto', [
+          ['auto', 'Auto'],
+          ['driver', 'Driver side'],
+          ['bottom', 'Bottom'],
+        ])}
       </Row>
       <Row label="Driver side" title="The side the driver sits on: CarPlay puts its dock and controls there">
-        {choice('display.right.hand.drive', 'Driver side', 'false', [['false', 'Left'], ['true', 'Right']])}
+        {choice('display.right.hand.drive', 'Driver side', 'false', [
+          ['false', 'Left'],
+          ['true', 'Right'],
+        ])}
       </Row>
       <Row label="Outside safe area" title="What CarPlay draws outside the safe area (drawUIOutsideSafeArea)">
-        {choice('display.safe.draw.outside', 'Outside safe area', 'true', [['false', 'Black'], ['true', 'Wallpaper']])}
+        {choice('display.safe.draw.outside', 'Outside safe area', 'true', [
+          ['false', 'Black'],
+          ['true', 'Wallpaper'],
+        ])}
       </Row>
       <Row label="Corners">
-        {choice('display.corners', 'Corners', 'square', [['square', 'Square'], ['rounded', 'Rounded']])}
+        {choice('display.corners', 'Corners', 'square', [
+          ['square', 'Square'],
+          ['rounded', 'Rounded'],
+        ])}
       </Row>
       <Group title="Safe area" note="Pixels at each edge" />
       <SafeArea settings={settings} prefix="display.safe" label="Insets" pending={pending} />

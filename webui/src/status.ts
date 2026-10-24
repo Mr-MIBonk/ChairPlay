@@ -26,9 +26,7 @@ export function describe(state: Pick<AppState, 'phase' | 'knownIphone'>): Status
     case 'joining':
       return {
         title: 'Connecting',
-        detail: state.knownIphone
-          ? 'The iPhone is joining the Wi-Fi.'
-          : 'Accept CarPlay on the iPhone if it asks.',
+        detail: state.knownIphone ? 'The iPhone is joining the Wi-Fi.' : 'Accept CarPlay on the iPhone if it asks.',
         tone: 'busy',
       }
     case 'active':
@@ -50,7 +48,8 @@ export function errorKind(message: string): ErrorKind {
   // WirelessBootstrap's "Bluetooth control ended … before the iPhone joined over Wi-Fi": checked before Bluetooth.
   if (text.includes('before the iphone joined')) return 'join'
   if (text.includes('rfcomm') || text.includes('bluetooth') || text.includes('paired')) return 'bluetooth'
-  if (text.includes('wi-fi') || text.includes('wlan') || text.includes('network') || text.includes('ssid')) return 'wifi'
+  if (text.includes('wi-fi') || text.includes('wlan') || text.includes('network') || text.includes('ssid'))
+    return 'wifi'
   return 'other'
 }
 

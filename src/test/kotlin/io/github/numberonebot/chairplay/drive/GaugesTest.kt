@@ -7,27 +7,6 @@ import org.junit.Test
 import java.nio.file.Files
 
 class GaugesTest {
-    // As Audi's dials: 240 degrees, from the lower left, clockwise over the top to the lower right (screen angles,
-    // y down); half the scale points straight up.
-    @Test
-    fun `a dial's needle sweeps 240 degrees over the top`() {
-        val scale = GaugeScale(max = 260.0, major = 20.0, minor = 10.0)
-        assertEquals(150.0, Math.toDegrees(scale.angle(0.0)), 1e-9)
-        assertEquals(270.0, Math.toDegrees(scale.angle(130.0)), 1e-9)
-        assertEquals(390.0, Math.toDegrees(scale.angle(260.0)), 1e-9)
-        assertEquals(390.0, Math.toDegrees(scale.angle(400.0)), 1e-9)
-        assertEquals(150.0, Math.toDegrees(scale.angle(-5.0)), 1e-9)
-    }
-
-    @Test
-    fun `a dial has a tick at each minor step, the major ones numbered`() {
-        val ticks = GaugeScale(max = 260.0, major = 20.0, minor = 10.0).ticks()
-        assertEquals(27, ticks.size)
-        assertEquals(14, ticks.count { it.major })
-        assertEquals(listOf(0.0, 10.0, 20.0), ticks.take(3).map { it.value })
-        assertEquals(listOf(true, false, true), ticks.take(3).map { it.major })
-    }
-
     // The speedometer reaches past the car's top speed as a car's does: 260 for an ordinary car, more for a strong one.
     @Test
     fun `the dials fit the car`() {

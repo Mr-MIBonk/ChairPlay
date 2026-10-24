@@ -1,0 +1,55 @@
+/* A narrow settings window: rows that stack and wrap */
+
+/*
+ * In a window as narrow as the toolbar's icons-only form, the page is one column: each label over its controls, which
+ * take the page's width, wrap rather than run past its edge, and keep the longer segmented groups within it. Last in
+ * the file, so it outweighs the rows', steps', and groups' own rules.
+ */
+@container shell (max-width: 529px) {
+  .shell .row,
+  .shell .step .row {
+    grid-template-columns: minmax(0, 1fr);
+    min-height: 0;
+    padding: 4px 0;
+  }
+
+  .shell .row > label,
+  .shell .step .row > label {
+    padding: 0 0 4px;
+    text-align: left;
+  }
+
+  .shell .row > label:empty {
+    display: none;
+  }
+
+  .shell .ctl {
+    flex-wrap: wrap;
+  }
+
+  .shell .seg.wide {
+    width: min(var(--row-width), 100%);
+  }
+
+  .shell .seg.rows {
+    width: min(calc(var(--columns) * var(--choice) + 6px), 100%);
+  }
+
+  .shell .seg.view-areas,
+  .shell .seg.cities {
+    width: min(var(--row-width), 100%);
+  }
+
+  /* Beside its level */
+  .shell .slider {
+    width: min(280px, calc(100% - 42px));
+  }
+
+  .shell .about-head {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .shell .about-head img {
+    justify-self: start;
+  }
+}

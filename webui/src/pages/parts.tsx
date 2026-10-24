@@ -11,7 +11,10 @@ export interface Pending {
   reconnect: readonly string[]
 }
 
-export const pendingOf = (state: AppState): Pending => ({ restart: state.restartPending, reconnect: state.reconnectPending })
+export const pendingOf = (state: AppState): Pending => ({
+  restart: state.restartPending,
+  reconnect: state.reconnectPending,
+})
 
 const NOTHING_PENDING: Pending = { restart: [], reconnect: [] }
 
@@ -20,7 +23,10 @@ export function Changed({ keys, pending }: { keys: readonly string[]; pending: P
   const waits = (list: readonly string[]) => keys.some((key) => list.includes(key))
   if (!waits(pending.restart) && !waits(pending.reconnect)) return null
   return (
-    <span className="later" title={waits(pending.restart) ? 'Changed; applies after restart' : 'Changed; applies at the next connection'}>
+    <span
+      className="later"
+      title={waits(pending.restart) ? 'Changed; applies after restart' : 'Changed; applies at the next connection'}
+    >
       ⟳
     </span>
   )
@@ -45,7 +51,14 @@ export function parts(settings: Settings, pending: Pending = NOTHING_PENDING) {
      * A segmented choice for [key], [fallback] chosen while it is blank, as the app then takes it; its [unit] after it,
      * and the mark of a change waiting last, as a field's.
      */
-    choice: (key: string, label: string, fallback: string, options: readonly Choice[], className?: string, unit?: string) => (
+    choice: (
+      key: string,
+      label: string,
+      fallback: string,
+      options: readonly Choice[],
+      className?: string,
+      unit?: string,
+    ) => (
       <>
         <Segmented
           label={label}
