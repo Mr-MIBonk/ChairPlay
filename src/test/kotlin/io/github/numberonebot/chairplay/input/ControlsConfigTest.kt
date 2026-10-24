@@ -136,6 +136,15 @@ class ControlsConfigTest {
         assertEquals(10, ControlsConfig.DEFAULT.zoomRepeatEvery)
     }
 
+    // A new controls.properties documents F11 with its views in the order it steps through them.
+    @Test
+    fun `the AltScreen content key's comment lists the views in the order the key steps through them`() {
+        assertTrue(
+            ControlAction.ALTSCREEN_CONTENT.description,
+            ControlAction.ALTSCREEN_CONTENT.description.endsWith(": HUD, map, map with turn card, turn card"),
+        )
+    }
+
     @Test
     fun `the summary counts bound actions and names the wheel mode`() {
         assertEquals("controls: 24 actions, wheel=knob", ControlsConfig.DEFAULT.summary())

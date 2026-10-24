@@ -304,17 +304,72 @@ class DesktopConfigTest {
         assertNull(configWith().altscreen)
     }
 
-    // The view area experiment declares the whole frame and its halves; without it, the AltScreen is one area.
+    // The view area experiment declares the whole frame and parts of its eighths; without it, the AltScreen is one area.
     @Test
     fun `the altscreen declares the experiment's view areas only when asked`() {
         val on = configWith("altscreen.enabled=true", "altscreen.width=1920", "altscreen.height=720", "altscreen.experiment.areas=true")
 
         assertEquals(altscreenViewAreas(1920, 720), on.airPlay.cluster!!.viewAreas)
-        assertEquals(3, on.altscreenAreaCount)
+        assertEquals(6, on.altscreenAreaCount)
         assertNull(configWith("altscreen.enabled=true").airPlay.cluster!!.viewAreas)
         assertEquals(0, configWith("altscreen.enabled=true").altscreenAreaCount)
         assertEquals(0, configWith("altscreen.experiment.areas=true").altscreenAreaCount)
         assertTrue(DesktopConfig.defaultSettingsText().contains("\naltscreen.experiment.areas=false\n"))
+    }
+
+    // Without altscreen.<view>.area or .safe, the AltScreen is its whole frame as one area, whatever view it shows.
+    @Test
+    fun `the altscreen's views share the whole frame unless given parts of it`() {
+        val config = configWith("altscreen.enabled=true", "altscreen.width=1920", "altscreen.height=720")
+
+        assertNull(config.airPlay.cluster!!.viewAreas)
+        assertEquals(0, config.altscreenAreaCount)
+        assertEquals(listOf(0, 0, 0, 0), AltscreenContent.entries.map(config::altscreenAreaFor))
+        assertTrue(DesktopConfig.defaultSettingsText().contains("\naltscreen.map.area=\naltscreen.map.safe=\n"))
+        assertTrue(DesktopConfig.defaultSettingsText().contains("\naltscreen.card.area=\naltscreen.card.safe=\n"))
+    }
+
+    // A view with its own part of the frame gets a view area of its own, its margins counted inside it; the iPhone hears
+    // of each area's own safe area as it connects. The whole frame stays the first area, for the views without one.
+    @Test
+    fun `a view with its own part of the frame gets its own view area and safe area`() {
+        val config = configWith("altscreen.enabled=true", "altscreen.width=1920", "altscreen.height=720",
+            "altscreen.card.area=720 0 480 720", "altscreen.card.safe=10 0 20 0", "altscreen.map-card.safe=0 300 0 0")
+
+        val areas = config.airPlay.cluster!!.viewAreas!!
+        assertEquals(AirPlayViewArea(1920, 720), areas[0])
+        assertEquals(AirPlayViewArea(1920, 720, safeArea = AirPlayInsets(right = 300)), areas[1])
+        assertEquals(AirPlayViewArea(480, 720, originX = 720, safeArea = AirPlayInsets(top = 10, bottom = 20, left = 720, right = 720)), areas[2])
+        assertEquals(3, config.altscreenAreaCount)
+        assertEquals(0, config.altscreenAreaFor(AltscreenContent.MAP))
+        assertEquals(1, config.altscreenAreaFor(AltscreenContent.MAP_CARD))
+        assertEquals(2, config.altscreenAreaFor(AltscreenContent.CARD))
+        assertEquals(0, config.altscreenAreaFor(AltscreenContent.HUD))
+
+        // DiPlay's /info carries the area's own safe area, where it clipped the display's to every area.
+        val alt = (AirPlayInfoPlist.build(config.airPlay)["displays"] as List<*>)[1] as Map<*, *>
+        val card = (alt["viewAreas"] as List<*>)[2] as Map<*, *>
+        val safe = card["safeArea"] as Map<*, *>
+        assertEquals(listOf(720, 10, 480, 690), listOf(safe["originXPixels"], safe["originYPixels"], safe["widthPixels"], safe["heightPixels"]))
+    }
+
+    @Test
+    fun `a view's part must lie inside the frame and leave room inside its margins`() {
+        val base = arrayOf("altscreen.enabled=true", "altscreen.width=1920", "altscreen.height=720")
+        for (wrong in listOf("altscreen.card.area=1500 0 480 720", "altscreen.card.area=0 0 480", "altscreen.card.area=0 0 0 720",
+            "altscreen.map.safe=0 0 -1 0", "altscreen.card.area=0 0 480 720\naltscreen.card.safe=0 240 0 240")) {
+            assertTrue(wrong, runCatching { configWith(*base, *wrong.split("\n").toTypedArray()) }.exceptionOrNull() is IllegalArgumentException)
+        }
+    }
+
+    // The experiment's six areas replace the views' own, which then do not move.
+    @Test
+    fun `the view area experiment takes the place of the views' own areas`() {
+        val config = configWith("altscreen.enabled=true", "altscreen.width=1920", "altscreen.height=720",
+            "altscreen.card.area=720 0 480 720", "altscreen.experiment.areas=true")
+
+        assertEquals(altscreenViewAreas(1920, 720), config.airPlay.cluster!!.viewAreas)
+        assertEquals(0, config.altscreenAreaFor(AltscreenContent.CARD))
     }
 
     // DiPlay's cluster display, at the size asked for, with even margins instead of the BYD cluster's crop.
@@ -388,6 +443,13 @@ class DesktopConfigTest {
         assertEquals(AltscreenContent.MAP_CARD, AltscreenContent.MAP.next())
         assertEquals(AltscreenContent.CARD, AltscreenContent.MAP_CARD.next())
         assertEquals(AltscreenContent.HUD, AltscreenContent.CARD.next())
+    }
+
+    // The turn card's place (altscreen.cards, Shift+F11) is the map's and Map + card's: the turn card alone and the HUD
+    // have none to place.
+    @Test
+    fun `only the map views place the turn card`() {
+        assertEquals(listOf(false, true, true, false), AltscreenContent.entries.map { it.placesCards })
     }
 
     // The iPhone is asked at once for the content the AltScreen was left on.

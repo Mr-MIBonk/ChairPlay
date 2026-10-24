@@ -102,6 +102,19 @@ describe('AltScreen page', () => {
     expect(backend.altscreens).toEqual([])
   })
 
+  // The turn card's place means nothing while the AltScreen shows the turn card alone or the HUD: it waits for a map.
+  it("holds the turn card's place while the view has no card to place", async () => {
+    const state = appState({ phase: 'active', canShowCarPlay: true })
+    for (const view of ['card', 'hud'] as const) {
+      await altscreen(new FakeBackend(), { ...state, controls: { ...state.controls!, altscreen: view } })
+      const group = screen.getByRole('radiogroup', { name: 'Turn card' })
+
+      expect(within(group).getAllByRole('radio').every((radio) => (radio as HTMLButtonElement).disabled)).toBe(true)
+      expect(group.closest('.row')!.getAttribute('title')).toBe('Show Map or Map + card to place the turn card')
+      cleanup()
+    }
+  })
+
   it('saves where the turn card starts, Auto until set', async () => {
     const backend = await altscreen()
     expect(chosen('Turn card')).toEqual(['Auto'])

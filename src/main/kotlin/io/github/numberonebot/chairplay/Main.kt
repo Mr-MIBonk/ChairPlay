@@ -13,6 +13,7 @@ import io.github.numberonebot.chairplay.config.WindowPlacementStore
 import io.github.numberonebot.chairplay.config.altscreenTitle
 import io.github.numberonebot.chairplay.config.mainWindowTitle
 import io.github.numberonebot.chairplay.config.altscreenUrl
+import io.github.numberonebot.chairplay.config.AREA_MOVE_SETTLE_MILLIS
 import io.github.numberonebot.chairplay.config.AltscreenAreaMove
 import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.data.CarPlayData
@@ -311,8 +312,18 @@ private fun runCarPlay() {
     fun reconnect() = Thread({ restartBootstrap.get()() }, "reconnect").apply { isDaemon = true }.start()
     // What the iPhone is told the AltScreen shows: its view while the window shows it, else nothing (stopUI).
     val altscreenUi = AltscreenUi()
+    // The AltScreen's view areas (altscreen.<view>.area and .safe, or the experiment's): how many the connection
+    // declared, the one each view shows in, the one the Experiments page picked, and the one CarPlay is in, which each
+    // connection and each new AltScreen stream starts at the first of (initialViewArea).
+    val areaCount = AtomicInteger(config.altscreenAreaCount)
+    val areaFor = AtomicReference<(AltscreenContent) -> Int>(config::altscreenAreaFor)
+    val manualArea = AtomicReference<Int?>()
+    val currentArea = AtomicInteger(0)
+    val areaTimer = Executors.newSingleThreadScheduledExecutor { Thread(it, "view-area").apply { isDaemon = true } }
     // The AltScreen's view as it is now, on the touch thread: the HUD or the iPhone's picture, the cluster URL a running
-    // [session] is asked for, the title, the view remembered for the next start, and the controls window's page.
+    // [session] is asked for, the title, the view remembered for the next start, and the controls window's page. A view
+    // in another area than CarPlay's goes there first, and is asked for once the move is over, without which it stays
+    // blurred mid-way.
     fun showAltscreenView(session: AirPlaySession?) {
         val alt = altSettings.get() ?: return
         val content = altscreenContent ?: return
@@ -321,6 +332,22 @@ private fun runCarPlay() {
         val hud = content == AltscreenContent.HUD || hudDemo.get() != null
         // The iPhone draws the view only while it is seen: not under the HUD, nor with the window closed.
         val seen = !hud && altscreen.visible
+        val area = manualArea.get() ?: areaFor.get()(content)
+        if (session != null && seen && area != currentArea.get()) {
+            val moved = AltscreenAreaMove(
+                count = areaCount::get,
+                send = { command -> session.sendCommand(command).also { log("altscreen view area $area of ${areaCount.get()} for ${content.key} sent=$it") } },
+                showView = {
+                    areaTimer.schedule({ runCatching { touchSender.execute { showAltscreenView(session) } } }, AREA_MOVE_SETTLE_MILLIS, TimeUnit.MILLISECONDS)
+                },
+            )(area)
+            if (moved) {
+                currentArea.set(area)
+                // The Experiments page shows the area CarPlay is in.
+                controlsChanged.get()()
+                return
+            }
+        }
         // The window goes black before the iPhone is asked for the view, and stays so until the view is in.
         altscreen.showView(hud, url to seen) {
             val sent = session?.let { altscreenUi.tell(AltscreenUi.of(it), url, seen, key = it) }
@@ -368,6 +395,8 @@ private fun runCarPlay() {
                 }
                 Control.NextAltscreenContent, Control.NextAltscreenCards, is Control.ShowAltscreenContent -> {
                     val content = altscreenContent ?: return@execute
+                    // Shift+F11 has no turn card to move while the AltScreen shows the turn card alone or the HUD.
+                    if (control == Control.NextAltscreenCards && !content.placesCards) return@execute
                     when (control) {
                         Control.NextAltscreenContent -> altscreenContent = content.next()
                         is Control.ShowAltscreenContent -> altscreenContent = control.content
@@ -452,24 +481,14 @@ private fun runCarPlay() {
     }
     // altscreen.experiment.areas: the view areas the connection's AltScreen declared, and the one CarPlay was moved to,
     // which each connection starts at the first of (initialViewArea).
-    val areaCount = AtomicInteger(config.altscreenAreaCount)
-    val currentArea = AtomicInteger(0)
-    // The area, then the view asked for again, without which it stays blurred mid-way; on the touch thread, as every
-    // change of the AltScreen's view.
-    fun moveArea(session: AirPlaySession) = AltscreenAreaMove(
-        count = areaCount::get,
-        send = { command ->
-            session.sendCommand(command).also { log("altscreen view area ${(command["params"] as Map<*, *>)["viewAreaIndex"]} of ${areaCount.get()} sent=$it") }
-        },
-        showView = { showAltscreenView(session) },
-    )
     val viewAreas = object : UiViewAreas {
         override val count get() = if (active.get() == null) 0 else areaCount.get()
         override val current get() = currentArea.get()
 
         override fun show(index: Int): Boolean {
             val session = active.get() ?: return false
-            touchSender.execute { if (moveArea(session)(index)) currentArea.set(index) }
+            manualArea.set(index)
+            touchSender.execute { showAltscreenView(session) }
             return true
         }
     }
@@ -535,10 +554,9 @@ private fun runCarPlay() {
         altscreenUi.newStream()
         runCatching {
             touchSender.execute {
-                // It may start in the first view area again, as it starts on the initial view: the area goes first.
-                val session = active.get()
-                val area = currentArea.get()
-                if (session == null || area == 0 || !moveArea(session)(area)) showAltscreenView(session)
+                // It starts in the first view area again, as on the initial view; the view goes back to its own.
+                currentArea.set(0)
+                showAltscreenView(active.get())
             }
         }
     }
@@ -691,6 +709,8 @@ private fun runCarPlay() {
     // and the AltScreen turns on or off, or takes its new size and the view it starts with.
     bootstrap.onConnection = { now ->
         areaCount.set(now.altscreenAreaCount)
+        areaFor.set(now::altscreenAreaFor)
+        manualArea.set(null)
         currentArea.set(0)
         val size = WindowSize(now.displayWidth, now.displayHeight)
         if (size != window.stream) {

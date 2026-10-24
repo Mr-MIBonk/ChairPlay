@@ -161,7 +161,8 @@ export function Select(props: {
 }
 
 /** One choice of a segmented group: the value saved, the text shown, and its tooltip. */
-export type Choice = readonly [value: string, text: string, title?: string]
+/** A choice's value, its text, its tooltip, and a picture before the text. */
+export type Choice = readonly [value: string, text: string, title?: string, icon?: ReactNode]
 
 /**
  * Choices side by side, the chosen one a lit plate. A disabled group shows none chosen. Two or three choices are equal
@@ -186,7 +187,7 @@ export function Segmented(props: {
       role="radiogroup"
       aria-label={props.label}
     >
-      {props.options.map(([value, text, title]) => {
+      {props.options.map(([value, text, title, icon]) => {
         const chosen = !props.disabled && value === props.value
         return (
           <button
@@ -201,6 +202,7 @@ export function Segmented(props: {
               if (!chosen) props.onChange(value)
             }}
           >
+            {icon}
             {text}
           </button>
         )

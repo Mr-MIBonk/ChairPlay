@@ -1162,6 +1162,49 @@ html:has(.shell) {
   line-height: 15px;
 }
 
+/* In a row, the reason goes on a line of its own under the controls, so it never pushes apart two fields */
+.shell .ctl:has(> .errtext) {
+  flex-wrap: wrap;
+}
+
+.shell .ctl > .errtext {
+  order: 1;
+  flex-basis: 100%;
+}
+
+/*
+ * Beside its label, such a row grows downwards: its controls (24 px, keys 22 px) and its label keep the places they
+ * have centred in a row without the reason (34 px, keys 32 px).
+ */
+@container shell (min-width: 530px) {
+  .shell .row:has(> .ctl > .errtext) {
+    align-items: start;
+  }
+
+  .shell .ctl:has(> .errtext),
+  .shell .row:has(> .ctl > .errtext) > label {
+    padding-top: 5px;
+  }
+
+  .shell .row:has(> .ctl > .errtext) > label {
+    line-height: 24px;
+  }
+
+  .shell .keys-row:has(> .ctl > .errtext) > label {
+    line-height: 22px;
+  }
+
+  /* The safe area's row has its own padding, and its label beside the middle of the 78 px frame */
+  .shell .safe-row > .ctl:has(> .errtext) {
+    padding-top: 0;
+  }
+
+  .shell .safe-row:has(> .ctl > .errtext) > label {
+    padding-top: 0;
+    line-height: 78px;
+  }
+}
+
 /* About: the app's icon, then its name over what it is, on the property grid */
 .shell .about-head {
   display: grid;
@@ -1654,6 +1697,40 @@ html:has(.shell) {
 
 .shell .seg.rows button {
   min-width: 0;
+}
+
+/* The AltScreen's view areas: three plates a row, each with its part of an 8:3 frame before its name */
+.shell .seg.view-areas {
+  --choice: 118px;
+}
+
+/* The picture at the left, the name centred in the rest */
+.shell .seg.view-areas button {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  column-gap: 6px;
+  justify-items: center;
+  padding: 0 8px;
+  white-space: nowrap;
+}
+
+/* An empty frame cut into its parts, the one shown filled */
+.shell .area-icon {
+  flex: none;
+  width: 24px;
+  height: 9px;
+}
+
+.shell .area-icon .frame,
+.shell .area-icon line {
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1;
+}
+
+.shell .area-icon .part {
+  fill: currentColor;
+  opacity: 0.75;
 }
 
 .shell .seg.rows[data-items='6'] button:nth-child(4)::before,

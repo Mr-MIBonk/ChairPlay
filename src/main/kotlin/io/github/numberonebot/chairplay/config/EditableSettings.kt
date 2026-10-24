@@ -70,6 +70,8 @@ object EditableSettings {
         "altscreen.safe.left" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
         "altscreen.safe.right" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
         "altscreen.experiment.areas" to switch(Applies.RECONNECT),
+        // Checked together against the frame's size, in validate.
+        *AREA_VIEWS.flatMap { listOf(areaKey(it), safeKey(it)) }.map { it to Setting(Applies.RECONNECT) { null } }.toTypedArray(),
         // "default" or a device's name; a name no device has stops the next start, as a typo in the file would.
         "audio.output" to Setting(Applies.RESTART) { null },
         "audio.input" to Setting(Applies.RESTART) { null },
@@ -114,7 +116,32 @@ object EditableSettings {
             checkPassphrase(passphrase, security)?.let { errors["wifi.passphrase"] = it }
         }
         for (screen in listOf("display", "altscreen")) checkSafeArea(screen, changes, current, errors)
+        checkViewParts(changes, current, errors)
         return errors
+    }
+
+    /**
+     * Each AltScreen view's part must lie inside the frame and leave some of itself inside its margins, all taken as
+     * they will be after [changes]; an error goes on the key that is wrong, when it or the frame's size changed.
+     */
+    private fun checkViewParts(changes: Map<String, String>, current: Map<String, String>, errors: MutableMap<String, String>) {
+        fun value(key: String) = (changes[key] ?: current[key])?.trim()?.ifEmpty { null }
+        val sizeChanged = "altscreen.width" in changes || "altscreen.height" in changes
+        val width = value("altscreen.width")?.toIntOrNull() ?: DesktopConfig.DEFAULT_ALTSCREEN_WIDTH
+        val height = value("altscreen.height")?.toIntOrNull() ?: DesktopConfig.DEFAULT_ALTSCREEN_HEIGHT
+        for (view in AREA_VIEWS) {
+            val areaKey = areaKey(view)
+            val safeKey = safeKey(view)
+            if (!sizeChanged && areaKey !in changes && safeKey !in changes) continue
+            val area = value(areaKey)
+            val areaProblem = area?.let { areaProblem(it, width, height) }
+            if (areaProblem != null) {
+                errors[areaKey] = areaProblem
+                continue
+            }
+            val parts = area?.split(Regex("\\s+"))?.map { it.toInt() } ?: listOf(0, 0, width, height)
+            value(safeKey)?.let { safeProblem(it, parts[2], parts[3]) }?.let { errors[safeKey] = it }
+        }
     }
 
     /**

@@ -719,8 +719,7 @@ class VideoWindow(
             return
         }
         if (fw == 0 || fh == 0) return
-        // Before the first picture, the size the window opened for it.
-        val shape = picture ?: Size(width, height)
+        val shape = frameShape(picture, stream, opened = Size(width, height))
         val rect = safeAreaRect(shape, fw, fh, request.top, request.bottom, request.left, request.right)
         glViewport(0, 0, fw, fh)
         glUseProgram(frameProgram)

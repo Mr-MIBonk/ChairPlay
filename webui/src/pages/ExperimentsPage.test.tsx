@@ -72,17 +72,23 @@ describe('Experiments page', () => {
     expect(backend.opened).toEqual(['logs', 'screenshots'])
   })
 
-  // An experiment: the AltScreen declares its whole frame and its halves as view areas, and CarPlay moves between them.
+  // An experiment: the AltScreen declares its whole frame and parts of its eighths as view areas, room for a dial or two
+  // or a side panel, and CarPlay moves between them; each choice draws its part of the frame.
   it('moves the AltScreen between its view areas', async () => {
-    const backend = await experiments(appState({ ...live, viewAreas: { count: 3, current: 0 } }))
+    const backend = await experiments(appState({ ...live, viewAreas: { count: 6, current: 0 } }))
     const areas = screen.getByRole('radiogroup', { name: 'View area' })
 
-    expect(within(areas).getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['Whole frame', 'Left half', 'Right half'])
-    expect(within(areas).getByRole('radio', { name: 'Whole frame' }).getAttribute('aria-checked')).toBe('true')
-    fireEvent.click(within(areas).getByRole('radio', { name: 'Right half' }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Declare the whole frame and its halves' }))
+    expect(within(areas).getAllByRole('radio').map((radio) => radio.textContent)).toEqual([
+      'Left 5/8', 'Full screen', 'Right 5/8', 'Left 3/8', 'Center 3/8', 'Right 3/8',
+    ])
+    // Each picture cuts the frame at its own part's edges alone.
+    const cuts = within(areas).getAllByRole('radio').map((radio) => radio.querySelectorAll('svg.area-icon line').length)
+    expect(cuts).toEqual([1, 0, 1, 1, 2, 1])
+    expect(within(areas).getByRole('radio', { name: 'Full screen' }).getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(within(areas).getByRole('radio', { name: 'Center 3/8' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Declare view areas' }))
 
-    await waitFor(() => expect(backend.viewAreas).toEqual([2]))
+    await waitFor(() => expect(backend.viewAreas).toEqual([4]))
     await waitFor(() => expect(backend.saved).toEqual([{ 'altscreen.experiment.areas': 'true' }]))
   })
 

@@ -50,6 +50,9 @@ enum class AltscreenContent(val key: String, val cluster: CarPlayClusterDisplay.
     MAP_CARD("map-card", CarPlayClusterDisplay.Content.INSTRUMENTS),
     CARD("card", CarPlayClusterDisplay.Content.TURN_CARD);
 
+    /** Whether altscreen.cards places anything in this view: the map's turn card; the turn card alone and the HUD have none. */
+    val placesCards: Boolean get() = this == MAP || this == MAP_CARD
+
     /** F11's next view, in the order the controls window's buttons and the AltScreen page show them. */
     fun next(): AltscreenContent = entries[(ordinal + 1) % entries.size]
 }
@@ -216,11 +219,21 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
     }
 
     /** altscreen.experiment.areas: the view areas an enabled AltScreen declares, null for its whole frame as one. */
-    private val altscreenAreas = altscreen?.takeIf { booleanSetting("altscreen.experiment.areas", false) }
-        ?.let { altscreenViewAreas(it.size.width, it.size.height) }
+    private val areaExperiment = altscreen != null && booleanSetting("altscreen.experiment.areas", false)
+
+    /** altscreen.<view>.area and .safe: the views' own parts of an enabled AltScreen's frame. */
+    private val viewParts = altscreen?.let { alt -> AltscreenViewParts(alt.size.width, alt.size.height) { settings.getProperty(it) } }
+
+    /** The view areas an enabled AltScreen declares, the experiment's in place of the views' own; null for one. */
+    private val altscreenAreas = altscreen?.let { alt ->
+        if (areaExperiment) altscreenViewAreas(alt.size.width, alt.size.height) else viewParts?.areas
+    }
 
     /** How many view areas the AltScreen declared, which the Experiments page moves it between; 0 for none to move. */
     val altscreenAreaCount: Int = altscreenAreas?.size ?: 0
+
+    /** The view area [content] shows in on the AltScreen, which it moves to as the view changes; 0 for the first. */
+    fun altscreenAreaFor(content: AltscreenContent): Int = if (areaExperiment) 0 else viewParts?.indexOf(content) ?: 0
 
     /**
      * DiPlay rounds its cluster stream to multiples of 8; the AltScreen goes out at the size set, 1440x540 by
@@ -618,8 +631,18 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
                 "altscreen.safe.right" to "0",
             ),
             SettingBlock(
-                "Experimental: the altscreen declares three view areas, its whole frame and its two halves, that the\n" +
-                    "Experiments page moves CarPlay between while it runs: 'true' or 'false'.",
+                "The altscreen's own part of its frame for each view the iPhone draws there, as 'left top width height'\n" +
+                    "in pixels, and the margins inside it its map text and car marker keep out of, as 'top right bottom\n" +
+                    "left'; blank uses the whole frame and altscreen.safe.*. The altscreen moves to a view's part as it\n" +
+                    "changes view.",
+                "altscreen.map.area" to "", "altscreen.map.safe" to "",
+                "altscreen.map-card.area" to "", "altscreen.map-card.safe" to "",
+                "altscreen.card.area" to "", "altscreen.card.safe" to "",
+            ),
+            SettingBlock(
+                "Experimental: the altscreen declares six view areas, its whole frame, five eighths at either side, and\n" +
+                    "three eighths at the left, middle, or right, that the Experiments page moves CarPlay between while it\n" +
+                    "runs: 'true' or 'false'.",
                 "altscreen.experiment.areas" to "false",
             ),
             SettingBlock("'windows' (follow the Windows theme), 'light', 'dark', or 'phone' (the iPhone decides).", "display.theme" to "windows"),
@@ -668,8 +691,8 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
         const val DEFAULT_ACCENT = "#0a84ff"
         /** audio.duck.db: from about a thirtieth of the volume to the full volume. */
         val DUCK_DECIBELS = -30..0
-        private const val DEFAULT_ALTSCREEN_WIDTH = 1440
-        private const val DEFAULT_ALTSCREEN_HEIGHT = 540
+        internal const val DEFAULT_ALTSCREEN_WIDTH = 1440
+        internal const val DEFAULT_ALTSCREEN_HEIGHT = 540
         private const val ALTSCREEN_WIDTH_MM = 292
         private const val MM_PER_INCH = 25.4
         /** Upstream AirPlayDisplaySettings.DEFAULT_WIDTH_PHYSICAL_MM. */

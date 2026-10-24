@@ -6,22 +6,31 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class AltscreenAreasTest {
-    // altscreen.experiment.areas: the whole frame, then its two halves, rectangles of the AltScreen's stream.
+    // altscreen.experiment.areas, for an 8:3 cluster: the whole frame; five eighths at the left or the right, beside a
+    // dial; three eighths at the left, the middle or the right, between dials or in a side panel. All of the full height.
     @Test
-    fun `the experiment's areas are the whole frame and its halves`() {
+    fun `the experiment's areas are the whole frame and parts of its eighths`() {
         assertEquals(
-            listOf(AirPlayViewArea(1920, 720), AirPlayViewArea(960, 720), AirPlayViewArea(960, 720, originX = 960)),
+            listOf(
+                AirPlayViewArea(1920, 720),
+                AirPlayViewArea(1200, 720), AirPlayViewArea(1200, 720, originX = 720),
+                AirPlayViewArea(720, 720), AirPlayViewArea(720, 720, originX = 600), AirPlayViewArea(720, 720, originX = 1200),
+            ),
             altscreenViewAreas(1920, 720),
         )
-        // A half keeps to a multiple of 8, as DiPlay's streams do; the right one takes the rest.
+        // A width keeps to a multiple of 8, as DiPlay's streams do, and the middle one to an even origin.
         assertEquals(
-            listOf(AirPlayViewArea(1000, 600), AirPlayViewArea(496, 600), AirPlayViewArea(504, 600, originX = 496)),
-            altscreenViewAreas(1000, 600),
+            listOf(
+                AirPlayViewArea(1440, 540),
+                AirPlayViewArea(896, 540), AirPlayViewArea(896, 540, originX = 544),
+                AirPlayViewArea(536, 540), AirPlayViewArea(536, 540, originX = 452), AirPlayViewArea(536, 540, originX = 904),
+            ),
+            altscreenViewAreas(1440, 540),
         )
     }
 
-    // Seen on an iPhone 15 Pro Max (AirPlay 870.14): after updateViewArea the AltScreen's view stays blurred, mid-way, until it is asked
-    // for again with showUI; then it is drawn in the new area. So a move sends the area, then the view.
+    // Seen on an iPhone 15 Pro Max (AirPlay 870.14): after updateViewArea the AltScreen's view stays blurred, mid-way,
+    // until it is asked for again with showUI; then it is drawn in the new area. So a move sends the area, then the view.
     @Test
     fun `a move sends the area, then asks for the view again`() {
         val sent = mutableListOf<String>()
@@ -44,11 +53,11 @@ class AltscreenAreasTest {
     // DiPlay's updateViewArea, which it sends for the main screen alone, addressed to the AltScreen.
     @Test
     fun `the AltScreen is moved to an area as DiPlay moves the main screen`() {
-        val command = altscreenViewAreaCommand(1, 3)
+        val command = altscreenViewAreaCommand(1, 6)
 
         assertEquals("updateViewArea", command["type"])
         assertEquals(
-            mapOf("uuid" to AirPlayInfoPlist.ALT_UUID, "viewAreaIndex" to 1, "animationDurationMillis" to 300, "adjacentViewAreas" to listOf(0, 2)),
+            mapOf("uuid" to AirPlayInfoPlist.ALT_UUID, "viewAreaIndex" to 1, "animationDurationMillis" to 300, "adjacentViewAreas" to listOf(0, 2, 3, 4, 5)),
             command["params"],
         )
     }

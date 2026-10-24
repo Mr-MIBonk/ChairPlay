@@ -1,6 +1,14 @@
 package io.github.numberonebot.chairplay.media
 
+import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.input.Size
+
+/**
+ * The picture a safe-area frame is laid out on: the one shown, or with none (under the HUD, before the first) the
+ * size the last connection brought, and before any the size the window [opened] for.
+ */
+internal fun frameShape(picture: Size?, stream: WindowSize?, opened: Size): Size =
+    picture ?: stream?.let { Size(it.width, it.height) } ?: opened
 
 /**
  * Where a safe area of [picture] lies in a [fw] x [fh] framebuffer, the picture fitted in at its own shape and centred

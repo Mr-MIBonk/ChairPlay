@@ -84,6 +84,26 @@ class EditableSettingsTest {
         assertTrue(errors("audio.duck.db" to "0").isEmpty())
     }
 
+    // A view's part of the AltScreen's frame, and the margins inside it, as the settings file writes them.
+    @Test
+    fun `a view's part of the altscreen and its margins are checked against the frame`() {
+        val sized = current + ("altscreen.width" to "1920") + ("altscreen.height" to "720")
+        fun errorsAt(vararg changes: Pair<String, String>) = EditableSettings.validate(changes.toMap(), sized)
+
+        assertEquals(emptyMap<String, String>(), errorsAt("altscreen.card.area" to "720 0 480 720", "altscreen.card.safe" to "10 0 20 0"))
+        assertEquals(emptyMap<String, String>(), errorsAt("altscreen.map.area" to "", "altscreen.map.safe" to " "))
+        assertEquals("Enter the left, top, width, and height in pixels, such as 0 0 1200 720",
+            errorsAt("altscreen.card.area" to "0 0 480")["altscreen.card.area"])
+        assertEquals("Keep the area inside the 1920x720 frame", errorsAt("altscreen.card.area" to "1500 0 480 720")["altscreen.card.area"])
+        // Against the size as it will be.
+        assertEquals("Keep the area inside the 1440x540 frame",
+            errorsAt("altscreen.card.area" to "1000 0 480 540", "altscreen.width" to "1440", "altscreen.height" to "540")["altscreen.card.area"])
+        assertEquals("Enter the top, right, bottom, and left margins in pixels, such as 0 0 0 0",
+            errorsAt("altscreen.map.safe" to "0 -1 0 0")["altscreen.map.safe"])
+        assertEquals("Leave some of the area inside the margins",
+            errorsAt("altscreen.card.area" to "720 0 480 720", "altscreen.card.safe" to "0 240 0 240")["altscreen.card.safe"])
+    }
+
     // The buffering pause and the fade are times, not pixels.
     @Test
     fun `the music's pause and fade are milliseconds`() {
@@ -199,7 +219,8 @@ class EditableSettingsTest {
         // The iPhone learns of the AltScreen as it connects.
         for (key in listOf("altscreen.enabled", "altscreen.width", "altscreen.height", "altscreen.content",
             "altscreen.safe.top", "altscreen.safe.bottom", "altscreen.safe.left", "altscreen.safe.right",
-            "altscreen.experiment.areas")) {
+            "altscreen.experiment.areas", "altscreen.map.area", "altscreen.map.safe", "altscreen.map-card.area",
+            "altscreen.map-card.safe", "altscreen.card.area", "altscreen.card.safe")) {
             assertEquals(key, Applies.RECONNECT, EditableSettings.applies(key))
         }
         // What the iPhone learns of its screen it asks at each connection.

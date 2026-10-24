@@ -54,6 +54,30 @@ val upstreamCore by tasks.registering(Sync::class) {
         exclude("com/shilapi/xcertplay/iap2/catalog/Iap2Endpoint.kt")
     }
     into(layout.buildDirectory.dir("upstream-core"))
+    // A view area carries a safe area of its own, where DiPlay clips the display's to every area: the AltScreen's
+    // views each have their own. Patched into the copy, each anchor checked once, so a newer DiPlay that moved one
+    // stops the build here instead of dropping the patch.
+    val patches = mapOf(
+        "com/shilapi/xcertplay/airplay/AirPlayConfig.kt" to (
+            "    val dockEdge: Int? = null,\n)" to
+                "    val dockEdge: Int? = null,\n" +
+                "    /** ChairPlay: this area's own safe area, as insets from the whole display; null clips the display's to it. */\n" +
+                "    val safeArea: AirPlayInsets? = null,\n)"
+            ),
+        "com/shilapi/xcertplay/airplay/AirPlayInfoPlist.kt" to (
+            "val displaySafe = display.safeArea ?: AirPlayInsets()" to "val displaySafe = area?.safeArea ?: display.safeArea ?: AirPlayInsets()"
+            ),
+    )
+    val target = layout.buildDirectory.dir("upstream-core")
+    doLast {
+        for ((path, change) in patches) {
+            val file = target.get().file(path).asFile
+            val text = file.readText()
+            val found = text.split(change.first).size - 1
+            check(found == 1) { "upstream $path: the line to patch is there $found times, not once; update build.gradle.kts" }
+            file.writeText(text.replace(change.first, change.second))
+        }
+    }
 }
 
 // Upstream unit tests for the same core, copied the same way. Tests are excluded when they use
