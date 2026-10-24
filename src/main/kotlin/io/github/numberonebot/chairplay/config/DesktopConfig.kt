@@ -12,6 +12,7 @@ import com.shilapi.xcertplay.airplay.PairingStore
 import io.github.numberonebot.chairplay.drive.CarSpec
 import io.github.numberonebot.chairplay.drive.Coordinates
 import io.github.numberonebot.chairplay.drive.GpsSettings
+import io.github.numberonebot.chairplay.drive.NmeaDialect
 import io.github.numberonebot.chairplay.log.LogLevel
 import io.github.numberonebot.chairplay.media.DuckSetting
 import io.github.numberonebot.chairplay.media.MediaDucking
@@ -207,7 +208,7 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
         if (settings.getProperty(key)?.trim().isNullOrEmpty()) default else nonNegativeSetting(key)
 
     /**
-     * altscreen.*: DiPlay's cluster display, with even margins as for its virtual cluster rather than a BYD
+     * altscreen.*: DiPlay's cluster display, with even margins as for its virtual cluster rather than its car
      * cluster's crop; null when off. The iPhone learns of it only when it connects.
      */
     /** altscreen.width and altscreen.height, on or off: the AltScreen's window waits at this size while it is off. */
@@ -291,6 +292,8 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
             powerHp = decimalSetting("gps.car.power.hp", CarSpec().powerHp, GpsSettings.POWER_HP),
         ),
         gauges = booleanSetting("gps.gauges", true),
+        rate = choiceSetting("gps.rate", 4, GpsSettings.RATES.associateBy { it.toString() }),
+        nmea = choiceSetting("gps.nmea", NmeaDialect.CLASSIC, NmeaDialect.entries.associateBy { it.key }),
     )
 
     /** window.keep.aspect: the windows resize only with the picture's shape; a maximized one fills the screen. */
@@ -648,7 +651,7 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
                 "window.controls" to "false",
             ),
             SettingBlock(
-                "Altscreen: the car's instrument cluster as a second CarPlay screen in a window of its\n" +
+                "Altscreen (experimental): the car's instrument cluster as a second CarPlay screen in a window of its\n" +
                     "own, 'true' or 'false' (the iPhone learns of it when it connects); its size in pixels (positive even\n" +
                     "numbers); what it starts with: 'map', 'map-card', 'hud' or 'card' (the turn card).",
                 "altscreen.enabled" to "false", "altscreen.width" to "1440", "altscreen.height" to "540",
@@ -667,9 +670,10 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
             ),
             SettingBlock(
                 "The altscreen's own part of its frame for each view the iPhone draws there, all of its height: 'full',\n" +
-                    "five eighths at the side ('left5', 'right5'), or three eighths ('left3', 'center3', 'right3'); and\n" +
-                    "the margins inside that part its map text and car marker keep out of, in pixels. A view with the full\n" +
-                    "frame and blank margins uses altscreen.safe.*. The altscreen moves to a view's part as it changes view.",
+                    "five eighths at the side ('left5', 'right5'), a half ('left4', 'center4', 'right4'), or three eighths\n" +
+                    "('left3', 'center3', 'right3'); and the margins inside that part its map text and car marker keep out\n" +
+                    "of, in pixels. A view with the full frame and blank margins uses altscreen.safe.*. The altscreen moves\n" +
+                    "to a view's part as it changes view.",
                 *AREA_VIEWS.flatMap { view -> listOf(areaKey(view) to "full") + SAFE_EDGES.map { safeKey(view, it) to "" } }.toTypedArray(),
             ),
             SettingBlock("'windows' (follow the Windows theme), 'light', 'dark', or 'phone' (the iPhone decides).", "display.theme" to "windows"),
@@ -703,6 +707,11 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
                 "The car: its power in hp (20-2000) and its mass in kg (300-10000); 'true' shows its speedometer and\n" +
                     "tachometer while it drives.",
                 "gps.car.power.hp" to "150", "gps.car.mass.kg" to "1300", "gps.gauges" to "true",
+            ),
+            SettingBlock(
+                "Experiments in what the iPhone takes from the GPS: fixes a second, '1', '4' (as the iPhone asks) or '10';\n" +
+                    "and the sentences, 'classic' (\$GPGGA, \$GPRMC) or 'modern' (\$GNGGA, \$GNRMC, \$GNGSA, \$GNVTG).",
+                "gps.rate" to "4", "gps.nmea" to "classic",
             ),
         )
 

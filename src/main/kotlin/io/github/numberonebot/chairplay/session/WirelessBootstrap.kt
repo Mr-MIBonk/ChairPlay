@@ -15,6 +15,7 @@ import io.github.numberonebot.chairplay.data.DataLink
 import io.github.numberonebot.chairplay.data.DataSubscriptions
 import io.github.numberonebot.chairplay.discovery.DesktopBonjour
 import io.github.numberonebot.chairplay.drive.GpsSettings
+import io.github.numberonebot.chairplay.drive.PacedLocation
 import io.github.numberonebot.chairplay.media.AudioDuckSink
 import io.github.numberonebot.chairplay.network.SameLanNetwork
 import com.shilapi.xcertplay.iap2.session.Iap2Session
@@ -27,6 +28,7 @@ import com.shilapi.xcertplay.network.WirelessHotspotInfo
 import com.shilapi.xcertplay.network.WirelessHotspotManager
 import com.shilapi.xcertplay.transport.BlockingDuplexByteStream
 import com.shilapi.xcertplay.transport.Iap2IdentificationConfig
+import com.shilapi.xcertplay.transport.Iap2LocationMessages
 import com.shilapi.xcertplay.transport.Iap2LocationProvider
 import com.shilapi.xcertplay.transport.Iap2WirelessCarPlayEndpoint
 import com.shilapi.xcertplay.transport.Iap2WirelessControlClient
@@ -347,6 +349,10 @@ class WirelessBootstrap internal constructor(
             log("Could not open the tunneled iAP2 link: ${error.message}")
             return false
         }
+        // A GPS that paces itself sends on this link at its own rate; the link's sends are serialised.
+        (location as? PacedLocation)?.attach { nmea ->
+            channel.send(Iap2LocationMessages.locationInformation(nmea), LOCATION_SEND_TIMEOUT_MILLIS)
+        }
         Thread({
             try {
                 val result = stack.parts.control(channel, identification, endpoint,
@@ -534,6 +540,8 @@ class WirelessBootstrap internal constructor(
         const val RETRY_DELAY_MILLIS = 5_000L
         /** Iap2Session's own default for a send. */
         const val SUBSCRIPTION_SEND_TIMEOUT_MILLIS = 5_000L
+        /** A fix held up longer than this is stale; the GPS stops on the failure and starts with the next request. */
+        const val LOCATION_SEND_TIMEOUT_MILLIS = 1_000L
 
         fun isBluetoothHandoffCommand(type: String) =
             type.equals("disableBluetooth", ignoreCase = true) || type.equals("disable-bluetooth", ignoreCase = true)

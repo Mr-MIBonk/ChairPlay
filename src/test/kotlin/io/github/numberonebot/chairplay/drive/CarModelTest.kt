@@ -99,6 +99,16 @@ class CarModelTest {
         assertTrue("rpm ${car.state.rpm}", car.state.rpm > 2500)
     }
 
+    // A pedal too light to beat the rolling resistance leaves the car standing, never rolling the other way.
+    @Test
+    fun `a pedal too light to move the car leaves it standing`() {
+        val car = CarModel(CarSpec())
+        car.run(2.0, CarInput(throttle = 0.022))
+        assertEquals(0.0, car.state.speed, 0.0)
+        val heavy = CarModel(CarSpec(powerHp = 20.0, massKg = 10000.0))
+        heavy.run(2.0, CarInput(throttle = 0.2)) { assertTrue("speed ${it.speed}", it.speed >= 0.0) }
+    }
+
     // Each step says how far the car went, for its place on the earth.
     @Test
     fun `a step reports the distance covered`() {

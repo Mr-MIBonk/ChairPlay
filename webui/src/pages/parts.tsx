@@ -77,7 +77,7 @@ export function parts(settings: Settings, pending: Pending = NOTHING_PENDING) {
 export function SizeRows(props: {
   settings: Settings
   prefix: string
-  presets: readonly (readonly [width: number, height: number, cars?: string])[]
+  presets: readonly (readonly [width: number, height: number])[]
   fallback: { width: number; height: number }
   /** Beside the fields: the CarPlay page's Actual size. */
   after?: ReactNode
@@ -96,7 +96,7 @@ export function SizeRows(props: {
         <Segmented
           label="Size"
           value={refused ? '' : `${width}x${height}`}
-          options={props.presets.map(([w, h, cars]) => [`${w}x${h}`, `${w}×${h}`, cars])}
+          options={props.presets.map(([w, h]) => [`${w}x${h}`, `${w}×${h}`])}
           onChange={(preset) => {
             const [presetWidth, presetHeight] = preset.split('x')
             settings.save({ [widthKey]: presetWidth, [heightKey]: presetHeight })

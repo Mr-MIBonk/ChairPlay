@@ -63,6 +63,17 @@ class Drive(
         samples.clear()
     }
 
+    /** Turns the car where it is to face [headingDegrees], as fast as it goes: a heading typed on the GPS page. */
+    fun turn(headingDegrees: Double): Unit = synchronized(lock) {
+        car = CarModel(spec, car.state.copy(headingDegrees = headingDegrees))
+    }
+
+    /** Stops the car where it is, facing as it does: the GPS turned off mid-drive. */
+    fun stop(): Unit = synchronized(lock) {
+        car = CarModel(spec, CarState(headingDegrees = car.state.headingDegrees))
+        samples.clear()
+    }
+
     /** Makes the car [spec] where it is and as fast as it goes: a new power or mass from the settings. */
     fun respec(spec: CarSpec): Unit = synchronized(lock) {
         this.spec = spec

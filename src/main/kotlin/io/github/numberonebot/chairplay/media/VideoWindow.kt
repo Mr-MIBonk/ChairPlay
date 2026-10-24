@@ -59,6 +59,8 @@ class VideoWindow(
     private val pageSized: Boolean = false,
     /** The picture it shows, in its pixels: [minSize] never keeps the window above it, so it can always show it 1:1. */
     stream: WindowSize? = null,
+    /** True moves the window by a press anywhere on it, as by its title bar; it then gets no left-button clicks. */
+    private val dragAnywhere: Boolean = false,
 ) : Closeable {
     /** The picture it shows, as it opened with it or [setStream] changed it since. */
     @Volatile
@@ -328,6 +330,7 @@ class VideoWindow(
                 if (closeSource.userClosed()) applyShown(handle, false) else onOutsideClose()
             }
         }
+        if (dragAnywhere) ClientDrag.install(glfwGetWin32Window(window))
         WindowIcon.apply(window)
         tracker = PlacementTracker(window, restore?.maximized ?: false)
         if (visible) {

@@ -95,11 +95,16 @@ object EditableSettings {
         "gps.wheel.speed" to switch(Applies.RECONNECT),
         "gps.satellites" to switch(Applies.RECONNECT),
         "gps.start" to Setting(Applies.NOW, check = ::checkStart),
-        "gps.heading" to Setting(Applies.NOW) { if (GpsSettings.heading(it) != null) null else "Enter a heading from 0 to 359 degrees" },
+        "gps.heading" to Setting(Applies.NOW) {
+            if (it.isBlank() || GpsSettings.heading(it) != null) null else "Enter a heading from 0 to 359 degrees"
+        },
         "gps.resume" to switch(Applies.NOW),
         "gps.car.power.hp" to Setting(Applies.NOW) { checkNumber(it, GpsSettings.POWER_HP, "a power", "hp") },
         "gps.car.mass.kg" to Setting(Applies.NOW) { checkNumber(it, GpsSettings.MASS_KG, "a mass", "kg") },
         "gps.gauges" to switch(Applies.NOW),
+        // The next fix goes so.
+        "gps.rate" to choice(*GpsSettings.RATES.map { it.toString() }.toTypedArray(), applies = Applies.NOW),
+        "gps.nmea" to choice("classic", "modern", applies = Applies.NOW),
     )
 
     /** The keys the screens may change. */
@@ -250,7 +255,7 @@ object EditableSettings {
         else "Enter a latitude and longitude, such as 50.4501, 30.5234, or paste a map link"
 
     private fun checkNumber(value: String, range: ClosedFloatingPointRange<Double>, what: String, unit: String): String? =
-        if (value.trim().toDoubleOrNull()?.let { it in range } == true) null
+        if (value.isBlank() || value.trim().toDoubleOrNull()?.let { it in range } == true) null
         else "Enter $what from ${range.start.toInt()} to ${range.endInclusive.toInt()} $unit"
 
     private fun checkFps(value: String): String? =

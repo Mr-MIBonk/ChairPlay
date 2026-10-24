@@ -6,14 +6,18 @@ import com.shilapi.xcertplay.airplay.AirPlayViewArea
 
 /**
  * A part of the AltScreen's frame a view can show in, laid out for an 8:3 cluster, all of the full height: the whole
- * frame; five eighths at the left or the right, beside a dial; three eighths at the left, the middle or the right,
- * between dials or as a side panel. A width keeps to a multiple of 8, as DiPlay's streams do, and the middle one to an
- * even origin; [key] is how altscreen.<view>.area names it.
+ * frame; five eighths at the left or the right, beside a dial; four eighths, a half, at the left, the middle or the
+ * right; three eighths at the left, the middle or the right, between dials or as a side panel. A width keeps to a
+ * multiple of 8, as DiPlay's streams do, and the middle ones to an even origin; [key] is how altscreen.<view>.area
+ * names it.
  */
 enum class AreaPreset(val key: String, private val eighths: Int) {
     FULL("full", 8),
     LEFT5("left5", 5),
     RIGHT5("right5", 5),
+    LEFT4("left4", 4),
+    CENTER4("center4", 4),
+    RIGHT4("right4", 4),
     LEFT3("left3", 3),
     CENTER3("center3", 3),
     RIGHT3("right3", 3);
@@ -23,8 +27,8 @@ enum class AreaPreset(val key: String, private val eighths: Int) {
         if (this == FULL) return AirPlayViewArea(width, height)
         val w = width * eighths / 8 / 8 * 8
         val x = when (this) {
-            LEFT5, LEFT3 -> 0
-            CENTER3 -> (width - w) / 4 * 2
+            LEFT5, LEFT4, LEFT3 -> 0
+            CENTER4, CENTER3 -> (width - w) / 4 * 2
             else -> width - w
         }
         return AirPlayViewArea(w, height, originX = x)

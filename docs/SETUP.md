@@ -149,7 +149,7 @@ The files below live in the app folder, next to `ChairPlay.exe`.
    - `window.keep.aspect` (default `true`): the windows resize only with the shape of their picture, the
      main window's that of `display.width` x `display.height` and the AltScreen's that of its size; a maximized
      window still fills the screen. `false` lets them take any shape;
-   - `altscreen.enabled` (default `false`): `true` declares a second CarPlay screen, the car's
+   - `altscreen.enabled` (experimental, default `false`): `true` declares a second CarPlay screen, the car's
      instrument cluster, and shows it in a window of its own (place and size remembered under `altscreen.` in
      `window.properties`). The iPhone learns of it when it connects, so a change applies at the next connection:
      the window appears, hides, or takes its new size then.

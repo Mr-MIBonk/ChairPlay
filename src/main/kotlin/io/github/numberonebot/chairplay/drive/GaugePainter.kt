@@ -30,6 +30,7 @@ class GaugePainter(
 ) : WindowOverlay {
     private val accent = accent and 0xFFFFFF
     private var vg = 0L
+    private var failed = false
     private var fonts = false
     // NanoVG reads the font files from these buffers for as long as the context lives.
     private val fontData = mutableListOf<ByteBuffer>()
@@ -38,9 +39,19 @@ class GaugePainter(
     private val outer = NVGColor.create()
     private val paint = NVGPaint.create()
 
-    override fun open() {
+    // Nothing before the gauges first show: an app that never drives the car makes no context and loads no fonts.
+    override fun open() = Unit
+
+    /** Makes the NanoVG context on the first gauges; one that cannot be made leaves them undrawn, said once. */
+    private fun create(): Boolean {
+        if (vg != 0L) return true
+        if (failed) return false
         vg = nvgCreate(NVG_ANTIALIAS or NVG_STENCIL_STROKES)
-        check(vg != 0L) { "cannot create the gauges' NanoVG context" }
+        if (vg == 0L) {
+            failed = true
+            log("gauges: cannot create their NanoVG context; they are not drawn")
+            return false
+        }
         fun font(name: String, file: String): Boolean {
             val bytes = GaugePainter::class.java.getResourceAsStream("/fonts/$file")?.use { it.readBytes() } ?: return false
             val buffer = ByteBuffer.allocateDirect(bytes.size).put(bytes).flip()
@@ -49,6 +60,7 @@ class GaugePainter(
         }
         fonts = font(REGULAR, "Inter-Regular.ttf") && font(WIDE, "RobotoFlexWide-SemiBold.ttf")
         if (!fonts) log("gauges: the fonts are missing from the app; the gauges draw no numbers")
+        return true
     }
 
     override fun close() {
@@ -59,7 +71,7 @@ class GaugePainter(
 
     override fun paint(width: Int, height: Int) {
         val now = view() ?: return
-        if (vg == 0L || width == 0 || height == 0) return
+        if (width == 0 || height == 0 || !create()) return
         val w = width.toFloat()
         val h = height.toFloat()
         val r = min(h * 0.46f, w * 0.17f)

@@ -14,6 +14,7 @@ import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.config.writeTestSettings
 import io.github.numberonebot.chairplay.data.CarPlayDataTap
 import io.github.numberonebot.chairplay.data.DataLink
+import io.github.numberonebot.chairplay.drive.PacedLocation
 import io.github.numberonebot.chairplay.media.AudioDuckSink
 import com.shilapi.xcertplay.iap2.session.Iap2Session
 import com.shilapi.xcertplay.iap2.wire.Iap2Frame
@@ -244,10 +245,15 @@ class WirelessBootstrapTest {
     // Bluetooth link offers no location, so it gets none.
     @Test(timeout = 30_000)
     fun `the tunnel sends the spoofed GPS when it is on`() {
-        val gps = object : Iap2LocationProvider {
+        // A GPS that paces itself gets the tunnel to send on.
+        var attached = false
+        val gps = object : Iap2LocationProvider, PacedLocation {
             override fun start() = true
             override fun stop() {}
             override fun latestNmea(): String? = null
+            override fun attach(send: (String) -> Unit) {
+                attached = true
+            }
         }
         Harness(settings = "gps.enabled=true\ngps.satellites=true", location = gps).use { harness ->
             val port = harness.nextPort()
@@ -265,6 +271,7 @@ class WirelessBootstrapTest {
                 assertTrue(tunnel.first.locationInformationEnabled)
                 assertTrue(tunnel.first.vehicleSpeedEnabled)
                 assertTrue(tunnel.first.satellitesInViewEnabled)
+                assertTrue(attached)
             }
         }
     }

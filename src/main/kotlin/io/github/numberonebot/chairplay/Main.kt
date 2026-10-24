@@ -215,7 +215,8 @@ private fun runCarPlay() {
     window.onPlacement = { placement ->
         runCatching { placements.save(placement, config.window) }.onFailure { log("window place not saved: $it") }
     }
-    // The altscreen (altscreen.enabled) gets a window of its own beside the main one; it takes no input.
+    // The altscreen (altscreen.enabled) gets a window of its own beside the main one; it takes no clicks, so a press
+    // anywhere on it moves it.
     // The car's controls as buttons in a window of their own, at a fixed size: the web UI's controls page. Its close
     // button and the settings screen's trigger hide and show it, and it opens as it was left; until then
     // window.controls decides.
@@ -247,7 +248,7 @@ private fun runCarPlay() {
             altscreenTitle(size, alt?.content ?: AltscreenContent.MAP, alt?.cards ?: AltscreenCards.AUTO),
             aspect = size.takeIf { config.keepAspect }, hideOnClose = true, shown = alt != null,
             minSize = WindowSize(ALTSCREEN_MIN_WIDTH, 1).fittedTo(size), minScales = false,
-            stream = size,
+            stream = size, dragAnywhere = true,
         ).also {
             it.onPlacement = { placement ->
                 val now = it.stream ?: size
@@ -591,7 +592,7 @@ private fun runCarPlay() {
                 if (altHeld.getAndSet(held) != held) ui.controlsChanged()
             }
             // In drive mode the arrows are the car's pedals and wheel, not the knob.
-            if (!covered() && !driving.control.key(key, action)) send(controls.key(key, action, mods))
+            if (!covered() && !driving.control.key(key, action, mods)) send(controls.key(key, action, mods))
         }
     }
     window.keyHandler = windowKeys { ui.coversWindow }

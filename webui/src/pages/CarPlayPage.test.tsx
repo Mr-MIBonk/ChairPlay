@@ -128,14 +128,13 @@ describe('CarPlay page, display', () => {
     await waitFor(() => expect(backend.saved).toEqual([{ 'display.fps': '30' }]))
   })
 
-  // The wide screens of Audi and Mazda among the sizes, the 480 px tall ones first, in two rows.
+  // Wide car screens among the sizes, the 480 px tall ones first, in two rows; a preset is its size alone, no car named.
   it('offers the sizes of wide car screens too', async () => {
     await carplay()
 
     const sizes = within(screen.getByRole('radiogroup', { name: 'Size' })).getAllByRole('radio')
     expect(sizes.map((size) => size.textContent)).toEqual(['800×480', '1024×480', '1280×480', '1280×720', '1920×720', '1920×1080'])
-    expect(radio('Size', '1024×480').title).toBe('Audi MIB2, 8.3 in')
-    expect(radio('Size', '1280×480').title).toBe('Mazda 3 and CX-30, 8.8 in')
+    expect(sizes.map((size) => size.title)).toEqual(['', '', '', '', '', ''])
   })
 
   // With touch declared CarPlay shows scroll buttons; with none it leaves them out, and the mouse still taps and drags.

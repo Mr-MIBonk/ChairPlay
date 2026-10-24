@@ -2,6 +2,7 @@ package io.github.numberonebot.chairplay.drive
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GeoTest {
@@ -28,6 +29,13 @@ class GeoTest {
         assertEquals(-180.0 + (179.999 + 1000.0 / 111_195.0 - 180.0), wrapped.longitude, 1e-6)
         val top = GeoPoint(89.9999, 0.0).moved(0.0, 1000.0)
         assertEquals(90.0, top.latitude, 0.0)
+    }
+
+    // At the pole a step east has no longitude to go by: it stays on the globe, at once.
+    @Test(timeout = 1000)
+    fun `a step at the pole stays on the globe at once`() {
+        val pole = GeoPoint(90.0, 0.0).moved(90.0, 10_000.0)
+        assertTrue(pole.longitude in -180.0..180.0)
     }
 
     // gps.start: a pair as a map app shows it, or the link it shares.

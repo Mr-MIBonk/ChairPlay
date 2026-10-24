@@ -61,6 +61,13 @@ describe('Experiments page', () => {
     await waitFor(() => expect(backend.demos).toEqual([null]))
   })
 
+  // How the GPS fixes go, for finding what the iPhone takes: the rate, 4 a second as it asks, and the sentences.
+  it('leaves the GPS to its own page', async () => {
+    await experiments()
+
+    expect(screen.queryByRole('radiogroup', { name: 'Fixes' })).toBeNull()
+  })
+
   // The iPhone's route, song, call, and battery messages to a file in logs\, from the next start.
   it('turns the CarPlay data log on', async () => {
     const backend = await experiments()

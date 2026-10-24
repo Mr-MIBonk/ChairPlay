@@ -56,6 +56,18 @@ class DrivingTest {
         assertEquals(600.0, driving.drive.spec.powerHp, 0.0)
     }
 
+    // The page's heading field turns the car where it stands, rather than sending it back to the start point.
+    @Test
+    fun `a heading saved alone turns the car where it is`() {
+        val driving = driving(GpsSettings(true, start = kyiv, resume = false))
+        driving.drive.input = CarInput(throttle = 1.0)
+        repeat(120) { now += 16_666_667L; driving.drive.advance() }
+        val there = driving.drive.snapshot().position
+        driving.saved(GpsSettings(true, start = kyiv, headingDegrees = 200.0), setOf("gps.heading"))
+        assertEquals(there, driving.drive.snapshot().position)
+        assertEquals(200.0, driving.drive.snapshot().car.headingDegrees, 0.0)
+    }
+
     // Where the car stopped is kept for the next start, and again as the app closes.
     @Test
     fun `the car's place is remembered as it stops and as the app closes`() {
@@ -77,9 +89,17 @@ class DrivingTest {
 
         val on = Driving(dir, GpsSettings(true, start = kyiv), gamepad = { null }, nanoTime = { now })
         assertTrue(on.toggleKeyboard())
+        on.drive.input = CarInput(throttle = 1.0)
+        repeat(120) { now += 16_666_667L; on.drive.advance() }
+        assertTrue(on.drive.moving)
+        // Turned off mid-drive: the car stops where it is, rather than standing still at speed for the iPhone, and
+        // one more pass draws the gauges away.
         on.saved(GpsSettings(false, start = kyiv), setOf("gps.enabled"))
-        on.pass()
+        assertEquals(DriveControl.FRAME_SECONDS, on.pass())
         assertFalse(on.control.keyboard)
+        assertFalse(on.drive.moving)
+        assertNull(on.gauges())
+        assertNull(on.pass())
     }
 
     // The GPS page: where the car is, how it goes, and what the iPhone asked for.
@@ -92,6 +112,7 @@ class DrivingTest {
         assertEquals(false, idle["gamepad"])
         assertEquals(listOf(50.4501, 30.5234), idle["position"])
         assertEquals(0, idle["speed"])
+        assertEquals("D1", idle["gear"])
 
         val location = driving.location(GpsSettings(true))
         location.onRequested(setOf(1, 2, 4))

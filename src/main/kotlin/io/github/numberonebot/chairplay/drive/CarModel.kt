@@ -78,8 +78,8 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         var speed = before + direction * force / spec.massKg * dt
         val resistance = spec.rollingResistance * GRAVITY + AIR_DENSITY / 2 * spec.dragAreaSquareMeters * speed * speed / spec.massKg
         val slowing = (resistance + stopping * BRAKE_DECELERATION) * dt
-        // Resistance and brakes stop the car; they never push it the other way.
-        val halts = abs(speed) <= slowing && (force == 0.0 || stopping > 0)
+        // Resistance and brakes stop the car; they never push it the other way, nor does a pedal too light to beat them.
+        val halts = abs(speed) <= slowing
         speed = if (halts) 0.0 else speed - sign(speed) * slowing
 
         if (gear > 0) gear = shifted(gear, wheelRpm(abs(speed), gear), throttle)

@@ -4,6 +4,9 @@ import org.lwjgl.glfw.GLFW.GLFW_KEY_DOWN
 import org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT
 import org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT
 import org.lwjgl.glfw.GLFW.GLFW_KEY_UP
+import org.lwjgl.glfw.GLFW.GLFW_MOD_ALT
+import org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL
+import org.lwjgl.glfw.GLFW.GLFW_MOD_SHIFT
 import org.lwjgl.glfw.GLFW.GLFW_RELEASE
 import kotlin.math.abs
 import kotlin.math.sign
@@ -13,12 +16,14 @@ class DriveKeys {
     private val down = HashSet<Int>()
 
     /**
-     * Takes an arrow's press, repeat or release; false for any other key, which stays the app's, and for the release of
-     * an arrow held before drive mode began, which lets go of the knob.
+     * Takes a plain arrow's press, repeat or release; false for any other key, which stays the app's, for an arrow with
+     * Shift, Ctrl or Alt (Ctrl+Up stays the volume), and for the release of an arrow held before drive mode began,
+     * which lets go of the knob.
      */
-    fun key(key: Int, action: Int): Boolean {
+    fun key(key: Int, action: Int, mods: Int = 0): Boolean {
         if (key !in ARROWS) return false
         if (action == GLFW_RELEASE) return down.remove(key)
+        if (mods and MODIFIERS != 0) return false
         down.add(key)
         return true
     }
@@ -34,6 +39,7 @@ class DriveKeys {
 
     private companion object {
         val ARROWS = setOf(GLFW_KEY_UP, GLFW_KEY_DOWN, GLFW_KEY_LEFT, GLFW_KEY_RIGHT)
+        const val MODIFIERS = GLFW_MOD_SHIFT or GLFW_MOD_CONTROL or GLFW_MOD_ALT
     }
 }
 
@@ -97,8 +103,8 @@ class DriveControl(
         return keyboard
     }
 
-    /** Takes a key in drive mode when it is an arrow; false leaves it to the app. */
-    fun key(key: Int, action: Int): Boolean = keyboard && keys.key(key, action)
+    /** Takes a key in drive mode when it is a plain arrow; false leaves it to the app. */
+    fun key(key: Int, action: Int, mods: Int = 0): Boolean = keyboard && keys.key(key, action, mods)
 
     /**
      * One pass of the window loop: moves the car on while it is driven or moving. Returns how soon the next pass is

@@ -6,6 +6,7 @@ import com.shilapi.xcertplay.airplay.AirPlayInsets
 import io.github.numberonebot.chairplay.drive.CarSpec
 import io.github.numberonebot.chairplay.drive.GeoPoint
 import io.github.numberonebot.chairplay.drive.GpsSettings
+import io.github.numberonebot.chairplay.drive.NmeaDialect
 import io.github.numberonebot.chairplay.log.LogLevel
 import io.github.numberonebot.chairplay.media.DuckSetting
 import io.github.numberonebot.chairplay.media.decibelGain
@@ -312,6 +313,11 @@ class DesktopConfigTest {
         assertTrue(off.resume)
         assertEquals(CarSpec(massKg = 1300.0, powerHp = 150.0), off.car)
         assertTrue(off.gauges)
+        // The experiments: the rate the iPhone asks for, and DiPlay's sentences.
+        assertEquals(4, off.rate)
+        assertEquals(NmeaDialect.CLASSIC, off.nmea)
+        assertEquals(10, configWith("gps.rate=10").gps.rate)
+        assertEquals(NmeaDialect.MODERN, configWith("gps.nmea=modern").gps.nmea)
 
         val on = configWith(
             "gps.enabled=true", "gps.satellites=true", "gps.wheel.speed=false", "gps.start=https://maps.apple.com/?ll=50.4501,30.5234",
@@ -326,7 +332,10 @@ class DesktopConfigTest {
 
     @Test
     fun `rejects GPS values the car cannot have`() {
-        for (bad in listOf("gps.start=Kyiv", "gps.heading=north", "gps.heading=360", "gps.car.power.hp=5", "gps.car.mass.kg=50")) {
+        for (bad in listOf(
+            "gps.start=Kyiv", "gps.heading=north", "gps.heading=360", "gps.car.power.hp=5", "gps.car.mass.kg=50", "gps.rate=3",
+            "gps.nmea=ancient",
+        )) {
             val key = bad.substringBefore('=')
             val error = assertThrows(IllegalArgumentException::class.java) { configWith(bad).gps }
             assertTrue(error.message, key in error.message.orEmpty())
@@ -347,8 +356,8 @@ class DesktopConfigTest {
         val config = configWith("altscreen.enabled=true", "altscreen.width=1920", "altscreen.height=720", "altscreen.card.area=right3")
 
         assertEquals(AreaPreset.entries.map { it.area(1920, 720) }, config.airPlay.cluster!!.viewAreas)
-        assertEquals(6, config.altscreenAreaCount)
-        assertEquals(listOf(0, 0, 0, 5), AltscreenContent.entries.map(config::altscreenAreaFor))
+        assertEquals(9, config.altscreenAreaCount)
+        assertEquals(listOf(0, 0, 0, 8), AltscreenContent.entries.map(config::altscreenAreaFor))
         // Another part, set while CarPlay runs, is an area the iPhone already knows.
         assertEquals(2, config.altscreenAreaIndex(AltscreenContent.MAP, AreaPreset.RIGHT5))
         assertEquals(0, config.altscreenAreaIndex(AltscreenContent.HUD, AreaPreset.RIGHT5))
@@ -367,20 +376,20 @@ class DesktopConfigTest {
             "altscreen.map-card.safe.right=300")
 
         val areas = config.airPlay.cluster!!.viewAreas!!
-        assertEquals(18, areas.size)
+        assertEquals(27, areas.size)
         assertEquals(AirPlayViewArea(1920, 720), areas[0])
         // Map + card's parts come next, then the turn card's.
-        assertEquals(AirPlayViewArea(1920, 720, safeArea = AirPlayInsets(right = 300)), areas[6])
-        assertEquals(AirPlayViewArea(720, 720, originX = 600, safeArea = AirPlayInsets(top = 10, bottom = 20, left = 600, right = 600)), areas[16])
+        assertEquals(AirPlayViewArea(1920, 720, safeArea = AirPlayInsets(right = 300)), areas[9])
+        assertEquals(AirPlayViewArea(720, 720, originX = 600, safeArea = AirPlayInsets(top = 10, bottom = 20, left = 600, right = 600)), areas[25])
         assertEquals(0, config.altscreenAreaFor(AltscreenContent.MAP))
-        assertEquals(6, config.altscreenAreaFor(AltscreenContent.MAP_CARD))
-        assertEquals(16, config.altscreenAreaFor(AltscreenContent.CARD))
+        assertEquals(9, config.altscreenAreaFor(AltscreenContent.MAP_CARD))
+        assertEquals(25, config.altscreenAreaFor(AltscreenContent.CARD))
         assertEquals(0, config.altscreenAreaFor(AltscreenContent.HUD))
-        assertEquals(13, config.altscreenAreaIndex(AltscreenContent.CARD, AreaPreset.LEFT5))
+        assertEquals(19, config.altscreenAreaIndex(AltscreenContent.CARD, AreaPreset.LEFT5))
 
         // DiPlay's /info carries the area's own safe area, where it clipped the display's to every area.
         val alt = (AirPlayInfoPlist.build(config.airPlay)["displays"] as List<*>)[1] as Map<*, *>
-        val card = (alt["viewAreas"] as List<*>)[16] as Map<*, *>
+        val card = (alt["viewAreas"] as List<*>)[25] as Map<*, *>
         val safe = card["safeArea"] as Map<*, *>
         assertEquals(listOf(600, 10, 720, 690), listOf(safe["originXPixels"], safe["originYPixels"], safe["widthPixels"], safe["heightPixels"]))
         // The same part of another frame.
@@ -397,7 +406,7 @@ class DesktopConfigTest {
         }
     }
 
-    // DiPlay's cluster display, at the size asked for, with even margins instead of the BYD cluster's crop.
+    // DiPlay's cluster display, at the size asked for, with even margins instead of its car cluster's crop.
     @Test
     fun `an enabled altscreen asks the iPhone for its map at the given size`() {
         val config = configWith("altscreen.enabled=true", "altscreen.width=1600", "altscreen.height=600")

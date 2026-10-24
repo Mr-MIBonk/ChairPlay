@@ -3,11 +3,11 @@ import { Group, Row } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
 import { ActualSize, Changed, parts, pendingOf, SafeArea, SizeRows } from './parts'
 
-/** The sizes of CarPlay's window in common cars, the 480 px tall ones first; a car named where it is one's own. */
+/** The sizes of CarPlay's window in common cars, the 480 px tall ones first. */
 const PRESETS = [
   [800, 480],
-  [1024, 480, 'Audi MIB2, 8.3 in'],
-  [1280, 480, 'Mazda 3 and CX-30, 8.8 in'],
+  [1024, 480],
+  [1280, 480],
   [1280, 720],
   [1920, 720],
   [1920, 1080],

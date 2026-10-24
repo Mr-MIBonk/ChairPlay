@@ -59,9 +59,13 @@ class EditableSettingsTest {
             "gps.car.power.hp" to "300", "gps.car.mass.kg" to "1600", "gps.gauges" to "false",
         )
         assertEquals(emptyMap<String, String>(), result)
-        assertEquals(emptyMap<String, String>(), errors("gps.start" to ""))
+        // Blank is the default, as the app reads it and the page shows it.
+        assertEquals(emptyMap<String, String>(), errors("gps.start" to "", "gps.heading" to "", "gps.car.power.hp" to "", "gps.car.mass.kg" to ""))
         for (key in listOf("gps.enabled", "gps.wheel.speed", "gps.satellites")) assertEquals(Applies.RECONNECT, EditableSettings.applies(key))
-        for (key in listOf("gps.start", "gps.heading", "gps.resume", "gps.car.power.hp", "gps.car.mass.kg", "gps.gauges")) {
+        assertEquals(emptyMap<String, String>(), errors("gps.rate" to "10", "gps.nmea" to "modern"))
+        assertTrue("1, 4, 10" in errors("gps.rate" to "3").getValue("gps.rate"))
+        assertTrue("classic, modern" in errors("gps.nmea" to "ancient").getValue("gps.nmea"))
+        for (key in listOf("gps.start", "gps.heading", "gps.resume", "gps.car.power.hp", "gps.car.mass.kg", "gps.gauges", "gps.rate", "gps.nmea")) {
             assertEquals(Applies.NOW, EditableSettings.applies(key))
         }
 
@@ -114,7 +118,7 @@ class EditableSettingsTest {
 
         assertEquals(emptyMap<String, String>(),
             errorsAt("altscreen.card.area" to "center3", "altscreen.card.safe.top" to "10", "altscreen.card.safe.left" to ""))
-        assertTrue("full, left5, right5, left3, center3, right3" in errorsAt("altscreen.card.area" to "half").getValue("altscreen.card.area"))
+        assertTrue("full, left5, right5, left4, center4, right4, left3, center3, right3" in errorsAt("altscreen.card.area" to "half").getValue("altscreen.card.area"))
         assertEquals("Enter zero or more pixels, or leave it blank", errorsAt("altscreen.map.safe.left" to "-1")["altscreen.map.safe.left"])
         // Against the part as it will be: three eighths of 1920 are 720.
         assertEquals("Leave some of the area inside the margins",

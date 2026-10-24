@@ -32,11 +32,11 @@ const chosen = (group: string) =>
     .map((button) => button.textContent)
 
 describe('AltScreen page', () => {
-  it('turns the AltScreen on', async () => {
+  it('turns the AltScreen on, marked as experimental', async () => {
     const backend = await altscreen()
     const enabled = screen.getByRole('checkbox', { name: 'Enabled' }) as HTMLInputElement
     expect(enabled.checked).toBe(false)
-    expect(screen.queryByText('Experimental')).toBeNull()
+    expect(screen.getByText('Experimental')).toBeTruthy()
 
     fireEvent.click(enabled)
 
@@ -60,10 +60,11 @@ describe('AltScreen page', () => {
     expect(document.querySelector('[inert]')).toBeNull()
   })
 
-  it('names the cars a preset fits, and saves it as both numbers', async () => {
+  // A preset is its size alone: no car named on hover.
+  it('saves a preset as both numbers', async () => {
     const backend = await altscreen()
     expect(chosen('Size')).toEqual(['1440×540'])
-    expect(radio('Size', '1440×540').title).toBe('Audi Virtual Cockpit, 12.3 inch')
+    expect(within(screen.getByRole('radiogroup', { name: 'Size' })).getAllByRole('radio').map((preset) => preset.title)).toEqual(['', '', '', ''])
 
     fireEvent.click(radio('Size', '1920×720'))
 
@@ -121,6 +122,12 @@ describe('AltScreen page', () => {
     // The controls window has the views alone, not the card's position or the part: the row says so, not the group.
     expect(screen.queryByText('Also on the controls window')).toBeNull()
     expect(row('Content').title).toBe('What the AltScreen shows now, as the controls window switches it too; it opens on it again')
+    // The HUD is no picture from the iPhone: ChairPlay draws it from the data CarPlay sends, which the words under the
+    // views say.
+    const hint = screen.getByText(
+      "HUD is ChairPlay's own screen, drawn from the route, song, and call data the iPhone sends rather than from CarPlay's video",
+    )
+    expect(hint.closest('.row')!.previousElementSibling).toBe(row('Content'))
   })
 
   // Without a session there is no map to show: the group is off and shows nothing chosen.
@@ -167,12 +174,15 @@ describe('AltScreen page', () => {
     }
   })
 
-  // Every size is the clusters' 8:3.
-  it('offers the 8:3 sizes, 1600×600 between the Audi and the common one', async () => {
+  // Every size is the clusters' 8:3, which hovering the size says, for one typed in.
+  it('offers the 8:3 sizes', async () => {
     await altscreen()
 
     const sizes = within(screen.getByRole('radiogroup', { name: 'Size' })).getAllByRole('radio').map((radio) => radio.textContent)
     expect(sizes).toEqual(['1280×480', '1440×540', '1600×600', '1920×720'])
+    // Under the fields, in words rather than on hover.
+    const hint = screen.getByText('Most clusters are 8:3, so the areas below split the width into eighths')
+    expect(hint.closest('.row')!.previousElementSibling).toBe(textbox('Width').closest('.row'))
   })
 
   // The margins are the view's the AltScreen shows, inside its part of the frame: Map's here.
@@ -194,8 +204,10 @@ describe('AltScreen page', () => {
     const parts = screen.getByRole('radiogroup', { name: 'Area' })
 
     expect(within(parts).getAllByRole('radio').map((radio) => radio.textContent)).toEqual([
-      'Left 5/8', 'Full screen', 'Right 5/8', 'Left 3/8', 'Center 3/8', 'Right 3/8',
+      'Left 5/8', 'Full screen', 'Right 5/8', 'Left 4/8', 'Center 4/8', 'Right 4/8', 'Left 3/8', 'Center 3/8', 'Right 3/8',
     ])
+    // Three rows of three, as the parts lie: the fives, the halves, the threes.
+    expect(parts.style.getPropertyValue('--columns')).toBe('3')
     expect(chosen('Area')).toEqual(['Right 5/8'])
     expect(screen.queryByRole('radiogroup', { name: 'For' })).toBeNull()
     // Under the view and where its turn card goes, as long as the view's own choice.

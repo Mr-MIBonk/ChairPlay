@@ -16,12 +16,9 @@ data class GeoPoint(val latitude: Double, val longitude: Double) {
         return GeoPoint(latitude, wrapLongitude(longitude))
     }
 
-    private fun wrapLongitude(value: Double): Double {
-        var wrapped = value
-        while (wrapped >= 180.0) wrapped -= 360.0
-        while (wrapped < -180.0) wrapped += 360.0
-        return wrapped
-    }
+    // By remainder, not by steps of 360: at a pole the longitude a step gives is enormous, or not a number.
+    private fun wrapLongitude(value: Double): Double =
+        if (!value.isFinite()) longitude else ((value + 180.0) % 360.0 + 360.0) % 360.0 - 180.0
 
     companion object {
         /** A degree of latitude on the mean earth (radius 6,371,008.8 m). */

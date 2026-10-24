@@ -10,6 +10,7 @@ import org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT
 import org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT
 import org.lwjgl.glfw.GLFW.GLFW_KEY_UP
 import org.lwjgl.glfw.GLFW.GLFW_KEY_A
+import org.lwjgl.glfw.GLFW.GLFW_MOD_CONTROL
 import org.lwjgl.glfw.GLFW.GLFW_PRESS
 import org.lwjgl.glfw.GLFW.GLFW_RELEASE
 import org.lwjgl.glfw.GLFW.GLFW_REPEAT
@@ -38,6 +39,9 @@ class DriveControlTest {
         assertEquals(CarInput(), keys.input())
         // An arrow held as the knob before drive mode began: its release goes on to the knob.
         assertFalse(keys.key(GLFW_KEY_LEFT, GLFW_RELEASE))
+        // Ctrl+Up and Ctrl+Down stay the volume keys.
+        assertFalse(keys.key(GLFW_KEY_UP, GLFW_PRESS, GLFW_MOD_CONTROL))
+        assertEquals(CarInput(), keys.input())
     }
 
     // The triggers press the pedals as far as they go; a stick near the middle steers nothing.

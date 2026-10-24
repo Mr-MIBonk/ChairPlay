@@ -5,17 +5,17 @@ import type { Settings } from '../shell/useSettings'
 import { AREA_CHOICES } from './areas'
 import { ActualSize, Changed, parts, pendingOf, SafeArea, SizeRows } from './parts'
 
-/** The instrument clusters a size fits, for its preset's tooltip. */
+/** The common sizes of an instrument cluster, all 8:3. */
 const PRESETS = [
-  [1280, 480, 'BYD DiLink 3: 10.25-inch clusters'],
-  [1440, 540, 'Audi Virtual Cockpit, 12.3 inch'],
+  [1280, 480],
+  [1440, 540],
   [1600, 600],
-  [1920, 720,'BYD DiLink 4 and 5, Geely: the common 12.3-inch cluster'],
+  [1920, 720],
 ] as const
 
 const DISPLAY_KEYS = ['altscreen.enabled', 'altscreen.width', 'altscreen.height']
 
-/** What the AltScreen can show, as the controls window lists it. */
+/** What the AltScreen can show, as the controls window lists it; the HUD is drawn by ChairPlay, the rest by the iPhone. */
 const VIEWS: readonly Choice[] = [['hud', 'HUD'], ['map', 'Map'], ['map-card', 'Map + card'], ['card', 'Turn card']]
 
 /** The iPhone's views that can show in a part of the frame; the HUD is ChairPlay's own and takes the whole window. */
@@ -57,6 +57,7 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
           checked={settings.value('altscreen.enabled') === 'true'}
           onChange={(checked) => settings.save({ 'altscreen.enabled': String(checked) })}
         />
+        <span className="exp">Experimental</span>
         <Changed keys={['altscreen.enabled']} pending={pending} />
       </Row>
       {/* Off, the AltScreen has nothing to set: the rest waits for it. */}
@@ -69,6 +70,9 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
           after={<ActualSize sizes={state.altscreenWindow} window="altscreen" backend={backend} />}
           pending={pending}
         />
+        <Row>
+          <span className="hint">Most clusters are 8:3, so the areas below split the width into eighths</span>
+        </Row>
         <Group title="View" />
         <Row label="Content" title="What the AltScreen shows now, as the controls window switches it too; it opens on it again">
           {/* Without a session the AltScreen has no map to show: off, with nothing chosen, as on the controls window. */}
@@ -79,6 +83,12 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
             disabled={!viewOn}
             onChange={(content) => void backend.altscreen(content as AltscreenContent)}
           />
+        </Row>
+        <Row>
+          <span className="hint">
+            HUD is ChairPlay's own screen, drawn from the route, song, and call data the iPhone sends rather than from
+            CarPlay's video
+          </span>
         </Row>
         {/* Map + card alone has a turn card to place: elsewhere the choice waits for it. */}
         <Row
@@ -112,6 +122,7 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
             value={settings.value(areaKey) || 'full'}
             options={AREA_CHOICES}
             className="rows view-areas"
+            columns={3}
             disabled={!areaView}
             onChange={(preset) => settings.save({ [areaKey]: preset })}
           />

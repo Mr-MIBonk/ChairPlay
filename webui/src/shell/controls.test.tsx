@@ -145,10 +145,10 @@ describe('Segmented', () => {
 
   it('gives an item its tooltip', () => {
     render(
-      <Segmented label="Size" value="" options={[['1440x540', '1440×540', 'Audi Virtual Cockpit, 12.3 inch']]} onChange={() => {}} />,
+      <Segmented label="Area" value="" options={[['full', 'Full screen', 'The whole frame']]} onChange={() => {}} />,
     )
 
-    expect(screen.getByRole('radio', { name: '1440×540' }).title).toBe('Audi Virtual Cockpit, 12.3 inch')
+    expect(screen.getByRole('radio', { name: 'Full screen' }).title).toBe('The whole frame')
   })
 })
 

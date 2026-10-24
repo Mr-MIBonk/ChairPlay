@@ -1045,6 +1045,14 @@ html:has(.shell) {
   min-height: 34px;
 }
 
+/*
+ * A group of choices in several rows (.seg.rows) is taller than the row's 34 px: it keeps the 4 px above and below that
+ * a one-line group of 26 px gets, so the gaps between the page's rows stay even.
+ */
+.shell .row:has(.seg.rows) {
+  padding-block: 4px;
+}
+
 .shell .row > label {
   padding-right: 14px;
   color: var(--muted);
@@ -1164,6 +1172,8 @@ html:has(.shell) {
 .shell .t.short.c { text-align: center; }
 /* The × between a size's fields: a set width, so that the Frame rate group (.seg.half) can be as long as the pair */
 .shell .x.times { width: 9px; text-align: center; }
+/* A coordinate, -122.41942 at most, beside its name */
+.shell .t.w96 { width: 96px; }
 .shell .t.w120 { width: 120px; }
 .shell .t.w160 { width: 160px; }
 .shell .t.w200 { width: 200px; }
@@ -1747,6 +1757,17 @@ html:has(.shell) {
   }
 }
 
+/* The GPS page's city presets: two rows of five, as long as a group of four, as the view areas are */
+.shell .seg.cities {
+  width: var(--row-width);
+}
+
+@container (min-width: 496px) {
+  .shell .seg.cities {
+    width: calc(4 * var(--choice) + 6px);
+  }
+}
+
 /* The picture at the left, the name centred in the rest */
 .shell .seg.view-areas button {
   display: grid;
@@ -1778,7 +1799,9 @@ html:has(.shell) {
 
 .shell .seg.rows[data-items='6'] button:nth-child(4)::before,
 .shell .seg.rows[data-items='7'] button:nth-child(5)::before,
-.shell .seg.rows[data-items='8'] button:nth-child(5)::before {
+.shell .seg.rows[data-items='8'] button:nth-child(5)::before,
+.shell .seg.view-areas button:nth-child(3n + 1)::before,
+.shell .seg.cities button:nth-child(5n + 1)::before {
   display: none;
 }
 
@@ -2053,7 +2076,8 @@ html:has(.shell) {
     width: min(calc(var(--columns) * var(--choice) + 6px), 100%);
   }
 
-  .shell .seg.view-areas {
+  .shell .seg.view-areas,
+  .shell .seg.cities {
     width: min(var(--row-width), 100%);
   }
 

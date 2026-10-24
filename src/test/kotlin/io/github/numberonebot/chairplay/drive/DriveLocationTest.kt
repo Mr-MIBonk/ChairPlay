@@ -115,6 +115,71 @@ class DriveLocationTest {
         assertNull(sentence(off.latestNmea()!!, "GPGSV"))
     }
 
+    /** A schedule that runs nothing by itself: the test calls [tick], and reads the [period] asked for. */
+    private class FakeSchedule {
+        var tick: (() -> Unit)? = null
+        var period: (() -> Long)? = null
+        var closed = false
+
+        fun start(period: () -> Long, action: () -> Unit): AutoCloseable {
+            this.period = period
+            tick = action
+            return AutoCloseable { closed = true }
+        }
+    }
+
+    // Attached to the tunnel, the GPS sends on its own at the rate set (the iPhone asks for 250 ms), each fix with its
+    // own time; DiPlay's once-a-second update then sends nothing.
+    @Test
+    fun `attached to the tunnel, the GPS sends at the rate set`() {
+        var wall = wallClock
+        var settings = GpsSettings(true, rate = 4)
+        val schedule = FakeSchedule()
+        val drive = drive(heading = 90.0)
+        val location = DriveLocation(drive, satellites = true, nanoTime = { now }, wallMillis = { wall },
+            settings = { settings }, schedule = schedule::start)
+        val sent = mutableListOf<String>()
+        location.attach(sent::add)
+        location.onRequested(setOf(1, 2, 3, 4))
+        location.start()
+
+        assertEquals(250L, schedule.period!!())
+        assertNull(location.latestNmea())
+        repeat(4) {
+            drive.input = CarInput(throttle = 1.0)
+            drive.tick(0.25)
+            wall += 250
+            schedule.tick!!()
+        }
+        assertEquals(4, sent.size)
+        assertEquals(listOf("100000.25", "100000.50", "100000.75", "100001.00"), sent.map { sentence(it, "GPGGA")!!.split(',')[1] })
+        assertTrue(sent.all { sentence(it, "PASCD") != null })
+        // The sky goes once a second, not with every fix.
+        assertEquals(1, sent.count { sentence(it, "GPGSV") != null })
+        assertEquals(4L, location.status().sent)
+
+        settings = GpsSettings(true, rate = 10, nmea = NmeaDialect.MODERN)
+        assertEquals(100L, schedule.period!!())
+        schedule.tick!!()
+        assertTrue(sentence(sent.last(), "GNGGA") != null)
+
+        location.stop()
+        assertTrue(schedule.closed)
+    }
+
+    // A tunnel that fails a send ends the sending; the next subscription starts it again.
+    @Test
+    fun `a failed send stops the sending`() {
+        val schedule = FakeSchedule()
+        val location = DriveLocation(drive(), satellites = false, nanoTime = { now }, wallMillis = { wallClock },
+            schedule = schedule::start)
+        location.attach { throw java.io.IOException("link ended") }
+        location.onRequested(setOf(1, 2))
+        location.start()
+        schedule.tick!!()
+        assertTrue(schedule.closed)
+    }
+
     // For the GPS page: what the iPhone asked for, whether it listens, and how many updates went.
     @Test
     fun `the link reports what the iPhone asked for and what was sent`() {

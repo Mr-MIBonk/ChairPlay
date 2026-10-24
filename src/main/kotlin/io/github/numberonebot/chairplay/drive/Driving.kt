@@ -39,11 +39,16 @@ class Driving(
 
     @Volatile private var link: DriveLocation? = null
 
-    /** [DriveControl.pass] while the GPS is on; off, the car stays put and drive mode ends. */
+    /**
+     * [DriveControl.pass] while the GPS is on. Off, the car stays put: one driven or moving as the GPS went off stops
+     * where it is, drive mode ends, and one more pass draws the gauges away.
+     */
     fun pass(): Double? {
         if (settings.enabled) return control.pass()
+        if (!control.keyboard && !drive.moving) return null
         if (control.keyboard) control.toggleKeyboard()
-        return null
+        drive.stop()
+        return DriveControl.FRAME_SECONDS
     }
 
     /** Turns drive mode on or off and says which; it stays off while the GPS is off. */
@@ -51,17 +56,23 @@ class Driving(
 
     /** The iPhone's GPS for a connection that identified with it. */
     fun location(gps: GpsSettings): Iap2LocationProvider =
-        DriveLocation(drive, gps.satellites, log, nanoTime = nanoTime, placed = { placed }).also { link = it }
+        DriveLocation(drive, gps.satellites, log, nanoTime = nanoTime, placed = { placed }, settings = { settings }).also { link = it }
 
-    /** The gps.* settings saved as [now], [keys] among them: a start or heading places the car, a power or mass remakes it. */
+    /**
+     * The gps.* settings saved as [now], [keys] among them: a place puts the car there facing the heading, a heading
+     * alone turns it where it is, and a power or mass remakes it.
+     */
     fun saved(now: GpsSettings, keys: Set<String>) {
         settings = now
-        if ("gps.start" in keys || "gps.heading" in keys) {
+        if ("gps.start" in keys) {
             now.start?.let { start ->
                 drive.place(start, now.headingDegrees)
                 placed = true
                 log("GPS car placed at ${start.latitude}, ${start.longitude}, heading ${now.headingDegrees}°")
             }
+        } else if ("gps.heading" in keys) {
+            drive.turn(now.headingDegrees)
+            log("GPS car turned to ${now.headingDegrees}°")
         }
         if ("gps.car.power.hp" in keys || "gps.car.mass.kg" in keys) {
             drive.respec(now.car)
@@ -79,7 +90,7 @@ class Driving(
             "heading" to car.headingDegrees.roundToInt() % 360,
             "speed" to car.speedKmh.roundToInt(),
             "rpm" to car.rpm.roundToInt(),
-            "gear" to if (car.gear < 0) "R" else car.gear.toString(),
+            "gear" to if (car.gear < 0) "R" else "D${car.gear}",
             "throttle" to snapshot.input.throttle,
             "brake" to snapshot.input.brake,
             "keyboard" to control.keyboard,
@@ -92,7 +103,7 @@ class Driving(
 
     /** What the gauges show while the car is driven and a while after, with gps.gauges on; null when they are gone. */
     fun gauges(): GaugeView? {
-        if (!settings.gauges || !control.showing) return null
+        if (!settings.enabled || !settings.gauges || !control.showing) return null
         val snapshot = drive.snapshot()
         val car = snapshot.car
         return GaugeView(
