@@ -23,6 +23,7 @@ object WindowsLocation {
     private const val WAIT_SECONDS = 10L
 
     private val SCRIPT = """
+        ${'$'}ProgressPreference = 'SilentlyContinue'
         Add-Type -AssemblyName System.Device
         ${'$'}watcher = New-Object System.Device.Location.GeoCoordinateWatcher([System.Device.Location.GeoPositionAccuracy]::High)
         if (-not ${'$'}watcher.TryStart(${'$'}false, [TimeSpan]::FromSeconds($WAIT_SECONDS)) -or ${'$'}watcher.Permission -eq 'Denied') { 'denied'; exit 0 }
@@ -60,10 +61,13 @@ object WindowsLocation {
         }
     }
 
-    /** What the script printed: a place as "latitude,longitude", "denied", or anything else for no fix. */
+    /**
+     * What the script printed: a line with a place as "latitude,longitude", or "denied"; anything else is no fix.
+     * PowerShell may write its progress records (CLIXML) around that line, so it is looked for among the others.
+     */
     internal fun parse(output: String): Result {
-        val text = output.trim()
-        if (text == "denied") return Denied
-        return Coordinates.parse(text)?.let(::Found) ?: Unknown
+        val lines = output.lines().map(String::trim)
+        if ("denied" in lines) return Denied
+        return lines.firstNotNullOfOrNull(Coordinates::parse)?.let(::Found) ?: Unknown
     }
 }

@@ -1,214 +1,14 @@
 package io.github.numberonebot.chairplay.ui
 
 import io.github.numberonebot.chairplay.drive.WindowsLocation
-import io.github.numberonebot.chairplay.config.AREA_VIEWS
-import io.github.numberonebot.chairplay.config.AltscreenViewParts
-import io.github.numberonebot.chairplay.config.Applies
-import io.github.numberonebot.chairplay.config.DesktopConfig
-import io.github.numberonebot.chairplay.config.EditableSettings
 import io.github.numberonebot.chairplay.config.SettingsFile
 import io.github.numberonebot.chairplay.config.SetupStore
 import io.github.numberonebot.chairplay.config.WindowSize
-import io.github.numberonebot.chairplay.input.ControlAction
 import io.github.numberonebot.chairplay.input.ControlsConfig
 import io.github.numberonebot.chairplay.input.ControlsFile
-import io.github.numberonebot.chairplay.input.ControlsSave
-import io.github.numberonebot.chairplay.input.WheelAction
 import io.github.numberonebot.chairplay.media.AudioDevices
-import java.net.URLEncoder
 import java.nio.file.Files
-import java.nio.file.Path
 import java.time.format.DateTimeFormatter
-
-/** What the screens ask the app to do with the iPhone. */
-interface UiActions {
-    /** Starts connecting, as the app does on its own with ui.autoconnect. */
-    fun connect()
-
-    /** Ends the session or bring-up and starts a new one, as Ctrl+R does. */
-    fun reconnect()
-
-    /** Ends the session or bring-up; none starts until Connect. */
-    fun disconnect()
-}
-
-/** A window of the app the settings screen shows and hides: the AltScreen's, the controls'. */
-interface UiWindow {
-    val visible: Boolean
-
-    /** False while the window waits, hidden, for a setting to turn it on: the AltScreen's while altscreen.enabled is off. */
-    val available: Boolean get() = true
-
-    /** Safe from any thread: the window shows or hides on its own thread soon after. */
-    fun setShown(shown: Boolean)
-}
-
-/** A window that shows a picture, for its page's Actual size: the main window, the AltScreen's. */
-interface UiMainWindow {
-    /** False while the window waits, hidden, for a setting to turn it on: it has no Actual size meanwhile. */
-    val available: Boolean get() = true
-
-    /** The client area, in screen pixels. */
-    val width: Int
-    val height: Int
-
-    /** The smallest client area its edges and a resize can reach, in screen pixels: Windows' display scale grows it. */
-    val minWidth: Int get() = 0
-    val minHeight: Int get() = 0
-
-    /** The picture it shows now, one screen pixel per picture pixel at Actual size; null for the display size the app started with. */
-    val picture: WindowSize? get() = null
-
-    /** Safe from any thread: resizes the client area to [width] x [height] screen pixels soon after. */
-    fun resizeTo(width: Int, height: Int)
-}
-
-/** The HUD's demos on the AltScreen, for the Experiments page: "maneuvers" or "lanes", one at a time. Safe from any thread. */
-interface UiDemo {
-    /** The demo playing, or null. */
-    val playing: String?
-
-    /** Whether one can play: the AltScreen is on. */
-    val available: Boolean
-
-    /** Plays [kind], in place of one playing, or stops it (null); false when the AltScreen is off. */
-    fun play(kind: String?): Boolean
-}
-
-/** The AltScreen's window drawing a safe area for a moment; insets in the picture's pixels. Safe from any thread. */
-fun interface UiSafeAreaFrame {
-    fun show(top: Int, bottom: Int, left: Int, right: Int)
-}
-
-/** The controls window's page: the car's buttons, and what it shows beside them. Safe from any thread. */
-interface UiControls {
-    /**
-     * Presses ([down]) or releases the button [action] names: a key of controls.properties without its "key."
-     * ("knob.select", "volume.up"). False when there is no such button.
-     */
-    fun control(action: String, down: Boolean): Boolean
-
-    /**
-     * A key pressed on a page, which has the keyboard while it shows, handed on as if pressed on the window: its name
-     * as controls.properties writes it ("Shift+F11"), [phase] "press", "repeat" or "release". [everything] over the
-     * controls window's page; over the settings only the keys that neither move about the page nor type work. False
-     * when the key does nothing there.
-     */
-    fun key(name: String, phase: String, everything: Boolean): Boolean = false
-
-    /** Shows [content] ("hud", "map", "map-card", "card") on the AltScreen; false when it cannot be shown. */
-    fun altscreenContent(content: String): Boolean
-
-    /** Sets the app's volume to [level] percent (the Audio page's slider), unmuting it; false when there is none. */
-    fun volume(level: Int): Boolean = false
-
-    /** What the page shows beside the buttons: their keys, the volume, the AltScreen's content, whether Alt is held. */
-    fun state(): Map<String, Any?>
-}
-
-/** Whether Windows Firewall lets the iPhone in, as read at start. */
-enum class FirewallStatus {
-    PRESENT, MISSING, BLOCKED, UNKNOWN,
-
-    /** Off for the networks the PC is on: nothing to add, nothing to warn of. */
-    OFF,
-}
-
-/** What the start screen's setup steps refer to. */
-data class SetupInfo(
-    val mfiDirectory: Path,
-    val firewall: FirewallStatus,
-    /** The netsh commands that add the firewall rules, from an administrator prompt. */
-    val firewallCommands: String,
-    val settingsFile: Path,
-    val displayWidth: Int,
-    val displayHeight: Int,
-    /** ui.accent, #rrggbb, which the pages colour themselves from. */
-    val accent: String = DesktopConfig.DEFAULT_ACCENT,
-)
-
-/** The sound devices by the names audio.output and audio.input match against. */
-data class AudioDeviceNames(val outputs: List<String>, val inputs: List<String>)
-
-/** A save's outcome: the problems by key, or, when there are none, when each saved setting applies. */
-class SaveResult(val errors: Map<String, String>, val applies: Map<String, String>)
-
-/** What the HTTP server asks of the app; the JSON messages are maps and lists for [Json]. */
-interface UiApi {
-    /** Moves on with every change of what [state] returns. */
-    val version: Long
-    fun state(): Map<String, Any?>
-    fun settings(): Map<String, Any?>
-    fun saveSettings(changes: Map<String, String>): SaveResult
-
-    /**
-     * The saved Wi-Fi password, for the eye beside it; null when none is saved. It is in settings.properties as
-     * written, so the page may show it when asked; the state, the settings, and the log never carry it.
-     */
-    fun savedPassphrase(): String? = null
-
-    /** Null when connecting started, else why it cannot. */
-    fun connect(): String?
-    fun reconnect()
-    fun disconnect()
-
-    /** Shows the screen named "start", "settings" or "carplay"; false when it cannot be shown. */
-    fun show(screen: String): Boolean
-
-    /** Shows or hides the window named "altscreen" or "controls"; false when there is no such window. */
-    fun window(name: String, visible: Boolean): Boolean
-
-    /** A button of the controls window pressed or released ([UiControls.control]); false when there is none. */
-    fun control(action: String, down: Boolean): Boolean
-
-    /** A key pressed on a page, handed on to the app ([UiControls.key]); false when it does nothing there. */
-    fun key(name: String, phase: String, everything: Boolean): Boolean = false
-
-    /** The controls window's AltScreen modes ([UiControls.altscreenContent]); false when it cannot be shown. */
-    fun altscreenContent(content: String): Boolean
-
-    /** Opens the Windows page or folder [place] names ([UiController.open]); false when there is none or it failed. */
-    fun open(place: String): Boolean
-
-    /**
-     * Resizes the window named "main" or "altscreen" to one screen pixel per picture pixel; false when there is no such
-     * window.
-     */
-    fun actualSize(window: String): Boolean
-
-    /**
-     * Shows the AltScreen's saved safe area on its window for a moment, or [view]'s ("map", "map-card", "card"), its
-     * margins inside its part; false without an AltScreen or for another view.
-     */
-    fun showAltscreenFrame(view: String? = null): Boolean
-
-    /** Adds the firewall rules with the administrator's consent; false when it was not given or they failed. */
-    fun addFirewallRule(): Boolean
-
-    /** Forget this iPhone: ChairPlay's pairing records go and Get started opens; false when there is nothing to forget. */
-    fun forget(): Boolean
-
-    /** Plays a HUD demo on the AltScreen ("maneuvers" or "lanes"), or stops it (null); false when none can play. */
-    fun demo(kind: String?): Boolean = false
-
-    /** Sets the app's volume to [level] percent, from the Audio page's slider; false without a volume to set. */
-    fun volume(level: Int): Boolean = false
-
-    /** Where Windows locates this PC, as latitude and longitude, or the error "denied" or "unknown". */
-    fun windowsLocation(): Map<String, Any?> = mapOf("error" to "unknown")
-
-    /**
-     * The Keyboard page's bindings: each action's keys, defaults and fixed keys, and the wheel and repeat settings as
-     * controls.properties names them; null when the app has none to change.
-     */
-    fun controls(): Map<String, Any?>?
-
-    /** Saves controls.properties [changes] and puts them in force at once, or says why the start would refuse them. */
-    fun saveControls(changes: Map<String, String>): SaveResult
-
-    /** Waits up to [timeoutMillis] for [version] to differ from [seen], and returns it. */
-    fun awaitChange(seen: Long, timeoutMillis: Long): Long
-}
 
 /**
  * The screens' side of the app: the state the page shows, the settings it reads and writes in [settings], and the
@@ -261,8 +61,12 @@ class UiController(
     /** Asks Windows where this PC is, for the GPS page. */
     private val locate: () -> WindowsLocation.Result = WindowsLocation::read,
 ) : UiApi {
-    /** The settings as the app started with them, against which a change waits for the next start. */
-    private val startup: Map<String, String> = settings.read()
+    private val places = UiPlaces(setup, launch, log, about, windowsVersion)
+
+    private val settingsApi = UiSettings(
+        settings, model, setup, log, audioDevices, bindings, onBindings, onSaved,
+        connects = { autoconnect && setupDone }, connect = ::connectNow, changed = ::changed,
+    )
 
     /** True while the page is in the main window; false when it opened in a browser instead. */
     @Volatile
@@ -308,21 +112,13 @@ class UiController(
             "altscreen" -> altscreenWindow
             else -> null
         }?.takeIf { it.available } ?: return false
-        val picture = pictureOf(target)
+        val picture = target.pictureOr(display)
         target.resizeTo(picture.width, picture.height)
         return true
     }
 
-    private fun pictureOf(window: UiMainWindow) = window.picture ?: WindowSize(setup.displayWidth, setup.displayHeight)
-
-    /** A window's client area, its picture, and its smallest size, for its page's Actual size. */
-    private fun sizes(window: UiMainWindow): Map<String, Int> {
-        val picture = pictureOf(window)
-        return mapOf(
-            "width" to window.width, "height" to window.height, "pictureWidth" to picture.width,
-            "pictureHeight" to picture.height, "minWidth" to window.minWidth, "minHeight" to window.minHeight,
-        )
-    }
+    // The picture a window shows before its stream says otherwise: the display the app started with.
+    private val display = WindowSize(setup.displayWidth, setup.displayHeight)
 
     override fun window(name: String, visible: Boolean): Boolean {
         val window = windows[name]?.takeIf { it.available } ?: return false
@@ -343,23 +139,8 @@ class UiController(
     override fun showAltscreenFrame(view: String?): Boolean {
         val frame = altscreenFrame ?: return false
         val values = runCatching { settings.read() }.getOrDefault(emptyMap())
-        fun inset(edge: String) = values["altscreen.safe.$edge"]?.trim()?.toIntOrNull()?.coerceAtLeast(0) ?: 0
-        // A view's area as the connection declares it: its own margins inside its part, or the AltScreen's clipped to it.
-        val area = view?.let { key ->
-            val content = AREA_VIEWS.firstOrNull { it.key == key } ?: return false
-            fun size(key: String, default: Int) = values[key]?.trim()?.toIntOrNull() ?: default
-            val width = size("altscreen.width", DesktopConfig.DEFAULT_ALTSCREEN_WIDTH)
-            val height = size("altscreen.height", DesktopConfig.DEFAULT_ALTSCREEN_HEIGHT)
-            val parts = runCatching { AltscreenViewParts(width, height, values::get) }.getOrNull() ?: return false
-            Triple(parts.areas[parts.indexOf(content)], width, height)
-        }
-        val own = area?.first?.safeArea
-        if (own != null) frame.show(own.top, own.bottom, own.left, own.right)
-        else if (area != null) {
-            val (part, width, height) = area
-            frame.show(maxOf(inset("top"), part.originY), maxOf(inset("bottom"), height - part.originY - part.height),
-                maxOf(inset("left"), part.originX), maxOf(inset("right"), width - part.originX - part.width))
-        } else frame.show(inset("top"), inset("bottom"), inset("left"), inset("right"))
+        val insets = altscreenFrameInsets(values, view) ?: return false
+        frame.show(insets.top, insets.bottom, insets.left, insets.right)
         return true
     }
 
@@ -378,11 +159,7 @@ class UiController(
     // The controls' volume, which tells the pages of the change itself.
     override fun volume(level: Int): Boolean = controls?.volume(level) ?: false
 
-    override fun windowsLocation(): Map<String, Any?> = when (val found = locate()) {
-        is WindowsLocation.Found -> mapOf("latitude" to found.place.latitude, "longitude" to found.place.longitude)
-        WindowsLocation.Denied -> mapOf("error" to "denied")
-        WindowsLocation.Unknown -> mapOf("error" to "unknown")
-    }
+    override fun windowsLocation(): Map<String, Any?> = locate().toPage()
 
     override fun demo(kind: String?): Boolean {
         val demo = demo ?: return false
@@ -402,39 +179,9 @@ class UiController(
         return added
     }
 
-    override fun controls(): Map<String, Any?>? {
-        val config = bindings?.read() ?: return null
-        return linkedMapOf(
-            "actions" to ControlAction.entries.associate { action ->
-                action.key to mapOf(
-                    "keys" to config.keys(action),
-                    "defaults" to action.defaults.split(',').map(String::trim).filter(String::isNotEmpty),
-                    "fixed" to config.fixedKeys(action),
-                )
-            },
-            "settings" to linkedMapOf(
-                "wheel.action" to if (config.wheel == WheelAction.NONE) "none" else "knob",
-                "wheel.invert" to config.wheelInvert.toString(),
-                "wheel.notches.per.step" to config.notchesPerStep.toString(),
-                "key.repeat.every" to config.repeatEvery.toString(),
-                "key.zoom.repeat.every" to config.zoomRepeatEvery.toString(),
-            ),
-        )
-    }
+    override fun controls(): Map<String, Any?>? = settingsApi.controls()
 
-    /** A save also tells the controls window's page, whose buttons show each action's first key. */
-    override fun saveControls(changes: Map<String, String>): SaveResult {
-        val file = bindings ?: return SaveResult(changes.keys.associateWith { "The app has no key bindings to change" }, emptyMap())
-        return when (val result = file.save(changes)) {
-            is ControlsSave.Refused -> SaveResult(mapOf(result.key to result.message), emptyMap())
-            is ControlsSave.Saved -> {
-                onBindings(result.config)
-                log("key bindings saved: ${result.changes.keys.joinToString()}")
-                changed()
-                SaveResult(emptyMap(), result.changes.keys.associateWith { "now" })
-            }
-        }
-    }
+    override fun saveControls(changes: Map<String, String>): SaveResult = settingsApi.saveControls(changes)
 
     override fun control(action: String, down: Boolean): Boolean = controls?.control(action, down) ?: false
 
@@ -443,51 +190,7 @@ class UiController(
 
     override fun altscreenContent(content: String): Boolean = controls?.altscreenContent(content) ?: false
 
-    /**
-     * Opens a page the screens link to, by the name of one the app knows ([PLACES]): Bluetooth or Wi-Fi in Settings,
-     * the firewall in Windows Security or its console with the rules, the MFi, logs, and screenshots folders (made first
-     * if they are missing), and the About page's: the project's pages on GitHub (a new issue with [details] filled in), DiPlay's, the HUD
-     * renderer's, and the third-party notices beside the app, in Notepad as the file has no extension. Each but the
-     * notices goes through explorer.exe, which hands it to the shell: a Settings address opens its page, a web address
-     * the browser, and the console asks for the administrator's consent it needs. False for a name the app does not
-     * know, or when Windows did not start it.
-     */
-    override fun open(place: String): Boolean {
-        if (place !in PLACES) return false
-        return runCatching {
-            if (place == "notices") launch(listOf("notepad.exe", setup.settingsFile.resolveSibling("THIRD_PARTY_NOTICES").toString()))
-            else launch(listOf("explorer.exe", target(place)))
-        }
-            .onFailure { log("could not open $place: $it") }
-            .isSuccess
-    }
-
-    private fun target(place: String): String = when (place) {
-        "bluetooth" -> "ms-settings:bluetooth"
-        "wifi" -> "ms-settings:network-wifi"
-        "firewall" -> "windowsdefender://network/"
-        "location" -> "ms-settings:privacy-location"
-        "firewall-rules" -> Path.of(System.getenv("SystemRoot") ?: "C:/Windows", "System32", "wf.msc").toString()
-        "issues" -> "$PROJECT/issues/new?body=" +
-            URLEncoder.encode("What happened, and what you expected:\n\n\n---\n${details()}", Charsets.UTF_8).replace("+", "%20")
-        "discussions" -> "$PROJECT/discussions"
-        "pull-requests" -> "$PROJECT/pulls"
-        "author" -> "https://github.com/NumberOneBot"
-        "source" -> PROJECT
-        "releases" -> "$PROJECT/releases"
-        "diplay" -> "https://github.com/shihabal3amri/DiPlay"
-        "xcertplay" -> "https://github.com/shilapi/xcertplay"
-        "rgi" -> "https://github.com/luka-dev/mib2q-carplay-rgi"
-        "logs", "screenshots" -> Files.createDirectories(setup.settingsFile.resolveSibling(place)).toString()
-        else -> Files.createDirectories(setup.mfiDirectory).toString()
-    }
-
-    /** What a report needs to say which ChairPlay it is about: the build, the DiPlay core, and Windows; no setting. */
-    private fun details(): String {
-        fun commit(name: String, commit: Commit?) = "$name ${commit?.let { "${it.id} (${it.date})" } ?: "not recorded"}"
-        val windows = runCatching(windowsVersion).getOrDefault("Windows")
-        return "${commit("ChairPlay", about.app)}\n${commit("DiPlay core", about.core)}\n$windows"
-    }
+    override fun open(place: String): Boolean = places.open(place)
 
     private fun changed() {
         synchronized(lock) {
@@ -532,13 +235,13 @@ class UiController(
                 val window = windows[name]?.takeIf { it.available }
                 mapOf("available" to (window != null), "visible" to (window?.visible ?: false))
             },
-            "mainWindow" to mainWindow?.let(::sizes),
-            "altscreenWindow" to altscreenWindow?.takeIf { it.available }?.let(::sizes),
+            "mainWindow" to mainWindow?.sizes(display),
+            "altscreenWindow" to altscreenWindow?.takeIf { it.available }?.sizes(display),
             "controls" to controls?.state(),
             "controlsKeys" to (values["ui.controls.keys"]?.trim() == "true"),
             "setupDone" to setupDone,
             "accent" to setup.accent,
-            "about" to mapOf("app" to about.app?.let(::commitMap), "core" to about.core?.let(::commitMap), "details" to details()),
+            "about" to mapOf("app" to about.app?.let(::commitMap), "core" to about.core?.let(::commitMap), "details" to places.details()),
             "reconnectPending" to state.reconnectPending.sorted(),
             "restartPending" to state.restartPending.sorted(),
             "setup" to linkedMapOf(
@@ -555,47 +258,11 @@ class UiController(
 
     private fun commitMap(commit: Commit) = mapOf("commit" to commit.id, "date" to commit.date)
 
-    override fun savedPassphrase(): String? = settings.read()[PASSPHRASE]?.ifEmpty { null }
+    override fun savedPassphrase(): String? = settingsApi.savedPassphrase()
 
-    override fun settings(): Map<String, Any?> {
-        val values = settings.read()
-        return linkedMapOf(
-            "values" to EditableSettings.keys.filter { it != PASSPHRASE }.associateWith { values[it].orEmpty() },
-            "passphraseSet" to !values[PASSPHRASE].isNullOrEmpty(),
-            "applies" to EditableSettings.keys.associateWith { appliesName(EditableSettings.applies(it)) },
-            "display" to mapOf("width" to setup.displayWidth, "height" to setup.displayHeight),
-            "audio" to runCatching { audioDevices() }.getOrElse { AudioDeviceNames(emptyList(), emptyList()) }
-                .let { mapOf("outputs" to it.outputs, "inputs" to it.inputs) },
-        )
-    }
+    override fun settings(): Map<String, Any?> = settingsApi.settings()
 
-    override fun saveSettings(changes: Map<String, String>): SaveResult {
-        val normalized = changes.mapValues { (key, value) -> normalize(key, value) }
-        val (saved, phase) = synchronized(this) {
-            val current = settings.read()
-            val errors = EditableSettings.validate(normalized, current)
-            if (errors.isNotEmpty()) return SaveResult(errors, emptyMap())
-            settings.write(normalized)
-            normalized.filter { (key, value) -> current[key] != value } to model.state.phase
-        }
-        val applies = normalized.keys.associateWith { appliesName(EditableSettings.applies(it)) }
-        if (saved.isNotEmpty()) log("settings saved: ${saved.keys.joinToString()}")
-        saved["ui.autoshow"]?.let { model.setAutoshow(it == "true") }
-        if (saved.isNotEmpty()) onSaved(saved)
-        val now = settings.read()
-        val restart = EditableSettings.keys.filter { EditableSettings.applies(it) == Applies.RESTART && now[it].orEmpty() != startup[it].orEmpty() }
-        val running = phase != Phase.SETUP && phase != Phase.IDLE
-        val reconnect = saved.keys.filter { EditableSettings.applies(it) == Applies.RECONNECT && running }
-        model.pending(reconnect.toSet(), restart.toSet())
-        // While Get started is open it owns the first Connect: a network saved before its password must not start
-        // a bring-up without one.
-        if (!now["wifi.ssid"].isNullOrBlank() && model.wifiSaved() && autoconnect && setupDone) {
-            log("Wi-Fi network set; connecting")
-            connectNow()
-        }
-        changed()
-        return SaveResult(emptyMap(), applies)
-    }
+    override fun saveSettings(changes: Map<String, String>): SaveResult = settingsApi.save(changes)
 
     override fun connect(): String? {
         if (model.state.phase == Phase.SETUP) return "Enter the Wi-Fi network first"
@@ -620,30 +287,12 @@ class UiController(
         return model.show(target)
     }
 
-    private fun normalize(key: String, value: String): String = when (key) {
-        // A network name and a password are taken as typed: spaces may belong to them.
-        "wifi.ssid", PASSPHRASE -> value
-        else -> if (EditableSettings.caseless(key)) value.trim().lowercase() else value.trim()
-    }
-
-    private fun appliesName(applies: Applies) = applies.name.lowercase()
-
     private companion object {
-        const val PASSPHRASE = "wifi.passphrase"
         val MFI_FILES = listOf("identity.pk8", "certificate.p7b")
         val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
         /** The windows the page has triggers for, each in the state whether it is there or not. */
         val WINDOWS = listOf("altscreen", "controls")
         /** The HUD demos the Experiments page plays: the made-up route, and the lanes switching under one maneuver. */
         val DEMOS = listOf("maneuvers", "lanes")
-        /** The Windows pages and folder the screens may open, by the name the page gives ([open]). */
-        val PLACES = listOf(
-            "bluetooth", "wifi", "firewall", "firewall-rules", "mfi-folder", "location",
-            "issues", "discussions", "pull-requests", "author", "source", "releases", "notices", "diplay", "xcertplay", "rgi",
-            "logs", "screenshots",
-        )
-
-        /** The project's home on GitHub. */
-        const val PROJECT = "https://github.com/NumberOneBot/ChairPlay"
     }
 }

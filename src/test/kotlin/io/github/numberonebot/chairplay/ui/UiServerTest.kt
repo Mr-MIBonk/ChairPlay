@@ -11,7 +11,7 @@ import java.net.http.HttpRequest
 import java.net.http.HttpResponse
 
 class UiServerTest {
-    private val api = FakeApi()
+    private val api = FakeUiApi()
     private val assets = mapOf(
         "index.html" to "<!doctype html><title>ChairPlay</title>",
         "assets/app.js" to "console.log(1)",
@@ -235,101 +235,5 @@ class UiServerTest {
         api.change("active")
         val next = generateSequence { lines.next() }.first { it.startsWith("data: ") }
         assertEquals("data: {\"version\":1,\"phase\":\"active\"}", next)
-    }
-
-    private class FakeApi : UiApi {
-        private val lock = Object()
-        private var phase = "idle"
-        @Volatile override var version = 0L
-        override fun savedPassphrase() = "secret123"
-        var saved: Map<String, String>? = null
-        var connectError: String? = null
-        val calls = mutableListOf<String>()
-
-        fun change(newPhase: String) = synchronized(lock) {
-            phase = newPhase
-            version++
-            lock.notifyAll()
-        }
-
-        override fun state(): Map<String, Any?> = synchronized(lock) { linkedMapOf("version" to version, "phase" to phase) }
-        override fun settings(): Map<String, Any?> = mapOf("values" to emptyMap<String, String>())
-        override fun saveSettings(changes: Map<String, String>): SaveResult {
-            if (changes["window.width"] == "x") return SaveResult(mapOf("window.width" to "bad"), emptyMap())
-            saved = changes
-            return SaveResult(emptyMap(), mapOf("window.width" to "restart"))
-        }
-        override fun connect(): String? = connectError ?: null.also { calls += "connect" }
-        override fun reconnect() {
-            calls += "reconnect"
-        }
-        override fun disconnect() {
-            calls += "disconnect"
-        }
-        override fun show(screen: String): Boolean {
-            calls += "show $screen"
-            return screen != "carplay"
-        }
-        override fun window(name: String, visible: Boolean): Boolean {
-            calls += "window $name $visible"
-            return name == "controls"
-        }
-        override fun control(action: String, down: Boolean): Boolean {
-            calls += "control $action $down"
-            return action != "eject"
-        }
-        override fun key(name: String, phase: String, everything: Boolean): Boolean {
-            calls += "key $name $phase $everything"
-            return name != "Up" || everything
-        }
-        override fun altscreenContent(content: String): Boolean {
-            calls += "altscreen $content"
-            return content == "hud"
-        }
-        override fun open(place: String): Boolean {
-            calls += "open $place"
-            return place == "bluetooth"
-        }
-        override fun showAltscreenFrame(view: String?): Boolean {
-            calls += if (view == null) "altscreen frame" else "altscreen frame $view"
-            return true
-        }
-        override fun forget(): Boolean {
-            calls += "forget"
-            return true
-        }
-
-        override fun demo(kind: String?): Boolean {
-            calls += "demo $kind"
-            return kind != "tetris"
-        }
-
-
-        override fun volume(level: Int): Boolean {
-            calls += "volume $level"
-            return true
-        }
-        var consent = true
-        override fun addFirewallRule(): Boolean {
-            calls += "firewall rule"
-            return consent
-        }
-        var hasControls = true
-        var savedControls: Map<String, String>? = null
-        override fun controls(): Map<String, Any?>? = if (hasControls) mapOf("actions" to emptyMap<String, Any>()) else null
-        override fun saveControls(changes: Map<String, String>): SaveResult {
-            if (changes["key.home"] == "Escape") return SaveResult(mapOf("key.home" to "Escape always goes back"), emptyMap())
-            savedControls = changes
-            return SaveResult(emptyMap(), emptyMap())
-        }
-        var mainWindow = true
-        override fun actualSize(window: String): Boolean {
-            calls += "actual size $window"
-            return mainWindow
-        }
-        override fun awaitChange(seen: Long, timeoutMillis: Long): Long = synchronized(lock) {
-            if (version == seen) lock.wait(timeoutMillis)
-            version
-        }
     }
 }

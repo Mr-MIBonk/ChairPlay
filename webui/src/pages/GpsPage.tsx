@@ -131,7 +131,6 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
         >
           <HeadingField settings={settings} shown={heading} id={`${ids}-heading`} />
           <Compass heading={Number(heading) || 0} />
-          <WindowsLocationButton backend={backend} settings={settings} heading={heading} />
         </Row>
         <Row label="City presets" title="Put the car on a busy road in one of these cities, facing along it">
           <Segmented
@@ -145,6 +144,9 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
                 void save({ 'gps.start': `${city.latitude}, ${city.longitude}`, 'gps.heading': String(city.heading) })
             }}
           />
+        </Row>
+        <Row>
+          <WindowsLocationButton backend={backend} settings={settings} heading={heading} />
         </Row>
         {check(
           'gps.resume',

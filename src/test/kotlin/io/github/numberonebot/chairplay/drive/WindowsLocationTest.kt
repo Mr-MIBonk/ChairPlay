@@ -10,6 +10,15 @@ class WindowsLocationTest {
         assertEquals(WindowsLocation.Found(GeoPoint(48.85837, 2.294481)), WindowsLocation.parse("48.85837,2.294481\r\n"))
     }
 
+    // Seen on Windows 11: PowerShell writes its progress as CLIXML into the same output, around the answer.
+    @Test
+    fun `the answer is found among PowerShell's progress records`() {
+        val output = "#< CLIXML\r\n48.85837,2.294481\r\n<Objs Version=\"1.1.0.1\"><Obj S=\"progress\" RefId=\"0\">" +
+            "<AV>Preparing modules for first use.</AV></Obj></Objs>"
+        assertEquals(WindowsLocation.Found(GeoPoint(48.85837, 2.294481)), WindowsLocation.parse(output))
+        assertEquals(WindowsLocation.Denied, WindowsLocation.parse("#< CLIXML\r\ndenied\r\n<Objs/>"))
+    }
+
     // Location turned off, or desktop apps not let use it.
     @Test
     fun `a refusal is told apart from no fix`() {
