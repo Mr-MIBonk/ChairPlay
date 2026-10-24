@@ -86,6 +86,14 @@ export class FakeBackend implements Backend {
     return this.location
   }
 
+  /** Drive mode as the GPS page turned it. */
+  driveModes: boolean[] = []
+
+  async driveMode(on: boolean) {
+    this.driveModes.push(on)
+    return true
+  }
+
   async save(changes: Record<string, string>): Promise<SaveOutcome> {
     this.saved.push(changes)
     const outcome = this.nextOutcome

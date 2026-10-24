@@ -73,7 +73,7 @@ class WirelessBootstrapDataTest : WirelessBootstrapFixture() {
             override fun start() = true
             override fun stop() {}
             override fun latestNmea(): String? = null
-            override fun attach(send: (String) -> Unit) {
+            override fun attach(send: (List<String>) -> Unit) {
                 attached = true
             }
         }

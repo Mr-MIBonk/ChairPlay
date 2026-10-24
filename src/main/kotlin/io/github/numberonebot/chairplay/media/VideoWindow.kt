@@ -570,7 +570,7 @@ class VideoWindow(
         gl.frame(rect, fw, fh)
     }
 
-    /** Whether a fade is under way, which needs passes of the loop at the screen's pace until it ends. */
-    internal val animating: Boolean get() = childFade?.moving == true || viewFade?.moving == true
+    /** Whether a fade or the top layer's motion is under way, which needs passes of the loop at the screen's pace. */
+    internal val animating: Boolean get() = childFade?.moving == true || viewFade?.moving == true || topLayer?.animating == true
 
 }

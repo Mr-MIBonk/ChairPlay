@@ -1,52 +1,69 @@
 package io.github.numberonebot.chairplay.drive
 
-import kotlin.math.abs
 import kotlin.math.ceil
-import kotlin.math.roundToInt
 
 /**
- * A round dial's scale, as Audi's: 240 degrees from the lower left, clockwise over the top to the lower right, a tick
- * at each [minor] step, the [major] ones numbered, and a red zone from [redFrom] when there is one.
+ * A round dial's scale, as Audi's: 240 degrees from the lower left, clockwise over the top to the lower right, its
+ * [numbers] evenly apart with a tick halfway between each two and fine ones at the tenths, and a red zone from [redFrom],
+ * dashed from [warnFrom]. Numbers that do not step evenly change the scale between them, as a fast car's speedometer
+ * does past 60.
  */
-data class GaugeScale(val max: Double, val major: Double, val minor: Double, val redFrom: Double? = null) {
-    data class Tick(val value: Double, val major: Boolean)
+data class GaugeScale(val numbers: List<Double>, val redFrom: Double? = null, val warnFrom: Double? = null) {
+    /** A numbered tick, the one halfway between two numbers, or one of the fine tenths between them. */
+    enum class TickSize { MAJOR, MIDDLE, FINE }
+
+    data class Tick(val value: Double, val size: TickSize) {
+        val major: Boolean get() = size == TickSize.MAJOR
+    }
+
+    val max: Double get() = numbers.last()
 
     /** Where the needle points for [value], in radians as NanoVG turns (0 to the right, clockwise, y down). */
-    fun angle(value: Double): Double = Math.toRadians(START_DEGREES + SWEEP_DEGREES * (value / max).coerceIn(0.0, 1.0))
-
-    fun ticks(): List<Tick> = (0..(max / minor).roundToInt()).map { step ->
-        val value = step * minor
-        Tick(value, abs(value / major - (value / major).roundToInt()) < 1e-9)
+    fun angle(value: Double): Double {
+        val v = value.coerceIn(numbers.first(), max)
+        val i = numbers.indices.last { it == 0 || numbers[it] <= v }.coerceAtMost(numbers.size - 2)
+        val along = i + (v - numbers[i]) / (numbers[i + 1] - numbers[i])
+        return Math.toRadians(START_DEGREES + SWEEP_DEGREES * along / (numbers.size - 1))
     }
+
+    fun ticks(): List<Tick> = numbers.zipWithNext { a, b ->
+        (0 until 10).map { tenth ->
+            val size = when (tenth) {
+                0 -> TickSize.MAJOR
+                5 -> TickSize.MIDDLE
+                else -> TickSize.FINE
+            }
+            Tick(a + (b - a) * tenth / 10, size)
+        }
+    }.flatten() + Tick(max, TickSize.MAJOR)
 
     companion object {
         const val START_DEGREES = 150.0
         const val SWEEP_DEGREES = 240.0
 
-        /** km/h, reaching past the car's top speed as a car's speedometer does: 260 for an ordinary car. */
-        fun speedometer(spec: CarSpec): GaugeScale {
-            val top = CarModel.topSpeed(spec) * 3.6
-            val max = (ceil(top * SPEEDOMETER_MARGIN / 20) * 20).coerceIn(140.0, 400.0)
-            return if (max <= 260) GaugeScale(max, 20.0, 10.0) else GaugeScale(max, 40.0, 20.0)
-        }
+        /** km/h, as a 250 km/h car's: by 20 to 60, then by 40 to 260. */
+        fun speedometer(): GaugeScale = GaugeScale(listOf(0.0, 20.0, 40.0, 60.0, 100.0, 140.0, 180.0, 220.0, 260.0))
 
-        /** Thousands of rpm, half a thousand past the red line and up to the next whole, the red zone from the red line. */
+        /**
+         * Thousands of rpm, half a thousand past the red line and up to the next whole, the red zone from the red line,
+         * dashed half a thousand before it.
+         */
         fun tachometer(spec: CarSpec): GaugeScale {
             val redline = spec.redlineRpm / 1000
-            return GaugeScale(ceil(redline + 0.5), 1.0, 0.5, redFrom = redline)
+            return GaugeScale((0..ceil(redline + 0.5).toInt()).map { it.toDouble() }, redFrom = redline, warnFrom = redline - 0.5)
         }
-
-        private const val SPEEDOMETER_MARGIN = 1.15
     }
 }
 
-/** What the gauges show at a moment: the speed, the engine, the gear, the pedals, and the dials' scales. */
+/** What the gauges show at a moment: the speed, the engine, the gear, the pedals, the wheel, and the scales. */
 data class GaugeView(
     val speedKmh: Double,
     val rpm: Double,
     val gear: String,
     val throttle: Double,
     val brake: Double,
+    /** From -1 (left) to 1 (right). */
+    val steer: Double,
     val speedometer: GaugeScale,
     val tachometer: GaugeScale,
 )

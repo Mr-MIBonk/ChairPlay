@@ -196,6 +196,8 @@ export interface Backend {
   volume(level: number): Promise<boolean>
   /** Where Windows locates this PC, or why it does not say: location off or not let ("denied"), or no fix. */
   windowsLocation(): Promise<WindowsLocation>
+  /** Turns drive mode on or off, as F10 does; false while the GPS is off. */
+  driveMode(on: boolean): Promise<boolean>
   /** Null when connecting started, else why not. */
   connect(): Promise<string | null>
   reconnect(): Promise<void>

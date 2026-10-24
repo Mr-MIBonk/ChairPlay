@@ -28,17 +28,13 @@ const SENTENCES: readonly Choice[] = [
  * What the iPhone takes, for the iPhone row under the fixes; and how the car goes and what drives it, for the Car
  * group's note (where it is and which way it faces are in the fields).
  */
-function status(car: GpsState, driveKey: string | null | undefined) {
+function status(car: GpsState) {
   const updates = `${car.sent} ${car.sent === 1 ? 'update' : 'updates'} sent`
   return {
     iphone: car.listening ? `Listening: ${(car.sentences ?? []).join(', ')}; ${updates}` : 'Not listening',
-    going: [
-      `${car.speed} km/h`,
-      `${car.rpm} rpm`,
-      car.gear,
-      car.keyboard ? 'Drive mode on' : `Drive mode off${driveKey ? ` (${keyLabel(driveKey)})` : ''}`,
-      car.gamepad ? 'Gamepad connected' : 'No gamepad',
-    ].join(' · '),
+    going: [`${car.speed} km/h`, `${car.rpm} rpm`, car.gear, car.gamepad ? 'Gamepad connected' : 'No gamepad'].join(
+      ' · ',
+    ),
   }
 }
 
@@ -53,7 +49,7 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
   const { value, save } = settings
   const off = value('gps.enabled') !== 'true'
   const driveKey = state.controls?.keys.drive
-  const now = state.gps && status(state.gps, driveKey)
+  const now = state.gps && status(state.gps)
   // Where the car is and which way it faces now, while the app runs; else as saved.
   const heading = state.gps ? String(state.gps.heading) : value('gps.heading') || '0'
   const place = placeOf(state.gps, value('gps.start'))
@@ -155,18 +151,21 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
           true,
         )}
         <Group title="Car" note={now?.going} />
+        <Row
+          title={`Drive the car with the arrows instead of the knob, and show its speedometer and tachometer on the AltScreen${driveKey ? ` (${keyLabel(driveKey)})` : ''}`}
+        >
+          <Checkbox
+            label="Drive mode"
+            checked={state.gps?.keyboard ?? false}
+            onChange={(on) => void backend.driveMode(on)}
+          />
+        </Row>
         <Row label="Power and mass" title="The car's power and mass, which set how it pulls and how fast it goes">
-          {field('gps.car.power.hp', 'Power', '150')}
+          {field('gps.car.power.hp', 'Power', '300')}
           <span className="unit">hp</span>
-          {field('gps.car.mass.kg', 'Mass', '1300')}
+          {field('gps.car.mass.kg', 'Mass', '1500')}
           <span className="unit">kg</span>
         </Row>
-        {check(
-          'gps.gauges',
-          'Show gauges on the AltScreen',
-          'The speedometer and tachometer, while the car is driven and for five seconds after it stops',
-          true,
-        )}
       </div>
     </>
   )

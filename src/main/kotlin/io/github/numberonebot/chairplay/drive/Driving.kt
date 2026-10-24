@@ -35,7 +35,7 @@ class Driving(
         drive = Drive(settings.car, place?.first ?: GeoPoint(0.0, 0.0), place?.second ?: settings.headingDegrees, nanoTime)
     }
 
-    val control = DriveControl(drive, gamepad, onStopped = ::remember, nanoTime = nanoTime)
+    val control = DriveControl(drive, gamepad, onStopped = ::remember)
 
     @Volatile private var link: DriveLocation? = null
 
@@ -53,6 +53,16 @@ class Driving(
 
     /** Turns drive mode on or off and says which; it stays off while the GPS is off. */
     fun toggleKeyboard(): Boolean = if (settings.enabled || control.keyboard) control.toggleKeyboard() else false
+
+    /**
+     * Drive mode [on] or off as the GPS page's switch asks, from its thread; the next pass of the window loop puts it in
+     * force. False while the GPS is off, which keeps drive mode off.
+     */
+    fun driveMode(on: Boolean): Boolean {
+        if (!settings.enabled) return false
+        control.requestKeyboard(on)
+        return true
+    }
 
     /** The iPhone's GPS for a connection that identified with it. */
     fun location(gps: GpsSettings): Iap2LocationProvider =
@@ -101,9 +111,9 @@ class Driving(
         )
     }
 
-    /** What the gauges show while the car is driven and a while after, with gps.gauges on; null when they are gone. */
+    /** What the gauges show while drive mode is on; null when they are gone. */
     fun gauges(): GaugeView? {
-        if (!settings.enabled || !settings.gauges || !control.showing) return null
+        if (!settings.enabled || !control.keyboard) return null
         val snapshot = drive.snapshot()
         val car = snapshot.car
         return GaugeView(
@@ -112,7 +122,8 @@ class Driving(
             gear = if (car.gear < 0) "R" else "D${car.gear}",
             throttle = snapshot.input.throttle,
             brake = snapshot.input.brake,
-            speedometer = GaugeScale.speedometer(drive.spec),
+            steer = snapshot.input.steer,
+            speedometer = GaugeScale.speedometer(),
             tachometer = GaugeScale.tachometer(drive.spec),
         )
     }

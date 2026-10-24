@@ -6,20 +6,24 @@ import kotlin.math.min
 import kotlin.math.sign
 
 /**
- * A car as plain numbers: its power and mass decide how it pulls, its gearing how the engine turns. The defaults are an
- * ordinary 150 hp hatchback.
+ * A car as plain numbers: its power and mass decide how it pulls, its gearing how the engine turns. The defaults are a
+ * quick 300 hp car of 1500 kg with a six-speed automatic and a red line at 7000 rpm, the owner's choice: about 6 s to
+ * 100 km/h, near 63 km/h in first, and held at 250 km/h by its limiter, as German cars are, short of the 275 its drag
+ * would allow.
  */
 data class CarSpec(
-    val massKg: Double = 1300.0,
-    val powerHp: Double = 150.0,
+    val massKg: Double = 1500.0,
+    val powerHp: Double = 300.0,
     val idleRpm: Double = 800.0,
-    val redlineRpm: Double = 6500.0,
-    val gearRatios: List<Double> = listOf(3.6, 2.1, 1.4, 1.05, 0.82),
-    val finalDrive: Double = 3.9,
+    val redlineRpm: Double = 7000.0,
+    val gearRatios: List<Double> = listOf(3.6, 2.2, 1.55, 1.2, 0.95, 0.78),
+    val finalDrive: Double = 3.6,
     val wheelRadiusMeters: Double = 0.31,
     /** Drag coefficient times frontal area. */
     val dragAreaSquareMeters: Double = 0.65,
     val rollingResistance: Double = 0.012,
+    /** Where the engine stops pulling, in km/h. */
+    val limiterKmh: Double = 250.0,
     /**
      * Whether the brake held at a standstill backs the car up. Off for now, at the owner's wish (2026-10-24): the brake
      * only holds the car. Make the default true to have it back.
@@ -40,7 +44,8 @@ data class CarState(val speed: Double = 0.0, val headingDegrees: Double = 0.0, v
 
 /**
  * Basic car physics with arcade handling. The engine gives its power at every speed, so the pull is power over speed,
- * held at a launch by what the driven wheels grip; drag and rolling resistance take it back, which sets the top speed.
+ * held at a launch by what the driven wheels grip and cut at the limiter; drag, rolling resistance and, off the
+ * throttle, the engine take it back.
  * An automatic gearbox only turns the tachometer. The wheel turns the car without slip, as fast as a tight circle at
  * low speed and as a lateral pull allows at high speed. Held at a standstill, the brake backs the car up, when the car has reverse ([CarSpec.reverse]).
  */
@@ -79,10 +84,14 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         val wheelRpm = wheelRpm(abs(before), gear)
         var force = drive * min(gripNewtons, wattsAtWheels / maxOf(abs(before), POWER_FLOOR_SPEED))
         if (gear > 0 && wheelRpm >= spec.redlineRpm) force = 0.0
+        if (gear > 0) force *= ((spec.limiterKmh / 3.6 - abs(before)) / LIMITER_BAND).coerceIn(0.0, 1.0)
         if (gear < 0 && abs(before) >= REVERSE_TOP_SPEED) force = 0.0
         var speed = before + direction * force / spec.massKg * dt
         val resistance = spec.rollingResistance * GRAVITY + AIR_DENSITY / 2 * spec.dragAreaSquareMeters * speed * speed / spec.massKg
-        val slowing = (resistance + stopping * BRAKE_DECELERATION) * dt
+        // The engine brakes a moving car in gear off the throttle, fading over the pedal's first tenth; a standing car
+        // still pulls away on a light pedal.
+        val engineBraking = if (gear > 0 && !stopped) ENGINE_BRAKING * (1 - drive / ENGINE_BRAKING_PEDAL).coerceAtLeast(0.0) else 0.0
+        val slowing = (resistance + engineBraking + stopping * BRAKE_DECELERATION) * dt
         // Resistance and brakes stop the car; they never push it the other way, nor does a pedal too light to beat them.
         val halts = abs(speed) <= slowing
         speed = if (halts) 0.0 else speed - sign(speed) * slowing
@@ -106,10 +115,10 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         return speed / spec.wheelRadiusMeters * ratio * finalDrive * 60 / (2 * Math.PI)
     }
 
-    // Up late at full throttle and early when cruising; down when the engine bogs, sooner with the foot down. The gaps
-    // keep a shift from bouncing back: the rpm after an upshift stays above the next downshift point.
+    // Up close to the red line at full throttle and early when cruising; down when the engine bogs, sooner with the foot
+    // down. The gaps keep a shift from bouncing back: the rpm after an upshift stays above the next downshift point.
     private fun shifted(gear: Int, rpm: Double, throttle: Double): Int {
-        val up = SHIFT_UP_GENTLE + (SHIFT_UP_FULL - SHIFT_UP_GENTLE) * throttle
+        val up = SHIFT_UP_GENTLE + (spec.redlineRpm - SHIFT_BELOW_REDLINE - SHIFT_UP_GENTLE) * throttle
         val down = SHIFT_DOWN_GENTLE + (SHIFT_DOWN_FULL - SHIFT_DOWN_GENTLE) * throttle
         return when {
             rpm >= up && gear < spec.gearRatios.size -> gear + 1
@@ -146,7 +155,13 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         private const val DRIVEN_GRIP = 0.5
         /** Below it the pull is the grip's, not power over a speed near zero. */
         private const val POWER_FLOOR_SPEED = 3.0
-        private const val BRAKE_DECELERATION = 10.0
+        /** m/s² at full brake, a sports car's on sticky tyres: about 25 m from 100 km/h. */
+        private const val BRAKE_DECELERATION = 14.0
+        /** m/s² off the throttle, a lower gear's engine braking: 100 km/h falls by about 20 in 3 s. */
+        private const val ENGINE_BRAKING = 1.5
+        private const val ENGINE_BRAKING_PEDAL = 0.1
+        /** m/s under the limit over which the pull fades out, so the speed settles on it. */
+        private const val LIMITER_BAND = 1.0
         private const val STOPPED_SPEED = 0.3
         private const val REVERSE_HOLD_SECONDS = 0.4
         private const val REVERSE_TOP_SPEED = 20 / 3.6
@@ -155,7 +170,8 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         private const val LAUNCH_RPM = 3500.0
         private const val RPM_SECONDS = 0.15
         private const val SHIFT_UP_GENTLE = 2500.0
-        private const val SHIFT_UP_FULL = 6000.0
+        /** How far below the red line full throttle shifts up. */
+        private const val SHIFT_BELOW_REDLINE = 200.0
         private const val SHIFT_DOWN_GENTLE = 1200.0
         private const val SHIFT_DOWN_FULL = 2700.0
         private const val TIGHTEST_RADIUS = 5.0

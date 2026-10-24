@@ -98,6 +98,15 @@ class UiServerTest {
         assertEquals(listOf("gpsDrive 0.5 0.0 -0.25", "gpsDrive 0.0 0.0 0.0", "screenshot"), api.calls)
     }
 
+    // The GPS page's Drive mode switch, as F10 turns it.
+    @Test
+    fun `drive mode is turned on and off from the page`() {
+        assertEquals(200, post("/api/drive-mode", """{"on":true}""").statusCode())
+        assertEquals(400, post("/api/drive-mode", """{}""").statusCode())
+        assertEquals(200, post("/api/drive-mode", """{"on":false}""").statusCode())
+        assertEquals(listOf("driveMode true", "driveMode false"), api.calls)
+    }
+
     // The Experiments page's Play and Stop: a demo by name, or none to stop it.
     @Test
     fun `a HUD demo is played and stopped`() {

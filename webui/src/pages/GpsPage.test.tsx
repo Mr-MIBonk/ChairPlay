@@ -46,7 +46,6 @@ function gpsBackend(on: boolean) {
       'gps.resume': 'now',
       'gps.car.power.hp': 'now',
       'gps.car.mass.kg': 'now',
-      'gps.gauges': 'now',
     },
   }
   return backend
@@ -108,11 +107,31 @@ describe('GPS page', () => {
     const backend = await gps()
 
     const power = screen.getByRole('textbox', { name: 'Power' }) as HTMLInputElement
-    fireEvent.change(power, { target: { value: '300' } })
+    fireEvent.change(power, { target: { value: '600' } })
     fireEvent.blur(power)
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Show gauges on the AltScreen' }))
 
-    await waitFor(() => expect(backend.saved).toEqual([{ 'gps.car.power.hp': '300' }, { 'gps.gauges': 'false' }]))
+    await waitFor(() => expect(backend.saved).toEqual([{ 'gps.car.power.hp': '600' }]))
+  })
+
+  // Drive mode, as F10 turns it: the switch shows it as the app has it, and turns it on or off.
+  it('turns drive mode on and off', async () => {
+    const backend = gpsBackend(true)
+    const { rerender } = render(
+      <Shell state={appState({ ...live, gps: { ...car, keyboard: false } })} backend={backend} />,
+    )
+    await screen.findByRole('textbox', { name: 'Network' })
+    fireEvent.click(screen.getByRole('tab', { name: 'GPS' }))
+
+    const driveMode = screen.getByRole('checkbox', { name: 'Drive mode' }) as HTMLInputElement
+    expect(driveMode.checked).toBe(false)
+    fireEvent.click(driveMode)
+    await waitFor(() => expect(backend.driveModes).toEqual([true]))
+    rerender(<Shell state={appState({ ...live, gps: { ...car, keyboard: true } })} backend={backend} />)
+    expect(driveMode.checked).toBe(true)
+    fireEvent.click(driveMode)
+
+    await waitFor(() => expect(backend.driveModes).toEqual([true, false]))
+    expect(backend.saved).toEqual([])
   })
 
   // Latitude first, then longitude, as map apps give them; both go into gps.start together.

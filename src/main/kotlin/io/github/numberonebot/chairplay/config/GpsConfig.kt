@@ -23,7 +23,6 @@ internal fun Properties.gpsSettings() = GpsSettings(
         massKg = decimalSetting("gps.car.mass.kg", CarSpec().massKg, GpsSettings.MASS_KG),
         powerHp = decimalSetting("gps.car.power.hp", CarSpec().powerHp, GpsSettings.POWER_HP),
     ),
-    gauges = booleanSetting("gps.gauges", true),
     rate = choiceSetting("gps.rate", 4, GpsSettings.RATES.associateBy { it.toString() }),
     nmea = choiceSetting("gps.nmea", NmeaDialect.CLASSIC, NmeaDialect.entries.associateBy { it.key }),
     framing = choiceSetting("gps.framing", NmeaFraming.PARAMETERS, NmeaFraming.entries.associateBy { it.key }),

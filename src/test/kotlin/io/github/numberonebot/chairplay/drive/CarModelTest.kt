@@ -11,24 +11,31 @@ class CarModelTest {
         repeat((seconds / dt).toInt()) { each(step(input, dt)) }
     }
 
-    // A 150 hp, 1300 kg car: about 6 to 9 s to 100 km/h, a top speed held by its drag near 220 km/h, the engine always
-    // between idle and the red line, the gears going up one by one.
+    // The default car, 300 hp and 1500 kg: about 5 to 7 s to 100 km/h, a top speed held by its limiter at 250 km/h, the
+    // engine always between idle and the red line, the six gears going up one by one, each shift close to the red line.
     @Test
-    fun `full throttle takes an ordinary car to 100 and on to its top speed`() {
-        val car = CarModel(CarSpec(massKg = 1300.0, powerHp = 150.0))
+    fun `full throttle takes the car to 100 and on to its top speed, shifting close to the red line`() {
+        val car = CarModel(CarSpec())
         var to100 = -1.0
         var time = 0.0
         val gears = mutableListOf<Int>()
+        val shiftRpms = mutableListOf<Double>()
+        var lastRpm = 0.0
         car.run(120.0, CarInput(throttle = 1.0)) { state ->
             time += dt
             if (to100 < 0 && state.speedKmh >= 100) to100 = time
             assertTrue("rpm ${state.rpm}", state.rpm in car.spec.idleRpm..car.spec.redlineRpm)
-            if (gears.lastOrNull() != state.gear) gears += state.gear
+            if (gears.lastOrNull() != state.gear) {
+                if (gears.isNotEmpty()) shiftRpms += lastRpm
+                gears += state.gear
+            }
+            lastRpm = state.rpm
         }
 
-        assertTrue("0-100 in $to100 s", to100 in 5.0..11.0)
-        assertTrue("top ${car.state.speedKmh} km/h", car.state.speedKmh in 190.0..240.0)
-        assertEquals(listOf(1, 2, 3, 4, 5), gears)
+        assertTrue("0-100 in $to100 s", to100 in 4.5..7.5)
+        assertTrue("top ${car.state.speedKmh} km/h", car.state.speedKmh in 247.0..250.5)
+        assertEquals(listOf(1, 2, 3, 4, 5, 6), gears)
+        assertTrue("shifts at $shiftRpms", shiftRpms.all { it >= 6400 })
     }
 
     // Twice the power, a quicker car; twice the mass, a slower one.
@@ -36,14 +43,14 @@ class CarModelTest {
     fun `power quickens the car and mass slows it`() {
         fun speedAfter(spec: CarSpec): Double = CarModel(spec).also { it.run(10.0, CarInput(throttle = 1.0)) }.state.speedKmh
         val base = speedAfter(CarSpec())
-        assertTrue(speedAfter(CarSpec(powerHp = 300.0)) > base + 10)
-        assertTrue(speedAfter(CarSpec(massKg = 2600.0)) < base - 10)
+        assertTrue(speedAfter(CarSpec(powerHp = 600.0)) > base + 10)
+        assertTrue(speedAfter(CarSpec(massKg = 3000.0)) < base - 10)
     }
 
     @Test
     fun `the brake stops the car within a few seconds, and coasting slows it`() {
         val car = CarModel(CarSpec())
-        car.run(30.0, CarInput(throttle = 1.0))
+        car.run(12.0, CarInput(throttle = 1.0))
         val cruising = car.state.speedKmh
         car.run(3.0, CarInput())
         assertTrue(car.state.speedKmh in 1.0..cruising - 2)
@@ -55,6 +62,38 @@ class CarModelTest {
             if (stoppedAt < 0 && state.speed <= 0.0) stoppedAt = time
         }
         assertTrue("stopped at $stoppedAt s", stoppedAt in 2.0..6.0)
+    }
+
+    // A sports car's brakes: full brake from 100 km/h stops the car within 30 m.
+    @Test
+    fun `the brake stops the car from 100 as a sports car's`() {
+        val car = CarModel(CarSpec())
+        while (car.state.speedKmh < 100) car.step(CarInput(throttle = 1.0), dt)
+        var meters = 0.0
+        while (car.state.speed > 0) {
+            car.step(CarInput(brake = 1.0), dt)
+            meters += car.lastMeters
+        }
+        assertTrue("stopped in $meters m", meters <= 30.0)
+    }
+
+    // Off the throttle the engine brakes the car as a real one does in gear: 100 km/h loses over 15 in 3 s, and 50 km/h
+    // rolls to a stop within 15 s.
+    @Test
+    fun `lifting off slows the car briskly`() {
+        val car = CarModel(CarSpec())
+        while (car.state.speedKmh < 100) car.step(CarInput(throttle = 1.0), dt)
+        val from = car.state.speedKmh
+        car.run(3.0, CarInput())
+        assertTrue("${car.state.speedKmh} km/h after 3 s from $from", car.state.speedKmh < from - 15)
+
+        while (car.state.speedKmh > 50) car.step(CarInput(), dt)
+        var time = 0.0
+        while (car.state.speed > 0 && time < 20) {
+            car.step(CarInput(), dt)
+            time += dt
+        }
+        assertTrue("stopped after $time s", time <= 15.0)
     }
 
     // Reverse is off for now: held at a standstill, the brake only holds the car.

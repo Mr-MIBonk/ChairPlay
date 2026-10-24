@@ -14,13 +14,11 @@ import io.github.numberonebot.chairplay.input.TouchTracker
 import io.github.numberonebot.chairplay.log.AppLog
 import io.github.numberonebot.chairplay.log.LogLevel
 import io.github.numberonebot.chairplay.media.runWindows
-import io.github.numberonebot.chairplay.drive.CarInput
 import io.github.numberonebot.chairplay.drive.Driving
 import io.github.numberonebot.chairplay.media.saveScreenshot
 import io.github.numberonebot.chairplay.session.WirelessBootstrap
 import io.github.numberonebot.chairplay.ui.ChairPlayUi
 import io.github.numberonebot.chairplay.ui.UiActions
-import io.github.numberonebot.chairplay.ui.UiExperiments
 import io.github.numberonebot.chairplay.ui.UiSafeAreaFrame
 import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
@@ -163,16 +161,7 @@ private fun runCarPlay() {
             // A saved turn card moves at once, as Shift+F11 moves it.
             saved["altscreen.cards"]?.let(altView::cardsSaved)
         },
-        demo = altView.demos, gps = driving::state, experiments = object : UiExperiments {
-            // The script's input goes in on the next pass of the window loop, which this wakes.
-            override fun gpsDrive(throttle: Double, brake: Double, steer: Double): Boolean {
-                driving.control.scripted = CarInput(throttle, brake, steer)
-                window.repaint()
-                return driving.settings.enabled
-            }
-
-            override fun screenshot(): Boolean = true.also { screenshots() }
-        })
+        demo = altView.demos, gps = driving::state, driving = uiDriving(driving, window, ::screenshots, ::log))
     altView.onWindowsChanged = { ui.windowsChanged() }
     // The CarPlay page offers Actual size while the window's size differs from the picture's.
     window.onResize = { ui.windowsChanged() }

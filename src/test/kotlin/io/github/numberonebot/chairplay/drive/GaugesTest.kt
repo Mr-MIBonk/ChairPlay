@@ -1,62 +1,71 @@
 package io.github.numberonebot.chairplay.drive
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.nio.file.Files
 
 class GaugesTest {
-    // The speedometer reaches past the car's top speed as a car's does: 260 for an ordinary car, more for a strong one.
+    // The speedometer as a fast car's: numbered by 20 to 60 and by 40 from 100 to 260, the numbers evenly apart, so
+    // the scale changes between 60 and 100, which has a middle tick at 80; each gap a middle tick and fine tenths.
     @Test
-    fun `the dials fit the car`() {
-        val ordinary = CarSpec()
-        val top = CarModel.topSpeed(ordinary) * 3.6
-        assertTrue("top $top", top in 200.0..240.0)
-        assertEquals(260.0, GaugeScale.speedometer(ordinary).max, 0.0)
-        assertTrue(GaugeScale.speedometer(CarSpec(powerHp = 600.0)).max >= 300.0)
-        val tach = GaugeScale.tachometer(ordinary)
-        assertEquals(7.0, tach.max, 0.0)
-        assertEquals(6.5, tach.redFrom!!, 0.0)
+    fun `the speedometer is numbered as a fast car's`() {
+        val speed = GaugeScale.speedometer()
+        fun values(size: GaugeScale.TickSize) = speed.ticks().filter { it.size == size }.map { it.value }
+        assertEquals(listOf(0.0, 20.0, 40.0, 60.0, 100.0, 140.0, 180.0, 220.0, 260.0), values(GaugeScale.TickSize.MAJOR))
+        assertEquals(listOf(10.0, 30.0, 50.0, 80.0, 120.0, 160.0, 200.0, 240.0), values(GaugeScale.TickSize.MIDDLE))
+        val fine = values(GaugeScale.TickSize.FINE)
+        assertEquals(64, fine.size)
+        assertEquals(listOf(2.0, 4.0, 6.0, 8.0, 12.0), fine.take(5).map { Math.round(it * 1e6) / 1e6 })
+        assertTrue(fine.any { Math.abs(it - 64.0) < 1e-9 })
+        val step = speed.angle(20.0) - speed.angle(0.0)
+        assertEquals(step, speed.angle(100.0) - speed.angle(60.0), 1e-9)
+        assertEquals(step, speed.angle(260.0) - speed.angle(220.0), 1e-9)
+        assertEquals(speed.angle(60.0) + step / 2, speed.angle(80.0), 1e-9)
+        assertEquals(Math.toRadians(GaugeScale.START_DEGREES + GaugeScale.SWEEP_DEGREES), speed.angle(400.0), 1e-9)
+        assertEquals(Math.toRadians(GaugeScale.START_DEGREES), speed.angle(-5.0), 1e-9)
     }
 
-    // The gauges show while the car is driven and five seconds after; gps.gauges turns them off.
+    // The default car's tachometer: up to 8000 rpm, red from 7000 and dashed red half a thousand before it, a middle
+    // tick at each half thousand.
     @Test
-    fun `the gauges show while driving and a while after`() {
-        var now = 0L
+    fun `the tachometer fits the car`() {
+        val tach = GaugeScale.tachometer(CarSpec())
+        assertEquals(8.0, tach.max, 0.0)
+        assertEquals(7.0, tach.redFrom!!, 0.0)
+        assertEquals(6.5, tach.warnFrom!!, 0.0)
+        assertEquals((0..8).map { it.toDouble() }, tach.ticks().filter { it.size == GaugeScale.TickSize.MAJOR }.map { it.value })
+        assertEquals(tach.angle(1.0) - tach.angle(0.0), tach.angle(8.0) - tach.angle(7.0), 1e-9)
+        assertEquals(8, tach.ticks().count { it.size == GaugeScale.TickSize.MIDDLE })
+        // A fine tick at each hundred rpm.
+        assertEquals(64, tach.ticks().count { it.size == GaugeScale.TickSize.FINE })
+    }
+
+    // The gauges are drive mode's: on with it (F10 or the GPS page), gone with it, and never while the GPS is off.
+    @Test
+    fun `the gauges show exactly while drive mode is on`() {
         val dir = Files.createTempDirectory("chairplay-gauges")
-        val driving = Driving(dir, GpsSettings(true, start = GeoPoint(50.0, 30.0)), gamepad = { null }, nanoTime = { now })
+        val settings = GpsSettings(true, start = GeoPoint(50.0, 30.0))
+        val driving = Driving(dir, settings, gamepad = { null }, nanoTime = { 0L })
         assertNull(driving.gauges())
-        driving.control.toggleKeyboard()
-        driving.control.pass()
+        assertTrue(driving.driveMode(true))
+        driving.control.scripted = CarInput(steer = -0.5)
+        driving.pass()
         val view = driving.gauges()!!
         assertEquals(0.0, view.speedKmh, 0.0)
         assertEquals("D1", view.gear)
-        driving.control.toggleKeyboard()
-        now += 1_000_000_000L
-        driving.control.pass()
-        assertTrue(driving.gauges() != null)
-        now += 5_000_000_000L
-        driving.control.pass()
+        // The wheel turns as far as it is steered.
+        assertEquals(-0.5, view.steer, 0.0)
+        driving.control.scripted = CarInput()
+        assertTrue(driving.driveMode(false))
+        driving.pass()
         assertNull(driving.gauges())
 
-        driving.saved(GpsSettings(true, start = GeoPoint(50.0, 30.0), gauges = false), setOf("gps.gauges"))
-        driving.control.toggleKeyboard()
-        driving.control.pass()
-        assertNull(driving.gauges())
-    }
-
-    // Lingering, the loop wakes once more as the gauges go, so they do not stay drawn.
-    @Test
-    fun `the loop wakes as the gauges go`() {
-        var now = 0L
-        val control = DriveControl(Drive(CarSpec(), GeoPoint(50.0, 30.0), 0.0) { now }, gamepad = { null }, nanoTime = { now })
-        control.toggleKeyboard()
-        control.pass()
-        control.toggleKeyboard()
-        now += 1_000_000_000L
-        assertEquals(4.0, control.pass()!!, 1e-6)
-        now += 4_000_000_000L
-        assertNull(control.pass())
+        val off = Driving(dir, GpsSettings(false, start = GeoPoint(50.0, 30.0)), gamepad = { null }, nanoTime = { 0L })
+        assertFalse(off.driveMode(true))
+        off.pass()
+        assertNull(off.gauges())
     }
 }

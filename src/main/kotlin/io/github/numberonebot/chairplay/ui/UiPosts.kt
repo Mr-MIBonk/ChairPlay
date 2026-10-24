@@ -112,6 +112,14 @@ internal fun postRoute(api: UiApi, route: String, body: Map<*, *>): Pair<Int, Ma
                 else -> json(409, mapOf("error" to "no GPS car"))
             }
         }
+        "drive-mode" -> {
+            val on = body["on"] as? Boolean
+            when {
+                on == null -> json(400, mapOf("error" to "on missing"))
+                api.driveMode(on) -> json(200, mapOf("ok" to true))
+                else -> json(409, mapOf("error" to "the GPS is off"))
+            }
+        }
         "screenshot" ->
             if (api.screenshot()) json(200, mapOf("ok" to true)) else json(409, mapOf("error" to "no screens"))
         "firewall-rule" ->

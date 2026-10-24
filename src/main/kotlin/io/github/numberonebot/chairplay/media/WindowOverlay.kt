@@ -12,4 +12,7 @@ interface WindowOverlay {
     fun paint(width: Int, height: Int)
 
     fun close()
+
+    /** Whether it is moving on its own, so the window keeps drawing at the screen's pace. */
+    val animating: Boolean get() = false
 }

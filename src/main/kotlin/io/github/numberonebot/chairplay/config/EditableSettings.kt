@@ -101,7 +101,6 @@ object EditableSettings {
         "gps.resume" to switch(Applies.NOW),
         "gps.car.power.hp" to Setting(Applies.NOW) { checkNumber(it, GpsSettings.POWER_HP, "a power", "hp") },
         "gps.car.mass.kg" to Setting(Applies.NOW) { checkNumber(it, GpsSettings.MASS_KG, "a mass", "kg") },
-        "gps.gauges" to switch(Applies.NOW),
         // The next fix goes so.
         "gps.rate" to choice(*GpsSettings.RATES.map { it.toString() }.toTypedArray(), applies = Applies.NOW),
         "gps.nmea" to choice("classic", "modern", applies = Applies.NOW),

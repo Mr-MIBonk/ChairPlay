@@ -206,6 +206,9 @@ interface UiApi {
     /** Saves the CarPlay screens as F12 does, to look at where the iPhone puts the car; false without them. */
     fun screenshot(): Boolean = false
 
+    /** The GPS page's Drive mode switch, as F10 turns it; false while the GPS is off, which keeps it off. */
+    fun driveMode(on: Boolean): Boolean = false
+
     /**
      * The Keyboard page's bindings: each action's keys, defaults and fixed keys, and the wheel and repeat settings as
      * controls.properties names them; null when the app has none to change.

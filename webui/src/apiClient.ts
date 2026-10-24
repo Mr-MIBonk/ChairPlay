@@ -63,6 +63,10 @@ export class Api implements Backend {
     return (await this.request('POST', 'windows-location', {})).data as WindowsLocation
   }
 
+  async driveMode(on: boolean): Promise<boolean> {
+    return (await this.request('POST', 'drive-mode', { on })).status === 200
+  }
+
   async showAltscreenFrame(view?: string): Promise<boolean> {
     return (await this.request('POST', 'altscreen-frame', view ? { view } : {})).status === 200
   }

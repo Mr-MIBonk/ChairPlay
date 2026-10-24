@@ -78,6 +78,11 @@ internal class FakeUiApi : UiApi {
         return true
     }
 
+    override fun driveMode(on: Boolean): Boolean {
+        calls += "driveMode $on"
+        return true
+    }
+
 
     override fun volume(level: Int): Boolean {
         calls += "volume $level"

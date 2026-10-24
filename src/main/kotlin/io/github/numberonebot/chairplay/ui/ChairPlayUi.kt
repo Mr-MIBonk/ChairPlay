@@ -14,8 +14,13 @@ import io.github.numberonebot.chairplay.session.firewallHint
 import java.io.Closeable
 import java.nio.file.Path
 
-/** What GPS experiments ask of the app through the API: see [UiApi.gpsDrive] and [UiApi.screenshot]. */
-interface UiExperiments {
+/**
+ * What the GPS page and its experiments ask of the app through the API: see [UiApi.driveMode], [UiApi.gpsDrive] and
+ * [UiApi.screenshot].
+ */
+interface UiDriving {
+    fun driveMode(on: Boolean): Boolean
+
     fun gpsDrive(throttle: Double, brake: Double, steer: Double): Boolean
 
     fun screenshot(): Boolean
@@ -56,8 +61,8 @@ class ChairPlayUi(
     demo: UiDemo? = null,
     /** The GPS car as the GPS page shows it. */
     gps: (() -> Map<String, Any?>)? = null,
-    /** The GPS experiments' calls: the car driven by a script, and the CarPlay screens saved. */
-    private val experiments: UiExperiments? = null,
+    /** The GPS car's calls: drive mode, the car driven by a script, and the CarPlay screens saved. */
+    private val driving: UiDriving? = null,
 ) : Closeable {
     val model = UiModel(config.wifi != null, config.autoconnect, config.autoshow, setupDone = SetupStore(dir).done())
 
@@ -110,12 +115,14 @@ class ChairPlayUi(
     /** Tells the GPS page that the car or the iPhone's listening changed. */
     fun gpsChanged() = controller.gpsChanged()
 
-    // The controller's API, with the GPS experiments' calls, which only the app's windows and car can answer.
+    // The controller's API, with the GPS car's calls, which only the app's windows and car can answer.
     private val api = object : UiApi by controller {
         override fun gpsDrive(throttle: Double, brake: Double, steer: Double) =
-            experiments?.gpsDrive(throttle, brake, steer) ?: false
+            driving?.gpsDrive(throttle, brake, steer) ?: false
 
-        override fun screenshot() = experiments?.screenshot() ?: false
+        override fun screenshot() = driving?.screenshot() ?: false
+
+        override fun driveMode(on: Boolean) = driving?.driveMode(on) ?: false
     }
 
     private val server = UiServer(api, pageAssets(), System.getenv("CHAIRPLAY_UI_PORT")?.toIntOrNull() ?: 0, log = log)
