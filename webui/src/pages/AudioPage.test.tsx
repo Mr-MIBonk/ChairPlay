@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Shell } from '../shell/Shell'
-import { appState, FakeBackend } from '../testing'
+import { appState } from '../testing'
+import { FakeBackend } from '../fakeBackend'
 
 afterEach(cleanup)
 
@@ -91,7 +92,7 @@ describe('Audio page', () => {
   it('saves echo cancellation', async () => {
     const backend = await audio()
     const echo = screen.getByRole('checkbox', {
-      name: 'Echo cancellation for calls through speakers',
+      name: 'Echo cancellation',
     }) as HTMLInputElement
     expect(echo.checked).toBe(false)
 

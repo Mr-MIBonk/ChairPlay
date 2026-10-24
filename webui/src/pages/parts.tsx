@@ -2,7 +2,8 @@
 // save their key, the note a group's header gives, and the safe-area cross.
 import type { ReactNode } from 'react'
 import type { AppState, Backend, PictureWindow, WindowSizes } from '../api'
-import { Field, Row, Segmented, type Choice } from '../shell/controls'
+import { Row, Segmented, type Choice } from '../shell/controls'
+import { Field } from '../shell/fields'
 import type { Settings } from '../shell/useSettings'
 
 /** The settings changed but not yet in effect: the state's restartPending and reconnectPending. */

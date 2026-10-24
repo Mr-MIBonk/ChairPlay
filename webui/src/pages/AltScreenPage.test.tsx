@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Shell } from '../shell/Shell'
-import { appState, FakeBackend } from '../testing'
+import { appState } from '../testing'
+import { FakeBackend } from '../fakeBackend'
 
 afterEach(cleanup)
 
@@ -143,20 +144,24 @@ describe('AltScreen page', () => {
     expect(backend.altscreens).toEqual([])
   })
 
-  // The turn card's place means nothing but on Map + card: over the map, the turn card alone, or the HUD it waits.
-  it("holds the turn card's place while the view has no card to place", async () => {
+  // The turn card's place means nothing but on Map + card: over the map, the turn card alone, or the HUD, it is not
+  // there at all. Without a session, the view the AltScreen opens on decides.
+  it("offers the turn card's place on Map + card alone", async () => {
     const state = appState({ phase: 'active', canShowCarPlay: true })
     for (const view of ['card', 'hud', 'map'] as const) {
       await altscreen(new FakeBackend(), { ...state, controls: { ...state.controls!, altscreen: view } })
-      const group = screen.getByRole('radiogroup', { name: 'Card position' })
-
-      expect(
-        within(group)
-          .getAllByRole('radio')
-          .every((radio) => (radio as HTMLButtonElement).disabled),
-      ).toBe(true)
+      expect(screen.queryByRole('radiogroup', { name: 'Card position' })).toBeNull()
       cleanup()
     }
+    await altscreen(new FakeBackend(), { ...state, controls: { ...state.controls!, altscreen: 'map-card' } })
+    expect(screen.getByRole('radiogroup', { name: 'Card position' })).toBeTruthy()
+    cleanup()
+
+    const saved = new FakeBackend()
+    saved.data = { ...saved.data, values: { ...saved.data.values, 'altscreen.content': 'map-card' } }
+    const waiting = appState({ phase: 'calling', canShowCarPlay: false })
+    await altscreen(saved, { ...waiting, controls: { ...waiting.controls!, altscreen: null } })
+    expect(screen.getByRole('radiogroup', { name: 'Card position' })).toBeTruthy()
   })
 
   it('saves where the turn card starts, Auto until set', async () => {

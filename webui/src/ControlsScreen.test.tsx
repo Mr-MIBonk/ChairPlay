@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ControlsScreen } from './ControlsScreen'
-import { appState, FakeBackend } from './testing'
+import { appState } from './testing'
+import { FakeBackend } from './fakeBackend'
 
 afterEach(cleanup)
 

@@ -1,7 +1,8 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { Shell } from '../shell/Shell'
-import { appState, FakeBackend } from '../testing'
+import { appState } from '../testing'
+import { FakeBackend } from '../fakeBackend'
 
 afterEach(cleanup)
 
@@ -21,6 +22,7 @@ describe('About page', () => {
     for (const name of [
       'Oleksiy Strelets',
       'DiPlay',
+      'xcertplay',
       'mib2q-carplay-rgi',
       'Third-party notices',
       'New issue on GitHub',
@@ -35,6 +37,7 @@ describe('About page', () => {
     expect(backend.opened).toEqual([
       'author',
       'diplay',
+      'xcertplay',
       'rgi',
       'notices',
       'issues',

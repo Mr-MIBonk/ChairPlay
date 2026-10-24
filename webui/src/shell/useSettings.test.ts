@@ -1,6 +1,6 @@
 import { act, cleanup, renderHook, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { FakeBackend } from '../testing'
+import { FakeBackend } from '../fakeBackend'
 import { useSettings } from './useSettings'
 
 afterEach(cleanup)

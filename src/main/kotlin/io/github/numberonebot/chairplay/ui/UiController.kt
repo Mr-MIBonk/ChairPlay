@@ -463,6 +463,7 @@ class UiController(
         "source" -> PROJECT
         "releases" -> "$PROJECT/releases"
         "diplay" -> "https://github.com/shihabal3amri/DiPlay"
+        "xcertplay" -> "https://github.com/shilapi/xcertplay"
         "rgi" -> "https://github.com/luka-dev/mib2q-carplay-rgi"
         "logs", "screenshots" -> Files.createDirectories(setup.settingsFile.resolveSibling(place)).toString()
         else -> Files.createDirectories(setup.mfiDirectory).toString()
@@ -625,7 +626,8 @@ class UiController(
         /** The Windows pages and folder the screens may open, by the name the page gives ([open]). */
         val PLACES = listOf(
             "bluetooth", "wifi", "firewall", "firewall-rules", "mfi-folder",
-            "issues", "discussions", "pull-requests", "author", "source", "releases", "notices", "diplay", "rgi", "logs", "screenshots",
+            "issues", "discussions", "pull-requests", "author", "source", "releases", "notices", "diplay", "xcertplay", "rgi",
+            "logs", "screenshots",
         )
 
         /** The project's home on GitHub. */

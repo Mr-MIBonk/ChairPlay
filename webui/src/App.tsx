@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { applyAccent } from './accent'
-import { Api, tokenFrom, type AppState } from './api'
+import type { AppState } from './api'
+import { Api, tokenFrom } from './apiClient'
 import { ControlsScreen } from './ControlsScreen'
 import { Shell } from './shell/Shell'
 

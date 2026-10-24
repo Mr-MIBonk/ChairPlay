@@ -1,5 +1,6 @@
 import type { AppState, Backend } from '../api'
-import { Checkbox, Group, Row, Select, Slider, type Choice } from '../shell/controls'
+import { Checkbox, Group, Row, Slider, type Choice } from '../shell/controls'
+import { Select } from '../shell/fields'
 import type { Settings } from '../shell/useSettings'
 import { Changed, parts, pendingOf } from './parts'
 
@@ -56,12 +57,15 @@ export function AudioPage({ state, backend, settings }: { state: AppState; backe
       {device('audio.input', 'Microphone', devices.inputs)}
       <Row>
         <Checkbox
-          label="Echo cancellation for calls through speakers"
+          label="Echo cancellation"
           checked={value('audio.echo.cancellation') === 'true'}
           onChange={(checked) => save({ 'audio.echo.cancellation': String(checked) })}
         />
         <span className="exp">Experimental</span>
         <Changed keys={['audio.echo.cancellation']} pending={pending} />
+      </Row>
+      <Row className="hint-row">
+        <span className="hint">For calls through speakers rather than headphones</span>
       </Row>
       <Group title="Music fade" note="From the next stream" />
       <Row

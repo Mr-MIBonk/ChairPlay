@@ -99,6 +99,7 @@ class UiControllerTest {
             "discussions" to "https://github.com/NumberOneBot/ChairPlay/discussions",
             "pull-requests" to "https://github.com/NumberOneBot/ChairPlay/pulls",
             "diplay" to "https://github.com/shihabal3amri/DiPlay",
+            "xcertplay" to "https://github.com/shilapi/xcertplay",
             "rgi" to "https://github.com/luka-dev/mib2q-carplay-rgi",
         )
         for ((place, url) in pages) {

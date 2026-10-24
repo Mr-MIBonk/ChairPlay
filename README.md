@@ -10,9 +10,10 @@ Useful for developing and testing CarPlay apps and navigation without sitting in
 CarPlay on a desk.
 
 ChairPlay is built on [DiPlay](https://github.com/shihabal3amri/DiPlay), the Android CarPlay receiver for head
-units by shihabal3amri. It compiles DiPlay's portable CarPlay core (AirPlay, iAP2, MFi authentication) from the
-`upstream/` submodule and adds everything Windows needs around it. It is a separate project, not affiliated with or
-endorsed by DiPlay's authors or by Apple.
+units by shihabal3amri, which is itself based on [xcertplay](https://github.com/shilapi/xcertplay) by shilapi. It
+compiles DiPlay's portable CarPlay core (AirPlay, iAP2, MFi authentication) from the `upstream/` submodule and adds
+everything Windows needs around it. It is a separate project, not affiliated with or endorsed by the authors of
+DiPlay or xcertplay, or by Apple.
 
 ## What works
 
@@ -154,7 +155,8 @@ repository, and the git hooks that keep keys out of commits.
 
 ## Licence and credits
 
-GPL-3.0, as DiPlay; see [LICENSE](LICENSE). The CarPlay protocol work is DiPlay's. The HUD's maneuver renderer and
+GPL-3.0, as DiPlay and xcertplay; see [LICENSE](LICENSE). The CarPlay protocol work is DiPlay's, and that of
+[xcertplay](https://github.com/shilapi/xcertplay) by shilapi, which DiPlay is based on. The HUD's maneuver renderer and
 its destination flag are LuKa's, from [mib2q-carplay-rgi](https://github.com/luka-dev/mib2q-carplay-rgi) (GPL-3.0
 or later); [native/maneuver/README.md](native/maneuver/README.md) lists what was taken and what was changed. The
 bundled libraries' notices are in `THIRD_PARTY_NOTICES` and travel with the app.

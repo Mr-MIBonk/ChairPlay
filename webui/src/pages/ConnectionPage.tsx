@@ -1,5 +1,6 @@
 import type { AppState, Backend } from '../api'
-import { Checkbox, Field, Group, PasswordField, Row, Select, type Choice } from '../shell/controls'
+import { Checkbox, Group, Row, type Choice } from '../shell/controls'
+import { Field, PasswordField, Select } from '../shell/fields'
 import type { Settings } from '../shell/useSettings'
 import { ErrorMessage, SetupMessages } from './messages'
 import { Changed, pendingOf } from './parts'

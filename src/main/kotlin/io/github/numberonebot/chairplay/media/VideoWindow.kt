@@ -414,6 +414,8 @@ class VideoWindow(
 
     private fun applyShown(window: Long, shown: Boolean) {
         if (shown) {
+            // A minimized window comes back too, not only a hidden one.
+            if (glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_TRUE) glfwRestoreWindow(window)
             glfwShowWindow(window)
             glfwFocusWindow(window)
         } else {

@@ -2,8 +2,6 @@ package io.github.numberonebot.chairplay
 
 import com.shilapi.xcertplay.airplay.AirPlaySession
 import com.shilapi.xcertplay.airplay.AirPlaySessionListener
-import io.github.numberonebot.chairplay.bluetooth.WindowsBluetooth
-import io.github.numberonebot.chairplay.bluetooth.selectIphone
 import io.github.numberonebot.chairplay.config.DesktopConfig
 import io.github.numberonebot.chairplay.config.Theme
 import io.github.numberonebot.chairplay.config.AltscreenCards
@@ -27,7 +25,6 @@ import io.github.numberonebot.chairplay.config.VolumeStore
 import io.github.numberonebot.chairplay.config.MAIN_WINDOW_MIN_SIZE
 import io.github.numberonebot.chairplay.config.ALTSCREEN_MIN_WIDTH
 import io.github.numberonebot.chairplay.config.fittedTo
-import io.github.numberonebot.chairplay.ui.UiWindow
 import io.github.numberonebot.chairplay.input.ControlsConfig
 import io.github.numberonebot.chairplay.input.KeyControls
 import io.github.numberonebot.chairplay.input.PageKeys
@@ -53,31 +50,16 @@ import io.github.numberonebot.chairplay.hud.hudState
 import io.github.numberonebot.chairplay.media.saveScreenshot
 import io.github.numberonebot.chairplay.media.windowsAppsDark
 import io.github.numberonebot.chairplay.session.AltscreenUi
-import io.github.numberonebot.chairplay.session.FIREWALL_RULE
-import io.github.numberonebot.chairplay.session.FirewallState
-import io.github.numberonebot.chairplay.session.IAP2_IPHONE_UUID
 import io.github.numberonebot.chairplay.session.WirelessBootstrap
-import io.github.numberonebot.chairplay.session.desktopIdentification
-import io.github.numberonebot.chairplay.session.firewallHint
 import io.github.numberonebot.chairplay.session.readFirewall
-import io.github.numberonebot.chairplay.session.redactTrace
 import io.github.numberonebot.chairplay.ui.ChairPlayUi
-import io.github.numberonebot.chairplay.ui.FirewallStatus
 import io.github.numberonebot.chairplay.ui.UiActions
-import io.github.numberonebot.chairplay.ui.UiMainWindow
 import io.github.numberonebot.chairplay.ui.UiSafeAreaFrame
 import io.github.numberonebot.chairplay.ui.UiControls
 import io.github.numberonebot.chairplay.ui.UiDemo
 import org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT
 import org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_ALT
 import org.lwjgl.glfw.GLFW.GLFW_RELEASE
-import com.shilapi.xcertplay.iap2.session.Iap2Session
-import com.shilapi.xcertplay.mfi.Iap2MfiAuthenticationClient
-import com.shilapi.xcertplay.mfi.LocalMfiAuthenticationClient
-import com.shilapi.xcertplay.transport.Iap2IdentificationClient
-import com.shilapi.xcertplay.transport.Iap2WirelessIdentification
-import com.shilapi.xcertplay.transport.Iap2WirelessLinkRole
-import com.shilapi.xcertplay.transport.forWirelessLink
 import java.nio.file.Path
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
@@ -98,9 +80,9 @@ fun main(args: Array<String>) {
 }
 
 /** The console and, once the app folder is known, logs\chairplay-<time>.log, at log.level. */
-private val appLog = AppLog()
+internal val appLog = AppLog()
 
-private fun log(message: String) = appLog.info(message)
+internal fun log(message: String) = appLog.info(message)
 
 /** How often display.theme=windows looks at the Windows theme. */
 private const val CONNECTING = "connecting…"
@@ -117,83 +99,16 @@ private const val THEME_POLL_SECONDS = 5L
 private const val GPS_PAGE_MILLIS = 250L
 
 /** The app folder, where the settings, keys and pairings live. */
-private fun dataDirectory(): Path {
+internal fun dataDirectory(): Path {
     val dir = DesktopConfig.appDirectory()
     log("settings and keys: $dir")
     return dir
-}
-
-private fun listDevices() {
-    println("radio ${WindowsBluetooth.localRadioAddress()}")
-    WindowsBluetooth.pairedDevices().forEach {
-        println("${it.address}  class=0x%06X  ${it.name}".format(it.classOfDevice))
-    }
-    // The names audio.output and audio.input match against (Java Sound cuts them to 31 characters).
-    println("audio outputs:")
-    AudioDevices.outputs().forEach { println("  ${it.name}") }
-    println("audio inputs:")
-    AudioDevices.inputs().forEach { println("  ${it.name}") }
-}
-
-/**
- * The go/no-go check for wireless CarPlay on Windows: reach the iPhone's iAP2 service over RFCOMM
- * and complete identification and MFi authentication with DiPlay's own iAP2 code. Stops before
- * handing the iPhone any Wi-Fi endpoint.
- */
-private fun probeBluetooth(address: String?): Boolean {
-    val radio = WindowsBluetooth.localRadioAddress()
-    val iphone = selectIphone(WindowsBluetooth.pairedDevices(), address)
-    log("radio $radio, target ${iphone.name} ${iphone.address}")
-
-    val mfiDirectory = dataDirectory().resolve("offline-mfi").toFile()
-    val mfi = LocalMfiAuthenticationClient.load(mfiDirectory) { log("local MFi identity signs ($it-byte signature)") }
-
-    val socket = WindowsBluetooth.connectRfcomm(iphone.address, IAP2_IPHONE_UUID)
-    log("RFCOMM connected to the iAP2 service")
-    val stream = socket.toDuplexStream(::log)
-    val session = Iap2Session.openWireless(stream, traceContext = "probe", onTrace = { log(redactTrace(it)) })
-    try {
-        val identification = desktopIdentification(radio).forWirelessLink(
-            Iap2WirelessLinkRole.BLUETOOTH_BOOTSTRAP,
-            Iap2WirelessIdentification(radio, "ChairPlayProbe"),
-        )
-        // The same two steps, in the same order, that Iap2WirelessControlClient.run begins with.
-        Iap2IdentificationClient(session).identify(identification, 30_000L, ::log)
-        log("iAP2 identification accepted")
-        Iap2MfiAuthenticationClient(mfi).run(session, 30_000L, ::log)
-        log("iAP2 authentication accepted")
-        log("GO: the iPhone accepted ChairPlay over Windows Bluetooth")
-        return true
-    } catch (error: Exception) {
-        log("NO-GO: ${error.javaClass.simpleName}: ${error.message}")
-        return false
-    } finally {
-        session.close()
-    }
 }
 
 /**
  * Wireless CarPlay with the screen shown in a window and its sound played through Java Sound. Runs until the window
  * is closed or the process is stopped; every session end or failure restarts the bring-up.
  */
-/** A window as the settings screen's triggers see it; there for them while [available] says so. */
-private fun VideoWindow.asUiWindow(available: () -> Boolean = { true }) = object : UiWindow {
-    override val visible get() = this@asUiWindow.visible
-    override val available get() = available()
-    override fun setShown(shown: Boolean) = this@asUiWindow.setShown(shown)
-}
-
-/** A window for its page's Actual size, which brings it to the picture it shows now; there while [available] says so. */
-private fun VideoWindow.asUiMainWindow(available: () -> Boolean = { true }) = object : UiMainWindow {
-    override val available get() = available()
-    override val width get() = framebufferSize.width
-    override val height get() = framebufferSize.height
-    override val minWidth get() = minimumSize.width
-    override val minHeight get() = minimumSize.height
-    override val picture get() = stream
-    override fun resizeTo(width: Int, height: Int) = this@asUiMainWindow.resizeTo(width, height)
-}
-
 private fun runCarPlay() {
     appLog.install()
     val dir = dataDirectory()
@@ -261,7 +176,8 @@ private fun runCarPlay() {
     val hudDemo = AtomicReference<Pair<String, HudDemo.Running>?>(null)
     var altscreenContent = config.altscreen?.content
     altscreen.log = { log("altscreen $it") }
-    altscreen.showView(altscreenContent == AltscreenContent.HUD)
+    // No session yet: the HUD's waiting line, whatever the AltScreen is set to show once there is one.
+    altscreen.showView(true)
     var altscreenCards = config.altscreen?.cards ?: AltscreenCards.AUTO
     // F12 saves both screens, each at the size the iPhone draws it.
     fun screenshots() {
@@ -338,7 +254,8 @@ private fun runCarPlay() {
         val content = altscreenContent ?: return
         val url = altscreenUrl(content, altscreenCards)
         val cards = altscreenCards
-        val hud = content == AltscreenContent.HUD || hudDemo.get() != null
+        // Without a session there is no picture to show: the HUD says where the connection stands instead.
+        val hud = content == AltscreenContent.HUD || hudDemo.get() != null || session == null
         // The iPhone draws the view only while it is seen: not under the HUD, nor with the window closed.
         val seen = !hud && altscreen.visible
         val area = areaFor.get()(content)
@@ -366,6 +283,11 @@ private fun runCarPlay() {
         runCatching { AltscreenViewStore(dir).save(content, altscreenCards, alt.configured) }
             .onFailure { log("AltScreen view not saved: $it") }
         controlsChanged.get()()
+    }
+    // A view chosen or a frame shown on a page or the controls window is for looking at: the AltScreen comes back if
+    // hidden or minimized, to the front, with the focus. Not while it is off.
+    fun bringAltscreen() {
+        if (altSettings.get() != null) altscreen.setShown(true)
     }
     fun send(control: Control?) {
         control ?: return
@@ -453,6 +375,7 @@ private fun runCarPlay() {
             val target = AltscreenContent.entries.firstOrNull { it.key == content } ?: return false
             if (altscreenContent == null || active.get() == null) return false
             send(Control.ShowAltscreenContent(target))
+            bringAltscreen()
             return true
         }
 
@@ -516,7 +439,10 @@ private fun runCarPlay() {
         bindings.set(saved)
         log(saved.summary())
     }, readFirewall = ::readFirewallStatus, altscreenWindow = altscreen.asUiMainWindow { altSettings.get() != null },
-        altscreenFrame = UiSafeAreaFrame { top, bottom, left, right -> altscreen.showFrame(top, bottom, left, right) },
+        altscreenFrame = UiSafeAreaFrame { top, bottom, left, right ->
+            bringAltscreen()
+            altscreen.showFrame(top, bottom, left, right)
+        },
         onSaved = { saved ->
             saved["display.theme"]?.let { themeSaved.get()(it) }
             if ("audio.start.silence.ms" in saved || "audio.start.fade.ms" in saved) {
@@ -532,6 +458,7 @@ private fun runCarPlay() {
                     val connection = declared.get()
                     areaFor.set { content -> connection.altscreenAreaIndex(content, now.altscreenPreset(content)) }
                     touchSender.execute { showAltscreenView(active.get()) }
+                    bringAltscreen()
                 }
             }
             if ("audio.duck.db" in saved || "audio.duck.iphone" in saved) {
@@ -548,6 +475,7 @@ private fun runCarPlay() {
                     altscreenCards = AltscreenCards.entries.firstOrNull { it.key == value.trim().lowercase() } ?: AltscreenCards.AUTO
                     showAltscreenView(active.get())
                 }
+                bringAltscreen()
             }
         },
         demo = demos, gps = driving::state)
@@ -617,6 +545,9 @@ private fun runCarPlay() {
         tracker.reset()
         // The HUD's waiting line and the session's parts rise and fade as the session comes and goes.
         if (altscreen.hud) altscreen.repaint()
+        // A session gone leaves the AltScreen on the HUD's waiting line, whatever view it was showing; a new one's
+        // AltScreen stream brings the view back (onAltscreenStream). None once the app closes.
+        if (active.get() == null) runCatching { touchSender.execute { showAltscreenView(null) } }
     }
     // The theme goes out once a session is active, and again when the CarPlay page saves another, as a car's headlights
     // turn CarPlay dark while it runs; with display.theme=windows a change of the Windows theme follows.
@@ -794,43 +725,4 @@ private fun runCarPlay() {
     // GLFW needs its windows and event loop on this, the main, thread; the bring-up runs on its own.
     runWindows(window, *listOfNotNull(altscreen, controlsWindow).toTypedArray(), pass = driving::pass)
     exitProcess(0)
-}
-
-/**
- * Says what keeps the iPhone out, if anything. A block rule wins over any allow rule, so one left by Windows'
- * first-run prompt is reported even when ours exists. The start screen shows the same.
- */
-private fun checkFirewall(port: Int): FirewallStatus {
-    val program = ProcessHandle.current().info().command().orElse("java.exe")
-    val hint = "from an administrator prompt:\n" + firewallHint(port, program)
-    val state = readFirewall(program)
-    if (state == null) {
-        log("could not read the Windows Firewall rules; if the iPhone cannot connect, add these $hint")
-        return FirewallStatus.UNKNOWN
-    }
-    if (state.off) {
-        log("Windows Firewall is off for the networks this PC is on; ChairPlay needs no rule")
-        return FirewallStatus.OFF
-    }
-    if (!state.allowRule) {
-        // Another rule (Windows' own, from its first-run prompt) may let the iPhone in: ours is only missing.
-        log("no Windows Firewall rule \"$FIREWALL_RULE\"; if the iPhone cannot connect, add it")
-        log(hint)
-    }
-    state.blocking.forEach {
-        log("Windows Firewall rule $it blocks inbound connections to $program; the iPhone cannot connect while " +
-            "it applies. Delete it or set it to Allow in Windows Defender Firewall > Advanced settings > Inbound Rules")
-    }
-    return firewallStatus(state)
-}
-
-/** The firewall read again for the live setup checks, without the start's log lines. */
-private fun readFirewallStatus(): FirewallStatus =
-    readFirewall(ProcessHandle.current().info().command().orElse("java.exe"))?.let(::firewallStatus) ?: FirewallStatus.UNKNOWN
-
-private fun firewallStatus(state: FirewallState): FirewallStatus = when {
-    state.off -> FirewallStatus.OFF
-    state.blocking.isNotEmpty() -> FirewallStatus.BLOCKED
-    !state.allowRule -> FirewallStatus.MISSING
-    else -> FirewallStatus.PRESENT
 }

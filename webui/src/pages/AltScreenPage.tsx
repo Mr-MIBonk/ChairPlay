@@ -42,14 +42,14 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
   const pending = pendingOf(state)
   const off = settings.value('altscreen.enabled') !== 'true'
   const { note } = parts(settings, pending)
-  // Only Map + card has a turn card to place; with no view yet the choice is for the next one.
   const view = state.controls?.altscreen
-  const placesCards = view == null || view === 'map-card'
   const viewOn = state.controls?.altscreen != null && state.windows.altscreen.available && state.canShowCarPlay
   const cardsKey = state.controls?.keys['altscreen.cards']
   // The view chosen in Content, or the one the AltScreen opens on without a session, is the one whose part of the
   // frame and margins the page sets; the HUD, which ChairPlay draws on the whole window, has neither: both are off.
   const shown = view ?? (settings.value('altscreen.content') || 'map')
+  // Only Map + card has a turn card to place.
+  const placesCards = shown === 'map-card'
   const areaView = AREA_VIEWS.includes(shown) ? shown : null
   const areaKey = `altscreen.${areaView ?? 'map'}.area`
   const safePrefix = areaView ? `altscreen.${areaView}.safe` : 'altscreen.safe'
@@ -94,24 +94,21 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
             onChange={(content) => void backend.altscreen(content as AltscreenContent)}
           />
         </Row>
-        {/* Map + card alone has a turn card to place: elsewhere the choice waits for it. */}
-        <Row
-          label="Card position"
-          title={
-            placesCards
-              ? `Where the turn card starts${cardsKey ? `; ${keyLabel(cardsKey)} moves it while CarPlay runs` : ''}`
-              : 'Show Map + card to place the turn card'
-          }
-        >
-          <Segmented
+        {/* Map + card alone has a turn card to place: elsewhere the row is not there. */}
+        {placesCards && (
+          <Row
             label="Card position"
-            value={settings.value('altscreen.cards') || 'auto'}
-            options={CARDS}
-            disabled={!placesCards}
-            onChange={(cards) => settings.save({ 'altscreen.cards': cards })}
-          />
-          <Changed keys={['altscreen.cards']} pending={pending} />
-        </Row>
+            title={`Where the turn card starts${cardsKey ? `; ${keyLabel(cardsKey)} moves it while CarPlay runs` : ''}`}
+          >
+            <Segmented
+              label="Card position"
+              value={settings.value('altscreen.cards') || 'auto'}
+              options={CARDS}
+              onChange={(cards) => settings.save({ 'altscreen.cards': cards })}
+            />
+            <Changed keys={['altscreen.cards']} pending={pending} />
+          </Row>
+        )}
         {/* The shown view's part of the frame; the HUD has none. */}
         <Row
           label="Area"

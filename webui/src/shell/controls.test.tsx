@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Checkbox, Field, PasswordField, Segmented } from './controls'
+import { Checkbox, Segmented } from './controls'
+import { Field, PasswordField } from './fields'
 
 afterEach(cleanup)
 
