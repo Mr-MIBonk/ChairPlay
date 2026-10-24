@@ -1,0 +1,146 @@
+/* The controls window's knob: the wings over its corners, the AltScreen's zoom and the knob's turns */
+
+/*
+ * Wings over the knob's four corners, the AltScreen's zoom over the top ones and the turns under the bottom ones: a
+ * straight outer top or bottom and side, a rounded outer corner, and an inner edge following the bezel 5 px clear of it
+ * (a circle of 102 round the knob's centre, 115 px in). Each box starts 16 px into the knob and is as wide as where its
+ * edge meets that circle, so both ends taper to a point; the centres are in its own coordinates. The wing is drawn on a
+ * layer under the icon and key, so its mask cuts neither, and the button answers the mouse only in the triangle of its
+ * corner whose long side stays off the bezel.
+ */
+.controls-screen .key.wing {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  width: 75px;
+  height: 75px;
+  padding: 8px;
+  border: 0;
+  border-radius: 0;
+  align-items: flex-start;
+  justify-content: flex-start;
+  background: transparent;
+  box-shadow: none;
+  color: var(--muted);
+  pointer-events: none;
+}
+
+.controls-screen .key.wing-top-right,
+.controls-screen .key.wing-bottom-right {
+  left: 139px;
+  align-items: flex-end;
+}
+
+.controls-screen .key.wing-bottom-left,
+.controls-screen .key.wing-bottom-right {
+  top: 139px;
+  justify-content: flex-end;
+}
+
+.controls-screen .key.wing::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 16px 0 0 0;
+  background: linear-gradient(150deg, #2e2e33, var(--raised) 50%, var(--panel));
+  -webkit-mask: radial-gradient(circle at 99px 99px, transparent 102px, #000 102.5px);
+  mask: radial-gradient(circle at 99px 99px, transparent 102px, #000 102.5px);
+}
+
+.controls-screen .key.wing-top-right::before {
+  border-radius: 0 16px 0 0;
+  -webkit-mask: radial-gradient(circle at -24px 99px, transparent 102px, #000 102.5px);
+  mask: radial-gradient(circle at -24px 99px, transparent 102px, #000 102.5px);
+}
+
+.controls-screen .key.wing-bottom-left::before {
+  border-radius: 0 0 0 16px;
+  -webkit-mask: radial-gradient(circle at 99px -24px, transparent 102px, #000 102.5px);
+  mask: radial-gradient(circle at 99px -24px, transparent 102px, #000 102.5px);
+}
+
+.controls-screen .key.wing-bottom-right::before {
+  border-radius: 0 0 16px 0;
+  -webkit-mask: radial-gradient(circle at -24px -24px, transparent 102px, #000 102.5px);
+  mask: radial-gradient(circle at -24px -24px, transparent 102px, #000 102.5px);
+}
+
+.controls-screen .key.wing::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+  clip-path: polygon(0 0, 54px 0, 0 54px);
+}
+
+.controls-screen .key.wing-top-right::after {
+  clip-path: polygon(21px 0, 75px 0, 75px 54px);
+}
+
+.controls-screen .key.wing-bottom-left::after {
+  clip-path: polygon(0 21px, 0 75px, 54px 75px);
+}
+
+.controls-screen .key.wing-bottom-right::after {
+  clip-path: polygon(75px 21px, 75px 75px, 21px 75px);
+}
+
+/* A wing without its AltScreen: its sign dim, no press, but its tooltip on hover says what enables it */
+.controls-screen .key.wing:disabled {
+  color: var(--line);
+}
+
+.controls-screen .key.wing svg {
+  position: relative;
+  width: 15px;
+  height: 15px;
+}
+
+/*
+ * Each turn's arrow turned so its arc runs along the bezel at its wing, pointing the way the knob turns: a quarter turn
+ * on from where it would sit at the top corner keeps its direction round the knob.
+ */
+.controls-screen .turn-back svg {
+  transform: rotate(-166deg);
+}
+.controls-screen .turn-forward svg {
+  transform: rotate(166deg);
+}
+
+.controls-screen .key.wing:not(:disabled):hover {
+  color: var(--text);
+  background: transparent;
+}
+
+.controls-screen .key.wing:not(:disabled):hover::before {
+  background: linear-gradient(150deg, #3a3a40, #27272c 50%, #1a1a1d);
+}
+
+/* A wing pressed as a quarter of the pad is: its surface tinted blue, its sign blue */
+.controls-screen .key.wing.down {
+  color: var(--accent);
+  background: transparent;
+}
+
+.controls-screen .key.wing.down::before {
+  background:
+    linear-gradient(var(--accent-tint), var(--accent-tint)),
+    linear-gradient(150deg, #2e2e33, var(--raised) 50%, var(--panel));
+}
+
+/* A wing's key beside its sign, toward the knob's middle */
+.controls-screen .wing .kb {
+  top: 28px;
+  left: 4px;
+  right: auto;
+}
+.controls-screen .wing-top-right .kb,
+.controls-screen .wing-bottom-right .kb {
+  left: auto;
+  right: 4px;
+}
+.controls-screen .wing-bottom-left .kb,
+.controls-screen .wing-bottom-right .kb {
+  top: auto;
+  bottom: 28px;
+}

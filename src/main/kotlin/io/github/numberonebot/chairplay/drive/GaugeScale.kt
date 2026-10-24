@@ -67,4 +67,5 @@ data class GaugeView(
     val speedometer: GaugeScale,
     val tachometer: GaugeScale,
     val position: GeoPoint = GeoPoint(0.0, 0.0),
+    val size: GaugeSize = GaugeSize.LARGE,
 )

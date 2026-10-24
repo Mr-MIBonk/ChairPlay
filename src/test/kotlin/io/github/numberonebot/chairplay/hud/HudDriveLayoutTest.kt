@@ -12,7 +12,7 @@ class HudDriveLayoutTest {
     // In drive mode the route and the song keep to the room between the wells, the route over the song, half each.
     @Test
     fun `the route and the song share the room between the wells, the route on top`() {
-        val (wellsEnd, wellsStart) = GaugeLayout.between(w, h)
+        val (wellsEnd, wellsStart) = GaugeLayout.between(w, h, 0f, smallWellScale(w, h))
         val (route, media) = driveSlots(w, h, route = 1f, media = 1f)
         for (slot in listOf(route, media)) {
             assertTrue("$slot", slot.left >= wellsEnd && slot.right <= wellsStart)
@@ -22,6 +22,27 @@ class HudDriveLayoutTest {
         assertEquals(route.height, media.height, 0.01f)
         assertEquals(route.left, media.left, 0f)
         assertEquals(route.right, media.right, 0f)
+    }
+
+    // Small wells leave more room between them.
+    @Test
+    fun `small wells leave the route and the song more room`() {
+        val (large, _) = driveSlots(w, h, route = 1f, media = 0f)
+        val (small, _) = driveSlots(w, h, route = 1f, media = 0f, smallness = 1f)
+        assertTrue(small.width > large.width)
+        val (wellsEnd, wellsStart) = GaugeLayout.between(w, h, 1f, smallWellScale(w, h))
+        assertTrue(small.left >= wellsEnd && small.right <= wellsStart)
+    }
+
+    // Small wells are as small as leaves the song its own size between them, alone; in wide windows and tall alike.
+    @Test
+    fun `small wells leave the song its own size`() {
+        for ((width, height) in listOf(1280f to 480f, 1440f to 540f, 1920f to 720f)) {
+            val alone = mediaBox(width, height, 0f)
+            val (_, slot) = driveSlots(width, height, route = 0f, media = 1f, smallness = 1f)
+            assertEquals("$width x $height", 1f, fitScale(mediaBlockWidth(alone, height), alone.cover, slot), 1e-3f)
+            assertTrue(smallWellScale(width, height) < 1f)
+        }
     }
 
     // Alone, either has the whole room; the song moves down as the route comes.

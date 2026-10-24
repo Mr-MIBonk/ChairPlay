@@ -231,4 +231,18 @@ describe('GPS page', () => {
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'gps.rate': '10' }, { 'gps.nmea': 'modern' }]))
   })
+
+  // The car's handling and the gauges' size: normal and large until set.
+  it('sets the handling and the gauges', async () => {
+    const backend = await gps()
+
+    const handling = screen.getByRole('radiogroup', { name: 'Handling' })
+    const gauges = screen.getByRole('radiogroup', { name: 'Gauges' })
+    expect(within(handling).getByRole('radio', { name: 'Normal' }).getAttribute('aria-checked')).toBe('true')
+    expect(within(gauges).getByRole('radio', { name: 'Large' }).getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(within(handling).getByRole('radio', { name: 'Sharp' }))
+    fireEvent.click(within(gauges).getByRole('radio', { name: 'Small' }))
+
+    await waitFor(() => expect(backend.saved).toEqual([{ 'gps.car.handling': 'sharp' }, { 'gps.gauges': 'small' }]))
+  })
 })

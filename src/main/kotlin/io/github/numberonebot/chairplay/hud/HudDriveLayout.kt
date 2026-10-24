@@ -12,9 +12,19 @@ data class HudRect(val left: Float, val top: Float, val right: Float, val bottom
     val centerY: Float get() = (top + bottom) / 2
 }
 
+/**
+ * How small the small wells are, in the large ones' size: as small as leaves the room between them the song's own
+ * width, so the song shows between them as it does without them; no smaller than a third.
+ */
+fun smallWellScale(width: Float, height: Float): Float {
+    val song = mediaBlockWidth(mediaBox(width, height, 0f), height)
+    val edge = (width - song) / 2 - DRIVE_GAP * width
+    return ((edge - GaugeLayout.margin(height)) / (2 * GaugeLayout.radius(width, height))).coerceIn(1f / 3, 1f)
+}
+
 /** The room between the wells: their free span less a gap at each side, within the HUD's margins top and bottom. */
-fun driveStage(width: Float, height: Float): HudRect {
-    val (from, to) = GaugeLayout.between(width, height)
+fun driveStage(width: Float, height: Float, smallness: Float = 0f): HudRect {
+    val (from, to) = GaugeLayout.between(width, height, smallness, smallWellScale(width, height))
     val gap = DRIVE_GAP * width
     return HudRect(from + gap, HUD_PAD * height, to - gap, height - HUD_PAD * height)
 }
@@ -23,8 +33,8 @@ fun driveStage(width: Float, height: Float): HudRect {
  * The route's slot and the song's in the [driveStage]: the route over the song, half the height each when both are
  * there, the whole of it alone; [route] and [media] are how present each is, so the song moves down as the route comes.
  */
-fun driveSlots(width: Float, height: Float, route: Float, media: Float): Pair<HudRect, HudRect> {
-    val stage = driveStage(width, height)
+fun driveSlots(width: Float, height: Float, route: Float, media: Float, smallness: Float = 0f): Pair<HudRect, HudRect> {
+    val stage = driveStage(width, height, smallness)
     val half = stage.height / 2
     return HudRect(stage.left, stage.top, stage.right, stage.bottom - half * media) to
         HudRect(stage.left, stage.top + half * route, stage.right, stage.bottom)

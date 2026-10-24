@@ -60,6 +60,10 @@ class GaugesTest {
         // The wheel turns to where the car faces, and the panel beside it shows where the car is.
         assertEquals(135.0, view.headingDegrees, 0.0)
         assertEquals(GeoPoint(50.0, 30.0), view.position)
+        // Large unless gps.gauges says small.
+        assertEquals(GaugeSize.LARGE, view.size)
+        driving.saved(settings.copy(gauges = GaugeSize.SMALL), setOf("gps.gauges"))
+        assertEquals(GaugeSize.SMALL, driving.gauges()!!.size)
         assertTrue(driving.driveMode(false))
         driving.pass()
         assertNull(driving.gauges())

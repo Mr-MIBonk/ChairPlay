@@ -56,8 +56,15 @@ internal class AppControls(
      */
     var controlsPass: () -> Unit = {}
 
+    /** Switches the gauges between large and small and saves it, as the GPS page does; set once the UI exists. */
+    var gaugeSize: () -> Unit = {}
+
     fun send(control: Control?) {
         control ?: return
+        if (control == Control.GaugeSize) {
+            gaugeSize()
+            return
+        }
         if (control == Control.Screenshot) {
             screenshots()
             return
@@ -94,7 +101,7 @@ internal class AppControls(
                 }
                 Control.NextAltscreenContent, Control.NextAltscreenCards, is Control.ShowAltscreenContent ->
                     altView.step(control, session)
-                Control.Screenshot, Control.Reconnect, is Control.VolumeStep, Control.MuteToggle, Control.DriveMode -> Unit
+                Control.Screenshot, Control.Reconnect, is Control.VolumeStep, Control.MuteToggle, Control.DriveMode, Control.GaugeSize -> Unit
             }
         }
     }

@@ -33,6 +33,8 @@ sealed interface Control {
     data object MuteToggle : Control
     /** Turns drive mode on or off: the arrows drive the spoofed GPS car; nothing goes to the iPhone. */
     data object DriveMode : Control
+    /** Switches the GPS car's gauges between large and small, saved as gps.gauges; nothing goes to the iPhone. */
+    data object GaugeSize : Control
 }
 
 /**
@@ -157,5 +159,6 @@ internal fun pressControl(action: ControlAction): Control? = when (action) {
     ControlAction.ALTSCREEN_CARDS -> Control.NextAltscreenCards
     ControlAction.VOLUME_MUTE -> Control.MuteToggle
     ControlAction.DRIVE -> Control.DriveMode
+    ControlAction.GAUGES -> Control.GaugeSize
     else -> null
 }

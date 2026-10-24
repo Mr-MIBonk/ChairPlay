@@ -29,6 +29,9 @@ class GaugeMotionTest {
         assertEquals(0.5, motion.frame(view)!!.progress, 1e-6)
         at(GaugeMotion.IN_SECONDS + 1)
         assertEquals(1.0, motion.frame(view)!!.progress, 0.0)
+        // One frame more, for the HUD, which reads the motion a frame late, to draw its end.
+        assertTrue(motion.animating)
+        motion.frame(view)
         assertFalse(motion.animating)
     }
 
@@ -46,6 +49,9 @@ class GaugeMotionTest {
         at(5.0 + GaugeMotion.OUT_SECONDS / 2)
         assertEquals(0.5, motion.frame(null)!!.progress, 1e-6)
         at(5.0 + GaugeMotion.OUT_SECONDS)
+        assertNull(motion.frame(null))
+        // One frame more, for the HUD to draw the room the wells leave in full.
+        assertTrue(motion.animating)
         assertNull(motion.frame(null))
         assertFalse(motion.animating)
     }
@@ -68,6 +74,27 @@ class GaugeMotionTest {
         at(10.0)
         motion.frame(null)
         assertEquals(0f, motion.there, 0f)
+    }
+
+    // Switched between large and small, the gauges scale over a moment; shown at first, they start at their size.
+    @Test
+    fun `the gauges scale between large and small over a moment`() {
+        val small = view.copy(size = GaugeSize.SMALL)
+        motion.frame(small)
+        assertEquals(1f, motion.smallness, 0f)
+        at(5.0)
+        motion.frame(view)
+        assertEquals(1f, motion.smallness, 0f)
+        assertTrue(motion.animating)
+        at(5.0 + GaugeMotion.SIZE_SECONDS / 2)
+        motion.frame(view)
+        assertEquals(0.5f, motion.smallness, 1e-4f)
+        at(6.0 + GaugeMotion.SIZE_SECONDS)
+        motion.frame(view)
+        assertEquals(0f, motion.smallness, 0f)
+        assertTrue(motion.animating)
+        motion.frame(view)
+        assertFalse(motion.animating)
     }
 
     // Turned back on as they leave, they come back from as far as they had gone, not from nothing.

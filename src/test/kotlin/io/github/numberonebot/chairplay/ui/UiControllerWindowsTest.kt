@@ -13,12 +13,13 @@ class UiControllerWindowsTest : UiControllerFixture() {
     @Test
     fun `Show frame draws the saved AltScreen safe area on its window`() {
         val shown = mutableListOf<List<Int>>()
-        val frame = UiSafeAreaFrame { top, bottom, left, right -> shown += listOf(top, bottom, left, right) }
+        val frame = UiSafeAreaFrame { top, bottom, left, right, width, height -> shown += listOf(top, bottom, left, right, width, height) }
         val ui = controller(settings = "altscreen.safe.top=40\naltscreen.safe.left=100\naltscreen.safe.right=\n", altscreenFrame = frame)
 
         assertTrue(ui.showAltscreenFrame())
 
-        assertEquals(listOf(listOf(40, 0, 100, 0)), shown)
+        // In the pixels of the frame the settings give, the default 1440x540 here.
+        assertEquals(listOf(listOf(40, 0, 100, 0, 1440, 540)), shown)
         assertFalse(controller().showAltscreenFrame())
     }
 
@@ -27,7 +28,7 @@ class UiControllerWindowsTest : UiControllerFixture() {
     @Test
     fun `Show frame for a view draws its part's margins`() {
         val shown = mutableListOf<List<Int>>()
-        val frame = UiSafeAreaFrame { top, bottom, left, right -> shown += listOf(top, bottom, left, right) }
+        val frame = UiSafeAreaFrame { top, bottom, left, right, width, height -> shown += listOf(top, bottom, left, right, width, height) }
         val ui = controller(settings = "altscreen.width=1920\naltscreen.height=720\naltscreen.safe.top=40\n" +
             "altscreen.card.area=center3\naltscreen.card.safe.top=10\n", altscreenFrame = frame)
 
@@ -39,7 +40,7 @@ class UiControllerWindowsTest : UiControllerFixture() {
             altscreenFrame = frame)
         assertTrue(clipped.showAltscreenFrame("map"))
 
-        assertEquals(listOf(listOf(10, 0, 600, 600), listOf(40, 0, 0, 0), listOf(40, 0, 0, 720)), shown)
+        assertEquals(listOf(listOf(10, 0, 600, 600, 1920, 720), listOf(40, 0, 0, 0, 1920, 720), listOf(40, 0, 0, 720, 1920, 720)), shown)
     }
 
     // Actual size cannot go below the window's smallest size, which Windows' display scale makes larger.

@@ -42,6 +42,7 @@ enum class ControlAction(val key: String, val defaults: String, val description:
         "key.drive", "F10", "drive the GPS car: the arrows then steer and work the pedals instead of the knob, until pressed again",
         yields = true,
     ),
+    GAUGES("key.gauges", "Shift+F10", "switch the GPS car's gauges between large and small, and save it", yields = true),
 }
 
 /** A GLFW key code with the Shift, Ctrl and Alt bits that must be held. */

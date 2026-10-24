@@ -18,6 +18,19 @@ const RATES: readonly Choice[] = [
   ['10', '10'],
 ]
 
+/** gps.car.handling: how the car turns. */
+const HANDLING: readonly Choice[] = [
+  ['gentle', 'Gentle'],
+  ['normal', 'Normal'],
+  ['sharp', 'Sharp'],
+]
+
+/** gps.gauges: how large drive mode's gauges show. */
+const GAUGES: readonly Choice[] = [
+  ['large', 'Large'],
+  ['small', 'Small'],
+]
+
 /** gps.nmea: the sentences the fixes go in. */
 const SENTENCES: readonly Choice[] = [
   ['classic', 'Classic', "DiPlay's $GPGGA and $GPRMC"],
@@ -49,6 +62,7 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
   const { value, save } = settings
   const off = value('gps.enabled') !== 'true'
   const driveKey = state.controls?.keys.drive
+  const gaugesKey = state.controls?.keys.gauges
   const now = state.gps && status(state.gps)
   // Where the car is and which way it faces now, while the app runs; else as saved.
   const heading = state.gps ? String(state.gps.heading) : value('gps.heading') || '0'
@@ -95,7 +109,6 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
         <Row label="Fixes" title="How often the car's position goes to the iPhone while it listens">
           <Segmented
             label="Fixes"
-            className="compact"
             value={value('gps.rate') || '4'}
             options={RATES}
             onChange={(rate) => save({ 'gps.rate': rate })}
@@ -105,7 +118,6 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
         <Row label="Sentences" title="The NMEA sentences the position goes to the iPhone in">
           <Segmented
             label="Sentences"
-            className="compact"
             value={value('gps.nmea') || 'classic'}
             options={SENTENCES}
             onChange={(nmea) => save({ 'gps.nmea': nmea })}
@@ -162,11 +174,30 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
           <span className="exp">Experimental</span>
           <span className="exp fun">Extra fun</span>
         </Row>
+        <Row
+          label="Gauges"
+          title={`The speedometer and tachometer in drive mode: as tall as the AltScreen, or small in its lower corners${gaugesKey ? ` (${keyLabel(gaugesKey)})` : ''}`}
+        >
+          <Segmented
+            label="Gauges"
+            value={value('gps.gauges') || 'large'}
+            options={GAUGES}
+            onChange={(size) => save({ 'gps.gauges': size })}
+          />
+        </Row>
         <Row label="Power and mass" title="The car's power and mass, which set how it pulls and how fast it goes">
           {field('gps.car.power.hp', 'Power', '300')}
           <span className="unit">hp</span>
           {field('gps.car.mass.kg', 'Mass', '1500')}
           <span className="unit">kg</span>
+        </Row>
+        <Row label="Handling" title="How fast the car turns standing and slow, and how well it holds a fast corner">
+          <Segmented
+            label="Handling"
+            value={value('gps.car.handling') || 'normal'}
+            options={HANDLING}
+            onChange={(handling) => save({ 'gps.car.handling': handling })}
+          />
         </Row>
       </div>
     </>

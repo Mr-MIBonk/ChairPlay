@@ -75,9 +75,12 @@ interface UiDemo {
     fun play(kind: String?): Boolean
 }
 
-/** The AltScreen's window drawing a safe area for a moment; insets in the picture's pixels. Safe from any thread. */
+/**
+ * The AltScreen's window drawing a safe area for a moment; insets in the pixels of a [width] x [height] frame, the
+ * size as the settings now give it, which the window scales to its picture. Safe from any thread.
+ */
 fun interface UiSafeAreaFrame {
-    fun show(top: Int, bottom: Int, left: Int, right: Int)
+    fun show(top: Int, bottom: Int, left: Int, right: Int, width: Int, height: Int)
 }
 
 /** The controls window's page: the car's buttons, and what it shows beside them. Safe from any thread. */

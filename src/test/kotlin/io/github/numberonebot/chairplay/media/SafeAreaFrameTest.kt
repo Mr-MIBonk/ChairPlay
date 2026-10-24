@@ -24,6 +24,15 @@ class SafeAreaFrameTest {
         assertArrayEquals(floatArrayOf(50f, 65f, 710f, 315f), rect, 0.01f)
     }
 
+    // Insets saved for another frame size than the picture's (a new size waiting for the next connection) scale to the
+    // picture: the middle half of a 1440 px frame is the middle half of a 1280 px picture.
+    @Test
+    fun `insets of another frame size scale to the picture`() {
+        val rect = safeAreaRect(Size(1280, 480), 1280, 480, top = 0, bottom = 0, left = 360, right = 360, of = Size(1440, 540))
+
+        assertArrayEquals(floatArrayOf(320f, 0f, 960f, 480f), rect, 0.01f)
+    }
+
     // Under the HUD there is no picture: the frame takes the size the last connection brought, not the one at start.
     @Test
     fun `without a picture the frame takes the stream's size, not the size the window opened for`() {

@@ -16,10 +16,16 @@ import java.nio.ByteBuffer
 
 /**
  * What the HUD needs at a moment: whether a session runs, its data, the cover the iPhone sent last, and whether the GPS
- * car's wells are in ([drive]: 0 gone, 1 in place, linear in time, as GaugeMotion.there gives it), which keeps the
- * route and the song between them.
+ * car's wells are in ([drive]: 0 gone, 1 in place, linear in time, as GaugeMotion.there gives it) and how small
+ * ([driveSmallness], as GaugeMotion.smallness gives it), which keep the route and the song between them.
  */
-class HudView(val connected: Boolean, val state: HudState, val artwork: Artwork?, val drive: Float = 0f)
+class HudView(
+    val connected: Boolean,
+    val state: HudState,
+    val artwork: Artwork?,
+    val drive: Float = 0f,
+    val driveSmallness: Float = 0f,
+)
 
 /**
  * Draws the HUD with NanoVG on black, centred, as desktop-docs/hud-spec.md lays it out:
@@ -117,7 +123,7 @@ class HudPainter(
         // In drive mode the route and the song each lay out as alone, the route over the song between the wells.
         // By the wells' own motion and curve, so the blocks move as the wells do; the window draws on while they move.
         val driving = GaugeMotion.eased(now.drive)
-        val (routeSlot, mediaSlot) = driveSlots(w, h, shown.route, shown.media)
+        val (routeSlot, mediaSlot) = driveSlots(w, h, shown.route, shown.media, GaugeMotion.sized(now.driveSmallness))
         val alone = routeBox(w, h, 0f)
         shownManeuver?.let { maneuver ->
             val block = routeBlock(maneuver, shownArrival, alone, h)
@@ -132,7 +138,7 @@ class HudPainter(
             }
         }
         shownCall?.let { call ->
-            fitted(driving, w, h, w * (1 - 2 * HUD_SIDE), 0.30f * h, driveStage(w, h)) { callCard(call, w, h, shown.call) }
+            fitted(driving, w, h, w * (1 - 2 * HUD_SIDE), 0.30f * h, driveStage(w, h, GaugeMotion.sized(now.driveSmallness))) { callCard(call, w, h, shown.call) }
         }
         nvgEndFrame(vg)
         if (shown.moving) frames?.after(FRAME_MILLIS)

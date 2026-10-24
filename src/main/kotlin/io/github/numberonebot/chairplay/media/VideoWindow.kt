@@ -86,17 +86,17 @@ class VideoWindow(
     var onResize: (Size) -> Unit = {}
 
     /** A safe area to frame (insets in the picture's pixels) until [until] on System.nanoTime's clock. */
-    private class FrameRequest(val top: Int, val bottom: Int, val left: Int, val right: Int, val until: Long)
+    private class FrameRequest(val top: Int, val bottom: Int, val left: Int, val right: Int, val until: Long, val of: Size?)
 
     @Volatile
     private var frame: FrameRequest? = null
 
     /**
-     * Safe from any thread: frames the picture's safe area, the insets in its pixels, in green dots for [millis], over
-     * whatever the window shows, the picture or the HUD.
+     * Safe from any thread: frames the picture's safe area, the insets in the pixels of a frame [of] that size (the
+     * picture's own when null), in green dots for [millis], over whatever the window shows, the picture or the HUD.
      */
-    fun showFrame(top: Int, bottom: Int, left: Int, right: Int, millis: Long = 1_000) {
-        frame = FrameRequest(top, bottom, left, right, System.nanoTime() + millis * 1_000_000)
+    fun showFrame(top: Int, bottom: Int, left: Int, right: Int, millis: Long = 1_000, of: Size? = null) {
+        frame = FrameRequest(top, bottom, left, right, System.nanoTime() + millis * 1_000_000, of)
         wake()
         // One more pass when it is due to go.
         Thread({
@@ -566,7 +566,7 @@ class VideoWindow(
         }
         if (fw == 0 || fh == 0) return
         val shape = frameShape(picture, stream, opened = Size(width, height))
-        val rect = safeAreaRect(shape, fw, fh, request.top, request.bottom, request.left, request.right)
+        val rect = safeAreaRect(shape, fw, fh, request.top, request.bottom, request.left, request.right, request.of ?: shape)
         gl.frame(rect, fw, fh)
     }
 

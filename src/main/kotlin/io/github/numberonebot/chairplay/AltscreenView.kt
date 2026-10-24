@@ -20,6 +20,7 @@ import io.github.numberonebot.chairplay.hud.HudDemo
 import io.github.numberonebot.chairplay.hud.HudPainter
 import io.github.numberonebot.chairplay.hud.HudView
 import io.github.numberonebot.chairplay.hud.hudState
+import io.github.numberonebot.chairplay.hud.smallWellScale
 import io.github.numberonebot.chairplay.input.Control
 import io.github.numberonebot.chairplay.media.VideoWindow
 import io.github.numberonebot.chairplay.media.saveScreenshot
@@ -254,10 +255,10 @@ internal class AltscreenView(
             val demo = hudDemo.get()?.second
             val live = data.bus.snapshot()
             val snapshot = demo?.over(live) ?: live
-            HudView(demo != null || active() != null, hudState(snapshot), snapshot.artwork, drive = gaugeMotion.there)
+            HudView(demo != null || active() != null, hudState(snapshot), snapshot.artwork, gaugeMotion.there, gaugeMotion.smallness)
         }, ::log, window::repaint, accent)
         data.bus.addListener { if (window.hud) window.repaint() }
-        window.topLayer = GaugePainter(driving::gauges, ::log, accent, gaugeMotion)
+        window.topLayer = GaugePainter(driving::gauges, ::log, accent, gaugeMotion, ::smallWellScale)
     }
 
     /**

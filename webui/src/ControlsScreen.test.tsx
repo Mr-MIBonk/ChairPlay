@@ -35,48 +35,24 @@ describe('ControlsScreen', () => {
     expect(backend.controls).toEqual(['knob.next down', 'knob.next up', 'knob.previous down', 'knob.previous up'])
   })
 
-  // The AltScreen's modes pick one directly, rather than stepping through them as F11 does.
-  it('shows the AltScreen mode that is on and picks another', () => {
-    const backend = new FakeBackend()
-    render(<ControlsScreen state={appState(live)} backend={backend} />)
-
-    expect(screen.getByRole('radio', { name: 'Map' }).getAttribute('aria-checked')).toBe('true')
-    expect(screen.getByRole('radio', { name: 'HUD' }).getAttribute('aria-checked')).toBe('false')
-    fireEvent.click(screen.getByRole('radio', { name: 'HUD' }))
-
-    expect(backend.altscreens).toEqual(['hud'])
-  })
-
-  it('disables the AltScreen buttons while there is no AltScreen to work', () => {
+  it('disables the zoom while there is no AltScreen to work', () => {
     const backend = new FakeBackend()
     render(<ControlsScreen state={appState({ canShowCarPlay: false })} backend={backend} />)
 
     const zoom = screen.getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement
     expect(zoom.disabled).toBe(true)
+    expect((screen.getByRole('button', { name: 'Zoom out' }) as HTMLButtonElement).disabled).toBe(true)
     fireEvent.pointerDown(zoom)
-    fireEvent.click(screen.getByRole('radio', { name: 'HUD' }))
-    expect((screen.getByRole('radio', { name: 'HUD' }) as HTMLButtonElement).disabled).toBe(true)
 
     expect(backend.controls).toEqual([])
-    expect(backend.altscreens).toEqual([])
   })
 
-  // A hidden AltScreen shows nothing to zoom or switch: its buttons wait for the window to be on screen.
-  it('disables the AltScreen buttons while its window is hidden', () => {
+  // A hidden AltScreen shows nothing to zoom: the zoom waits for the window to be on screen.
+  it('disables the zoom while the AltScreen is hidden', () => {
     const windows = { altscreen: { available: true, visible: false }, controls: { available: true, visible: true } }
     render(<ControlsScreen state={appState({ ...live, windows })} backend={new FakeBackend()} />)
 
     expect((screen.getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement).disabled).toBe(true)
-    expect((screen.getByRole('radio', { name: 'HUD' }) as HTMLButtonElement).disabled).toBe(true)
-  })
-
-  // A disabled choice shows nothing chosen: the mode the AltScreen last had is not one it shows now.
-  it('marks no AltScreen mode while there is no AltScreen to work', () => {
-    render(<ControlsScreen state={appState({ canShowCarPlay: false })} backend={new FakeBackend()} />)
-
-    for (const name of ['HUD', 'Map', 'Map + card', 'Turn card']) {
-      expect(screen.getByRole('radio', { name }).getAttribute('aria-checked')).toBe('false')
-    }
   })
 
   // Windows shows access keys while Alt is held; the buttons show theirs the same way.

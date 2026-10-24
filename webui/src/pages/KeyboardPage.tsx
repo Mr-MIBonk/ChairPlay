@@ -57,6 +57,7 @@ const GROUPS: [group: string, actions: [key: string, label: string, title?: stri
       ['key.reconnect', 'Reconnect', 'End the CarPlay session gracefully and connect again'],
       ['key.screenshot', 'Screenshot', 'Save the CarPlay screen as a PNG file in the screenshots folder'],
       ['key.drive', 'Drive mode', 'Drive the GPS car with the arrows instead of the knob, until pressed again'],
+      ['key.gauges', 'Gauge size', "Switch the GPS car's gauges between large and small"],
     ],
   ],
 ]
@@ -257,7 +258,6 @@ export function KeyboardPage({ backend, settings }: { backend: Backend; settings
       <Row label="Wheel">
         <Segmented
           label="Wheel"
-          className="compact"
           value={value('wheel.action')}
           options={[
             ['knob', 'Knob'],

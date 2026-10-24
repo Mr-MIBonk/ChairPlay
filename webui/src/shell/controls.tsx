@@ -37,7 +37,8 @@ export type Choice = readonly [value: string, text: string, title?: string, icon
  * plates; four or more ("wide") keep to the length of a row's controls, and are as long as four plates where the page
  * has room, and five where it has room for that; six or more ("rows") wrap onto two rows of ordinary plates, as long
  * as a group of as many as a row holds (three for six), or [columns] a row. [className]
- * sets the width by hand instead: "compact", or "half" for short figures, as long as a size's two fields.
+ * sets the width by hand instead, for a group no other is like: "half" for short figures, as long as a size's two
+ * fields, or a grid of its own ("rows view-areas", "rows cities").
  */
 export function Segmented(props: {
   label: string

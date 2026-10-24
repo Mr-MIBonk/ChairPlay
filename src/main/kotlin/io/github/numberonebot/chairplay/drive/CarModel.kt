@@ -56,8 +56,9 @@ data class CarState(
  * Basic car physics with arcade handling. The engine gives its power at every speed, so the pull is power over speed,
  * held at a launch by what the driven wheels grip and cut at the limiter; drag, rolling resistance and, off the
  * throttle, the engine take it back.
- * An automatic gearbox only turns the tachometer. The wheel turns the car without slip, as fast as a tight circle at
- * low speed and as a lateral pull allows at high speed, and a standing car on the spot. Held at a standstill, the brake backs the car up, when the car has reverse ([CarSpec.reverse]).
+ * An automatic gearbox only turns the tachometer. The wheel turns the car without slip: standing and slow at the
+ * handling's pace, a standing car on the spot, and at speed as a lateral pull allows. Held at a standstill, the brake
+ * backs the car up, when the car has reverse ([CarSpec.reverse]).
  */
 class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
     var state: CarState = initial.copy(rpm = if (initial.parked) 0.0 else initial.rpm.coerceIn(spec.idleRpm, spec.redlineRpm))
@@ -125,13 +126,11 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         val rpm = if (!parked && wheels >= launch && target >= state.rpm) target else target + (state.rpm - target) * exp(-dt / RPM_SECONDS)
 
         val average = (before + speed) / 2
-        // A standing car turns on the spot, so it can be pointed before it drives off.
-        val yawRate = if (average == 0.0) {
-            steer * Math.toRadians(SPOT_TURN_DEGREES)
-        } else {
-            val turn = spec.handling
-            steer * sign(average) * min(abs(average) / turn.tightestRadiusMeters, turn.lateralAcceleration / maxOf(abs(average), 1.0))
-        }
+        // Standing or slow the car turns at its handling's pace, standing on the spot so it can be pointed before it drives
+        // off; faster, the grip in a corner takes the turning down. Backing up turns it the other way.
+        val turn = spec.handling
+        val backwards = if (average < 0) -1.0 else 1.0
+        val yawRate = steer * backwards * min(Math.toRadians(turn.turnDegreesPerSecond), turn.lateralAcceleration / maxOf(abs(average), 1.0))
         val heading = ((state.headingDegrees + Math.toDegrees(yawRate * dt)) % 360 + 360) % 360
 
         lastMeters = average * dt
@@ -200,17 +199,15 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         private const val SHIFT_BELOW_REDLINE = 200.0
         private const val SHIFT_DOWN_GENTLE = 1200.0
         private const val SHIFT_DOWN_FULL = 2700.0
-        /** Degrees a second a standing car turns on the spot at full lock. */
-        private const val SPOT_TURN_DEGREES = 90.0
     }
 }
 
 /**
- * How the car turns, gps.car.handling: the tightest circle it drives at low speed, and the grip in a corner that bounds
- * it at speed ([lateralAcceleration] in m/s², a road car's about 9).
+ * How the car turns, gps.car.handling: how fast at full lock standing and slow, in degrees a second, and the grip in a
+ * corner that takes that down at speed ([lateralAcceleration] in m/s², a road car's about 9).
  */
-enum class Handling(val key: String, val tightestRadiusMeters: Double, val lateralAcceleration: Double) {
-    GENTLE("gentle", 5.0, 9.0),
-    NORMAL("normal", 3.0, 12.0),
-    SHARP("sharp", 2.0, 16.0),
+enum class Handling(val key: String, val turnDegreesPerSecond: Double, val lateralAcceleration: Double) {
+    GENTLE("gentle", 70.0, 9.0),
+    NORMAL("normal", 90.0, 12.0),
+    SHARP("sharp", 110.0, 16.0),
 }

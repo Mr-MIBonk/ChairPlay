@@ -110,6 +110,8 @@ class KeyControlsTest {
         assertEquals(Control.DriveMode, press(GLFW_KEY_F10))
         assertNull(controls.key(GLFW_KEY_F10, GLFW_REPEAT, 0))
         assertNull(release(GLFW_KEY_F10))
+        // Shift+F10 switches the gauges between large and small.
+        assertEquals(Control.GaugeSize, press(GLFW_KEY_F10, GLFW_MOD_SHIFT))
     }
 
     // The screenshot stays on this PC: one per press, nothing reaches the iPhone on repeat or release.

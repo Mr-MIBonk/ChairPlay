@@ -14,19 +14,15 @@
   --dim: #5c5c63;
   --accent-tint: color-mix(in srgb, var(--accent) 16%, transparent);
   --accent-fill: linear-gradient(180deg, var(--accent-light), var(--accent) 55%, var(--accent-dark));
-  --chosen-fill: linear-gradient(
-    180deg,
-    var(--accent-dark),
-    color-mix(in srgb, var(--accent), black 17%) 60%,
-    color-mix(in srgb, var(--accent), black 25%)
-  );
   box-sizing: border-box;
   height: 100vh;
   overflow: hidden;
-  /* None at the top: the content meets the black title bar, which already reads as space above it */
-  padding: 0 6px 6px;
+  /* Half as much at the top: the black title bar above already reads as some of the space */
+  padding: 3px 6px 6px;
+  /* The knob on top, its box a little wider than the keys' 195 px, its clear edge into the padding; the keys under it */
   display: grid;
-  grid-template-columns: 81px 206px 1fr;
+  grid-template-rows: 206px 1fr;
+  justify-items: center;
   gap: 12px;
   color: var(--text);
   background: var(--bg);
@@ -65,7 +61,7 @@
  * Not on a pressed key: the pointer is over it while it is held, and the press must show. Not on the knob's parts
  * either, which have hovers of their own: a wing's button is the square its mask cuts the wing from.
  */
-.controls-screen .key:hover:not(:disabled):not(.down):not([aria-pressed='true']):not(.tilt):not(.turn):not(.select) {
+.controls-screen .key:hover:not(:disabled):not(.down):not([aria-pressed='true']):not(.tilt):not(.wing):not(.select) {
   border-color: #3c3c42;
   background: linear-gradient(180deg, #36363c, #26262b 50%, #19191c);
 }
@@ -94,94 +90,4 @@
   color: var(--dim);
   white-space: nowrap;
   pointer-events: none;
-}
-
-/* The AltScreen's column: + over − as one bar, the modes as a track; it greys out while there is no AltScreen */
-.controls-screen .alt-column {
-  display: grid;
-  grid-template-rows: 2fr 4fr;
-  gap: 6px;
-}
-
-.controls-screen .alt-column.off {
-  opacity: 0.4;
-}
-
-.controls-screen .zoom-group {
-  display: flex;
-  flex-direction: column;
-  border: 1px solid #2c2c31;
-  border-radius: 4px;
-  overflow: hidden;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
-}
-
-.controls-screen .zoom-group .key {
-  flex: 1;
-  border: 0;
-  border-radius: 0;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
-}
-
-.controls-screen .zoom-group .key svg {
-  width: 15px;
-  height: 15px;
-}
-
-.controls-screen .zoom-group .key + .key {
-  border-top: 1px solid #0c0c0e;
-}
-
-.controls-screen .mode-group {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  padding: 2px;
-  border: 1px solid #26262a;
-  border-radius: 6px;
-  background: linear-gradient(180deg, #0b0b0d, #141416);
-  box-shadow:
-    inset 0 2px 4px rgba(0, 0, 0, 0.75),
-    0 1px 0 rgba(255, 255, 255, 0.04);
-}
-
-.controls-screen .mode-group button {
-  position: relative;
-  flex: 1;
-  border: 0;
-  border-radius: 3px;
-  background: transparent;
-  color: var(--muted);
-  font-size: 11.5px;
-  white-space: nowrap;
-}
-
-/* Short separators between the modes that stop short of the track's sides and drop away beside the chosen one */
-.controls-screen .mode-group button + button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 16px;
-  right: 16px;
-  height: 1px;
-  background: var(--edge);
-}
-
-.controls-screen .mode-group button.on::before,
-.controls-screen .mode-group button.on + button::before {
-  display: none;
-}
-
-.controls-screen .mode-group button:hover:not(:disabled):not(.on) {
-  background: rgba(255, 255, 255, 0.07);
-  color: var(--text);
-}
-
-/* The chosen mode: a softer, darker plate than a pressed key, as it stays lit */
-.controls-screen .mode-group button.on {
-  background: var(--chosen-fill);
-  color: #fff;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    0 1px 3px rgba(0, 0, 0, 0.5);
 }

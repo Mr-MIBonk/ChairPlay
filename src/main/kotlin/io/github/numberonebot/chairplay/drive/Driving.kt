@@ -126,6 +126,7 @@ class Driving(
             speedometer = GaugeScale.speedometer(),
             tachometer = GaugeScale.tachometer(drive.spec),
             position = snapshot.position,
+            size = settings.gauges,
         )
     }
 

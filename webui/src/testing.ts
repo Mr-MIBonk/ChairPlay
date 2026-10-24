@@ -106,6 +106,7 @@ const DEFAULT_KEYS: [string, string[]][] = [
   ['key.volume.down', ['Ctrl+Down']],
   ['key.volume.mute', ['Ctrl+M']],
   ['key.drive', ['F10']],
+  ['key.gauges', ['Shift+F10']],
 ]
 
 /** The bindings as a fresh controls.properties has them. */

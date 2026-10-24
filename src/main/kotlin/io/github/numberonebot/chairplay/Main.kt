@@ -9,6 +9,7 @@ import io.github.numberonebot.chairplay.data.CarPlayData
 import io.github.numberonebot.chairplay.data.CarPlayDataLog
 import io.github.numberonebot.chairplay.input.Control
 import io.github.numberonebot.chairplay.input.ControlsConfig
+import io.github.numberonebot.chairplay.input.Size
 import io.github.numberonebot.chairplay.input.TouchQueue
 import io.github.numberonebot.chairplay.input.TouchTracker
 import io.github.numberonebot.chairplay.log.AppLog
@@ -144,9 +145,9 @@ private fun runCarPlay() {
         bindings.set(saved)
         log(saved.summary())
     }, readFirewall = ::readFirewallStatus, altscreenWindow = altscreen.asUiMainWindow { altView.on },
-        altscreenFrame = UiSafeAreaFrame { top, bottom, left, right ->
+        altscreenFrame = UiSafeAreaFrame { top, bottom, left, right, width, height ->
             altView.bring()
-            altscreen.showFrame(top, bottom, left, right)
+            altscreen.showFrame(top, bottom, left, right, of = Size(width, height))
         },
         onSaved = { saved ->
             saved["display.theme"]?.let(theme::saved)
@@ -168,6 +169,7 @@ private fun runCarPlay() {
     altscreen.onResize = { ui.windowsChanged() }
     controlsChanged.set { ui.controlsChanged() }
     appControls.controlsPass = { controlsWindow.repaint() }
+    appControls.gaugeSize = { ui.saveSettings(mapOf("gps.gauges" to driving.settings.gauges.other().key)) }
     altscreen.onVisibility = {
         ui.windowsChanged()
         altView.visibilityChanged()

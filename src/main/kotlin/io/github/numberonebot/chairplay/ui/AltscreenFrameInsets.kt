@@ -15,9 +15,7 @@ internal fun altscreenFrameInsets(values: Map<String, String>, view: String?): A
     fun inset(edge: String) = values["altscreen.safe.$edge"]?.trim()?.toIntOrNull()?.coerceAtLeast(0) ?: 0
     if (view == null) return AirPlayInsets(top = inset("top"), bottom = inset("bottom"), left = inset("left"), right = inset("right"))
     val content = AREA_VIEWS.firstOrNull { it.key == view } ?: return null
-    fun size(key: String, default: Int) = values[key]?.trim()?.toIntOrNull() ?: default
-    val width = size("altscreen.width", DesktopConfig.DEFAULT_ALTSCREEN_WIDTH)
-    val height = size("altscreen.height", DesktopConfig.DEFAULT_ALTSCREEN_HEIGHT)
+    val (width, height) = altscreenFrameSize(values)
     val parts = runCatching { AltscreenViewParts(width, height, values::get) }.getOrNull() ?: return null
     val part = parts.areas[parts.indexOf(content)]
     return part.safeArea ?: AirPlayInsets(
@@ -26,4 +24,10 @@ internal fun altscreenFrameInsets(values: Map<String, String>, view: String?): A
         left = maxOf(inset("left"), part.originX),
         right = maxOf(inset("right"), width - part.originX - part.width),
     )
+}
+
+/** The AltScreen's frame as the settings saved ([values]) give it, which the insets above are in the pixels of. */
+internal fun altscreenFrameSize(values: Map<String, String>): Pair<Int, Int> {
+    fun size(key: String, default: Int) = values[key]?.trim()?.toIntOrNull() ?: default
+    return size("altscreen.width", DesktopConfig.DEFAULT_ALTSCREEN_WIDTH) to size("altscreen.height", DesktopConfig.DEFAULT_ALTSCREEN_HEIGHT)
 }

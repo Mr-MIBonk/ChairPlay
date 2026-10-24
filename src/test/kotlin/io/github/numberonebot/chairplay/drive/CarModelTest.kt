@@ -159,10 +159,13 @@ class CarModelTest {
         fast.run(1.0, CarInput(steer = 1.0, throttle = 0.3))
         assertTrue("slow ${slow.state.headingDegrees}", slow.state.headingDegrees in 30.0..120.0)
         assertTrue("fast ${fast.state.headingDegrees}", fast.state.headingDegrees in 5.0..slow.state.headingDegrees - 5)
-        // Slow, it turns sharply, on a circle of a few metres: at 15 km/h over 70 degrees in a second.
+        // Slow, it turns as fast as it does standing: only speed takes the turning down.
         val crawl = CarModel(CarSpec(), CarState(speed = 15 / 3.6, gear = 1))
         crawl.run(1.0, CarInput(steer = 1.0, throttle = 0.05))
-        assertTrue("crawl ${crawl.state.headingDegrees}", crawl.state.headingDegrees in 70.0..120.0)
+        assertEquals(90.0, crawl.state.headingDegrees, 2.0)
+        val creep = CarModel(CarSpec(), CarState(speed = 3 / 3.6, gear = 1))
+        creep.run(1.0, CarInput(steer = 1.0, throttle = 0.05))
+        assertEquals(90.0, creep.state.headingDegrees, 2.0)
         val left = CarModel(CarSpec(), CarState(speed = 50 / 3.6, gear = 3))
         left.run(1.0, CarInput(steer = -1.0, throttle = 0.3))
         assertTrue(left.state.headingDegrees > 180.0)

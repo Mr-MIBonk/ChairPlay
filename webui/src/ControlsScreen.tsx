@@ -1,15 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { AltscreenContent, AppState, Backend } from './api'
+import type { AppState, Backend } from './api'
 import { icons } from './controlsIcons'
 import { useKeysToApp } from './shell/useKeysToApp'
-
-/** The AltScreen's modes, in the order the controls window lists them. */
-const MODES: { content: AltscreenContent; label: string }[] = [
-  { content: 'hud', label: 'HUD' },
-  { content: 'map', label: 'Map' },
-  { content: 'map-card', label: 'Map + card' },
-  { content: 'card', label: 'Turn card' },
-]
 
 /** Key names as Windows writes them: controls.properties says Escape, Equal and KP_Add for Esc, = and Num +. */
 const KEY_LABELS: Record<string, string> = {
@@ -76,6 +68,8 @@ function Key(
     text?: string
     className?: string
     disabled?: boolean
+    /** The tooltip while disabled: what enables it. */
+    disabledTitle?: string
     pressed?: boolean
   },
 ) {
@@ -94,7 +88,13 @@ function Key(
       className={`key ${props.className ?? ''} ${down ? 'down' : ''}`}
       aria-label={props.label}
       aria-pressed={props.pressed}
-      title={key ? `${props.label} (${keyLabel(key)})` : props.label}
+      title={
+        props.disabled && props.disabledTitle
+          ? props.disabledTitle
+          : key
+            ? `${props.label} (${keyLabel(key)})`
+            : props.label
+      }
       disabled={props.disabled}
       onPointerDown={(event) => {
         if (props.disabled || held.current) return
@@ -116,12 +116,21 @@ function Key(
 }
 
 /**
- * The knob, a puck: Select in the middle, each tilt a quarter of the pad round it, the turns wings over its top
- * corners; the wheel over it turns it.
+ * The knob, a puck: Select in the middle, each tilt a quarter of the pad round it; wings over its corners, the
+ * AltScreen's zoom over the top ones, which only an AltScreen on screen has, and the turns under the bottom ones; the
+ * wheel over it turns it.
  */
-function Knob(props: Shared & { onTurn: (forward: boolean) => void }) {
-  const part = (action: string, label: string, icon: ReactNode, place: string) => (
-    <Key {...props} action={action} label={label} icon={icon} className={place} />
+function Knob(props: Shared & { onTurn: (forward: boolean) => void; zoom: boolean }) {
+  const part = (action: string, label: string, icon: ReactNode, place: string, disabled = false) => (
+    <Key
+      {...props}
+      action={action}
+      label={label}
+      icon={icon}
+      className={place}
+      disabled={disabled}
+      disabledTitle="Show the AltScreen to zoom its map"
+    />
   )
   return (
     <div
@@ -133,8 +142,10 @@ function Knob(props: Shared & { onTurn: (forward: boolean) => void }) {
       }}
     >
       <span className="ring" />
-      {part('knob.previous', 'Turn back', icons.turnBack, 'turn turn-back')}
-      {part('knob.next', 'Turn forward', icons.turnForward, 'turn turn-forward')}
+      {part('altscreen.zoom.out', 'Zoom out', icons.zoomOut, 'wing wing-top-left', !props.zoom)}
+      {part('altscreen.zoom.in', 'Zoom in', icons.zoomIn, 'wing wing-top-right', !props.zoom)}
+      {part('knob.previous', 'Turn back', icons.turnBack, 'wing wing-bottom-left turn-back')}
+      {part('knob.next', 'Turn forward', icons.turnForward, 'wing wing-bottom-right turn-forward')}
       {part('knob.up', 'Tilt up', icons.up, 'tilt tilt-up')}
       {part('knob.down', 'Tilt down', icons.down, 'tilt tilt-down')}
       {part('knob.left', 'Tilt left', icons.left, 'tilt tilt-left')}
@@ -145,9 +156,9 @@ function Knob(props: Shared & { onTurn: (forward: boolean) => void }) {
 }
 
 /**
- * The controls window (518x212): the AltScreen's zoom and modes on the left, the knob, then the CarPlay, media,
- * volume and call keys. A button press reaches the app at once; the window keeps the keyboard, so the keys work as
- * in the main window, and Alt held there or here shows each button its key.
+ * The controls window (207x430): the knob with its zoom and turns on top, the CarPlay, media, volume and call keys
+ * under it. A button press reaches the app at once; the window keeps the keyboard, so the keys work as in the main
+ * window, and Alt held there or here shows each button its key.
  */
 export function ControlsScreen({ state, backend }: { state: AppState; backend: Backend }) {
   const controls = state.controls
@@ -175,51 +186,21 @@ export function ControlsScreen({ state, backend }: { state: AppState; backend: B
     keys: controls?.keys ?? {},
     showKeys: Boolean(controls?.altHeld || altHere || state.controlsKeys),
   }
-  const altscreen = controls?.altscreen ?? null
-  // Only an AltScreen on screen has something to zoom and switch.
+  // Only an AltScreen on screen has a map to zoom.
   const altOn =
-    altscreen !== null && state.windows.altscreen.available && state.windows.altscreen.visible && state.canShowCarPlay
-  // Disabled, the modes show none chosen.
-  const chosen = altOn ? altscreen : null
+    (controls?.altscreen ?? null) !== null &&
+    state.windows.altscreen.available &&
+    state.windows.altscreen.visible &&
+    state.canShowCarPlay
   const turn = (forward: boolean) => {
     const action = forward ? 'knob.next' : 'knob.previous'
     void backend.control(action, true)
     void backend.control(action, false)
   }
-  const modesKey = shared.keys['altscreen.content']
 
   return (
     <div className="controls-screen">
-      <div className={`alt-column ${altOn ? '' : 'off'}`}>
-        <div className="zoom-group">
-          <Key {...shared} action="altscreen.zoom.in" label="Zoom in" icon={icons.zoomIn} disabled={!altOn} />
-          <Key {...shared} action="altscreen.zoom.out" label="Zoom out" icon={icons.zoomOut} disabled={!altOn} />
-        </div>
-        <div
-          className="mode-group"
-          role="radiogroup"
-          aria-label="AltScreen content"
-          title={modesKey ? `${keyLabel(modesKey)} steps through them` : undefined}
-        >
-          {MODES.map((mode) => (
-            <button
-              key={mode.content}
-              type="button"
-              role="radio"
-              aria-checked={mode.content === chosen}
-              className={mode.content === chosen ? 'on' : ''}
-              disabled={!altOn}
-              onClick={() => {
-                if (altOn && mode.content !== chosen) void backend.altscreen(mode.content)
-              }}
-            >
-              {mode.label}
-            </button>
-          ))}
-          {shared.showKeys && modesKey && <small className="kb">{keyLabel(modesKey)}</small>}
-        </div>
-      </div>
-      <Knob {...shared} onTurn={turn} />
+      <Knob {...shared} onTurn={turn} zoom={altOn} />
       <div className="key-rows">
         <div className="key-row three">
           <Key {...shared} action="back" label="Back" icon={icons.back} text="Back" />

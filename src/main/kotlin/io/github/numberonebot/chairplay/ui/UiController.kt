@@ -140,7 +140,8 @@ class UiController(
         val frame = altscreenFrame ?: return false
         val values = runCatching { settings.read() }.getOrDefault(emptyMap())
         val insets = altscreenFrameInsets(values, view) ?: return false
-        frame.show(insets.top, insets.bottom, insets.left, insets.right)
+        val (width, height) = altscreenFrameSize(values)
+        frame.show(insets.top, insets.bottom, insets.left, insets.right, width, height)
         return true
     }
 

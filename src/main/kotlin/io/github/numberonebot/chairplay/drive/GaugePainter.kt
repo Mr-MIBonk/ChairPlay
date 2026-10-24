@@ -38,6 +38,8 @@ class GaugePainter(
     /** ui.accent as 0xRRGGBB: the needles and their sweep. */
     accent: Int = 0x0A84FF,
     private val motion: GaugeMotion = GaugeMotion(),
+    /** How small the small wells are in a window of the given width and height, in the large ones' size. */
+    private val smallScale: (Float, Float) -> Float = { _, _ -> 0.65f },
 ) : WindowOverlay {
     private val accent = accent and 0xFFFFFF
     private var pen: NanoPen? = null
@@ -91,27 +93,44 @@ class GaugePainter(
         val dial = dial ?: return
         val w = width.toFloat()
         val h = height.toFloat()
+        // Laid out large; small, each well is scaled down about its lower corner.
         val r = GaugeLayout.radius(w, h)
         val face = r * FACE
-        val margin = GaugeLayout.margin(h)
         val cy = h / 2
-        val left = margin + r
-        val right = w - margin - r
+        val left = GaugeLayout.margin(h) + r
+        val right = w - left
+        val small = smallScale(w, h)
+        val scale = GaugeLayout.scale(GaugeMotion.sized(motion.smallness), small)
+        val (cornerX, cornerY) = GaugeLayout.corner(w, h, small)
         nvgBeginFrame(pen.vg, w, h, 1f)
         // Both wells come in and go out together, about the screen's middle.
-        moving(pen.vg, frame, w / 2, cy) {
-            well(pen, left, cy, r, face)
-            // The tachometer's single digits half as large again as the speedometer's three.
-            dial.draw(left, cy, face, now.tachometer, LABEL_SIZE * 1.5f, now.rpm / 1000, now.gear, "×1000 rpm")
-            place(pen, left, cy + face * 0.6f, face * 0.3f, now.position, now.headingDegrees)
-            well(pen, right, cy, r, face)
-            dial.draw(right, cy, face, now.speedometer, LABEL_SIZE, now.speedKmh, now.speedKmh.roundToInt().toString(), "km/h")
-            // Under the speed the wheel, turned to where the car faces, and beside it both pedals, the throttle over the brake.
-            wheel(pen, right - face * 0.2f, cy + face * 0.76f, face * 0.112f, now.headingDegrees)
-            pedalBar(pen, right + face * 0.18f, cy + face * 0.72f, face * 0.38f, face * 0.025f, now.throttle, GREEN)
-            pedalBar(pen, right + face * 0.18f, cy + face * 0.80f, face * 0.38f, face * 0.025f, now.brake, RED)
+        moving(pen.vg, frame, w / 2, h / 2) {
+            scaled(pen.vg, cornerX, cornerY, scale) {
+                well(pen, left, cy, r, face)
+                // The tachometer's single digits half as large again as the speedometer's three.
+                dial.draw(left, cy, face, now.tachometer, LABEL_SIZE * 1.5f, now.rpm / 1000, now.gear, "×1000 rpm")
+                place(pen, left, cy + face * 0.6f, face * 0.3f, now.position, now.headingDegrees)
+            }
+            scaled(pen.vg, w - cornerX, cornerY, scale) {
+                well(pen, right, cy, r, face)
+                dial.draw(right, cy, face, now.speedometer, LABEL_SIZE, now.speedKmh, now.speedKmh.roundToInt().toString(), "km/h")
+                // Under the speed the wheel, turned to where the car faces, and beside it both pedals, the throttle over the brake.
+                wheel(pen, right - face * 0.2f, cy + face * 0.76f, face * 0.112f, now.headingDegrees)
+                pedalBar(pen, right + face * 0.18f, cy + face * 0.72f, face * 0.38f, face * 0.025f, now.throttle, GREEN)
+                pedalBar(pen, right + face * 0.18f, cy + face * 0.80f, face * 0.38f, face * 0.025f, now.brake, RED)
+            }
         }
         nvgEndFrame(pen.vg)
+    }
+
+    /** Draws [draw] scaled by [scale] about [x], [y]. */
+    private inline fun scaled(vg: Long, x: Float, y: Float, scale: Float, draw: () -> Unit) {
+        nvgSave(vg)
+        nvgTranslate(vg, x, y)
+        nvgScale(vg, scale, scale)
+        nvgTranslate(vg, -x, -y)
+        draw()
+        nvgRestore(vg)
     }
 
     /**
