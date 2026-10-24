@@ -25,7 +25,7 @@ class DriveTest {
         val snapshot = drive.snapshot()
         assertTrue(snapshot.car.speed > 20.0)
         val meters = (snapshot.position.latitude - kyiv.latitude) * GeoPoint.METERS_PER_DEGREE
-        assertTrue("meters $meters", meters in 100.0..250.0)
+        assertTrue("meters $meters", meters in 150.0..350.0)
         assertEquals(kyiv.longitude, snapshot.position.longitude, 1e-9)
         assertEquals(CarInput(throttle = 1.0), snapshot.input)
 

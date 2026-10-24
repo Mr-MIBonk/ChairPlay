@@ -17,34 +17,18 @@ import kotlin.math.sin
  * only scales its picture.
  */
 internal fun HudPainter.navigation(maneuver: HudManeuver, arrival: HudArrival?, box: HudBox, alone: HudBox, h: Float, presence: Float) {
+    val block = routeBlock(maneuver, arrival, box, h)
+    val (viewWidth, viewHeight, gap, textWidth, lines) = block
     val left = box.left
     val right = box.right
     val top = HUD_PAD * h
     val bottom = h - top
     val arrowSize = 0.30f * h
-    val (viewWidth, viewHeight) = maneuverSize(left, right, top, bottom, h)
     val sharpHeight = maneuverSize(alone.left, alone.right, top, bottom, h).second
-    // The picture's sides fade out, so the text can come closer.
-    val gap = 0.03f * h
-    val roadSize = 0.06f * h
-    val smallSize = 0.045f * h
-    val textWidth = min(right - left - viewWidth - gap, 0.9f * h * 1.4f)
-    // The distance stands out; a long one shrinks a little before it is cut.
-    val distanceSize = fitSize(maneuver.distance ?: "", textWidth, 0.14f * h, 0.10f * h, WIDE)
-    val x = left + (right - left - (viewWidth + gap + textWidth)) / 2
-    val road = maneuver.road ?: maneuver.description
-    val arrivalLine = arrival
-        ?.let { listOfNotNull(it.time?.let { time -> "Arrival $time" }, it.remaining).joinToString("  ·  ") }
-        ?.ifEmpty { null }
-    val lines = buildList {
-        add(Line(maneuver.distance ?: "", distanceSize, WHITE, WIDE, 1.0f))
-        road?.let { add(Line(it, roadSize, GREY, REGULAR, 1.25f)) }
-        arrivalLine?.let { add(Line(it, smallSize, WHITE, REGULAR, 1.9f)) }
-        arrival?.destination?.let { add(Line(it, smallSize, GREY, REGULAR, 1.35f)) }
-    }
+    val x = left + (right - left - block.width) / 2
     val blockHeight = lines.sumOf { (it.size * it.spacing).toDouble() }.toFloat()
     val cy = (top + bottom) / 2
-    emerging(presence, x + (viewWidth + gap + textWidth) / 2, cy) {
+    emerging(presence, x + block.width / 2, cy) {
         if (!maneuverView.draw(vg, maneuver, x, cy - viewHeight / 2, viewWidth, viewHeight, sharpHeight)) {
             arrow(maneuver.typeCode, x + (viewWidth - arrowSize) / 2, cy - arrowSize / 2, arrowSize)
         }
@@ -59,6 +43,36 @@ internal fun HudPainter.navigation(maneuver: HudManeuver, arrival: HudArrival?, 
     }
 }
 
+/** The route's block in a box: the picture, the gap after it, the text column, and the lines in it. */
+internal data class RouteBlock(val viewWidth: Float, val viewHeight: Float, val gap: Float, val textWidth: Float, val lines: List<Line>) {
+    val width: Float get() = viewWidth + gap + textWidth
+    val height: Float get() = maxOf(viewHeight, lines.sumOf { (it.size * it.spacing).toDouble() }.toFloat())
+}
+
+/** How the route's block lays out in [box] of an [h] high HUD. */
+internal fun HudPainter.routeBlock(maneuver: HudManeuver, arrival: HudArrival?, box: HudBox, h: Float): RouteBlock {
+    val top = HUD_PAD * h
+    val (viewWidth, viewHeight) = maneuverSize(box.left, box.right, top, h - top, h)
+    // The picture's sides fade out, so the text can come closer.
+    val gap = 0.03f * h
+    val roadSize = 0.06f * h
+    val smallSize = 0.045f * h
+    val textWidth = min(box.right - box.left - viewWidth - gap, 0.9f * h * 1.4f)
+    // The distance stands out; a long one shrinks a little before it is cut.
+    val distanceSize = fitSize(maneuver.distance ?: "", textWidth, 0.14f * h, 0.10f * h, WIDE)
+    val road = maneuver.road ?: maneuver.description
+    val arrivalLine = arrival
+        ?.let { listOfNotNull(it.time?.let { time -> "Arrival $time" }, it.remaining).joinToString("  ·  ") }
+        ?.ifEmpty { null }
+    val lines = buildList {
+        add(Line(maneuver.distance ?: "", distanceSize, WHITE, WIDE, 1.0f))
+        road?.let { add(Line(it, roadSize, GREY, REGULAR, 1.25f)) }
+        arrivalLine?.let { add(Line(it, smallSize, WHITE, REGULAR, 1.9f)) }
+        arrival?.destination?.let { add(Line(it, smallSize, GREY, REGULAR, 1.35f)) }
+    }
+    return RouteBlock(viewWidth, viewHeight, gap, textWidth, lines)
+}
+
 /** The renderer's picture in a block: as tall as the block allows but no more than half its width. */
 private fun HudPainter.maneuverSize(left: Float, right: Float, top: Float, bottom: Float, h: Float): Pair<Float, Float> {
     var viewHeight = min(MANEUVER_HEIGHT * h, bottom - top)
@@ -71,7 +85,7 @@ private fun HudPainter.maneuverSize(left: Float, right: Float, top: Float, botto
 }
 
 /** One line of a text block: [spacing] is the height it takes, in multiples of its [size]. */
-private class Line(val text: String, val size: Float, val rgb: Int, val font: String, val spacing: Float)
+internal class Line(val text: String, val size: Float, val rgb: Int, val font: String, val spacing: Float)
 
 /**
  * A simple arrow for when the MHI2Q project's renderer cannot run or draws nothing for the maneuver: a stem from the bottom,

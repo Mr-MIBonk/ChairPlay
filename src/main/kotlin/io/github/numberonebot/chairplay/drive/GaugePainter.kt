@@ -4,6 +4,7 @@ import io.github.numberonebot.chairplay.drive.GaugeStyle.BLACK
 import io.github.numberonebot.chairplay.drive.GaugeStyle.EDGE
 import io.github.numberonebot.chairplay.drive.GaugeStyle.FACE
 import io.github.numberonebot.chairplay.drive.GaugeStyle.FACE_LIGHT
+import io.github.numberonebot.chairplay.drive.GaugeStyle.HUB_FILL
 import io.github.numberonebot.chairplay.drive.GaugeStyle.ITALIC
 import io.github.numberonebot.chairplay.drive.GaugeStyle.LABEL
 import io.github.numberonebot.chairplay.drive.GaugeStyle.OPAQUE
@@ -18,16 +19,17 @@ import org.lwjgl.nanovg.NanoVGGL3.NVG_STENCIL_STROKES
 import org.lwjgl.nanovg.NanoVGGL3.nvgCreate
 import org.lwjgl.nanovg.NanoVGGL3.nvgDelete
 import java.nio.ByteBuffer
+import java.util.Locale
 import kotlin.math.PI
-import kotlin.math.min
+import kotlin.math.acos
 import kotlin.math.roundToInt
 
 /**
  * The GPS car's tachometer and speedometer over the AltScreen, as Audi's Virtual Cockpit lays them out: the engine on
  * the left, the speed on the right, each a round [GaugeDial]. Each sits in a well finished as the controls window's
- * knob: a knurled bezel lit from the top left round a dark face lit from above. The speedometer's open bottom shows
- * both pedals as bars, the tachometer's a small steering wheel turned as it is steered. Nothing is drawn while [view]
- * is null.
+ * knob: a smooth rim round a knurled ring round a dark face lit from above. The speedometer's open bottom shows a small
+ * wheel turned to the car's heading beside both pedals as bars, the tachometer's the car's coordinates. Nothing is drawn
+ * while [view] is null.
  */
 class GaugePainter(
     private val view: () -> GaugeView?,
@@ -87,51 +89,43 @@ class GaugePainter(
         val dial = dial ?: return
         val w = width.toFloat()
         val h = height.toFloat()
-        val r = min(h * 0.46f, w * 0.17f)
+        val r = GaugeLayout.radius(w, h)
         val face = r * FACE
-        val margin = h * 0.04f
+        val margin = GaugeLayout.margin(h)
         val cy = h / 2
         val left = margin + r
         val right = w - margin - r
         nvgBeginFrame(pen.vg, w, h, 1f)
-        moving(pen.vg, frame, left, cy, w, r, -1f) {
+        moving(pen.vg, frame, left, cy) {
             well(pen, left, cy, r, face)
             // The tachometer's single digits half as large again as the speedometer's three.
             dial.draw(left, cy, face, now.tachometer, LABEL_SIZE * 1.5f, now.rpm / 1000, now.gear, "×1000 rpm")
-            wheel(pen, left, cy + face * 0.69f, face * 0.15f, now.steer)
+            place(pen, left, cy + face * 0.62f, face * 0.27f, now.position)
         }
-        moving(pen.vg, frame, right, cy, w, r, 1f) {
+        moving(pen.vg, frame, right, cy) {
             well(pen, right, cy, r, face)
             dial.draw(right, cy, face, now.speedometer, LABEL_SIZE, now.speedKmh, now.speedKmh.roundToInt().toString(), "km/h")
-            // Both pedals under the speed: the throttle over the brake.
-            pedalBar(pen, right, cy + face * 0.62f, face * 0.5f, face * 0.04f, now.throttle, OPAQUE or accent)
-            pedalBar(pen, right, cy + face * 0.72f, face * 0.5f, face * 0.04f, now.brake, RED)
+            // Under the speed the wheel, turned to where the car faces, and beside it both pedals, the throttle over the brake.
+            wheel(pen, right - face * 0.22f, cy + face * 0.76f, face * 0.14f, now.headingDegrees)
+            pedalBar(pen, right + face * 0.18f, cy + face * 0.71f, face * 0.38f, face * 0.04f, now.throttle, OPAQUE or accent)
+            pedalBar(pen, right + face * 0.18f, cy + face * 0.81f, face * 0.38f, face * 0.04f, now.brake, RED)
         }
         nvgEndFrame(pen.vg)
     }
 
     /**
-     * Draws the well at [cx], [cy] as [frame] has it. Coming, it shrinks from large onto its place as it shows. Leaving,
-     * it turns away about a centre far below the screen's middle, [outward] (-1 to the left, 1 to the right) and down
-     * along that arc, as it fades.
+     * Draws the well at [cx], [cy] as [frame] has it: coming, it shrinks from large onto its place as it shows; leaving,
+     * the same backwards, growing as it fades.
      */
-    private inline fun moving(vg: Long, frame: GaugeMotion.Frame, cx: Float, cy: Float, w: Float, r: Float, outward: Float, draw: () -> Unit) {
-        val p = frame.progress.toFloat()
+    private inline fun moving(vg: Long, frame: GaugeMotion.Frame, cx: Float, cy: Float, draw: () -> Unit) {
+        val there = (if (frame.coming) frame.progress else 1 - frame.progress).toFloat()
+        val eased = 1 - (1 - there) * (1 - there) * (1 - there)
+        val scale = COME_SCALE - (COME_SCALE - 1) * eased
         nvgSave(vg)
-        if (frame.coming) {
-            val eased = 1 - (1 - p) * (1 - p) * (1 - p)
-            val scale = COME_SCALE - (COME_SCALE - 1) * eased
-            nvgGlobalAlpha(vg, eased)
-            nvgTranslate(vg, cx, cy)
-            nvgScale(vg, scale, scale)
-            nvgTranslate(vg, -cx, -cy)
-        } else {
-            val pivotY = cy + w * ARC_RADIUS
-            nvgGlobalAlpha(vg, 1 - p)
-            nvgTranslate(vg, w / 2, pivotY)
-            nvgRotate(vg, outward * p * p * r * LEAVE_TRAVEL / (w * ARC_RADIUS))
-            nvgTranslate(vg, -w / 2, -pivotY)
-        }
+        nvgGlobalAlpha(vg, eased)
+        nvgTranslate(vg, cx, cy)
+        nvgScale(vg, scale, scale)
+        nvgTranslate(vg, -cx, -cy)
         draw()
         nvgRestore(vg)
     }
@@ -199,6 +193,31 @@ class GaugePainter(
         nvgFill(vg)
     }
 
+    /**
+     * Where the car is, latitude over longitude, on a black panel set into the face, centred on [centerX] below [y]: as
+     * wide as its lines with the room at their sides they have above and below, shaded inside from the top, and edged
+     * as the hubs are.
+     */
+    private fun place(pen: NanoPen, centerX: Float, y: Float, height: Float, position: GeoPoint) {
+        val vg = pen.vg
+        val size = height * 0.32f
+        val lines = listOf(position.latitude, position.longitude).map { String.format(Locale.ROOT, "%.5f", it) }
+        val width = lines.maxOf { pen.textWidth(it, size, WIDE) } + height * 0.36f
+        val x = centerX - width / 2
+        val corner = height * 0.18f
+        nvgBeginPath(vg)
+        nvgRoundedRect(vg, x, y, width, height, corner)
+        pen.fill(HUB_FILL)
+        nvgBoxGradient(vg, x, y + height * 0.1f, width, height, corner, height * 0.3f, pen.rgba(0, pen.inner), pen.rgba(0xCC000000.toInt(), pen.outer), pen.paint)
+        nvgFillPaint(vg, pen.paint)
+        nvgFill(vg)
+        // Edged as the hubs are.
+        nvgStrokeWidth(vg, 1.5f)
+        pen.stroke(EDGE)
+        pen.text(lines[0], centerX, y + height * 0.3f, size, LABEL, WIDE)
+        pen.text(lines[1], centerX, y + height * 0.72f, size, LABEL, WIDE)
+    }
+
     /** A pedal's travel: a dark track, filled as far as the pedal is pressed. */
     private fun pedalBar(pen: NanoPen, cx: Float, cy: Float, width: Float, height: Float, pressed: Double, rgb: Int) {
         val vg = pen.vg
@@ -212,39 +231,52 @@ class GaugePainter(
     }
 
     /**
-     * The wheel, a schematic three-spoke one turned as far as it is steered, a quarter turn at full lock: a rim marked at
-     * its top in the accent colour, as a sports car's, spokes to the left, the right and down, and a hub.
+     * The heading as a schematic three-spoke sports wheel, dark and thin, its red centre mark pointing where the car
+     * faces with north up: a rim cut flat at the bottom, spokes to the left, the right and down to the flat, and a broad
+     * pad, each edged a shade lighter to stand off the face.
      */
-    private fun wheel(pen: NanoPen, cx: Float, cy: Float, radius: Float, steer: Double) {
+    private fun wheel(pen: NanoPen, cx: Float, cy: Float, radius: Float, headingDegrees: Double) {
         val vg = pen.vg
-        val turn = steer.coerceIn(-1.0, 1.0) * PI / 2
-        val rim = radius * 0.85f
-        nvgBeginPath(vg)
-        nvgCircle(vg, cx, cy, rim)
-        nvgStrokeWidth(vg, radius * 0.22f)
-        pen.stroke(LABEL)
-        nvgLineCap(vg, NVG_ROUND)
-        nvgBeginPath(vg)
-        for (spoke in listOf(0.0, PI / 2, PI)) pen.ray(cx, cy, spoke + turn, radius * 0.2f, rim)
-        nvgStrokeWidth(vg, radius * 0.18f)
-        pen.stroke(LABEL)
-        nvgBeginPath(vg)
-        nvgCircle(vg, cx, cy, radius * 0.28f)
-        pen.fill(LABEL)
+        val turn = Math.toRadians(headingDegrees)
+        val rim = radius * 0.86f
+        val thick = radius * 0.13f
+        // Half the angle the flat bottom cuts from the rim, about straight down.
+        val flat = acos(WHEEL_FLAT.toDouble())
+        fun shape(widen: Float, argb: Int) {
+            nvgLineCap(vg, NVG_ROUND)
+            nvgLineJoin(vg, NVG_ROUND)
+            nvgBeginPath(vg)
+            val from = PI / 2 + flat + turn
+            nvgArc(vg, cx, cy, rim, from.toFloat(), (from + 2 * PI - 2 * flat).toFloat(), NVG_CW)
+            nvgClosePath(vg)
+            for (spoke in listOf(0.0, PI)) pen.ray(cx, cy, spoke + turn, radius * 0.3f, rim)
+            pen.ray(cx, cy, PI / 2 + turn, radius * 0.3f, rim * WHEEL_FLAT)
+            nvgStrokeWidth(vg, thick + widen)
+            pen.stroke(argb)
+            nvgBeginPath(vg)
+            nvgCircle(vg, cx, cy, radius * 0.36f + widen / 2)
+            pen.fill(argb)
+        }
+        // The lighter shape a little wider under the dark one leaves an edge round it.
+        shape(2.5f, WHEEL_EDGE)
+        shape(0f, WHEEL)
         nvgLineCap(vg, NVG_BUTT)
-        pen.arc(cx, cy, rim, -PI / 2 + turn - 0.2, -PI / 2 + turn + 0.2, radius * 0.24f, OPAQUE or accent)
+        pen.arc(cx, cy, rim, -PI / 2 + turn - 0.085, -PI / 2 + turn + 0.085, thick + 2.5f, RED)
     }
 
     private companion object {
         /** The speedometer's numbers, in the face's radius. */
         const val LABEL_SIZE = 0.13f
         const val RIDGES = 180
-        /** How large the coming wells start; the leaving ones' arc, in the window's width, and how far along it they go, in their radius. */
+        /** How large the wells are as they start coming and as they are gone. */
         const val COME_SCALE = 1.6f
-        const val ARC_RADIUS = 0.75f
-        const val LEAVE_TRAVEL = 1.4f
         /** The rim's edges and its crest: dark steel lit to a soft grey. */
         const val RIM_EDGE = 0xFF141416.toInt()
         const val RIM_CREST = 0xFF6A6A72.toInt()
+        /** The heading wheel and its edge. */
+        const val WHEEL = 0xFF1C1C1F.toInt()
+        const val WHEEL_EDGE = 0xFF55555C.toInt()
+        /** Where the wheel's flat bottom cuts the rim, in its radius below the centre. */
+        const val WHEEL_FLAT = 0.72f
     }
 }

@@ -45,6 +45,26 @@ val AREA_VIEWS = listOf(AltscreenContent.MAP, AltscreenContent.MAP_CARD, Altscre
 /** The edges of a view's margins, as altscreen.<view>.safe.<edge> names them. */
 val SAFE_EDGES = listOf("top", "bottom", "left", "right")
 
+/**
+ * A view's part when altscreen.<view>.area is blank, as the owner set the views up (2026-10-24): the turn card in the
+ * middle three eighths, between the dials; the maps on the whole frame.
+ */
+fun defaultArea(view: AltscreenContent): AreaPreset = if (view == AltscreenContent.CARD) AreaPreset.CENTER3 else AreaPreset.FULL
+
+/**
+ * A new settings file's altscreen.<view>.safe.<edge> for a [width]x[height] frame: Map + card's map kept to the middle
+ * three eighths under its card; the others blank, the map's whole frame then safe by altscreen.safe.*.
+ */
+fun defaultSafe(view: AltscreenContent, edge: String, width: Int, height: Int): String {
+    if (view != AltscreenContent.MAP_CARD) return ""
+    val middle = AreaPreset.CENTER3.area(width, height)
+    return when (edge) {
+        "left" -> middle.originX.toString()
+        "right" -> (width - middle.originX - middle.width).toString()
+        else -> ""
+    }
+}
+
 /** altscreen.<view>.area: the view's part of the frame, an [AreaPreset]'s key. */
 fun areaKey(view: AltscreenContent) = "altscreen.${view.key}.area"
 
@@ -71,7 +91,7 @@ class AltscreenViewParts(width: Int, height: Int, value: (String) -> String?) {
             val preset = areaText?.let {
                 AreaPreset.of(it) ?: throw IllegalArgumentException(
                     "${areaKey(view)} must be ${AreaPreset.entries.joinToString { preset -> preset.key }}, not $it")
-            } ?: AreaPreset.FULL
+            } ?: defaultArea(view)
             presets[view] = preset
             val margins = SAFE_EDGES.map { edge ->
                 val key = safeKey(view, edge)
@@ -82,17 +102,21 @@ class AltscreenViewParts(width: Int, height: Int, value: (String) -> String?) {
             }
             if (margins.all { it == null }) continue
             val (top, bottom, left, right) = margins.map { it ?: 0 }
-            // The margins must leave some of the narrowest part, as of every other.
-            for (part in AreaPreset.entries.map { it.area(width, height) }) {
-                require(top + bottom < part.height && left + right < part.width) {
-                    "altscreen.${view.key}.safe.* leave nothing of its ${part.width}x${part.height} part"
-                }
+            // The margins must leave some of the view's own part.
+            val own = preset.area(width, height)
+            require(top + bottom < own.height && left + right < own.width) {
+                "altscreen.${view.key}.safe.* leave nothing of its ${own.width}x${own.height} part"
             }
             offsets[view] = list.size
-            list += AreaPreset.entries.map { preset ->
-                val area = preset.area(width, height)
-                area.copy(safeArea = AirPlayInsets(top = area.originY + top, bottom = height - area.originY - area.height + bottom,
-                    left = area.originX + left, right = width - area.originX - area.width + right))
+            list += AreaPreset.entries.map { other ->
+                val area = other.area(width, height)
+                // A part too narrow or low for them takes them shrunk with it, as a share of the view's own part.
+                val across = if (left + right < area.width) 1.0 else area.width.toDouble() / own.width
+                val down = if (top + bottom < area.height) 1.0 else area.height.toDouble() / own.height
+                fun scaled(margin: Int, by: Double) = (margin * by).toInt()
+                area.copy(safeArea = AirPlayInsets(
+                    top = area.originY + scaled(top, down), bottom = height - area.originY - area.height + scaled(bottom, down),
+                    left = area.originX + scaled(left, across), right = width - area.originX - area.width + scaled(right, across)))
             }
         }
         areas = list

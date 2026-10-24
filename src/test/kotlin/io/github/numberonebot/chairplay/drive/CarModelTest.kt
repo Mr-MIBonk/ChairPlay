@@ -11,8 +11,9 @@ class CarModelTest {
         repeat((seconds / dt).toInt()) { each(step(input, dt)) }
     }
 
-    // The default car, 300 hp and 1500 kg: about 5 to 7 s to 100 km/h, a top speed held by its limiter at 250 km/h, the
-    // engine always between idle and the red line, the six gears going up one by one, each shift close to the red line.
+    // The default car, 300 hp and 1500 kg, geared and gripping for the launch: under 4.5 s to 100 km/h, its short top
+    // gear running out at the red line a little under the 250 km/h limiter, the engine always between idle and the red
+    // line, the six gears going up one by one, each shift close to the red line.
     @Test
     fun `full throttle takes the car to 100 and on to its top speed, shifting close to the red line`() {
         val car = CarModel(CarSpec())
@@ -32,8 +33,8 @@ class CarModelTest {
             lastRpm = state.rpm
         }
 
-        assertTrue("0-100 in $to100 s", to100 in 4.5..7.5)
-        assertTrue("top ${car.state.speedKmh} km/h", car.state.speedKmh in 247.0..250.5)
+        assertTrue("0-100 in $to100 s", to100 in 3.0..4.5)
+        assertTrue("top ${car.state.speedKmh} km/h", car.state.speedKmh in 230.0..248.0)
         assertEquals(listOf(1, 2, 3, 4, 5, 6), gears)
         assertTrue("shifts at $shiftRpms", shiftRpms.all { it >= 6400 })
     }
@@ -62,6 +63,27 @@ class CarModelTest {
             if (stoppedAt < 0 && state.speed <= 0.0) stoppedAt = time
         }
         assertTrue("stopped at $stoppedAt s", stoppedAt in 2.0..6.0)
+    }
+
+    // Standing 10 s, with the brake held or not, the car goes into park and its engine stops; a touch of the throttle
+    // starts it and drives off.
+    @Test
+    fun `standing ten seconds parks the car and stops its engine, and the throttle starts it`() {
+        val car = CarModel(CarSpec())
+        car.run(9.5, CarInput(brake = 1.0))
+        assertEquals("D1", car.state.gearName)
+        assertEquals(car.spec.idleRpm, car.state.rpm, 1.0)
+        car.run(2.0, CarInput())
+        assertTrue(car.state.parked)
+        assertEquals("P", car.state.gearName)
+        assertTrue("rpm ${car.state.rpm}", car.state.rpm < 50)
+        car.run(1.0, CarInput(brake = 1.0, steer = 1.0))
+        assertTrue(car.state.parked)
+
+        car.run(1.0, CarInput(throttle = 0.3))
+        assertEquals("D1", car.state.gearName)
+        assertTrue("rpm ${car.state.rpm}", car.state.rpm > car.spec.idleRpm)
+        assertTrue(car.state.speed > 0)
     }
 
     // A sports car's brakes: full brake from 100 km/h stops the car within 30 m.
@@ -120,12 +142,16 @@ class CarModelTest {
         assertTrue(car.state.gear >= 1)
     }
 
-    // Arcade steering, without slip: the stick turns a moving car, more gently the faster it goes, and a parked one not.
+    // Arcade steering, without slip: the stick turns a moving car, more gently the faster it goes, and a standing one on
+    // the spot, a quarter turn a second, so it can be pointed before it drives off.
     @Test
-    fun `the stick turns a moving car and not a parked one`() {
-        val parked = CarModel(CarSpec())
-        parked.run(1.0, CarInput(steer = 1.0))
-        assertEquals(0.0, parked.state.headingDegrees, 0.0)
+    fun `the stick turns a moving car, and a standing one on the spot`() {
+        val standing = CarModel(CarSpec())
+        standing.run(1.0, CarInput(steer = 1.0))
+        assertEquals(90.0, standing.state.headingDegrees, 2.0)
+        assertEquals(0.0, standing.state.speed, 0.0)
+        standing.run(2.0, CarInput(steer = -1.0))
+        assertEquals(270.0, standing.state.headingDegrees, 3.0)
 
         val slow = CarModel(CarSpec(), CarState(speed = 50 / 3.6, gear = 3))
         slow.run(1.0, CarInput(steer = 1.0, throttle = 0.3))
@@ -152,7 +178,7 @@ class CarModelTest {
     @Test
     fun `a pedal too light to move the car leaves it standing`() {
         val car = CarModel(CarSpec())
-        car.run(2.0, CarInput(throttle = 0.022))
+        car.run(2.0, CarInput(throttle = 0.01))
         assertEquals(0.0, car.state.speed, 0.0)
         val heavy = CarModel(CarSpec(powerHp = 20.0, massKg = 10000.0))
         heavy.run(2.0, CarInput(throttle = 0.2)) { assertTrue("speed ${it.speed}", it.speed >= 0.0) }

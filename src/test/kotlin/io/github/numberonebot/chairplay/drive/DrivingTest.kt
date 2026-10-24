@@ -112,7 +112,7 @@ class DrivingTest {
         assertEquals(false, idle["gamepad"])
         assertEquals(listOf(50.4501, 30.5234), idle["position"])
         assertEquals(0, idle["speed"])
-        assertEquals("D1", idle["gear"])
+        assertEquals("P", idle["gear"])
 
         val location = driving.location(GpsSettings(true))
         location.onRequested(setOf(1, 2, 4))

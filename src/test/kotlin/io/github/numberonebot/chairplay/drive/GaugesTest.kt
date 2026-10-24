@@ -47,18 +47,19 @@ class GaugesTest {
     @Test
     fun `the gauges show exactly while drive mode is on`() {
         val dir = Files.createTempDirectory("chairplay-gauges")
-        val settings = GpsSettings(true, start = GeoPoint(50.0, 30.0))
+        val settings = GpsSettings(true, start = GeoPoint(50.0, 30.0), headingDegrees = 135.0)
         val driving = Driving(dir, settings, gamepad = { null }, nanoTime = { 0L })
         assertNull(driving.gauges())
         assertTrue(driving.driveMode(true))
-        driving.control.scripted = CarInput(steer = -0.5)
         driving.pass()
         val view = driving.gauges()!!
         assertEquals(0.0, view.speedKmh, 0.0)
-        assertEquals("D1", view.gear)
-        // The wheel turns as far as it is steered.
-        assertEquals(-0.5, view.steer, 0.0)
-        driving.control.scripted = CarInput()
+        // The car starts parked, its engine off.
+        assertEquals("P", view.gear)
+        assertEquals(0.0, view.rpm, 0.0)
+        // The wheel turns to where the car faces, and the panel beside it shows where the car is.
+        assertEquals(135.0, view.headingDegrees, 0.0)
+        assertEquals(GeoPoint(50.0, 30.0), view.position)
         assertTrue(driving.driveMode(false))
         driving.pass()
         assertNull(driving.gauges())

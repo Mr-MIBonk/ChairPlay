@@ -1,6 +1,7 @@
 package io.github.numberonebot.chairplay.hud
 
 import io.github.numberonebot.chairplay.data.Artwork
+import io.github.numberonebot.chairplay.drive.GaugeMotion
 import io.github.numberonebot.chairplay.hud.maneuver.ManeuverView
 import io.github.numberonebot.chairplay.hud.maneuver.RepaintTimer
 import io.github.numberonebot.chairplay.media.WindowOverlay
@@ -13,8 +14,11 @@ import org.lwjgl.nanovg.NanoVGGL3.nvgCreate
 import org.lwjgl.nanovg.NanoVGGL3.nvgDelete
 import java.nio.ByteBuffer
 
-/** What the HUD needs at a moment: whether a session runs, its data, and the cover the iPhone sent last. */
-class HudView(val connected: Boolean, val state: HudState, val artwork: Artwork?)
+/**
+ * What the HUD needs at a moment: whether a session runs, its data, the cover the iPhone sent last, and whether the GPS
+ * car's wells are on screen ([drive]), which keeps the route and the song between them.
+ */
+class HudView(val connected: Boolean, val state: HudState, val artwork: Artwork?, val drive: Boolean = false)
 
 /**
  * Draws the HUD with NanoVG on black, centred, as desktop-docs/hud-spec.md lays it out:
@@ -52,6 +56,8 @@ class HudPainter(
     private val frames = repaint?.let { RepaintTimer(it) }
     internal val maneuverView = ManeuverView(frames, log)
     private val motion = HudMotion()
+    // Drive mode's coming and going, in step with the wells'.
+    private val drive = Presence(inMillis = (GaugeMotion.IN_SECONDS * 1000).toLong(), outMillis = (GaugeMotion.OUT_SECONDS * 1000).toLong())
     // What each part showed last, kept while it fades into the dark after its data is gone.
     private var shownMedia: HudMedia? = null
     private var shownManeuver: HudManeuver? = null
@@ -109,11 +115,42 @@ class HudPainter(
         // No clock, signal or battery: the CarPlay screen always shows them.
         // In the app's display face, as the main window's waiting screen says where the connection stands.
         emerging(shown.waiting, w / 2, h / 2) { centred(HUD_WAITING, w / 2, h / 2, 0.07f * h, GREY, WIDE) }
-        shownManeuver?.let { navigation(it, shownArrival, routeBox(w, h, shown.routePlace), routeBox(w, h, 0f), h, shown.route) }
-        shownMedia?.let { media(it, now, mediaBox(w, h, shown.mediaPlace), h, shown.media) }
-        shownCall?.let { callCard(it, w, h, shown.call) }
+        // In drive mode the route and the song each lay out as alone, the route over the song between the wells.
+        val driving = ease(drive.update(now.drive, System.nanoTime()))
+        val (routeSlot, mediaSlot) = driveSlots(w, h, shown.route, shown.media)
+        val alone = routeBox(w, h, 0f)
+        shownManeuver?.let { maneuver ->
+            val block = routeBlock(maneuver, shownArrival, alone, h)
+            fitted(driving, w, h, block.width, block.height, routeSlot) {
+                navigation(maneuver, shownArrival, routeBox(w, h, lerp(shown.routePlace, 0f, driving)), alone, h, shown.route)
+            }
+        }
+        shownMedia?.let { song ->
+            val box = mediaBox(w, h, 0f)
+            fitted(driving, w, h, mediaBlockWidth(box, h), box.cover, mediaSlot) {
+                media(song, now, mediaBox(w, h, lerp(shown.mediaPlace, 0f, driving)), h, shown.media)
+            }
+        }
+        shownCall?.let { call ->
+            fitted(driving, w, h, w * (1 - 2 * HUD_SIDE), 0.30f * h, driveStage(w, h)) { callCard(call, w, h, shown.call) }
+        }
         nvgEndFrame(vg)
-        if (shown.moving) frames?.after(FRAME_MILLIS)
+        if (shown.moving || drive.moving) frames?.after(FRAME_MILLIS)
+    }
+
+    /**
+     * Draws [content], laid out for the whole HUD around its middle, [driving] of the way into [slot]: moved there and
+     * scaled to fit a block of [width] x [height] in it.
+     */
+    private inline fun fitted(driving: Float, w: Float, h: Float, width: Float, height: Float, slot: HudRect, content: () -> Unit) {
+        if (driving <= 0f) return content()
+        val scale = lerp(1f, fitScale(width, height, slot), driving)
+        nvgSave(vg)
+        nvgTranslate(vg, lerp(w / 2, slot.centerX, driving), lerp(h / 2, slot.centerY, driving))
+        nvgScale(vg, scale, scale)
+        nvgTranslate(vg, -w / 2, -h / 2)
+        content()
+        nvgRestore(vg)
     }
 
     /**

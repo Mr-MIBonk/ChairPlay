@@ -3,7 +3,7 @@ package io.github.numberonebot.chairplay.drive
 import kotlin.math.ceil
 
 /**
- * A round dial's scale, as Audi's: 240 degrees from the lower left, clockwise over the top to the lower right, its
+ * A round dial's scale, as Audi's: 280 degrees from the lower left, clockwise over the top to the lower right, its
  * [numbers] evenly apart with a tick halfway between each two and fine ones at the tenths, and a red zone from [redFrom],
  * dashed from [warnFrom]. Numbers that do not step evenly change the scale between them, as a fast car's speedometer
  * does past 60.
@@ -38,8 +38,8 @@ data class GaugeScale(val numbers: List<Double>, val redFrom: Double? = null, va
     }.flatten() + Tick(max, TickSize.MAJOR)
 
     companion object {
-        const val START_DEGREES = 150.0
-        const val SWEEP_DEGREES = 240.0
+        const val START_DEGREES = 130.0
+        const val SWEEP_DEGREES = 280.0
 
         /** km/h, as a 250 km/h car's: by 20 to 60, then by 40 to 260. */
         fun speedometer(): GaugeScale = GaugeScale(listOf(0.0, 20.0, 40.0, 60.0, 100.0, 140.0, 180.0, 220.0, 260.0))
@@ -55,15 +55,16 @@ data class GaugeScale(val numbers: List<Double>, val redFrom: Double? = null, va
     }
 }
 
-/** What the gauges show at a moment: the speed, the engine, the gear, the pedals, the wheel, and the scales. */
+/** What the gauges show at a moment: the speed, the engine, the gear, the pedals, the heading, the place, and the scales. */
 data class GaugeView(
     val speedKmh: Double,
     val rpm: Double,
     val gear: String,
     val throttle: Double,
     val brake: Double,
-    /** From -1 (left) to 1 (right). */
-    val steer: Double,
+    /** Where the car faces: 0 north, 90 east. */
+    val headingDegrees: Double,
     val speedometer: GaugeScale,
     val tachometer: GaugeScale,
+    val position: GeoPoint = GeoPoint(0.0, 0.0),
 )

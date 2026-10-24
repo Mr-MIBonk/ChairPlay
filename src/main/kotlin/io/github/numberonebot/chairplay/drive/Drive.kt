@@ -20,7 +20,8 @@ class Drive(
     var spec: CarSpec = spec
         private set
     private val lock = Any()
-    private var car = CarModel(spec, CarState(headingDegrees = headingDegrees))
+    // It starts parked, its engine off until the throttle.
+    private var car = CarModel(spec, CarState(headingDegrees = headingDegrees, parked = true))
     private var position = start
     private var lastNanos: Long? = null
     private var lastSampleNanos: Long? = null
@@ -56,9 +57,9 @@ class Drive(
     /** The wheel speeds sampled since the last call, oldest first. */
     fun drainSpeed(): List<VehicleSpeedSample> = synchronized(lock) { samples.toList().also { samples.clear() } }
 
-    /** Puts the car at [start] facing [headingDegrees], stopped: a new start from the settings. */
+    /** Puts the car at [start] facing [headingDegrees], parked: a new start from the settings. */
     fun place(start: GeoPoint, headingDegrees: Double): Unit = synchronized(lock) {
-        car = CarModel(spec, CarState(headingDegrees = headingDegrees))
+        car = CarModel(spec, CarState(headingDegrees = headingDegrees, parked = true))
         position = start
         samples.clear()
     }
@@ -68,9 +69,9 @@ class Drive(
         car = CarModel(spec, car.state.copy(headingDegrees = headingDegrees))
     }
 
-    /** Stops the car where it is, facing as it does: the GPS turned off mid-drive. */
+    /** Stops and parks the car where it is, facing as it does: the GPS turned off mid-drive. */
     fun stop(): Unit = synchronized(lock) {
-        car = CarModel(spec, CarState(headingDegrees = car.state.headingDegrees))
+        car = CarModel(spec, CarState(headingDegrees = car.state.headingDegrees, parked = true))
         samples.clear()
     }
 

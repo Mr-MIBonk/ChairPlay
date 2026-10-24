@@ -60,7 +60,7 @@ internal class AltscreenView(
         private set
 
     @Volatile
-    private var cards = config.altscreen?.cards ?: AltscreenCards.AUTO
+    private var cards = config.altscreen?.cards ?: AltscreenCards.TOP
 
     /**
      * The HUD demo playing (HudDemo), by its kind ("maneuvers" or "lanes"): CHAIRPLAY_HUD_DEMO starts one, the
@@ -165,7 +165,7 @@ internal class AltscreenView(
     /** A turn card's place saved ([value], altscreen.cards): it moves at once, as Shift+F11 moves it. */
     fun cardsSaved(value: String) {
         touchSender.execute {
-            cards = AltscreenCards.entries.firstOrNull { it.key == value.trim().lowercase() } ?: AltscreenCards.AUTO
+            cards = AltscreenCards.entries.firstOrNull { it.key == value.trim().lowercase() } ?: AltscreenCards.TOP
             show(active())
         }
         bring()
@@ -247,7 +247,7 @@ internal class AltscreenView(
             val demo = hudDemo.get()?.second
             val live = data.bus.snapshot()
             val snapshot = demo?.over(live) ?: live
-            HudView(demo != null || active() != null, hudState(snapshot), snapshot.artwork)
+            HudView(demo != null || active() != null, hudState(snapshot), snapshot.artwork, drive = driving.gauges() != null)
         }, ::log, window::repaint, accent)
         data.bus.addListener { if (window.hud) window.repaint() }
         window.topLayer = GaugePainter(driving::gauges, ::log, accent)

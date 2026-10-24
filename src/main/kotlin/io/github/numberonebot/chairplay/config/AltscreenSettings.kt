@@ -52,7 +52,7 @@ fun altscreenTitle(stream: WindowSize, content: AltscreenContent, cards: Altscre
 data class Altscreen(
     val size: WindowSize,
     val content: AltscreenContent,
-    val cards: AltscreenCards = AltscreenCards.AUTO,
+    val cards: AltscreenCards = AltscreenCards.TOP,
     /** altscreen.content and altscreen.cards as set, which a remembered view gives way to when they change. */
     val configured: Pair<AltscreenContent, AltscreenCards> = content to cards,
 )

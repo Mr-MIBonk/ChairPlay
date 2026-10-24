@@ -153,7 +153,7 @@ object EditableSettings {
             val keys = SAFE_EDGES.map { safeKey(view, it) }
             if (!sizeChanged && areaKey(view) !in changes && keys.none { it in changes }) continue
             if (areaKey(view) in errors || keys.any { it in errors }) continue
-            val area = (value(areaKey(view))?.let(AreaPreset::of) ?: AreaPreset.FULL).area(width, height)
+            val area = (value(areaKey(view))?.let(AreaPreset::of) ?: defaultArea(view)).area(width, height)
             val (top, bottom, left, right) = keys.map { value(it)?.toIntOrNull() ?: 0 }
             if (top + bottom < area.height && left + right < area.width) continue
             errors[keys.firstOrNull { it in changes } ?: keys.first()] = "Leave some of the area inside the margins"

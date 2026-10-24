@@ -13,6 +13,9 @@ import java.nio.file.StandardOpenOption
 
 /** DesktopConfig: the AltScreen's settings, its view areas and what /info declares of it. */
 class AltscreenConfigTest {
+    // Map + card's default margins, blanked where a test counts the areas of other views.
+    private val noMapCardMargins = arrayOf("altscreen.map-card.safe.left=", "altscreen.map-card.safe.right=")
+
     // Without the setting the iPhone hears of no second screen, as before.
     @Test
     fun `the altscreen is off unless asked for`() {
@@ -24,7 +27,8 @@ class AltscreenConfigTest {
     // its part as soon as it is set, without reconnecting; a view on the full frame stays in the first.
     @Test
     fun `the altscreen declares every part, the views on the full frame in the first`() {
-        val config = configWith("altscreen.enabled=true", "altscreen.width=1920", "altscreen.height=720", "altscreen.card.area=right3")
+        val config = configWith("altscreen.enabled=true", "altscreen.width=1920", "altscreen.height=720", "altscreen.card.area=right3",
+            *noMapCardMargins)
 
         assertEquals(AreaPreset.entries.map { it.area(1920, 720) }, config.airPlay.cluster!!.viewAreas)
         assertEquals(9, config.altscreenAreaCount)
@@ -33,9 +37,27 @@ class AltscreenConfigTest {
         assertEquals(2, config.altscreenAreaIndex(AltscreenContent.MAP, AreaPreset.RIGHT5))
         assertEquals(0, config.altscreenAreaIndex(AltscreenContent.HUD, AreaPreset.RIGHT5))
         assertNull(configWith().airPlay.cluster)
-        assertTrue(DesktopConfig.defaultSettingsText().contains(
+    }
+
+    // The views start as the owner set them up (2026-10-24): the turn card in the middle three eighths; the map on the
+    // whole frame, all of it safe; Map + card on the whole frame with the card on top and the map kept to the middle
+    // three eighths, between the dials.
+    @Test
+    fun `the views default to the card in the middle and Map + card's map between the dials`() {
+        val config = configWith("altscreen.enabled=true")
+        assertEquals(AreaPreset.CENTER3, config.altscreenPreset(AltscreenContent.CARD))
+        assertEquals(AreaPreset.FULL, config.altscreenPreset(AltscreenContent.MAP))
+        assertEquals(AreaPreset.FULL, config.altscreenPreset(AltscreenContent.MAP_CARD))
+        assertEquals(AltscreenCards.TOP, config.altscreen!!.cards)
+        val text = DesktopConfig.defaultSettingsText()
+        assertTrue(text.contains("\naltscreen.cards=top\n"))
+        // The map's blank margins leave it to altscreen.safe.*, all zero.
+        assertTrue(text.contains(
             "\naltscreen.map.area=full\naltscreen.map.safe.top=\naltscreen.map.safe.bottom=\naltscreen.map.safe.left=\naltscreen.map.safe.right=\n"))
-        assertTrue(DesktopConfig.defaultSettingsText().contains("\naltscreen.card.area=full\n"))
+        // The default 1440 px frame's middle three eighths, 536 px as parts keep to multiples of 8, leave 452 at each side.
+        assertTrue(text.contains("\naltscreen.map-card.area=full\naltscreen.map-card.safe.top=\naltscreen.map-card.safe.bottom=\n" +
+            "altscreen.map-card.safe.left=452\naltscreen.map-card.safe.right=452\n"))
+        assertTrue(text.contains("\naltscreen.card.area=center3\n"))
     }
 
     // A view with margins of its own gets every part again with its margins, counted inside each part; the iPhone hears
@@ -44,7 +66,7 @@ class AltscreenConfigTest {
     fun `a view with margins of its own gets every part with them`() {
         val config = configWith("altscreen.enabled=true", "altscreen.width=1920", "altscreen.height=720",
             "altscreen.card.area=center3", "altscreen.card.safe.top=10", "altscreen.card.safe.bottom=20",
-            "altscreen.map-card.safe.right=300")
+            "altscreen.map-card.safe.left=", "altscreen.map-card.safe.right=300")
 
         val areas = config.airPlay.cluster!!.viewAreas!!
         assertEquals(27, areas.size)
@@ -68,6 +90,22 @@ class AltscreenConfigTest {
         assertEquals(AirPlayViewArea(896, 540, originX = 544), small.airPlay.cluster!!.viewAreas!![2])
     }
 
+    // Margins that fit the view's own part but not a narrower one shrink in that one with its width, so the view can
+    // still move there: Map + card's map kept to the middle three eighths of the whole frame, in the five eighths.
+    @Test
+    fun `margins too wide for a narrower part shrink with it`() {
+        val config = configWith("altscreen.enabled=true", "altscreen.width=1280", "altscreen.height=480",
+            "altscreen.map-card.area=full", "altscreen.map-card.safe.left=400", "altscreen.map-card.safe.right=400")
+        val areas = config.airPlay.cluster!!.viewAreas!!
+        val whole = areas[config.altscreenAreaIndex(AltscreenContent.MAP_CARD, AreaPreset.FULL)!!]
+        assertEquals(400, whole.safeArea!!.left)
+        assertEquals(400, whole.safeArea!!.right)
+        // The 800 px five eighths at the left: 400 * 800 / 1280 at each side.
+        val left5 = areas[config.altscreenAreaIndex(AltscreenContent.MAP_CARD, AreaPreset.LEFT5)!!]
+        assertEquals(250, left5.safeArea!!.left)
+        assertEquals(1280 - 800 + 250, left5.safeArea!!.right)
+    }
+
     @Test
     fun `a view's part is one of the eighths, and leaves room inside its margins`() {
         val base = arrayOf("altscreen.enabled=true", "altscreen.width=1920", "altscreen.height=720")
@@ -88,20 +126,22 @@ class AltscreenConfigTest {
         assertEquals(110, cluster.heightPhysicalMm)
         // Nothing covers a window on a PC, so the iPhone keeps its UI (attribution, car marker) to the panel's edges.
         assertNull(cluster.safeArea)
-        assertEquals("maps:/car/instrumentcluster/instructioncard", config.airPlay.cluster!!.initialUrl)
+        // The turn card on top, as on Map + card by default.
+        assertEquals("maps:/car/instrumentcluster/instructioncard?showETA=yes&maneuverLayout=topAligned", config.airPlay.cluster!!.initialUrl)
     }
 
     // DashBoard reads the card layout from the cluster URL for every navigation app (MHI2Q CarPlay project notes).
     @Test
     fun `the altscreen card layout goes into the cluster url`() {
-        assertEquals("maps:/car/instrumentcluster/map", configWith("altscreen.enabled=true").airPlay.cluster!!.initialUrl)
+        assertEquals("maps:/car/instrumentcluster/map", configWith("altscreen.enabled=true", "altscreen.cards=auto").airPlay.cluster!!.initialUrl)
         assertEquals(
             "maps:/car/instrumentcluster?showETA=yes&maneuverLayout=rightAligned",
             configWith("altscreen.enabled=true", "altscreen.content=map-card", "altscreen.cards=right").airPlay.cluster!!.initialUrl,
         )
+        // On top by default.
         assertEquals(
             "maps:/car/instrumentcluster/map?showETA=yes&maneuverLayout=topAligned",
-            configWith("altscreen.enabled=true", "altscreen.cards=top").airPlay.cluster!!.initialUrl,
+            configWith("altscreen.enabled=true").airPlay.cluster!!.initialUrl,
         )
         assertEquals(AltscreenCards.TOP, AltscreenCards.RIGHT.next())
     }
@@ -111,7 +151,7 @@ class AltscreenConfigTest {
     fun `the HUD asks the iPhone for the turn card`() {
         assertEquals(
             "maps:/car/instrumentcluster/instructioncard",
-            configWith("altscreen.enabled=true", "altscreen.content=hud").airPlay.cluster!!.initialUrl,
+            configWith("altscreen.enabled=true", "altscreen.content=hud", "altscreen.cards=auto").airPlay.cluster!!.initialUrl,
         )
     }
 
@@ -145,7 +185,7 @@ class AltscreenConfigTest {
         val dir = Files.createTempDirectory("chairplay-config")
         writeTestSettings(dir)
         Files.writeString(dir.resolve("settings.properties"), "altscreen.enabled=true\n", StandardOpenOption.APPEND)
-        AltscreenViewStore(dir).save(AltscreenContent.CARD, AltscreenCards.RIGHT, AltscreenContent.MAP to AltscreenCards.AUTO)
+        AltscreenViewStore(dir).save(AltscreenContent.CARD, AltscreenCards.RIGHT, AltscreenContent.MAP to AltscreenCards.TOP)
 
         val config = DesktopConfig(dir)
 

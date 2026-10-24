@@ -103,7 +103,7 @@ internal val SETTINGS_TEMPLATE = listOf(
     SettingBlock(
         "Where the altscreen shows the navigation app's ETA and turn card on Map + card: 'auto' (the driver's\n" +
             "side, as display.right.hand.drive declares it), 'left', 'right', or 'top'.",
-        "altscreen.cards" to "auto",
+        "altscreen.cards" to "top",
     ),
     SettingBlock(
         "Altscreen pixels at each edge the iPhone keeps its map text and car marker out of, for an overlay;\n" +
@@ -117,7 +117,11 @@ internal val SETTINGS_TEMPLATE = listOf(
             "('left3', 'center3', 'right3'); and the margins inside that part its map text and car marker keep out\n" +
             "of, in pixels. A view with the full frame and blank margins uses altscreen.safe.*. The altscreen moves\n" +
             "to a view's part as it changes view.",
-        *AREA_VIEWS.flatMap { view -> listOf(areaKey(view) to "full") + SAFE_EDGES.map { safeKey(view, it) to "" } }.toTypedArray(),
+        *AREA_VIEWS.flatMap { view ->
+            listOf(areaKey(view) to defaultArea(view).key) + SAFE_EDGES.map { edge ->
+                safeKey(view, edge) to defaultSafe(view, edge, DesktopConfig.DEFAULT_ALTSCREEN_WIDTH, DesktopConfig.DEFAULT_ALTSCREEN_HEIGHT)
+            }
+        }.toTypedArray(),
     ),
     SettingBlock("'windows' (follow the Windows theme), 'light', 'dark', or 'phone' (the iPhone decides).", "display.theme" to "windows"),
     SettingBlock("'true' puts CarPlay's dock and controls on the right, 'false' on the left.", "display.right.hand.drive" to "false"),

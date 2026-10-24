@@ -100,7 +100,7 @@ class Driving(
             "heading" to car.headingDegrees.roundToInt() % 360,
             "speed" to car.speedKmh.roundToInt(),
             "rpm" to car.rpm.roundToInt(),
-            "gear" to if (car.gear < 0) "R" else "D${car.gear}",
+            "gear" to car.gearName,
             "throttle" to snapshot.input.throttle,
             "brake" to snapshot.input.brake,
             "keyboard" to control.keyboard,
@@ -119,12 +119,13 @@ class Driving(
         return GaugeView(
             speedKmh = car.speedKmh,
             rpm = car.rpm,
-            gear = if (car.gear < 0) "R" else "D${car.gear}",
+            gear = car.gearName,
             throttle = snapshot.input.throttle,
             brake = snapshot.input.brake,
-            steer = snapshot.input.steer,
+            headingDegrees = car.headingDegrees,
             speedometer = GaugeScale.speedometer(),
             tachometer = GaugeScale.tachometer(drive.spec),
+            position = snapshot.position,
         )
     }
 

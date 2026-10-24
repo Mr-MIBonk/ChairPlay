@@ -1,5 +1,6 @@
 package io.github.numberonebot.chairplay.drive
 
+import io.github.numberonebot.chairplay.drive.GaugeStyle.BLACK
 import io.github.numberonebot.chairplay.drive.GaugeStyle.EDGE
 import io.github.numberonebot.chairplay.drive.GaugeStyle.GREY
 import io.github.numberonebot.chairplay.drive.GaugeStyle.HUB
@@ -12,6 +13,7 @@ import io.github.numberonebot.chairplay.drive.GaugeStyle.TICK
 import io.github.numberonebot.chairplay.drive.GaugeStyle.WHITE
 import io.github.numberonebot.chairplay.drive.GaugeStyle.WIDE
 import org.lwjgl.nanovg.NanoVG.*
+import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -27,7 +29,8 @@ internal class GaugeDial(private val pen: NanoPen, private val accent: Int) {
 
     /** [face] is the face's radius, and [labelSize] the numbers' size in it. */
     fun draw(cx: Float, cy: Float, face: Float, scale: GaugeScale, labelSize: Float, value: Double, digits: String, unit: String) {
-        val track = face * 0.95f
+        // Just inside the knurled ring.
+        val track = face * 0.975f
         val band = face * BAND
         nvgLineCap(vg, NVG_BUTT)
         if (value > 0) pen.arc(cx, cy, track, scale.angle(0.0), scale.angle(value), band, 0x59000000 or accent)
@@ -75,7 +78,15 @@ internal class GaugeDial(private val pen: NanoPen, private val accent: Int) {
         val dy = sin(angle).toFloat()
         val halfWidth = pen.textWidth(text, size, ITALIC) / 2
         val at = edge - size * LABEL_GAP - (halfWidth * abs(dx) + size * HALF_CAP * abs(dy))
-        pen.text(text, cx + dx * at, cy + dy * at, size, argb, ITALIC)
+        val x = cx + dx * at
+        val y = cy + dy * at
+        // A black outline: NanoVG strokes no text, so the number in black round a small circle, then itself on top.
+        val outline = maxOf(1f, size * OUTLINE)
+        for (i in 0 until 8) {
+            val around = i * PI / 4
+            pen.text(text, x + cos(around).toFloat() * outline, y + sin(around).toFloat() * outline, size, BLACK, ITALIC)
+        }
+        pen.text(text, x, y, size, argb, ITALIC)
     }
 
     /** A needle from the hub's rim to the scale, tapering, in the accent colour with a faint glow. */
@@ -83,7 +94,7 @@ internal class GaugeDial(private val pen: NanoPen, private val accent: Int) {
         val dx = cos(angle).toFloat()
         val dy = sin(angle).toFloat()
         val base = face * (HUB + 0.02f)
-        val tip = face * 0.9f
+        val tip = face * 0.93f
         nvgLineCap(vg, NVG_ROUND)
         nvgBeginPath(vg)
         nvgMoveTo(vg, cx + dx * base, cy + dy * base)
@@ -108,13 +119,15 @@ internal class GaugeDial(private val pen: NanoPen, private val accent: Int) {
         const val DASH = 0.03f
         val RED_ZONE = 0xD9000000.toInt() or (RED and 0xFFFFFF)
         /** Where the ticks run in the face's radius: short, to leave the numbers room. */
-        const val TICKS_TO = 0.88f
+        const val TICKS_TO = 0.905f
         const val MAJOR_FROM = TICKS_TO - 0.16f / 3
         const val MIDDLE_FROM = TICKS_TO - 0.09f / 3
         const val FINE_FROM = TICKS_TO - 0.018f
         /** The numbers' gap from the ticks, and half a digit's height, in the numbers' size. */
         const val LABEL_GAP = 0.35f
         const val HALF_CAP = 0.36f
+        /** The numbers' black outline, in their size. */
+        const val OUTLINE = 0.06f
     }
 }
 
@@ -123,7 +136,7 @@ internal object GaugeStyle {
     const val WIDE = "wide"
     const val ITALIC = "wide-italic"
     /** The face inside the bezel, and the hub in the face, in their radii. */
-    const val FACE = 0.9f
+    const val FACE = 0.92f
     const val HUB = 0.456f
     const val OPAQUE = 0xFF000000.toInt()
     const val BLACK = 0xFF000000.toInt()

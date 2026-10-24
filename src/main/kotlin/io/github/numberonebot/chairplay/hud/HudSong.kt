@@ -13,18 +13,23 @@ import kotlin.math.roundToInt
  * the way out of the dark.
  */
 internal fun HudPainter.media(media: HudMedia, now: HudView, box: HudBox, h: Float, presence: Float) {
-    // 40 px on the 540 px AltScreen.
-    val gap = 0.074f * h
+    val gap = MEDIA_GAP * h
     val coverSize = box.cover
-    // The song alone keeps to 80 % of the width its lines could take beside the cover; beside the route its column
-    // bounds it.
-    val widest = (0.9f * h * 1.4f + gap + coverSize) * 0.8f
-    val textWidth = min(box.right - box.left, widest) - coverSize - gap
-    val blockWidth = textWidth + gap + coverSize
+    val blockWidth = mediaBlockWidth(box, h)
+    val textWidth = blockWidth - coverSize - gap
     val x = box.left + (box.right - box.left - blockWidth) / 2
     val y = h / 2 - coverSize / 2
     emerging(presence, x + blockWidth / 2, h / 2) { mediaBlock(media, now, x, y, coverSize, gap, textWidth, h, box.text) }
 }
+
+/**
+ * How wide the song's block is in [box] of an [h] high HUD: alone it keeps to 80 % of the width its lines could take
+ * beside the cover; beside the route its column bounds it. It is as tall as its cover.
+ */
+internal fun mediaBlockWidth(box: HudBox, h: Float): Float = min(box.right - box.left, (0.9f * h * 1.4f + MEDIA_GAP * h + box.cover) * 0.8f)
+
+// 40 px on the 540 px AltScreen.
+private const val MEDIA_GAP = 0.074f
 
 /** One line of the song's text block: its [height], the [space] above it, and how it draws at its middle. */
 private class Row(val height: Float, val space: Float, val draw: (Float) -> Unit)

@@ -7,9 +7,9 @@ import kotlin.math.sign
 
 /**
  * A car as plain numbers: its power and mass decide how it pulls, its gearing how the engine turns. The defaults are a
- * quick 300 hp car of 1500 kg with a six-speed automatic and a red line at 7000 rpm, the owner's choice: about 6 s to
- * 100 km/h, near 63 km/h in first, and held at 250 km/h by its limiter, as German cars are, short of the 275 its drag
- * would allow.
+ * quick 300 hp car of 1500 kg with a six-speed automatic and a red line at 7000 rpm, the owner's choice, geared short
+ * and gripping all round for the launch over the top speed: about 4 s to 100 km/h, near 53 km/h in first, and running
+ * out at the red line in top gear a little under its 250 km/h limiter.
  */
 data class CarSpec(
     val massKg: Double = 1500.0,
@@ -17,7 +17,7 @@ data class CarSpec(
     val idleRpm: Double = 800.0,
     val redlineRpm: Double = 7000.0,
     val gearRatios: List<Double> = listOf(3.6, 2.2, 1.55, 1.2, 0.95, 0.78),
-    val finalDrive: Double = 3.6,
+    val finalDrive: Double = 4.3,
     val wheelRadiusMeters: Double = 0.31,
     /** Drag coefficient times frontal area. */
     val dragAreaSquareMeters: Double = 0.65,
@@ -36,10 +36,19 @@ data class CarInput(val throttle: Double = 0.0, val brake: Double = 0.0, val ste
 
 /**
  * Where the car is in its motion: [speed] in m/s, negative backing up; [headingDegrees] 0 north, 90 east; [gear] -1 for
- * reverse, else 1 up to the top gear.
+ * reverse, else 1 up to the top gear; [parked] in park with the engine off.
  */
-data class CarState(val speed: Double = 0.0, val headingDegrees: Double = 0.0, val rpm: Double = 0.0, val gear: Int = 1) {
+data class CarState(
+    val speed: Double = 0.0,
+    val headingDegrees: Double = 0.0,
+    val rpm: Double = 0.0,
+    val gear: Int = 1,
+    val parked: Boolean = false,
+) {
     val speedKmh: Double get() = abs(speed) * 3.6
+
+    /** The selector as the gauges show it: P, R, or D with the gear. */
+    val gearName: String get() = if (parked) "P" else if (gear < 0) "R" else "D$gear"
 }
 
 /**
@@ -47,10 +56,10 @@ data class CarState(val speed: Double = 0.0, val headingDegrees: Double = 0.0, v
  * held at a launch by what the driven wheels grip and cut at the limiter; drag, rolling resistance and, off the
  * throttle, the engine take it back.
  * An automatic gearbox only turns the tachometer. The wheel turns the car without slip, as fast as a tight circle at
- * low speed and as a lateral pull allows at high speed. Held at a standstill, the brake backs the car up, when the car has reverse ([CarSpec.reverse]).
+ * low speed and as a lateral pull allows at high speed, and a standing car on the spot. Held at a standstill, the brake backs the car up, when the car has reverse ([CarSpec.reverse]).
  */
 class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
-    var state: CarState = initial.copy(rpm = initial.rpm.coerceIn(spec.idleRpm, spec.redlineRpm))
+    var state: CarState = initial.copy(rpm = if (initial.parked) 0.0 else initial.rpm.coerceIn(spec.idleRpm, spec.redlineRpm))
         private set
 
     /** Metres covered by the last step, negative backing up. */
@@ -59,10 +68,8 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
 
     private val wattsAtWheels = spec.powerHp * WATTS_PER_HP * DRIVETRAIN_EFFICIENCY
     private val gripNewtons = spec.massKg * GRAVITY * DRIVEN_GRIP
-    // A car strong enough to pass the red line in top gear before its drag holds it gets a longer final drive, as a
-    // strong car has, so it reaches its top speed a little under the red line.
-    private val finalDrive = spec.finalDrive * min(1.0, redlineSpeed(spec, spec.finalDrive) / (topSpeed(spec) * TOP_GEAR_MARGIN))
     private var standstillBrakeSeconds = 0.0
+    private var standingSeconds = 0.0
 
     fun step(input: CarInput, dt: Double): CarState {
         val throttle = input.throttle.coerceIn(0.0, 1.0)
@@ -72,11 +79,23 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         var gear = state.gear
         val stopped = abs(before) < STOPPED_SPEED
 
+        // Standing a while, the car parks and stops its engine; the throttle starts it in drive.
+        standingSeconds = if (before == 0.0 && throttle == 0.0) standingSeconds + dt else 0.0
+        var parked = state.parked
+        if (parked && throttle > 0) {
+            parked = false
+            gear = 1
+        }
+        if (standingSeconds >= PARK_SECONDS) parked = true
+
         // In reverse the pedals swap: the brake drives back, the throttle brakes. Stopped, the throttle selects drive,
         // and the brake held a moment selects reverse.
         standstillBrakeSeconds = if (stopped && gear > 0 && brake > 0 && throttle == 0.0) standstillBrakeSeconds + dt else 0.0
         if (stopped && gear < 0 && throttle > 0 && brake == 0.0) gear = 1
-        if (spec.reverse && standstillBrakeSeconds >= REVERSE_HOLD_SECONDS) gear = -1
+        if (spec.reverse && standstillBrakeSeconds >= REVERSE_HOLD_SECONDS) {
+            gear = -1
+            parked = false
+        }
         val drive = if (gear > 0) throttle else brake
         val stopping = if (gear > 0) brake else throttle
         val direction = if (gear > 0) 1.0 else -1.0
@@ -98,21 +117,29 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
 
         if (gear > 0) gear = shifted(gear, wheelRpm(abs(speed), gear), throttle)
         val launch = spec.idleRpm + (LAUNCH_RPM - spec.idleRpm) * drive
-        val target = maxOf(wheelRpm(abs(speed), gear), launch).coerceIn(spec.idleRpm, spec.redlineRpm)
-        val rpm = target + (state.rpm - target) * exp(-dt / RPM_SECONDS)
+        // A stopped engine winds down to nothing, a started one up from it.
+        val wheels = wheelRpm(abs(speed), gear)
+        val target = if (parked) 0.0 else maxOf(wheels, launch).coerceIn(spec.idleRpm, spec.redlineRpm)
+        // Driven up by the wheels the engine turns with them; the launch, a shift's drop and a stop ease.
+        val rpm = if (!parked && wheels >= launch && target >= state.rpm) target else target + (state.rpm - target) * exp(-dt / RPM_SECONDS)
 
         val average = (before + speed) / 2
-        val yawRate = steer * sign(average) * min(abs(average) / TIGHTEST_RADIUS, LATERAL_ACCELERATION / maxOf(abs(average), 1.0))
+        // A standing car turns on the spot, so it can be pointed before it drives off.
+        val yawRate = if (average == 0.0) {
+            steer * Math.toRadians(SPOT_TURN_DEGREES)
+        } else {
+            steer * sign(average) * min(abs(average) / TIGHTEST_RADIUS, LATERAL_ACCELERATION / maxOf(abs(average), 1.0))
+        }
         val heading = ((state.headingDegrees + Math.toDegrees(yawRate * dt)) % 360 + 360) % 360
 
         lastMeters = average * dt
-        state = CarState(speed, heading, rpm.coerceIn(spec.idleRpm, spec.redlineRpm), gear)
+        state = CarState(speed, heading, rpm.coerceIn(0.0, spec.redlineRpm), gear, parked)
         return state
     }
 
     private fun wheelRpm(speed: Double, gear: Int): Double {
         val ratio = if (gear < 0) REVERSE_RATIO else spec.gearRatios[gear - 1]
-        return speed / spec.wheelRadiusMeters * ratio * finalDrive * 60 / (2 * Math.PI)
+        return speed / spec.wheelRadiusMeters * ratio * spec.finalDrive * 60 / (2 * Math.PI)
     }
 
     // Up close to the red line at full throttle and early when cruising; down when the engine bogs, sooner with the foot
@@ -142,17 +169,12 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
             return low
         }
 
-        /** In m/s: the speed at the red line in top gear with [finalDrive]. */
-        private fun redlineSpeed(spec: CarSpec, finalDrive: Double) =
-            spec.redlineRpm * 2 * Math.PI / 60 * spec.wheelRadiusMeters / (spec.gearRatios.last() * finalDrive)
-
-        private const val TOP_GEAR_MARGIN = 1.05
         private const val WATTS_PER_HP = 745.7
         private const val DRIVETRAIN_EFFICIENCY = 0.85
         private const val GRAVITY = 9.81
         private const val AIR_DENSITY = 1.2
-        /** Half the weight on the driven wheels, on a grip of 1. */
-        private const val DRIVEN_GRIP = 0.5
+        /** What the driven wheels grip at a launch, in the car's weight: all four, on sports tyres. */
+        private const val DRIVEN_GRIP = 0.9
         /** Below it the pull is the grip's, not power over a speed near zero. */
         private const val POWER_FLOOR_SPEED = 3.0
         /** m/s² at full brake, a sports car's on sticky tyres: about 25 m from 100 km/h. */
@@ -164,6 +186,8 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         private const val LIMITER_BAND = 1.0
         private const val STOPPED_SPEED = 0.3
         private const val REVERSE_HOLD_SECONDS = 0.4
+        /** How long the car stands before it parks and stops its engine. */
+        private const val PARK_SECONDS = 10.0
         private const val REVERSE_TOP_SPEED = 20 / 3.6
         private const val REVERSE_RATIO = 3.4
         /** What the engine revs to as the clutch slips at a launch, at full throttle. */
@@ -175,6 +199,8 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         private const val SHIFT_DOWN_GENTLE = 1200.0
         private const val SHIFT_DOWN_FULL = 2700.0
         private const val TIGHTEST_RADIUS = 5.0
+        /** Degrees a second a standing car turns on the spot at full lock. */
+        private const val SPOT_TURN_DEGREES = 90.0
         /** Arcade grip in a corner, more than a road car's 9 m/s². */
         private const val LATERAL_ACCELERATION = 12.0
     }

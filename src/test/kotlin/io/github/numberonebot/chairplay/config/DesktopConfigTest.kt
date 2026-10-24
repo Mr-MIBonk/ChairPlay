@@ -154,7 +154,7 @@ class DesktopConfigTest {
     // DiPlay's cluster display, at the size asked for, with even margins instead of its car cluster's crop.
     @Test
     fun `an enabled altscreen asks the iPhone for its map at the given size`() {
-        val config = configWith("altscreen.enabled=true", "altscreen.width=1600", "altscreen.height=600")
+        val config = configWith("altscreen.enabled=true", "altscreen.width=1600", "altscreen.height=600", "altscreen.cards=auto")
 
         val cluster = config.airPlay.cluster!!
         assertEquals(1600, cluster.widthPixels)

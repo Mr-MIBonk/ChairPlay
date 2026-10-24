@@ -130,7 +130,7 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
     val altscreen: Altscreen? = if (!settings.booleanSetting("altscreen.enabled", false)) null else {
         val content = settings.choiceSetting("altscreen.content", AltscreenContent.MAP, AltscreenContent.entries.associateBy { it.key })
         val size = altscreenSize
-        val cards = settings.choiceSetting("altscreen.cards", AltscreenCards.AUTO, AltscreenCards.entries.associateBy { it.key })
+        val cards = settings.choiceSetting("altscreen.cards", AltscreenCards.TOP, AltscreenCards.entries.associateBy { it.key })
         // The view F11 and Shift+F11 left it on, unless these settings changed since.
         val (viewContent, viewCards) = AltscreenViewStore(dir).load(content, cards)
         Altscreen(size, viewContent, viewCards, configured = content to cards)
