@@ -27,7 +27,7 @@ LWJGL NanoVG (+ natives-windows) 3.3.4          BSD-3-Clause for the bindings; N
                                                  is zlib-licensed (NanoVG-zlib.txt)  https://github.com/memononen/nanovg
 Inter (text)                      4.1            SIL OFL 1.1 (Inter-OFL.txt)      https://github.com/rsms/inter
 Roboto Flex Wide (display)        instance of    SIL OFL 1.1 (RobotoFlex-OFL.txt); static instances of Roboto Flex
-                                  Roboto Flex    (wdth 151, wght 600; an italic, wght 800 slnt -10, in fonts/ only), renamed
+                                  Roboto Flex    (wdth 151, wght 600; 400, 800 and 800 at slnt -10 in fonts/ only), renamed
                                                  https://github.com/googlefonts/roboto-flex
   (both in chairplay.jar: fonts/ for the HUD, the same files in ui/assets/ for the start and settings screens)
 JavaCPP                           1.5.11         Apache-2.0 OR GPL-2.0 with Classpath Exception; used under

@@ -8,22 +8,22 @@ import org.junit.Test
 import java.nio.file.Files
 
 class GaugesTest {
-    // The speedometer as a fast car's: numbered by 20 to 60 and by 40 from 100 to 260, the numbers evenly apart, so
-    // the scale changes between 60 and 100, which has a middle tick at 80; each gap a middle tick and fine tenths.
+    // The speedometer as a fast car's: numbered by 20 to 140 and by 40 from there to 260, the numbers evenly apart, so
+    // the scale changes at 140; each gap a middle tick and fine tenths.
     @Test
     fun `the speedometer is numbered as a fast car's`() {
         val speed = GaugeScale.speedometer()
         fun values(size: GaugeScale.TickSize) = speed.ticks().filter { it.size == size }.map { it.value }
-        assertEquals(listOf(0.0, 20.0, 40.0, 60.0, 100.0, 140.0, 180.0, 220.0, 260.0), values(GaugeScale.TickSize.MAJOR))
-        assertEquals(listOf(10.0, 30.0, 50.0, 80.0, 120.0, 160.0, 200.0, 240.0), values(GaugeScale.TickSize.MIDDLE))
+        assertEquals(listOf(0.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0, 140.0, 180.0, 220.0, 260.0), values(GaugeScale.TickSize.MAJOR))
+        assertEquals(listOf(10.0, 30.0, 50.0, 70.0, 90.0, 110.0, 130.0, 160.0, 200.0, 240.0), values(GaugeScale.TickSize.MIDDLE))
         val fine = values(GaugeScale.TickSize.FINE)
-        assertEquals(64, fine.size)
+        assertEquals(80, fine.size)
         assertEquals(listOf(2.0, 4.0, 6.0, 8.0, 12.0), fine.take(5).map { Math.round(it * 1e6) / 1e6 })
-        assertTrue(fine.any { Math.abs(it - 64.0) < 1e-9 })
+        assertTrue(fine.any { Math.abs(it - 144.0) < 1e-9 })
         val step = speed.angle(20.0) - speed.angle(0.0)
-        assertEquals(step, speed.angle(100.0) - speed.angle(60.0), 1e-9)
+        assertEquals(step, speed.angle(140.0) - speed.angle(120.0), 1e-9)
+        assertEquals(step, speed.angle(180.0) - speed.angle(140.0), 1e-9)
         assertEquals(step, speed.angle(260.0) - speed.angle(220.0), 1e-9)
-        assertEquals(speed.angle(60.0) + step / 2, speed.angle(80.0), 1e-9)
         assertEquals(Math.toRadians(GaugeScale.START_DEGREES + GaugeScale.SWEEP_DEGREES), speed.angle(400.0), 1e-9)
         assertEquals(Math.toRadians(GaugeScale.START_DEGREES), speed.angle(-5.0), 1e-9)
     }

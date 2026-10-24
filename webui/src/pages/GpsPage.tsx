@@ -159,6 +159,8 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
             checked={state.gps?.keyboard ?? false}
             onChange={(on) => void backend.driveMode(on)}
           />
+          <span className="exp">Experimental</span>
+          <span className="exp fun">Extra fun</span>
         </Row>
         <Row label="Power and mass" title="The car's power and mass, which set how it pulls and how fast it goes">
           {field('gps.car.power.hp', 'Power', '300')}

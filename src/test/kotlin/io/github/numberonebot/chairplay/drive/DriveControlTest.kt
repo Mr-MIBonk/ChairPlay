@@ -22,17 +22,32 @@ class DriveControlTest {
     // GLFW's gamepad axes: left stick X and Y, right stick X and Y, left and right trigger (-1 released, 1 pressed).
     private fun pad(steer: Float = 0f, brake: Float = -1f, throttle: Float = -1f) = floatArrayOf(steer, 0f, 0f, 0f, brake, throttle)
 
+    // The arrows press the pedals and turn the wheel smoothly: all the way over a moment held, back sooner let go.
     @Test
-    fun `the arrows are the pedals and the wheel`() {
-        val keys = DriveKeys()
+    fun `the arrows press the pedals and turn the wheel smoothly`() {
+        val keys = DriveKeys { now }
+        fun at(seconds: Double) {
+            now = (seconds * 1e9).toLong()
+        }
         assertTrue(keys.key(GLFW_KEY_UP, GLFW_PRESS))
         assertTrue(keys.key(GLFW_KEY_LEFT, GLFW_PRESS))
+        assertEquals(CarInput(), keys.input())
+        at(DriveKeys.PRESS_SECONDS / 2)
+        val half = keys.input()
+        assertEquals(0.5, half.throttle, 1e-6)
+        assertEquals(-0.5, half.steer, 1e-6)
+        at(DriveKeys.PRESS_SECONDS)
         assertEquals(CarInput(throttle = 1.0, steer = -1.0), keys.input())
         assertTrue(keys.key(GLFW_KEY_LEFT, GLFW_REPEAT))
         keys.key(GLFW_KEY_UP, GLFW_RELEASE)
         keys.key(GLFW_KEY_LEFT, GLFW_RELEASE)
+        at(DriveKeys.PRESS_SECONDS + DriveKeys.RELEASE_SECONDS / 2)
+        assertEquals(0.5, keys.input().throttle, 1e-6)
+        at(DriveKeys.PRESS_SECONDS + DriveKeys.RELEASE_SECONDS)
+        assertEquals(CarInput(), keys.input())
         keys.key(GLFW_KEY_DOWN, GLFW_PRESS)
         keys.key(GLFW_KEY_RIGHT, GLFW_PRESS)
+        at(2 * DriveKeys.PRESS_SECONDS + DriveKeys.RELEASE_SECONDS)
         assertEquals(CarInput(brake = 1.0, steer = 1.0), keys.input())
         assertFalse(keys.key(GLFW_KEY_A, GLFW_PRESS))
         keys.release()
@@ -44,14 +59,14 @@ class DriveControlTest {
         assertEquals(CarInput(), keys.input())
     }
 
-    // The triggers press the pedals as far as they go; a stick near the middle steers nothing.
+    // The triggers press the pedals at once as far as they go; a stick within a tenth of the middle steers nothing.
     @Test
     fun `the gamepad's triggers are the pedals and its stick the wheel`() {
         assertEquals(CarInput(), gamepadInput(pad()))
         assertEquals(CarInput(throttle = 1.0, brake = 0.5, steer = 1.0), gamepadInput(pad(steer = 1f, brake = 0f, throttle = 1f)))
-        assertEquals(0.0, gamepadInput(pad(steer = 0.1f)).steer, 0.0)
-        val half = gamepadInput(pad(steer = -0.56f)).steer
-        assertTrue("steer $half", half in -0.6..-0.4)
+        assertEquals(0.0, gamepadInput(pad(steer = 0.09f)).steer, 0.0)
+        assertTrue(gamepadInput(pad(steer = 0.13f)).steer > 0.0)
+        assertEquals(-0.5, gamepadInput(pad(steer = -0.55f)).steer, 1e-6)
     }
 
     @Test
@@ -114,12 +129,14 @@ class DriveControlTest {
     @Test
     fun `drive mode keeps the loop at frame pace and lets go of the keys as it ends`() {
         val drive = Drive(CarSpec(), kyiv, 0.0) { now }
-        val control = DriveControl(drive, gamepad = { null })
+        val control = DriveControl(drive, gamepad = { null }, nanoTime = { now })
         control.toggleKeyboard()
         assertEquals(DriveControl.FRAME_SECONDS, control.pass())
         control.key(GLFW_KEY_UP, GLFW_PRESS)
-        now += 16_666_667L
-        control.pass()
+        repeat(20) {
+            now += 16_666_667L
+            control.pass()
+        }
         assertEquals(1.0, drive.input.throttle, 0.0)
         control.toggleKeyboard()
         now += 16_666_667L

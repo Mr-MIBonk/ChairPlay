@@ -157,6 +157,12 @@
   line-height: 16px;
 }
 
+/* A tag for what is there for the joy of it */
+.shell .exp.fun {
+  border-color: rgba(48, 209, 88, 0.5);
+  color: var(--green);
+}
+
 /* A setting that applies only after a restart or the next connection */
 .shell .later {
   color: var(--orange);

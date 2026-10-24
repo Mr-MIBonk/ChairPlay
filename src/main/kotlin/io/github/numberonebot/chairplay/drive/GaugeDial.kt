@@ -1,8 +1,10 @@
 package io.github.numberonebot.chairplay.drive
 
 import io.github.numberonebot.chairplay.drive.GaugeStyle.BLACK
+import io.github.numberonebot.chairplay.drive.GaugeStyle.BOLD
+import io.github.numberonebot.chairplay.drive.GaugeStyle.CAPTION
 import io.github.numberonebot.chairplay.drive.GaugeStyle.EDGE
-import io.github.numberonebot.chairplay.drive.GaugeStyle.GREY
+import io.github.numberonebot.chairplay.drive.GaugeStyle.REGULAR
 import io.github.numberonebot.chairplay.drive.GaugeStyle.HUB
 import io.github.numberonebot.chairplay.drive.GaugeStyle.HUB_FILL
 import io.github.numberonebot.chairplay.drive.GaugeStyle.ITALIC
@@ -58,8 +60,9 @@ internal class GaugeDial(private val pen: NanoPen, private val accent: Int) {
         pen.fill(HUB_FILL)
         nvgStrokeWidth(vg, 1.5f)
         pen.stroke(EDGE)
-        pen.text(digits, cx, cy - face * 0.05f, face * 0.28f, WHITE, WIDE)
-        pen.text(unit, cx, cy + face * 0.21f, face * 0.08f, GREY, WIDE)
+        // The reading in the hub's very middle, its unit below.
+        pen.text(digits, cx, cy, face * 0.336f, WHITE, BOLD)
+        pen.text(unit, cx, cy + face * 0.235f, face * 0.096f, CAPTION, REGULAR)
     }
 
     /** The red zone's start, dashed from [from] to [to]: dashes and gaps of even length, a dash at each end. */
@@ -94,7 +97,7 @@ internal class GaugeDial(private val pen: NanoPen, private val accent: Int) {
         val dx = cos(angle).toFloat()
         val dy = sin(angle).toFloat()
         val base = face * (HUB + 0.02f)
-        val tip = face * 0.93f
+        val tip = face * TICKS_TO
         nvgLineCap(vg, NVG_ROUND)
         nvgBeginPath(vg)
         nvgMoveTo(vg, cx + dx * base, cy + dy * base)
@@ -119,7 +122,8 @@ internal class GaugeDial(private val pen: NanoPen, private val accent: Int) {
         const val DASH = 0.03f
         val RED_ZONE = 0xD9000000.toInt() or (RED and 0xFFFFFF)
         /** Where the ticks run in the face's radius: short, to leave the numbers room. */
-        const val TICKS_TO = 0.905f
+        // As far inside the band as the band is inside the knurled ring.
+        const val TICKS_TO = 0.95f
         const val MAJOR_FROM = TICKS_TO - 0.16f / 3
         const val MIDDLE_FROM = TICKS_TO - 0.09f / 3
         const val FINE_FROM = TICKS_TO - 0.018f
@@ -127,13 +131,15 @@ internal class GaugeDial(private val pen: NanoPen, private val accent: Int) {
         const val LABEL_GAP = 0.35f
         const val HALF_CAP = 0.36f
         /** The numbers' black outline, in their size. */
-        const val OUTLINE = 0.06f
+        const val OUTLINE = 0.11f
     }
 }
 
 /** What the gauges share: their fonts, their face and hub, and their colours, the controls window's knob's among them. */
 internal object GaugeStyle {
+    const val REGULAR = "wide-regular"
     const val WIDE = "wide"
+    const val BOLD = "wide-bold"
     const val ITALIC = "wide-italic"
     /** The face inside the bezel, and the hub in the face, in their radii. */
     const val FACE = 0.92f
@@ -142,9 +148,12 @@ internal object GaugeStyle {
     const val BLACK = 0xFF000000.toInt()
     const val WHITE = 0xFFFFFFFF.toInt()
     const val GREY = 0xFF9A9AA0.toInt()
+    /** The hubs' units and the coordinates: a darker grey than the scale's numbers. */
+    const val CAPTION = 0xFF6E6E75.toInt()
     const val LABEL = 0xFFD1D1D6.toInt()
     const val TICK = 0xFF8E8E93.toInt()
     const val RED = 0xFFFF453A.toInt()
+    const val GREEN = 0xFF30D158.toInt()
     // The controls window's knob: --panel, --edge and the pad's light.
     const val PANEL = 0xFF111113.toInt()
     const val EDGE = 0xFF3A3A3F.toInt()

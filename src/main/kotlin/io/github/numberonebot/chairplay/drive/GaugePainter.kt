@@ -1,12 +1,15 @@
 package io.github.numberonebot.chairplay.drive
 
 import io.github.numberonebot.chairplay.drive.GaugeStyle.BLACK
+import io.github.numberonebot.chairplay.drive.GaugeStyle.BOLD
+import io.github.numberonebot.chairplay.drive.GaugeStyle.CAPTION
+import io.github.numberonebot.chairplay.drive.GaugeStyle.REGULAR
+import io.github.numberonebot.chairplay.drive.GaugeStyle.GREEN
 import io.github.numberonebot.chairplay.drive.GaugeStyle.EDGE
 import io.github.numberonebot.chairplay.drive.GaugeStyle.FACE
 import io.github.numberonebot.chairplay.drive.GaugeStyle.FACE_LIGHT
 import io.github.numberonebot.chairplay.drive.GaugeStyle.HUB_FILL
 import io.github.numberonebot.chairplay.drive.GaugeStyle.ITALIC
-import io.github.numberonebot.chairplay.drive.GaugeStyle.LABEL
 import io.github.numberonebot.chairplay.drive.GaugeStyle.OPAQUE
 import io.github.numberonebot.chairplay.drive.GaugeStyle.PANEL
 import io.github.numberonebot.chairplay.drive.GaugeStyle.RED
@@ -21,7 +24,6 @@ import org.lwjgl.nanovg.NanoVGGL3.nvgDelete
 import java.nio.ByteBuffer
 import java.util.Locale
 import kotlin.math.PI
-import kotlin.math.acos
 import kotlin.math.roundToInt
 
 /**
@@ -65,7 +67,8 @@ class GaugePainter(
             return nvgCreateFontMem(vg, name, buffer, false) >= 0
         }
         val made = NanoPen(vg)
-        made.fonts = font(WIDE, "RobotoFlexWide-SemiBold.ttf") && font(ITALIC, "RobotoFlexWide-ExtraBoldItalic.ttf")
+        made.fonts = font(REGULAR, "RobotoFlexWide-Regular.ttf") && font(WIDE, "RobotoFlexWide-SemiBold.ttf") &&
+            font(BOLD, "RobotoFlexWide-ExtraBold.ttf") && font(ITALIC, "RobotoFlexWide-ExtraBoldItalic.ttf")
         if (!made.fonts) log("gauges: the fonts are missing from the app; the gauges draw no numbers")
         pen = made
         dial = GaugeDial(made, accent)
@@ -100,15 +103,15 @@ class GaugePainter(
             well(pen, left, cy, r, face)
             // The tachometer's single digits half as large again as the speedometer's three.
             dial.draw(left, cy, face, now.tachometer, LABEL_SIZE * 1.5f, now.rpm / 1000, now.gear, "×1000 rpm")
-            place(pen, left, cy + face * 0.62f, face * 0.27f, now.position)
+            place(pen, left, cy + face * 0.6f, face * 0.3f, now.position, now.headingDegrees)
         }
         moving(pen.vg, frame, right, cy) {
             well(pen, right, cy, r, face)
             dial.draw(right, cy, face, now.speedometer, LABEL_SIZE, now.speedKmh, now.speedKmh.roundToInt().toString(), "km/h")
             // Under the speed the wheel, turned to where the car faces, and beside it both pedals, the throttle over the brake.
-            wheel(pen, right - face * 0.22f, cy + face * 0.76f, face * 0.14f, now.headingDegrees)
-            pedalBar(pen, right + face * 0.18f, cy + face * 0.71f, face * 0.38f, face * 0.04f, now.throttle, OPAQUE or accent)
-            pedalBar(pen, right + face * 0.18f, cy + face * 0.81f, face * 0.38f, face * 0.04f, now.brake, RED)
+            wheel(pen, right - face * 0.2f, cy + face * 0.76f, face * 0.112f, now.headingDegrees)
+            pedalBar(pen, right + face * 0.18f, cy + face * 0.72f, face * 0.38f, face * 0.025f, now.throttle, GREEN)
+            pedalBar(pen, right + face * 0.18f, cy + face * 0.80f, face * 0.38f, face * 0.025f, now.brake, RED)
         }
         nvgEndFrame(pen.vg)
     }
@@ -194,15 +197,17 @@ class GaugePainter(
     }
 
     /**
-     * Where the car is, latitude over longitude, on a black panel set into the face, centred on [centerX] below [y]: as
-     * wide as its lines with the room at their sides they have above and below, shaded inside from the top, and edged
-     * as the hubs are.
+     * Where the car is and faces, latitude over longitude over the heading with its compass point, on a black panel set
+     * into the face, centred on [centerX] below [y]: as wide as its lines with the room at their sides they have above
+     * and below, shaded inside from the top, and edged as the hubs are.
      */
-    private fun place(pen: NanoPen, centerX: Float, y: Float, height: Float, position: GeoPoint) {
+    private fun place(pen: NanoPen, centerX: Float, y: Float, height: Float, position: GeoPoint, headingDegrees: Double) {
         val vg = pen.vg
-        val size = height * 0.32f
-        val lines = listOf(position.latitude, position.longitude).map { String.format(Locale.ROOT, "%.5f", it) }
-        val width = lines.maxOf { pen.textWidth(it, size, WIDE) } + height * 0.36f
+        val size = height * 0.24f
+        val degrees = headingDegrees.roundToInt() % 360
+        val point = COMPASS_POINTS[((degrees + 22.5) / 45).toInt() % COMPASS_POINTS.size]
+        val lines = listOf(position.latitude, position.longitude).map { String.format(Locale.ROOT, "%.5f", it) } + "$degrees° $point"
+        val width = lines.maxOf { pen.textWidth(it, size, REGULAR) } + height * 0.26f
         val x = centerX - width / 2
         val corner = height * 0.18f
         nvgBeginPath(vg)
@@ -214,43 +219,42 @@ class GaugePainter(
         // Edged as the hubs are.
         nvgStrokeWidth(vg, 1.5f)
         pen.stroke(EDGE)
-        pen.text(lines[0], centerX, y + height * 0.3f, size, LABEL, WIDE)
-        pen.text(lines[1], centerX, y + height * 0.72f, size, LABEL, WIDE)
+        // A shade below the even thirds: the font's middle sits a little above its digits' middle.
+        for ((i, line) in lines.withIndex()) pen.text(line, centerX, y + height * (0.24f + 0.29f * i), size, CAPTION, REGULAR)
     }
 
-    /** A pedal's travel: a dark track, filled as far as the pedal is pressed. */
+    /** A pedal's travel: a dark track edged as the wheel is, filled as far as the pedal is pressed. */
     private fun pedalBar(pen: NanoPen, cx: Float, cy: Float, width: Float, height: Float, pressed: Double, rgb: Int) {
         val vg = pen.vg
         nvgBeginPath(vg)
         nvgRoundedRect(vg, cx - width / 2, cy - height / 2, width, height, height / 2)
         pen.fill(TRACK)
-        if (pressed <= 0) return
+        if (pressed > 0) {
+            nvgBeginPath(vg)
+            nvgRoundedRect(vg, cx - width / 2, cy - height / 2, maxOf(height, width * pressed.toFloat()), height, height / 2)
+            pen.fill(rgb)
+        }
         nvgBeginPath(vg)
-        nvgRoundedRect(vg, cx - width / 2, cy - height / 2, maxOf(height, width * pressed.toFloat()), height, height / 2)
-        pen.fill(rgb)
+        nvgRoundedRect(vg, cx - width / 2, cy - height / 2, width, height, height / 2)
+        nvgStrokeWidth(vg, 1.25f)
+        pen.stroke(WHEEL_EDGE)
     }
 
     /**
-     * The heading as a schematic three-spoke sports wheel, dark and thin, its red centre mark pointing where the car
-     * faces with north up: a rim cut flat at the bottom, spokes to the left, the right and down to the flat, and a broad
-     * pad, each edged a shade lighter to stand off the face.
+     * The heading as a schematic three-spoke wheel, dark and thin, its red centre mark pointing where the car faces with
+     * north up: a round rim, spokes to the left, the right and down, and a broad pad, each edged a shade lighter to
+     * stand off the face.
      */
     private fun wheel(pen: NanoPen, cx: Float, cy: Float, radius: Float, headingDegrees: Double) {
         val vg = pen.vg
         val turn = Math.toRadians(headingDegrees)
         val rim = radius * 0.86f
         val thick = radius * 0.13f
-        // Half the angle the flat bottom cuts from the rim, about straight down.
-        val flat = acos(WHEEL_FLAT.toDouble())
         fun shape(widen: Float, argb: Int) {
             nvgLineCap(vg, NVG_ROUND)
-            nvgLineJoin(vg, NVG_ROUND)
             nvgBeginPath(vg)
-            val from = PI / 2 + flat + turn
-            nvgArc(vg, cx, cy, rim, from.toFloat(), (from + 2 * PI - 2 * flat).toFloat(), NVG_CW)
-            nvgClosePath(vg)
-            for (spoke in listOf(0.0, PI)) pen.ray(cx, cy, spoke + turn, radius * 0.3f, rim)
-            pen.ray(cx, cy, PI / 2 + turn, radius * 0.3f, rim * WHEEL_FLAT)
+            nvgCircle(vg, cx, cy, rim)
+            for (spoke in listOf(0.0, PI / 2, PI)) pen.ray(cx, cy, spoke + turn, radius * 0.3f, rim)
             nvgStrokeWidth(vg, thick + widen)
             pen.stroke(argb)
             nvgBeginPath(vg)
@@ -268,6 +272,7 @@ class GaugePainter(
         /** The speedometer's numbers, in the face's radius. */
         const val LABEL_SIZE = 0.13f
         const val RIDGES = 180
+        val COMPASS_POINTS = listOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
         /** How large the wells are as they start coming and as they are gone. */
         const val COME_SCALE = 1.6f
         /** The rim's edges and its crest: dark steel lit to a soft grey. */
@@ -276,7 +281,5 @@ class GaugePainter(
         /** The heading wheel and its edge. */
         const val WHEEL = 0xFF1C1C1F.toInt()
         const val WHEEL_EDGE = 0xFF55555C.toInt()
-        /** Where the wheel's flat bottom cuts the rim, in its radius below the centre. */
-        const val WHEEL_FLAT = 0.72f
     }
 }

@@ -35,7 +35,7 @@ class Driving(
         drive = Drive(settings.car, place?.first ?: GeoPoint(0.0, 0.0), place?.second ?: settings.headingDegrees, nanoTime)
     }
 
-    val control = DriveControl(drive, gamepad, onStopped = ::remember)
+    val control = DriveControl(drive, gamepad, onStopped = ::remember, nanoTime = nanoTime)
 
     @Volatile private var link: DriveLocation? = null
 

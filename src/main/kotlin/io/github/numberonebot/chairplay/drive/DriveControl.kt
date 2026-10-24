@@ -12,9 +12,16 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
 import kotlin.math.sign
 
-/** The arrows in drive mode: Up the throttle, Down the brake, Left and Right the wheel, each all the way. */
-class DriveKeys {
+/**
+ * The arrows in drive mode: Up the throttle, Down the brake, Left and Right the wheel, each pressed in smoothly, all
+ * the way over [PRESS_SECONDS] held and back over [RELEASE_SECONDS] let go, as a foot or a hand would.
+ */
+class DriveKeys(private val nanoTime: () -> Long = System::nanoTime) {
     private val down = HashSet<Int>()
+    private var throttle = 0.0
+    private var brake = 0.0
+    private var steer = 0.0
+    private var lastNanos: Long? = null
 
     /**
      * Takes a plain arrow's press, repeat or release; false for any other key, which stays the app's, for an arrow with
@@ -29,18 +36,42 @@ class DriveKeys {
         return true
     }
 
-    fun input() = CarInput(
-        throttle = if (GLFW_KEY_UP in down) 1.0 else 0.0,
-        brake = if (GLFW_KEY_DOWN in down) 1.0 else 0.0,
-        steer = (if (GLFW_KEY_RIGHT in down) 1.0 else 0.0) - (if (GLFW_KEY_LEFT in down) 1.0 else 0.0),
-    )
+    /** The pedals and the wheel now, each moved on toward where the arrows held put it since the last call. */
+    fun input(): CarInput {
+        val now = nanoTime()
+        // A stalled loop's gap counts as no more than a short press.
+        val seconds = lastNanos?.let { ((now - it) / 1e9).coerceIn(0.0, MAX_GAP_SECONDS) } ?: 0.0
+        lastNanos = now
+        throttle = toward(throttle, if (GLFW_KEY_UP in down) 1.0 else 0.0, seconds)
+        brake = toward(brake, if (GLFW_KEY_DOWN in down) 1.0 else 0.0, seconds)
+        steer = toward(steer, (if (GLFW_KEY_RIGHT in down) 1.0 else 0.0) - (if (GLFW_KEY_LEFT in down) 1.0 else 0.0), seconds)
+        return CarInput(throttle, brake, steer)
+    }
 
-    /** Lets go of every arrow, as drive mode ends. */
-    fun release() = down.clear()
+    /** Lets go of every arrow at once, as drive mode ends; the time until it starts again counts for nothing. */
+    fun release() {
+        down.clear()
+        lastNanos = null
+        throttle = 0.0
+        brake = 0.0
+        steer = 0.0
+    }
 
-    private companion object {
-        val ARROWS = setOf(GLFW_KEY_UP, GLFW_KEY_DOWN, GLFW_KEY_LEFT, GLFW_KEY_RIGHT)
-        const val MODIFIERS = GLFW_MOD_SHIFT or GLFW_MOD_CONTROL or GLFW_MOD_ALT
+    // Further from the middle at the pressing pace, back toward it at the letting-go one.
+    private fun toward(value: Double, aim: Double, seconds: Double): Double {
+        val pace = if (abs(aim) > abs(value)) PRESS_SECONDS else RELEASE_SECONDS
+        val step = seconds / pace
+        val moved = value + (aim - value).coerceIn(-step, step)
+        // A hair short, from a clock's rounding, is there.
+        return if (abs(aim - moved) < 1e-6) aim else moved
+    }
+
+    companion object {
+        const val PRESS_SECONDS = 0.3
+        const val RELEASE_SECONDS = 0.15
+        private const val MAX_GAP_SECONDS = 0.5
+        private val ARROWS = setOf(GLFW_KEY_UP, GLFW_KEY_DOWN, GLFW_KEY_LEFT, GLFW_KEY_RIGHT)
+        private const val MODIFIERS = GLFW_MOD_SHIFT or GLFW_MOD_CONTROL or GLFW_MOD_ALT
     }
 }
 
@@ -66,7 +97,7 @@ fun combined(a: CarInput, b: CarInput) = CarInput(
 private const val AXIS_LEFT_X = 0
 private const val AXIS_LEFT_TRIGGER = 4
 private const val AXIS_RIGHT_TRIGGER = 5
-private const val STICK_DEAD_ZONE = 0.15
+private const val STICK_DEAD_ZONE = 0.1
 private const val TRIGGER_DEAD_ZONE = 0.02
 
 /**
@@ -78,9 +109,10 @@ class DriveControl(
     private val drive: Drive,
     gamepad: () -> FloatArray?,
     private val onStopped: (DriveSnapshot) -> Unit = {},
+    nanoTime: () -> Long = System::nanoTime,
 ) {
     private val readGamepad = gamepad
-    private val keys = DriveKeys()
+    private val keys = DriveKeys(nanoTime)
     private var wasMoving = false
     // Drive mode as another thread (the GPS page's) asks for it, put in force on the next pass.
     private val keyboardRequest = AtomicReference<Boolean?>()
