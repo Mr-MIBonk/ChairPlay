@@ -203,7 +203,22 @@ class HudPainter(
         nvgTextAlign(vg, align or NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, rgba(rgb))
         nvgText(vg, x, y, text)
-        return nvgTextBounds(vg, 0f, 0f, text, null as java.nio.FloatBuffer?)
+        return bounds(text, size, font)
+    }
+
+    /**
+     * How wide [text] is at [size] in [font], as drawn at scale 1. NanoVG measures at the size the current transform
+     * draws it, in whole pixels, so under a scale (the HUD's blocks fitting between the GPS car's wells, or rising from
+     * the dark) a width measured in the transform wobbles from frame to frame, and a line fitted by it jumps.
+     */
+    private fun bounds(text: String, size: Float, font: String): Float {
+        nvgSave(vg)
+        nvgResetTransform(vg)
+        nvgFontFace(vg, font)
+        nvgFontSize(vg, size)
+        val width = nvgTextBounds(vg, 0f, 0f, text, null as java.nio.FloatBuffer?)
+        nvgRestore(vg)
+        return width
     }
 
     internal fun centred(text: String, x: Float, y: Float, size: Float, rgb: Int, font: String = REGULAR) {
@@ -213,26 +228,20 @@ class HudPainter(
     /** The largest size from [size] down to [smallest] at which [text] fits [width]; [smallest] if none does. */
     internal fun fitSize(text: String, width: Float, size: Float, smallest: Float, font: String): Float {
         if (!fonts || text.isEmpty()) return size
-        nvgFontFace(vg, font)
-        nvgFontSize(vg, size)
-        val measured = nvgTextBounds(vg, 0f, 0f, text, null as java.nio.FloatBuffer?)
+        val measured = bounds(text, size, font)
         return if (measured <= width) size else (size * width / measured).coerceAtLeast(smallest)
     }
 
     /** How wide [text] is at [size] in [font]. */
     internal fun measure(text: String, size: Float, font: String): Float {
         if (!fonts || text.isEmpty()) return 0f
-        nvgFontFace(vg, font)
-        nvgFontSize(vg, size)
-        return nvgTextBounds(vg, 0f, 0f, text, null as java.nio.FloatBuffer?)
+        return bounds(text, size, font)
     }
 
     /** [text] cut with an ellipsis to [width] at [size]. */
     internal fun fit(text: String, width: Float, size: Float, font: String): String {
         if (!fonts) return text
-        nvgFontFace(vg, font)
-        nvgFontSize(vg, size)
-        fun measure(s: String) = nvgTextBounds(vg, 0f, 0f, s, null as java.nio.FloatBuffer?)
+        fun measure(s: String) = bounds(s, size, font)
         if (measure(text) <= width) return text
         // The longest start that fits with the ellipsis, found by halving: a few measures, not one per character.
         var low = 0

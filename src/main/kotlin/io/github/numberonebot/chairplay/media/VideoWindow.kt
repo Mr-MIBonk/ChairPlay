@@ -300,7 +300,7 @@ class VideoWindow(
         // Windows applies it to edge drags only, so a maximized window still fills the screen.
         aspect?.let { glfwSetWindowAspectRatio(window, it.width, it.height) }
         if (restore != null) glfwSetWindowPos(window, restore.x, restore.y)
-        TitleBar.paintBlack(glfwGetWin32Window(window))
+        TitleBar.paint(glfwGetWin32Window(window), dialog = !resizable)
         // A remembered or configured size below it grows to it here. It scales with the monitor, as the web view's
         // pages do, and follows the window to a monitor of another scale.
         // A window that keeps the picture's shape stops at the smallest size of that shape covering the minimum, so

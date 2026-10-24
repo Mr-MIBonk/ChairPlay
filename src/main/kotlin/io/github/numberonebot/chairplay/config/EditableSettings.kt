@@ -157,8 +157,16 @@ object EditableSettings {
             if (areaKey(view) in errors || keys.any { it in errors }) continue
             val area = (value(areaKey(view))?.let(AreaPreset::of) ?: defaultArea(view)).area(width, height)
             val (top, bottom, left, right) = keys.map { value(it)?.toIntOrNull() ?: 0 }
-            if (top + bottom < area.height && left + right < area.width) continue
-            errors[keys.firstOrNull { it in changes } ?: keys.first()] = "Leave some of the area inside the margins"
+            val across = left + right >= area.width
+            val down = top + bottom >= area.height
+            if (!across && !down) continue
+            // On what made them too wide: a side of the axis that fails changed, else the part, else the frame's size.
+            val sides = (if (across) listOf("left", "right") else emptyList()) + (if (down) listOf("top", "bottom") else emptyList())
+            val blamed = sides.map { safeKey(view, it) }.firstOrNull { it in changes }
+                ?: areaKey(view).takeIf { it in changes }
+                ?: listOfNotNull("altscreen.width".takeIf { across }, "altscreen.height".takeIf { down }).firstOrNull { it in changes }
+                ?: safeKey(view, sides.first())
+            errors[blamed] = "Leave some of the area inside the margins"
         }
     }
 

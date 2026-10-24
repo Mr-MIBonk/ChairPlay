@@ -170,6 +170,16 @@ class WindowPlacementTest {
         assertEquals(AltscreenContent.CARD to AltscreenCards.AUTO, view.load(AltscreenContent.CARD, AltscreenCards.AUTO))
     }
 
+    // The view of the iPhone's picked last, F11's other one from the HUD, is remembered too; none before one is picked.
+    @Test
+    fun `the AltScreen's last map view is remembered`() {
+        val dir = Files.createTempDirectory("chairplay-window")
+        val view = AltscreenViewStore(dir)
+        assertEquals(null, view.loadMapView())
+        view.save(AltscreenContent.HUD, AltscreenCards.TOP, AltscreenContent.MAP to AltscreenCards.TOP, mapView = AltscreenContent.MAP_CARD)
+        assertEquals(AltscreenContent.MAP_CARD, view.loadMapView())
+    }
+
     @Test
     fun `without a remembered view the settings apply`() {
         assertEquals(

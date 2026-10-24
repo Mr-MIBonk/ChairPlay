@@ -64,6 +64,11 @@ internal class AltscreenView(
     @Volatile
     private var cards = config.altscreen?.cards ?: AltscreenCards.TOP
 
+    // The view of the iPhone's picked last, F11's other one from the HUD.
+    @Volatile
+    private var mapView = AltscreenViewStore(dir).loadMapView()
+        ?: config.altscreen?.content?.takeIf { it != AltscreenContent.HUD } ?: AltscreenContent.MAP
+
     /**
      * The HUD demo playing (HudDemo), by its kind ("maneuvers" or "lanes"): CHAIRPLAY_HUD_DEMO starts one, the
      * Experiments page plays and stops them. The AltScreen shows the HUD, with the demo's made-up route, while one plays.
@@ -134,7 +139,7 @@ internal class AltscreenView(
             if (session != null) log("altscreen ${content.key}, cards ${cards.key}: $url ${if (seen) "showUI" else "stopUI"} sent=$sent")
             window.setTitle(altscreenTitle(alt.size, content, cards) + if (sent == false) " (not sent)" else "")
         }
-        runCatching { AltscreenViewStore(dir).save(content, cards, alt.configured) }
+        runCatching { AltscreenViewStore(dir).save(content, cards, alt.configured, mapView) }
             .onFailure { log("AltScreen view not saved: $it") }
         changed()
     }
@@ -147,16 +152,17 @@ internal class AltscreenView(
         if (on) window.setShown(true)
     }
 
-    /** F11 or a view chosen steps to another view, Shift+F11 moves the turn card: on the touch thread, with [session]. */
+    /** F11 switches the HUD and the view picked last, a view chosen shows, Shift+F11 moves the turn card: with [session]. */
     fun step(control: Control, session: AirPlaySession) {
         val content = content ?: return
         // Shift+F11 has a turn card to move on Map + card alone.
         if (control == Control.NextAltscreenCards && !content.placesCards) return
         when (control) {
-            Control.NextAltscreenContent -> this.content = content.next()
+            Control.NextAltscreenContent -> this.content = content.toggled(mapView)
             is Control.ShowAltscreenContent -> this.content = control.content
             else -> cards = cards.next()
         }
+        this.content?.takeIf { it != AltscreenContent.HUD }?.let { mapView = it }
         show(session)
     }
 

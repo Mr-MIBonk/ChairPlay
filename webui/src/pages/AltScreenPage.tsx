@@ -129,6 +129,12 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
           />
           <Changed keys={[areaKey]} pending={pending} />
         </Row>
+        {/* A part too narrow for the view's margins is refused here, not on a margin. */}
+        {settings.error(areaKey) && (
+          <Row>
+            <span className="errtext">{settings.error(areaKey)}</span>
+          </Row>
+        )}
         <Row className="hint-row">
           <span className="hint">
             HUD is a custom screen drawn from the route, song, and call data the iPhone sends, not from CarPlay's video

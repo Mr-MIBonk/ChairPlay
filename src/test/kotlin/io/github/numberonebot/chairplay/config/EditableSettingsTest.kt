@@ -128,6 +128,20 @@ class EditableSettingsTest {
             errorsAt("altscreen.card.area" to "full", "altscreen.card.safe.left" to "360", "altscreen.card.safe.right" to "360"))
     }
 
+    // The error goes on what made the margins too wide: a narrower part picked under margins already saved goes on the
+    // part, never on a margin that is zero; a margin changed goes on that side; a smaller frame on its size.
+    @Test
+    fun `margins left too wide are blamed on the part, the side, or the size that changed`() {
+        val wide = current + ("altscreen.width" to "1440") + ("altscreen.height" to "540") +
+            ("altscreen.map.area" to "full") + ("altscreen.map.safe.top" to "0") +
+            ("altscreen.map.safe.left" to "400") + ("altscreen.map.safe.right" to "400")
+        assertEquals(setOf("altscreen.map.area"), EditableSettings.validate(mapOf("altscreen.map.area" to "center4"), wide).keys)
+        assertEquals(setOf("altscreen.map.safe.right"),
+            EditableSettings.validate(mapOf("altscreen.map.safe.right" to "1100"), wide).keys)
+        assertEquals(setOf("altscreen.width"), EditableSettings.validate(mapOf("altscreen.width" to "800"), wide).keys)
+        assertEquals(emptyMap<String, String>(), EditableSettings.validate(mapOf("altscreen.map.safe.top" to "0"), wide))
+    }
+
     // The buffering pause and the fade are times, not pixels.
     @Test
     fun `the music's pause and fade are milliseconds`() {

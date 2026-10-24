@@ -107,12 +107,12 @@
   transform: rotate(166deg);
 }
 
-.controls-screen .key.wing:not(:disabled):hover {
+.controls-screen .key.wing:not(:disabled):not(.down):hover {
   color: var(--text);
   background: transparent;
 }
 
-.controls-screen .key.wing:not(:disabled):hover::before {
+.controls-screen .key.wing:not(:disabled):not(.down):hover::before {
   background: linear-gradient(150deg, #3a3a40, #27272c 50%, #1a1a1d);
 }
 

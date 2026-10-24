@@ -17,8 +17,8 @@ enum class AltscreenContent(val key: String, val cluster: CarPlayClusterDisplay.
     /** Whether altscreen.cards places anything in this view: Map + card's turn card; the others have none to place. */
     val placesCards: Boolean get() = this == MAP_CARD
 
-    /** F11's next view, in the order the controls window's buttons and the AltScreen page show them. */
-    fun next(): AltscreenContent = entries[(ordinal + 1) % entries.size]
+    /** F11's view after this one: the HUD goes to [mapView], the iPhone's view picked last; any other to the HUD. */
+    fun toggled(mapView: AltscreenContent): AltscreenContent = if (this == HUD) mapView else HUD
 }
 
 /**
@@ -46,7 +46,7 @@ fun altscreenUrl(content: AltscreenContent, cards: AltscreenCards): String =
  * which one is on. AltScreen is Apple's name for it (the altScreen feature and altScreenURLs).
  */
 fun altscreenTitle(stream: WindowSize, content: AltscreenContent, cards: AltscreenCards): String =
-    "ChairPlay AltScreen · ${stream.width}×${stream.height} · ${content.key} · cards ${cards.key}"
+    "AltScreen · ${stream.width}×${stream.height} · ${content.key} · cards ${cards.key}"
 
 /** The second CarPlay screen, a car's instrument cluster: the stream's [size] and what it starts with. */
 data class Altscreen(

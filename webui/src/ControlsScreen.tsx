@@ -129,7 +129,7 @@ function Knob(props: Shared & { onTurn: (forward: boolean) => void; zoom: boolea
       icon={icon}
       className={place}
       disabled={disabled}
-      disabledTitle="Show the AltScreen to zoom its map"
+      disabledTitle="Show Map or Map + card on the AltScreen to zoom its map"
     />
   )
   return (
@@ -156,7 +156,7 @@ function Knob(props: Shared & { onTurn: (forward: boolean) => void; zoom: boolea
 }
 
 /**
- * The controls window (207x430): the knob with its zoom and turns on top, the CarPlay, media, volume and call keys
+ * The controls window (207x416): the knob with its zoom and turns on top, the CarPlay, media, volume and call keys
  * under it. A button press reaches the app at once; the window keeps the keyboard, so the keys work as in the main
  * window, and Alt held there or here shows each button its key.
  */
@@ -186,9 +186,10 @@ export function ControlsScreen({ state, backend }: { state: AppState; backend: B
     keys: controls?.keys ?? {},
     showKeys: Boolean(controls?.altHeld || altHere || state.controlsKeys),
   }
-  // Only an AltScreen on screen has a map to zoom.
+  // Only an AltScreen on screen showing a map, Map or Map + card, has a map to zoom.
+  const view = controls?.altscreen ?? null
   const altOn =
-    (controls?.altscreen ?? null) !== null &&
+    (view === 'map' || view === 'map-card') &&
     state.windows.altscreen.available &&
     state.windows.altscreen.visible &&
     state.canShowCarPlay

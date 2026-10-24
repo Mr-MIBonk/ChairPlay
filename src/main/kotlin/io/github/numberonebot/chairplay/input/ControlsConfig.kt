@@ -31,7 +31,7 @@ enum class ControlAction(val key: String, val defaults: String, val description:
     SIRI("key.siri", "S", "Siri"),
     RECONNECT("key.reconnect", "Ctrl+R", "end the CarPlay session gracefully and connect again"),
     SCREENSHOT("key.screenshot", "F12", "save the CarPlay screen as a PNG in the screenshots folder"),
-    ALTSCREEN_CONTENT("key.altscreen.content", "F11", "show the AltScreen's next content: HUD, map, map with turn card, turn card"),
+    ALTSCREEN_CONTENT("key.altscreen.content", "F11", "switch the AltScreen between the HUD and the map view picked last"),
     ALTSCREEN_ZOOM_IN("key.altscreen.zoom.in", "Equal, Shift+Equal, KP_Add", "zoom the AltScreen map in"),
     ALTSCREEN_ZOOM_OUT("key.altscreen.zoom.out", "Minus, KP_Subtract", "zoom the AltScreen map out"),
     ALTSCREEN_CARDS("key.altscreen.cards", "Shift+F11", "move the AltScreen's ETA and turn card: auto, left, right, top"),

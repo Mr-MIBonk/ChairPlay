@@ -179,7 +179,7 @@ class HudDemoTest {
         assertEquals(1, events.map { it.route!!.nextManeuver!!.index to it.route!!.nextManeuver!!.typeCode }.toSet().size)
         // Far enough that the arrow stays quiet: no fill or blink to watch past the lanes.
         val m = hudState(events[0]).maneuver!!
-        assertEquals(ArrowProgress.OFF, arrowProgress(m.distanceMeters, m.next!!.distanceBetweenMeters, m.typeCode, 0))
+        assertEquals(ArrowProgress.OFF, arrowProgress(m.distanceMeters, m.next!!.distanceBetweenMeters, m.typeCode))
         // Every event is a new one for the bus and the renderer...
         val shown = events.filter { it.route!!.laneGuidanceShowing == true }
         assertEquals(shown.size, shown.map { it.route!!.laneGuidanceIndex }.toSet().size)

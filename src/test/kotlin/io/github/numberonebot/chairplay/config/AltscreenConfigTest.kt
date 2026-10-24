@@ -155,13 +155,12 @@ class AltscreenConfigTest {
         )
     }
 
-    // F11 steps through the views in the order the controls window and the AltScreen page show them.
+    // F11 switches between the HUD and the view of the iPhone's picked last, which stands as the AltScreen's other one.
     @Test
-    fun `F11 goes hud, map, map-card, card, as the buttons stand`() {
-        assertEquals(AltscreenContent.MAP, AltscreenContent.HUD.next())
-        assertEquals(AltscreenContent.MAP_CARD, AltscreenContent.MAP.next())
-        assertEquals(AltscreenContent.CARD, AltscreenContent.MAP_CARD.next())
-        assertEquals(AltscreenContent.HUD, AltscreenContent.CARD.next())
+    fun `F11 switches between the HUD and the view picked last`() {
+        assertEquals(AltscreenContent.MAP_CARD, AltscreenContent.HUD.toggled(AltscreenContent.MAP_CARD))
+        assertEquals(AltscreenContent.HUD, AltscreenContent.MAP.toggled(AltscreenContent.MAP_CARD))
+        assertEquals(AltscreenContent.HUD, AltscreenContent.CARD.toggled(AltscreenContent.MAP))
     }
 
     // The turn card's place (altscreen.cards, Shift+F11) is Map + card's alone: the map, the turn card alone, and the HUD

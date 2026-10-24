@@ -18,14 +18,17 @@ data class HudRect(val left: Float, val top: Float, val right: Float, val bottom
  */
 fun smallWellScale(width: Float, height: Float): Float {
     val song = mediaBlockWidth(mediaBox(width, height, 0f), height)
-    val edge = (width - song) / 2 - DRIVE_GAP * width
+    val edge = (width - song) / 2 - GaugeLayout.margin(height)
     return ((edge - GaugeLayout.margin(height)) / (2 * GaugeLayout.radius(width, height))).coerceIn(1f / 3, 1f)
 }
 
-/** The room between the wells: their free span less a gap at each side, within the HUD's margins top and bottom. */
+/**
+ * The room between the wells: their free span less a gap at each side as wide as the wells keep from the window's
+ * edges, within the HUD's margins top and bottom.
+ */
 fun driveStage(width: Float, height: Float, smallness: Float = 0f): HudRect {
     val (from, to) = GaugeLayout.between(width, height, smallness, smallWellScale(width, height))
-    val gap = DRIVE_GAP * width
+    val gap = GaugeLayout.margin(height)
     return HudRect(from + gap, HUD_PAD * height, to - gap, height - HUD_PAD * height)
 }
 
@@ -42,6 +45,3 @@ fun driveSlots(width: Float, height: Float, route: Float, media: Float, smallnes
 
 /** The scale that fits a block of [width] x [height] into [slot], keeping its shape; never above 1. */
 fun fitScale(width: Float, height: Float, slot: HudRect): Float = minOf(slot.width / width, slot.height / height, 1f)
-
-/** The gap between a well and the HUD's blocks, in the HUD's width. */
-private const val DRIVE_GAP = 0.01f

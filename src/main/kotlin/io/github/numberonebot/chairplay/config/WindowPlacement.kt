@@ -139,10 +139,24 @@ class AltscreenViewStore(private val dir: Path) {
         return savedContent to savedCards
     }
 
-    fun save(content: AltscreenContent, cards: AltscreenCards, configured: Pair<AltscreenContent, AltscreenCards>) {
+    /** The view of the iPhone's picked last, F11's other one from the HUD; null before one was picked. */
+    fun loadMapView(): AltscreenContent? {
+        val key = readWindowState(dir)?.getProperty(MAP_VIEW)?.trim() ?: return null
+        return AltscreenContent.entries.firstOrNull { it.key == key && it != AltscreenContent.HUD }
+    }
+
+    fun save(
+        content: AltscreenContent,
+        cards: AltscreenCards,
+        configured: Pair<AltscreenContent, AltscreenCards>,
+        mapView: AltscreenContent? = null,
+    ) {
         writeWindowState(
             dir,
-            listOf(CONTENT to content.key, CARDS to cards.key, SETTINGS to "${configured.first.key},${configured.second.key}"),
+            listOfNotNull(
+                CONTENT to content.key, CARDS to cards.key, SETTINGS to "${configured.first.key},${configured.second.key}",
+                mapView?.let { MAP_VIEW to it.key },
+            ),
         )
     }
 
@@ -150,6 +164,7 @@ class AltscreenViewStore(private val dir: Path) {
         const val CONTENT = "altscreen.view.content"
         const val CARDS = "altscreen.view.cards"
         const val SETTINGS = "altscreen.view.settings"
+        const val MAP_VIEW = "altscreen.view.map"
     }
 }
 

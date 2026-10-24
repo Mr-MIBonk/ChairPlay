@@ -13,7 +13,7 @@ import io.github.numberonebot.chairplay.config.fittedTo
 import io.github.numberonebot.chairplay.media.VideoWindow
 import java.nio.file.Path
 
-private val CONTROLS_SIZE = WindowSize(207, 430)
+private val CONTROLS_SIZE = WindowSize(207, 416)
 
 /**
  * The app's three windows, each opening where it was left (window.properties) and saving its place as it closes:
@@ -44,7 +44,7 @@ internal class AppWindows(dir: Path, config: DesktopConfig, mainTitle: String) {
         controls = run {
             val placements = WindowPlacementStore(dir, prefix = "controls.")
             VideoWindow(
-                CONTROLS_SIZE.width, CONTROLS_SIZE.height, placements.load(CONTROLS_SIZE), "ChairPlay Controls",
+                CONTROLS_SIZE.width, CONTROLS_SIZE.height, placements.load(CONTROLS_SIZE), "Controls",
                 resizable = false, hideOnClose = true,
                 shown = runCatching { controlsShown.load(default = config.controlsWindow) }.getOrDefault(config.controlsWindow),
                 pageSized = true,

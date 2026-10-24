@@ -177,6 +177,8 @@
   display: grid;
   grid-template-rows: repeat(4, 1fr);
   gap: 6px;
+  /* The window's whole width, where the knob above is centred */
+  justify-self: stretch;
 }
 
 .controls-screen .key-row {

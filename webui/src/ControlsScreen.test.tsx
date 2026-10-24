@@ -55,6 +55,26 @@ describe('ControlsScreen', () => {
     expect((screen.getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement).disabled).toBe(true)
   })
 
+  // Only a map zooms: Map and Map + card; the HUD and the turn card leave the zoom disabled.
+  it('zooms only a map', () => {
+    for (const [view, zooms] of [
+      ['map', true],
+      ['map-card', true],
+      ['hud', false],
+      ['card', false],
+    ] as const) {
+      const state = appState(live)
+      const { unmount } = render(
+        <ControlsScreen
+          state={{ ...state, controls: { ...state.controls!, altscreen: view } }}
+          backend={new FakeBackend()}
+        />,
+      )
+      expect((screen.getByRole('button', { name: 'Zoom in' }) as HTMLButtonElement).disabled).toBe(!zooms)
+      unmount()
+    }
+  })
+
   // Windows shows access keys while Alt is held; the buttons show theirs the same way.
   it('shows each button its key while Alt is held', () => {
     const state = appState(live)

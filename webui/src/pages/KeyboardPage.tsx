@@ -37,7 +37,7 @@ const GROUPS: [group: string, actions: [key: string, label: string, title?: stri
   [
     'AltScreen',
     [
-      ['key.altscreen.content', 'Next content', 'HUD, map, map and turn card, turn card'],
+      ['key.altscreen.content', 'HUD or map', 'Switch the AltScreen between the HUD and the map view picked last'],
       ['key.altscreen.cards', 'Move cards', 'Auto, left, right, top'],
       ['key.altscreen.zoom.in', 'Zoom in', 'Zoom the AltScreen map in'],
       ['key.altscreen.zoom.out', 'Zoom out', 'Zoom the AltScreen map out'],

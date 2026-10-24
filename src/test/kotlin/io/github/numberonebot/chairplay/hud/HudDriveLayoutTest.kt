@@ -42,6 +42,10 @@ class HudDriveLayoutTest {
             val (_, slot) = driveSlots(width, height, route = 0f, media = 1f, smallness = 1f)
             assertEquals("$width x $height", 1f, fitScale(mediaBlockWidth(alone, height), alone.cover, slot), 1e-3f)
             assertTrue(smallWellScale(width, height) < 1f)
+            // As far from the song as from the window's edges.
+            val wellEdge = GaugeLayout.between(width, height, 1f, smallWellScale(width, height)).first
+            val songLeft = (width - mediaBlockWidth(alone, height)) / 2
+            assertEquals("$width x $height", GaugeLayout.margin(height), songLeft - wellEdge, 1e-2f)
         }
     }
 

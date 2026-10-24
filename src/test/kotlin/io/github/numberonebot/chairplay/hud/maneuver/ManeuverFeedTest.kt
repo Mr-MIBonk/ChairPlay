@@ -32,29 +32,30 @@ class ManeuverFeedTest {
     @Test
     fun `a new maneuver is pushed once with its progress`() {
         val feed = ManeuverFeed()
-        val first = feed.update(hud(left), 0)
+        val first = feed.update(hud(left))
         assertEquals(listOf(0x01), first.commands())
         assertEquals(0, first[0][1].toInt() and 0x08)
         assertTrue(feed.showing)
-        assertEquals(emptyList<Int>(), feed.update(hud(left), 10).commands())
+        assertEquals(emptyList<Int>(), feed.update(hud(left)).commands())
     }
 
     @Test
     fun `a nearer distance sends only progress`() {
         val feed = ManeuverFeed()
-        feed.update(hud(left), 0)
-        val packets = feed.update(hud(left, distance = 75), 10)
+        feed.update(hud(left))
+        val packets = feed.update(hud(left, distance = 75))
         assertEquals(listOf(0x06), packets.commands())
         assertEquals(ArrowProgress.FILL, packets[0][4].toInt())
-        assertEquals(6, packets[0][2].toInt())
-        assertEquals(emptyList<Int>(), feed.update(hud(left, distance = 75), 20).commands())
+        // Half way along the bar: half the arrow.
+        assertEquals(8, packets[0][2].toInt())
+        assertEquals(emptyList<Int>(), feed.update(hud(left, distance = 75)).commands())
     }
 
     @Test
     fun `new roads for the same maneuver refresh it without a transition`() {
         val feed = ManeuverFeed()
-        feed.update(hud(left), 0)
-        val packets = feed.update(hud(left.copy(junctionAngles = listOf(-90, 0, 90))), 10)
+        feed.update(hud(left))
+        val packets = feed.update(hud(left.copy(junctionAngles = listOf(-90, 0, 90))))
         assertEquals(listOf(0x01), packets.commands())
         assertEquals(0x08, packets[0][1].toInt() and 0x08)
     }
@@ -62,9 +63,9 @@ class ManeuverFeedTest {
     @Test
     fun `the next maneuver is a new push`() {
         val feed = ManeuverFeed()
-        feed.update(hud(left), 0)
+        feed.update(hud(left))
         val right = left.copy(index = 4, typeCode = ManeuverType.RIGHT_TURN.code, exitAngle = 90)
-        val packets = feed.update(hud(right), 10)
+        val packets = feed.update(hud(right))
         assertEquals(listOf(0x01), packets.commands())
         assertEquals(0, packets[0][1].toInt() and 0x08)
     }
@@ -73,19 +74,19 @@ class ManeuverFeedTest {
     fun `arriving again with the same geometry does not restart the flag`() {
         val feed = ManeuverFeed()
         val arrive = Maneuver(index = 7, typeCode = ManeuverType.ARRIVE_AT_DESTINATION.code, junctionType = JunctionType.INTERSECTION)
-        feed.update(hud(arrive), 0)
-        assertEquals(emptyList<Int>(), feed.update(hud(arrive.copy(index = 8)), 10).commands())
+        feed.update(hud(arrive))
+        assertEquals(emptyList<Int>(), feed.update(hud(arrive.copy(index = 8))).commands())
     }
 
     @Test
     fun `the end of guidance, or a maneuver it cannot draw, clears it once`() {
         val feed = ManeuverFeed()
-        feed.update(hud(left), 0)
-        assertEquals(listOf(0x07), feed.update(null, 10).commands())
+        feed.update(hud(left))
+        assertEquals(listOf(0x07), feed.update(null).commands())
         assertFalse(feed.showing)
-        assertEquals(emptyList<Int>(), feed.update(null, 20).commands())
-        feed.update(hud(left), 30)
-        assertEquals(listOf(0x07), feed.update(hud(Maneuver(index = 9)), 40).commands())
+        assertEquals(emptyList<Int>(), feed.update(null).commands())
+        feed.update(hud(left))
+        assertEquals(listOf(0x07), feed.update(hud(Maneuver(index = 9))).commands())
         assertFalse(feed.showing)
     }
 
@@ -93,113 +94,66 @@ class ManeuverFeedTest {
     @Test
     fun `lanes go before the maneuver and again only when they change`() {
         val feed = ManeuverFeed()
-        val first = feed.update(hud(left, lanes = twoLanes), 0)
+        val first = feed.update(hud(left, lanes = twoLanes))
         assertEquals(listOf(0x0C, 0x0D, 0x0D, 0x0E, 0x01), first.commands())
-        assertEquals(emptyList<Int>(), feed.update(hud(left, lanes = twoLanes), 10).commands())
+        assertEquals(emptyList<Int>(), feed.update(hud(left, lanes = twoLanes)).commands())
 
         // New lanes for the same maneuver leave the arrow alone.
-        val changed = feed.update(hud(left, lanes = twoLanes.copy(index = 3)), 20)
+        val changed = feed.update(hud(left, lanes = twoLanes.copy(index = 3)))
         assertEquals(listOf(0x0C, 0x0D, 0x0D, 0x0E), changed.commands())
         // Each batch has a token of its own.
         assertNotEquals(first[0].copyOfRange(2, 6).toList(), changed[0].copyOfRange(2, 6).toList())
 
-        assertEquals(listOf(0x0C, 0x0E), feed.update(hud(left), 30).commands())
-        assertEquals(emptyList<Int>(), feed.update(hud(left), 40).commands())
+        assertEquals(listOf(0x0C, 0x0E), feed.update(hud(left)).commands())
+        assertEquals(emptyList<Int>(), feed.update(hud(left)).commands())
     }
 
     @Test
     fun `the feed knows whether the renderer draws lanes`() {
         val feed = ManeuverFeed()
         assertFalse(feed.showingLanes)
-        feed.update(hud(left, lanes = twoLanes), 0)
+        feed.update(hud(left, lanes = twoLanes))
         assertTrue(feed.showingLanes)
-        feed.update(hud(left), 10)
+        feed.update(hud(left))
         assertFalse(feed.showingLanes)
-        feed.update(hud(left, lanes = twoLanes), 20)
-        feed.update(null, 30)
+        feed.update(hud(left, lanes = twoLanes))
+        feed.update(null)
         assertFalse(feed.showingLanes)
     }
 
     @Test
     fun `without lanes nothing about lanes is sent`() {
-        assertEquals(listOf(0x01), ManeuverFeed().update(hud(left), 0).commands())
+        assertEquals(listOf(0x01), ManeuverFeed().update(hud(left)).commands())
     }
 
     // CLEAR also clears the renderer's lanes: a new route sends them again.
     @Test
     fun `lanes are sent again after the end of guidance`() {
         val feed = ManeuverFeed()
-        feed.update(hud(left, lanes = twoLanes), 0)
-        assertEquals(listOf(0x07), feed.update(null, 10).commands())
-        assertEquals(listOf(0x0C, 0x0D, 0x0D, 0x0E, 0x01), feed.update(hud(left, lanes = twoLanes), 20).commands())
+        feed.update(hud(left, lanes = twoLanes))
+        assertEquals(listOf(0x07), feed.update(null).commands())
+        assertEquals(listOf(0x0C, 0x0D, 0x0D, 0x0E, 0x01), feed.update(hud(left, lanes = twoLanes)).commands())
     }
 
     private val next = left.copy(index = 4, typeCode = ManeuverType.RIGHT_TURN.code, exitAngle = 90, junctionAngles = listOf(0, 90))
 
-    // The next maneuver waits for the arrow's white phase, so the blue never cuts off mid-blink.
+    // The arrow ends all blue at the maneuver; the next one goes out at once, whatever the arrow shows, its own arrow
+    // white from its start (unless it is near too), with its lanes before it.
     @Test
-    fun `a new maneuver waits for the blink's white phase`() {
-        val feed = ManeuverFeed()
-        // 20 of 150 m left: blinking, lit until 600 ms.
-        feed.update(hud(left, distance = 20), 0)
-        assertEquals(ArrowProgress(16, ArrowProgress.BLINK_HIGH), arrowProgress(20, 150, ManeuverType.LEFT_TURN.code, 0))
-        assertEquals(emptyList<Int>(), feed.update(hud(next), 100).commands())
-        assertEquals(600L, feed.nextChange(hud(next), 100))
-        // The blink goes white on its own clock...
-        val white = feed.update(hud(next), 600)
-        assertEquals(listOf(0x06), white.commands())
-        assertEquals(ArrowProgress.BLINK_LOW, white[0][4].toInt())
-        // ...and once the renderer has eased to it, the next maneuver slides in.
-        assertEquals(600L + ManeuverFeed.WHITE_SETTLE_MILLIS, feed.nextChange(hud(next), 600))
-        assertEquals(emptyList<Int>(), feed.update(hud(next), 700).commands())
-        assertEquals(listOf(0x01), feed.update(hud(next), 600 + ManeuverFeed.WHITE_SETTLE_MILLIS).commands())
+    fun `the next maneuver goes out at once, whatever the arrow shows`() {
+        val blue = ManeuverFeed()
+        blue.update(hud(left, distance = 1))
+        assertEquals(listOf(0x01), blue.update(hud(next)).commands())
+        val half = ManeuverFeed()
+        half.update(hud(left, distance = 75))
+        assertEquals(listOf(0x0C, 0x0D, 0x0D, 0x0E, 0x01), half.update(hud(next, lanes = twoLanes)).commands())
     }
 
     @Test
-    fun `a partly filled arrow turns white before the next maneuver`() {
+    fun `the end of guidance clears at once, and a route after it starts at once`() {
         val feed = ManeuverFeed()
-        feed.update(hud(left, distance = 75), 0)
-        val white = feed.update(hud(next), 100)
-        assertEquals(listOf(0x06), white.commands())
-        assertEquals(ArrowProgress.QUIET, white[0][4].toInt())
-        assertEquals(emptyList<Int>(), feed.update(hud(next), 200).commands())
-        assertEquals(listOf(0x01), feed.update(hud(next), 100 + ManeuverFeed.WHITE_SETTLE_MILLIS).commands())
-    }
-
-    @Test
-    fun `a white arrow hands over at once`() {
-        val feed = ManeuverFeed()
-        feed.update(hud(left), 0)
-        assertEquals(listOf(0x01), feed.update(hud(next), 100).commands())
-        val blinking = ManeuverFeed()
-        blinking.update(hud(left, distance = 20), 600)
-        assertEquals(listOf(0x01), blinking.update(hud(next), 700).commands())
-    }
-
-    @Test
-    fun `the next maneuver's lanes wait with it`() {
-        val feed = ManeuverFeed()
-        feed.update(hud(left, distance = 75), 0)
-        assertEquals(listOf(0x06), feed.update(hud(next, lanes = twoLanes), 100).commands())
-        assertEquals(listOf(0x0C, 0x0D, 0x0D, 0x0E, 0x01), feed.update(hud(next, lanes = twoLanes), 100 + ManeuverFeed.WHITE_SETTLE_MILLIS).commands())
-    }
-
-    @Test
-    fun `the end of guidance does not wait`() {
-        val feed = ManeuverFeed()
-        feed.update(hud(left, distance = 75), 0)
-        feed.update(hud(next), 100)
-        assertEquals(listOf(0x07), feed.update(null, 120).commands())
-        assertNull(feed.nextChange(null, 120))
-        // A route after it starts at once.
-        assertEquals(listOf(0x01), feed.update(hud(next), 130).commands())
-    }
-
-    @Test
-    fun `a blinking arrow wants a wake-up, a quiet one none`() {
-        val feed = ManeuverFeed()
-        assertNull(feed.nextChange(hud(left), 0))
-        assertEquals(600L, feed.nextChange(hud(left, distance = 20), 0))
-        assertNull(feed.nextChange(null, 0))
+        feed.update(hud(left, distance = 75))
+        assertEquals(listOf(0x07), feed.update(null).commands())
+        assertEquals(listOf(0x01), feed.update(hud(next)).commands())
     }
 }

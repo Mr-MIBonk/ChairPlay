@@ -12,9 +12,9 @@ import kotlin.math.abs
  * The animated maneuver in the HUD: the MHI2Q project's renderer ([ManeuverNative]) fed from the HUD's maneuver,
  * drawn into its texture and shown with NanoVG. Every call runs on the HUD window's GL thread, inside its paint.
  *
- * The window draws only when asked, so while a transition, a fill or a blink runs this asks [frames] for the next
- * frame: at [ACTIVE_FRAME_MILLIS] while something moves, at [FLAG_FRAME_MILLIS] while only the arrival flag waves,
- * and at the blink's next phase. When nothing moves it asks for nothing.
+ * The window draws only when asked, so while a transition or a fill runs this asks [frames] for the next frame: at
+ * [ACTIVE_FRAME_MILLIS] while something moves, at [FLAG_FRAME_MILLIS] while only the arrival flag waves. When nothing
+ * moves it asks for nothing.
  */
 class ManeuverView(private val frames: RepaintTimer?, private val log: (String) -> Unit = {}) {
     private val feed = ManeuverFeed()
@@ -36,7 +36,7 @@ class ManeuverView(private val frames: RepaintTimer?, private val log: (String) 
      */
     fun update(maneuver: HudManeuver?) {
         if (unavailable || texture == 0) return
-        for (packet in feed.update(maneuver, nowMillis())) ManeuverNative.command(packet)
+        for (packet in feed.update(maneuver)) ManeuverNative.command(packet)
     }
 
     /**
@@ -56,7 +56,6 @@ class ManeuverView(private val frames: RepaintTimer?, private val log: (String) 
             status and ManeuverNative.ANIMATING != 0 -> frames?.after(ACTIVE_FRAME_MILLIS)
             status and ManeuverNative.LOOPING != 0 -> frames?.after(FLAG_FRAME_MILLIS)
         }
-        feed.nextChange(maneuver, now)?.let { frames?.after(it - now) }
         if (feed.showingLanes != lanesShown) {
             lanesShown = feed.showingLanes
             lanesChangedAt = now
