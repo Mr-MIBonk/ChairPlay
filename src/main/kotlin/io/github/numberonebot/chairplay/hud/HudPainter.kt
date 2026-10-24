@@ -116,7 +116,8 @@ class HudPainter(
         // In the app's display face, as the main window's waiting screen says where the connection stands.
         emerging(shown.waiting, w / 2, h / 2) { centred(HUD_WAITING, w / 2, h / 2, 0.07f * h, GREY, WIDE) }
         // In drive mode the route and the song each lay out as alone, the route over the song between the wells.
-        val driving = ease(drive.update(now.drive, System.nanoTime()))
+        // On the wells' own curve, so the blocks move as the wells do.
+        val driving = GaugeMotion.eased(drive.update(now.drive, System.nanoTime()))
         val (routeSlot, mediaSlot) = driveSlots(w, h, shown.route, shown.media)
         val alone = routeBox(w, h, 0f)
         shownManeuver?.let { maneuver ->
@@ -126,9 +127,9 @@ class HudPainter(
             }
         }
         shownMedia?.let { song ->
-            val box = mediaBox(w, h, 0f)
-            fitted(driving, w, h, mediaBlockWidth(box, h), box.cover, mediaSlot) {
-                media(song, now, mediaBox(w, h, lerp(shown.mediaPlace, 0f, driving)), h, shown.media)
+            val narrow = driveMediaBox(mediaBox(w, h, 0f), h, 1f)
+            fitted(driving, w, h, mediaBlockWidth(narrow, h), narrow.cover, mediaSlot) {
+                media(song, now, driveMediaBox(mediaBox(w, h, lerp(shown.mediaPlace, 0f, driving)), h, driving), h, shown.media)
             }
         }
         shownCall?.let { call ->

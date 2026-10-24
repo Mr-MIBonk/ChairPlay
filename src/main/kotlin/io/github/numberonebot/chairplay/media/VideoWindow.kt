@@ -479,17 +479,17 @@ class VideoWindow(
             shown == null -> gl.clear(w[0], h[0])
             else -> gl.draw(shown, w[0], h[0])
         }
+        gl.dim(1f - minOf(cover?.brightness ?: 1f, content.brightness), w[0], h[0])
         topLayer?.let { top ->
             if (!topLayerOpen) {
                 top.open()
                 topLayerOpen = true
             }
-            // Over the whole window, not the picture's letterbox.
+            // Over the whole window, not the picture's letterbox, and after the dimming: a change of view fades under it.
             glViewport(0, 0, w[0], h[0])
             top.paint(w[0], h[0])
             gl.restore()
         }
-        gl.dim(1f - minOf(cover?.brightness ?: 1f, content.brightness), w[0], h[0])
         drawFrame(gl, w[0], h[0])
         val shot = screenshotRequest.getAndSet(null)
         if (shot != null && showsHud) {

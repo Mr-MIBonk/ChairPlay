@@ -1,7 +1,10 @@
 package io.github.numberonebot.chairplay
 
 import io.github.numberonebot.chairplay.drive.CarInput
+import io.github.numberonebot.chairplay.drive.DriveControl
 import io.github.numberonebot.chairplay.drive.Driving
+import io.github.numberonebot.chairplay.drive.GlfwGamepad
+import io.github.numberonebot.chairplay.input.GamepadControls
 import io.github.numberonebot.chairplay.media.VideoWindow
 import io.github.numberonebot.chairplay.ui.UiDriving
 
@@ -24,4 +27,15 @@ internal fun uiDriving(driving: Driving, window: VideoWindow, screenshots: () ->
     }
 
     override fun screenshot(): Boolean = true.also { screenshots() }
+}
+
+/**
+ * The window loop's pass, on the main thread: the GPS car's, then a gamepad's buttons as the knob and the AltScreen's
+ * zoom ([GamepadControls]) sent to [controls], the GPS on or off; a gamepad there is looked at now and then.
+ */
+internal fun windowPass(driving: Driving, controls: AppControls, buttons: GamepadControls = GamepadControls()): () -> Double? = {
+    val due = driving.pass()
+    val pad = GlfwGamepad.buttons()
+    buttons.pass(pad).forEach(controls::send)
+    listOfNotNull(due, pad?.let { DriveControl.GAMEPAD_POLL_SECONDS }).minOrNull()
 }

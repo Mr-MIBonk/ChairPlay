@@ -28,8 +28,8 @@ internal fun HudPainter.media(media: HudMedia, now: HudView, box: HudBox, h: Flo
  */
 internal fun mediaBlockWidth(box: HudBox, h: Float): Float = min(box.right - box.left, (0.9f * h * 1.4f + MEDIA_GAP * h + box.cover) * 0.8f)
 
-// 40 px on the 540 px AltScreen.
-private const val MEDIA_GAP = 0.074f
+/** The gap between the cover and the lines, in the HUD's height: 40 px on the 540 px AltScreen. */
+internal const val MEDIA_GAP = 0.074f
 
 /** One line of the song's text block: its [height], the [space] above it, and how it draws at its middle. */
 private class Row(val height: Float, val space: Float, val draw: (Float) -> Unit)

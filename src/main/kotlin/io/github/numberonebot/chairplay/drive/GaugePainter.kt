@@ -99,13 +99,12 @@ class GaugePainter(
         val left = margin + r
         val right = w - margin - r
         nvgBeginFrame(pen.vg, w, h, 1f)
-        moving(pen.vg, frame, left, cy) {
+        // Both wells come in and go out together, about the screen's middle.
+        moving(pen.vg, frame, w / 2, cy) {
             well(pen, left, cy, r, face)
             // The tachometer's single digits half as large again as the speedometer's three.
             dial.draw(left, cy, face, now.tachometer, LABEL_SIZE * 1.5f, now.rpm / 1000, now.gear, "×1000 rpm")
             place(pen, left, cy + face * 0.6f, face * 0.3f, now.position, now.headingDegrees)
-        }
-        moving(pen.vg, frame, right, cy) {
             well(pen, right, cy, r, face)
             dial.draw(right, cy, face, now.speedometer, LABEL_SIZE, now.speedKmh, now.speedKmh.roundToInt().toString(), "km/h")
             // Under the speed the wheel, turned to where the car faces, and beside it both pedals, the throttle over the brake.
@@ -117,12 +116,12 @@ class GaugePainter(
     }
 
     /**
-     * Draws the well at [cx], [cy] as [frame] has it: coming, it shrinks from large onto its place as it shows; leaving,
-     * the same backwards, growing as it fades.
+     * Draws [draw] as [frame] has it, scaled about [cx], [cy]: coming, it shrinks from large onto its place as it shows;
+     * leaving, the same backwards, growing as it fades.
      */
     private inline fun moving(vg: Long, frame: GaugeMotion.Frame, cx: Float, cy: Float, draw: () -> Unit) {
         val there = (if (frame.coming) frame.progress else 1 - frame.progress).toFloat()
-        val eased = 1 - (1 - there) * (1 - there) * (1 - there)
+        val eased = GaugeMotion.eased(there)
         val scale = COME_SCALE - (COME_SCALE - 1) * eased
         nvgSave(vg)
         nvgGlobalAlpha(vg, eased)

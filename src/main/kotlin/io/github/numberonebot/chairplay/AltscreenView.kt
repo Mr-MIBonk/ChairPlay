@@ -120,8 +120,10 @@ internal class AltscreenView(
                 return
             }
         }
-        // The window goes black before the iPhone is asked for the view, and stays so until the view is in.
-        window.showView(hud, url to seen) {
+        // Going to or from the HUD, or unseen, the window goes black before the iPhone is asked for the view, and stays so
+        // until the view is in. Between its own views the iPhone blurs from one to the next itself: the key leaves the
+        // URL out, so the window asks at once and shows the stream on.
+        window.showView(hud, seen) {
             val sent = session?.let { ui.tell(AltscreenUi.of(it), url, seen, key = it) }
             // A view stopped leaves no picture to come back to: the next one waits on black for the iPhone's.
             if (!seen) window.clearPicture()

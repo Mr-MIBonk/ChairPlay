@@ -41,5 +41,11 @@ class GaugeMotion(private val nanoTime: () -> Long = System::nanoTime) {
     companion object {
         const val IN_SECONDS = 0.45
         const val OUT_SECONDS = 0.4
+
+        /**
+         * How far in the wells look at [there] (0 gone, 1 in place, linear in time): quick from the start and settling,
+         * cubic. The HUD's blocks follow the same curve as they make room for the wells.
+         */
+        fun eased(there: Float): Float = 1 - (1 - there) * (1 - there) * (1 - there)
     }
 }
