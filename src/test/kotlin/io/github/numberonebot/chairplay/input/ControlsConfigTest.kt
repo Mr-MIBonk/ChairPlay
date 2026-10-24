@@ -43,10 +43,10 @@ class ControlsConfigTest {
 
     @Test
     fun `keys are named with modifiers, raw codes, or left empty to disable`() {
-        val loaded = ControlsConfig.load(dirWith("key.siri = Ctrl+S, f10", "key.home =", "key.media.next = #290", "key.select = kp_enter"))
+        val loaded = ControlsConfig.load(dirWith("key.siri = Ctrl+S, f6", "key.home =", "key.media.next = #290", "key.select = kp_enter"))
 
         assertEquals(ControlAction.SIRI, loaded.bindings[KeyBinding(GLFW_KEY_S, GLFW_MOD_CONTROL)])
-        assertEquals(ControlAction.SIRI, loaded.bindings[KeyBinding(GLFW_KEY_F10, 0)])
+        assertEquals(ControlAction.SIRI, loaded.bindings[KeyBinding(GLFW_KEY_F6, 0)])
         assertNull(loaded.bindings[KeyBinding(GLFW_KEY_S, 0)])
         assertTrue(ControlAction.HOME !in loaded.bindings.values)
         assertEquals(ControlAction.MEDIA_NEXT, loaded.bindings[KeyBinding(GLFW_KEY_F1, 0)])
@@ -147,6 +147,17 @@ class ControlsConfigTest {
 
     @Test
     fun `the summary counts bound actions and names the wheel mode`() {
-        assertEquals("controls: 24 actions, wheel=knob", ControlsConfig.DEFAULT.summary())
+        assertEquals("controls: 25 actions, wheel=knob", ControlsConfig.DEFAULT.summary())
+    }
+
+    // A file written before an action existed may give its default key to another: the file's binding stays, and the
+    // new action has no key until the file gives it one, rather than the start stopping.
+    @Test
+    fun `a default key the file gives to another action stays with it`() {
+        val loaded = ControlsConfig.load(dirWith("key.siri = F10"))
+
+        assertEquals(ControlAction.SIRI, loaded.bindings[KeyBinding(GLFW_KEY_F10, 0)])
+        assertTrue(ControlAction.DRIVE !in loaded.bindings.values)
+        assertEquals(emptyList<String>(), loaded.keys(ControlAction.DRIVE))
     }
 }

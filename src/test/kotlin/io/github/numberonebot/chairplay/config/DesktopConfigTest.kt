@@ -3,6 +3,9 @@ package io.github.numberonebot.chairplay.config
 import com.shilapi.xcertplay.airplay.AirPlayInfoPlist
 import com.shilapi.xcertplay.airplay.AirPlayViewArea
 import com.shilapi.xcertplay.airplay.AirPlayInsets
+import io.github.numberonebot.chairplay.drive.CarSpec
+import io.github.numberonebot.chairplay.drive.GeoPoint
+import io.github.numberonebot.chairplay.drive.GpsSettings
 import io.github.numberonebot.chairplay.log.LogLevel
 import io.github.numberonebot.chairplay.media.DuckSetting
 import io.github.numberonebot.chairplay.media.decibelGain
@@ -295,6 +298,39 @@ class DesktopConfigTest {
     fun `windows keep the picture's aspect unless told not to`() {
         assertTrue(configWith().keepAspect)
         assertFalse(configWith("window.keep.aspect=false").keepAspect)
+    }
+
+    // The spoofed GPS: off until asked for; then the iPhone gets the car's wheel speed too, and satellites when asked.
+    @Test
+    fun `the spoofed GPS is off unless asked for, with an ordinary car`() {
+        val off = configWith().gps
+        assertFalse(off.enabled)
+        assertTrue(off.wheelSpeed)
+        assertFalse(off.satellites)
+        assertNull(off.start)
+        assertEquals(0.0, off.headingDegrees, 0.0)
+        assertTrue(off.resume)
+        assertEquals(CarSpec(massKg = 1300.0, powerHp = 150.0), off.car)
+        assertTrue(off.gauges)
+
+        val on = configWith(
+            "gps.enabled=true", "gps.satellites=true", "gps.wheel.speed=false", "gps.start=https://maps.apple.com/?ll=50.4501,30.5234",
+            "gps.heading=270.5", "gps.resume=false", "gps.car.power.hp=300", "gps.car.mass.kg=1600", "gps.gauges=false",
+        ).gps
+        assertEquals(
+            GpsSettings(true, wheelSpeed = false, satellites = true, start = GeoPoint(50.4501, 30.5234), headingDegrees = 270.5,
+                resume = false, car = CarSpec(massKg = 1600.0, powerHp = 300.0), gauges = false),
+            on,
+        )
+    }
+
+    @Test
+    fun `rejects GPS values the car cannot have`() {
+        for (bad in listOf("gps.start=Kyiv", "gps.heading=north", "gps.heading=360", "gps.car.power.hp=5", "gps.car.mass.kg=50")) {
+            val key = bad.substringBefore('=')
+            val error = assertThrows(IllegalArgumentException::class.java) { configWith(bad).gps }
+            assertTrue(error.message, key in error.message.orEmpty())
+        }
     }
 
     // Without the setting the iPhone hears of no second screen, as before.

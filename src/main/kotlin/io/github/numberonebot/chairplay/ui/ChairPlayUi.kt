@@ -47,6 +47,8 @@ class ChairPlayUi(
     onSaved: (Map<String, String>) -> Unit = {},
     /** The HUD's demos on the AltScreen, for the Experiments page. */
     demo: UiDemo? = null,
+    /** The GPS car as the GPS page shows it. */
+    gps: (() -> Map<String, Any?>)? = null,
 ) : Closeable {
     val model = UiModel(config.wifi != null, config.autoconnect, config.autoshow, setupDone = SetupStore(dir).done())
 
@@ -85,6 +87,7 @@ class ChairPlayUi(
         setupStore = SetupStore(dir),
         onSaved = onSaved,
         demo = demo,
+        gps = gps,
     )
 
     private val checking = checks.start { controller.setupChanged() }
@@ -94,6 +97,9 @@ class ChairPlayUi(
 
     /** Tells the controls window's page that what it shows changed: the volume, the AltScreen's content, Alt held. */
     fun controlsChanged() = controller.controlsChanged()
+
+    /** Tells the GPS page that the car or the iPhone's listening changed. */
+    fun gpsChanged() = controller.gpsChanged()
 
     private val server = UiServer(controller, pageAssets(), System.getenv("CHAIRPLAY_UI_PORT")?.toIntOrNull() ?: 0, log = log)
 

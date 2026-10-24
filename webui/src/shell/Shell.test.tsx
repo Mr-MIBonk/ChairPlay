@@ -249,7 +249,7 @@ describe('Shell', () => {
     render(<Shell state={appState(live)} backend={new FakeBackend()} />)
 
     const names = screen.getAllByRole('tab').map((tab) => tab.textContent)
-    expect(names).toEqual(['Connection', 'CarPlay', 'AltScreen', 'Keyboard', 'Audio', 'Experiments', 'About'])
+    expect(names).toEqual(['Connection', 'CarPlay', 'AltScreen', 'Keyboard', 'Audio', 'GPS', 'Experiments', 'About'])
     expect(screen.getByRole('tab', { name: 'Connection' }).getAttribute('aria-selected')).toBe('true')
 
     fireEvent.click(screen.getByRole('tab', { name: 'Audio' }))

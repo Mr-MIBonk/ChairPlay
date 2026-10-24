@@ -54,6 +54,31 @@ export interface BuildCommit {
   date: string
 }
 
+/** The GPS car as the GPS page shows it, and what the iPhone takes from it. */
+export interface GpsState {
+  /** Latitude and longitude; null until the car has a start. */
+  position: [number, number] | null
+  /** Degrees, 0 north, 90 east. */
+  heading: number
+  /** km/h. */
+  speed: number
+  rpm: number
+  /** 'D1' to 'D5', or 'R'. */
+  gear: string
+  /** The pedals, from 0 to 1. */
+  throttle: number
+  brake: number
+  /** Drive mode: the arrows drive the car. */
+  keyboard: boolean
+  gamepad: boolean
+  /** The iPhone asked for the position in this connection. */
+  listening: boolean
+  /** The sentences it asked for: GGA, RMC, GSV, PASCD; null before it asked. */
+  sentences: string[] | null
+  /** Position updates sent in this connection. */
+  sent: number
+}
+
 /** A window is available while its feature is on; only then can it be shown or hidden. */
 export interface WindowState {
   available: boolean
@@ -72,6 +97,8 @@ export interface AppState {
   waiting: boolean
   /** The HUD's demos on the AltScreen (Experiments): the one playing, and whether one can (the AltScreen is on). */
   demo: { playing: DemoKind | null; available: boolean } | null
+  /** The GPS car (the GPS page); null without one. */
+  gps: GpsState | null
   /** The page is inside ChairPlay's window rather than a browser. */
   embedded: boolean
   wifi: { ssid: string; security: string; passphraseSet: boolean }

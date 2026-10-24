@@ -50,6 +50,27 @@ class EditableSettingsTest {
         assertEquals(emptyMap<String, String>(), result)
     }
 
+    // The GPS page: the identification's switches wait for the next connection; the car changes at once.
+    @Test
+    fun `the GPS settings can change, the car's at once`() {
+        val result = errors(
+            "gps.enabled" to "true", "gps.wheel.speed" to "false", "gps.satellites" to "true",
+            "gps.start" to "https://www.google.com/maps/@50.4501,30.5234,15z", "gps.heading" to "90.5", "gps.resume" to "false",
+            "gps.car.power.hp" to "300", "gps.car.mass.kg" to "1600", "gps.gauges" to "false",
+        )
+        assertEquals(emptyMap<String, String>(), result)
+        assertEquals(emptyMap<String, String>(), errors("gps.start" to ""))
+        for (key in listOf("gps.enabled", "gps.wheel.speed", "gps.satellites")) assertEquals(Applies.RECONNECT, EditableSettings.applies(key))
+        for (key in listOf("gps.start", "gps.heading", "gps.resume", "gps.car.power.hp", "gps.car.mass.kg", "gps.gauges")) {
+            assertEquals(Applies.NOW, EditableSettings.applies(key))
+        }
+
+        assertEquals("Enter a latitude and longitude, such as 50.4501, 30.5234, or paste a map link", errors("gps.start" to "Kyiv")["gps.start"])
+        assertEquals("Enter a heading from 0 to 359 degrees", errors("gps.heading" to "360")["gps.heading"])
+        assertEquals("Enter a power from 20 to 2000 hp", errors("gps.car.power.hp" to "5")["gps.car.power.hp"])
+        assertEquals("Enter a mass from 300 to 10000 kg", errors("gps.car.mass.kg" to "heavy")["gps.car.mass.kg"])
+    }
+
     @Test
     fun `choices take only the values the app knows`() {
         assertTrue("windows, light, dark, phone" in errors("display.theme" to "neon").getValue("display.theme"))

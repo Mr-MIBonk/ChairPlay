@@ -41,6 +41,7 @@ const GROUPS: [group: string, actions: [key: string, label: string, title?: stri
   ['App', [
     ['key.reconnect', 'Reconnect', 'End the CarPlay session gracefully and connect again'],
     ['key.screenshot', 'Screenshot', 'Save the CarPlay screen as a PNG file in the screenshots folder'],
+    ['key.drive', 'Drive mode', 'Drive the GPS car with the arrows instead of the knob, until pressed again'],
   ]],
 ]
 

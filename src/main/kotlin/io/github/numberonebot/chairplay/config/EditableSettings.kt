@@ -1,6 +1,8 @@
 package io.github.numberonebot.chairplay.config
 
 import com.shilapi.xcertplay.transport.Iap2WirelessSecurity
+import io.github.numberonebot.chairplay.drive.Coordinates
+import io.github.numberonebot.chairplay.drive.GpsSettings
 
 /** When a changed setting takes effect. */
 enum class Applies {
@@ -88,6 +90,16 @@ object EditableSettings {
         // The data log opens as the app starts.
         "log.carplay.data" to switch(Applies.RESTART),
         "log.level" to choice("error", "warning", "info", "debug", "trace", applies = Applies.NOW),
+        // The iPhone learns which sentences the GPS sends as it connects; the car is placed and changed at once.
+        "gps.enabled" to switch(Applies.RECONNECT),
+        "gps.wheel.speed" to switch(Applies.RECONNECT),
+        "gps.satellites" to switch(Applies.RECONNECT),
+        "gps.start" to Setting(Applies.NOW, check = ::checkStart),
+        "gps.heading" to Setting(Applies.NOW) { if (GpsSettings.heading(it) != null) null else "Enter a heading from 0 to 359 degrees" },
+        "gps.resume" to switch(Applies.NOW),
+        "gps.car.power.hp" to Setting(Applies.NOW) { checkNumber(it, GpsSettings.POWER_HP, "a power", "hp") },
+        "gps.car.mass.kg" to Setting(Applies.NOW) { checkNumber(it, GpsSettings.MASS_KG, "a mass", "kg") },
+        "gps.gauges" to switch(Applies.NOW),
     )
 
     /** The keys the screens may change. */
@@ -232,6 +244,14 @@ object EditableSettings {
 
     private fun checkDuckDecibels(value: String): String? =
         if (value.trim().toIntOrNull() in DesktopConfig.DUCK_DECIBELS) null else "Enter a level from -30 to 0 dB"
+
+    private fun checkStart(value: String): String? =
+        if (value.isBlank() || Coordinates.parse(value) != null) null
+        else "Enter a latitude and longitude, such as 50.4501, 30.5234, or paste a map link"
+
+    private fun checkNumber(value: String, range: ClosedFloatingPointRange<Double>, what: String, unit: String): String? =
+        if (value.trim().toDoubleOrNull()?.let { it in range } == true) null
+        else "Enter $what from ${range.start.toInt()} to ${range.endInclusive.toInt()} $unit"
 
     private fun checkFps(value: String): String? =
         if (value.trim().toIntOrNull() in 30..60) null else "Enter a frame rate from 30 to 60"

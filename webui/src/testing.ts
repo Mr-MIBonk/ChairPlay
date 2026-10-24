@@ -15,6 +15,7 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     autoshow: true,
     waiting: false,
     demo: { playing: null, available: true },
+    gps: null,
     embedded: true,
     wifi: { ssid: 'Home', security: 'WPA_WPA2', passphraseSet: true },
     reconnectPending: [],
@@ -37,6 +38,7 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
         'media.previous': 'F7', 'media.playpause': 'F8', 'media.next': 'F9', 'call.answer': 'F3', 'call.end': 'F4',
         reconnect: 'Ctrl+R', screenshot: 'F12', 'altscreen.content': 'F11', 'altscreen.zoom.in': 'Equal',
         'altscreen.zoom.out': 'Minus', 'altscreen.cards': 'Shift+F11', 'volume.up': 'Ctrl+Up', 'volume.down': 'Ctrl+Down', 'volume.mute': 'Ctrl+M',
+        drive: 'F10',
       },
       volume: { level: 60, muted: false },
       altscreen: 'map',
@@ -70,7 +72,7 @@ const DEFAULT_KEYS: [string, string[]][] = [
   ['key.siri', ['S']], ['key.reconnect', ['Ctrl+R']], ['key.screenshot', ['F12']], ['key.altscreen.content', ['F11']],
   ['key.altscreen.zoom.in', ['Equal', 'Shift+Equal', 'KP_Add']], ['key.altscreen.zoom.out', ['Minus', 'KP_Subtract']],
   ['key.altscreen.cards', ['Shift+F11']], ['key.volume.up', ['Ctrl+Up']], ['key.volume.down', ['Ctrl+Down']],
-  ['key.volume.mute', ['Ctrl+M']],
+  ['key.volume.mute', ['Ctrl+M']], ['key.drive', ['F10']],
 ]
 
 /** The bindings as a fresh controls.properties has them. */

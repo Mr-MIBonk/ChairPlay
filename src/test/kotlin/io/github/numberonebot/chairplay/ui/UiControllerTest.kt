@@ -45,6 +45,7 @@ class UiControllerTest {
         altscreenFrame: UiSafeAreaFrame? = null,
         onSaved: (Map<String, String>) -> Unit = {},
         demo: UiDemo? = null,
+        gps: (() -> Map<String, Any?>)? = null,
     ): UiController {
         Files.writeString(file, settings)
         val values = SettingsFile(file).read()
@@ -64,7 +65,7 @@ class UiControllerTest {
             }
         }, logged::add, autoconnect, windows, controls, launch, audio, mainWindow, bindings, applied::add, checks, elevate, setupStore,
             about, windowsVersion = { "Windows 11 24H2 (build 26300)" }, altscreenWindow = altscreenWindow, altscreenFrame = altscreenFrame,
-            onSaved = onSaved, demo = demo)
+            onSaved = onSaved, demo = demo, gps = gps)
     }
 
     // Copy details and New issue carry the same text: the build, the DiPlay core, and Windows; never a setting.
@@ -176,6 +177,20 @@ class UiControllerTest {
         assertFalse(ui.demo("maneuvers"))
         assertFalse(controller().demo("maneuvers"))
         assertNull(controller().state()["demo"])
+    }
+
+    // The GPS page shows the car as it goes: the state carries it, and each change of it tells the page.
+    @Test
+    fun `the GPS page gets the car's state as it changes`() {
+        var speed = 0
+        val ui = controller(gps = { mapOf("speed" to speed) })
+        assertEquals(mapOf("speed" to 0), ui.state()["gps"])
+        val before = ui.version
+        speed = 48
+        ui.gpsChanged()
+        assertTrue(ui.version > before)
+        assertEquals(mapOf("speed" to 48), ui.state()["gps"])
+        assertNull(controller().state()["gps"])
     }
 
     // The page shows the black waiting screen instead of the settings while the app connects on its own.

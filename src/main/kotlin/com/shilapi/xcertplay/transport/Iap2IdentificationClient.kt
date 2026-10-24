@@ -65,6 +65,8 @@ data class Iap2IdentificationConfig(
     val chargingConnectors: EvChargingConnectors = EvChargingConnectors.CCS2_TYPE2,
     /** Also offer wheel speed ($PASCD) in the location component; needs [locationInformationEnabled]. */
     val vehicleSpeedEnabled: Boolean = false,
+    /** ChairPlay: also offer satellites in view ($GPGSV) in the location component; needs [locationInformationEnabled]. */
+    val satellitesInViewEnabled: Boolean = false,
 ) {
     constructor(
         name: String,
@@ -137,6 +139,7 @@ internal fun Iap2IdentificationConfig.forWirelessLink(
             locationInformationEnabled = false,
             vehicleStatusEnabled = false,
             vehicleSpeedEnabled = false,
+            satellitesInViewEnabled = false,
         )
         Iap2WirelessLinkRole.RUNTIME_TUNNEL -> wirelessConfig
     }
@@ -391,6 +394,7 @@ class Iap2IdentificationClient(private val session: Iap2Session) {
                         string(1, config.name)
                         void(17)
                         void(18)
+                        if (config.satellitesInViewEnabled) void(19)
                         if (config.vehicleSpeedEnabled) void(20)
                     }
                 }

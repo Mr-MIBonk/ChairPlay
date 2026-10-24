@@ -136,6 +136,15 @@ export function AudioIcon() {
 }
 
 /** A flask: the Experiments page. */
+/** The GPS: a navigation arrow, as a map draws the car, its outline in the line icons' stroke. */
+export function GpsIcon() {
+  return (
+    <svg viewBox="0 0 14 14" aria-hidden="true">
+      <path d="M7 1.6L11.6 12.2L7 9.6L2.4 12.2Z" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round" />
+    </svg>
+  )
+}
+
 export function FlaskIcon() {
   return (
     <svg viewBox="0 0 14 14" aria-hidden="true">

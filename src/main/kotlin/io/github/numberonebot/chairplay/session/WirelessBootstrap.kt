@@ -14,6 +14,7 @@ import io.github.numberonebot.chairplay.data.CarPlayDataTap
 import io.github.numberonebot.chairplay.data.DataLink
 import io.github.numberonebot.chairplay.data.DataSubscriptions
 import io.github.numberonebot.chairplay.discovery.DesktopBonjour
+import io.github.numberonebot.chairplay.drive.GpsSettings
 import io.github.numberonebot.chairplay.media.AudioDuckSink
 import io.github.numberonebot.chairplay.network.SameLanNetwork
 import com.shilapi.xcertplay.iap2.session.Iap2Session
@@ -26,6 +27,7 @@ import com.shilapi.xcertplay.network.WirelessHotspotInfo
 import com.shilapi.xcertplay.network.WirelessHotspotManager
 import com.shilapi.xcertplay.transport.BlockingDuplexByteStream
 import com.shilapi.xcertplay.transport.Iap2IdentificationConfig
+import com.shilapi.xcertplay.transport.Iap2LocationProvider
 import com.shilapi.xcertplay.transport.Iap2WirelessCarPlayEndpoint
 import com.shilapi.xcertplay.transport.Iap2WirelessControlClient
 import com.shilapi.xcertplay.transport.Iap2WirelessControlResult
@@ -42,8 +44,15 @@ import java.util.concurrent.atomic.AtomicBoolean
 
 internal val IAP2_IPHONE_UUID: UUID = UUID.fromString("00000000-deca-fade-deca-deafdecacafe")
 
-/** The values DiPlay's head-unit build identifies with, under [name] and keyed to this PC's Bluetooth radio. */
-internal fun desktopIdentification(radio: String, name: String = DesktopConfig.DEFAULT_DEVICE_NAME) = Iap2IdentificationConfig(
+/**
+ * The values DiPlay's head-unit build identifies with, under [name] and keyed to this PC's Bluetooth radio; with the
+ * spoofed [gps] on, the location component with the sentences it sends.
+ */
+internal fun desktopIdentification(
+    radio: String,
+    name: String = DesktopConfig.DEFAULT_DEVICE_NAME,
+    gps: GpsSettings = GpsSettings(enabled = false),
+) = Iap2IdentificationConfig(
     name = name,
     // Model, manufacturer and serial keep their names from before ChairPlay: changing them likely makes the iPhone
     // see a new accessory to forget and pair again, which waits for the owner's decision.
@@ -54,6 +63,9 @@ internal fun desktopIdentification(radio: String, name: String = DesktopConfig.D
     hardwareVersion = "1.0",
     // Only the wired transport reads this; the value matches DiPlay's head-unit build.
     carPlayUsbInterfaceNumber = 3,
+    locationInformationEnabled = gps.enabled,
+    vehicleSpeedEnabled = gps.enabled && gps.wheelSpeed,
+    satellitesInViewEnabled = gps.enabled && gps.satellites,
 )
 
 /** The 0x4301/0x5703 endpoint; the address goes as upstream sends it, compressed and without scope. */
@@ -113,6 +125,8 @@ internal interface WirelessParts {
         keepAliveAfterDeadline: () -> Boolean,
         /** Each frame the control loop does not handle itself: route guidance, now playing, calls, power. */
         onIncoming: (Iap2Frame) -> Unit,
+        /** Answers the iPhone's location requests; null offers none. */
+        location: Iap2LocationProvider?,
     ): Iap2WirelessControlResult
 }
 
@@ -156,6 +170,10 @@ class WirelessBootstrap internal constructor(
     /** Hears the settings each bring-up offers the iPhone its screens by, read from the file then, on its thread. */
     @Volatile
     var onConnection: (DesktopConfig) -> Unit = {}
+
+    /** Makes the iPhone's GPS for a tunnel that identifies with the spoofed GPS on, as the settings have it then. */
+    @Volatile
+    var newLocation: (GpsSettings) -> Iap2LocationProvider? = { null }
 
     private val lock = Any()
     // The music ducks under navigation prompts when the sink can.
@@ -273,10 +291,13 @@ class WirelessBootstrap internal constructor(
                     onArtwork = { if (!stack.closed) data.onArtwork(DataLink.BLUETOOTH, it) }))
             stack.bootstrap = bootstrap
             val wireless = Iap2WirelessIdentification(radio, info.ssid)
-            val identification = desktopIdentification(radio, config.airPlay.deviceName)
+            val identification = desktopIdentification(radio, config.airPlay.deviceName, now.gps)
             val runtimeIdentification = identification.forWirelessLink(Iap2WirelessLinkRole.RUNTIME_TUNNEL, wireless)
             val endpoint = buildEndpoint(info, host, advertised.port, advertised, config.identity)
-            media.setIapTunnelHandler { tunnel -> startTunnelControl(stack, tunnel, runtimeIdentification, endpoint) }
+            media.setIapTunnelHandler { tunnel ->
+                val location = if (now.gps.enabled) newLocation(now.gps) else null
+                startTunnelControl(stack, tunnel, runtimeIdentification, endpoint, location)
+            }
             stack.own(AutoCloseable { media.setIapTunnelHandler(null) })
 
             network.validateReady()
@@ -291,6 +312,7 @@ class WirelessBootstrap internal constructor(
                 // keepBluetoothControlAlive: until a handoff, Bluetooth is the only iAP2 channel.
                 keepAliveAfterDeadline = { stack.rendered && stack.active.isNotEmpty() },
                 onIncoming = dataFrom(stack, DataLink.BLUETOOTH),
+                location = null,
             )
             if (stack.closed || stack.handedOff.get()) return
             log("iAP2 Bluetooth control ended ${result.terminal} at ${result.stage}")
@@ -314,6 +336,7 @@ class WirelessBootstrap internal constructor(
         stream: BlockingDuplexByteStream,
         identification: Iap2IdentificationConfig,
         endpoint: Iap2WirelessCarPlayEndpoint,
+        location: Iap2LocationProvider?,
     ): Boolean {
         val channel = try {
             stack.own(Iap2Session.openTunnel(stream, traceContext = "wireless-tunnel", onTrace = ::trace,
@@ -328,7 +351,7 @@ class WirelessBootstrap internal constructor(
             try {
                 val result = stack.parts.control(channel, identification, endpoint,
                     Iap2WirelessControlClient.NO_TIMEOUT_MILLIS, onReady = { tunnelReady(stack) }, keepAliveAfterDeadline = { false },
-                    onIncoming = dataFrom(stack, DataLink.WIFI))
+                    onIncoming = dataFrom(stack, DataLink.WIFI), location = location)
                 if (!stack.closed) log("iAP2 tunnel ended ${result.terminal} at ${result.stage}")
             } catch (error: Exception) {
                 if (!stack.closed) log("tunneled iAP2 control failed: ${error.javaClass.simpleName}: ${error.message}")
@@ -488,8 +511,9 @@ class WirelessBootstrap internal constructor(
             onReady: () -> Unit,
             keepAliveAfterDeadline: () -> Boolean,
             onIncoming: (Iap2Frame) -> Unit,
+            location: Iap2LocationProvider?,
         ) = Iap2WirelessControlClient(session, Iap2MfiAuthenticationClient(mfi)).run(
-            identification, endpoint, timeoutMillis,
+            identification, endpoint, timeoutMillis, locationProvider = location,
             // Upstream's subscriptions have just gone out on this link; ours ask for more of the same.
             onReady = {
                 onReady()

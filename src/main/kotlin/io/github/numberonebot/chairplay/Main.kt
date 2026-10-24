@@ -44,6 +44,8 @@ import io.github.numberonebot.chairplay.media.VideoWindow
 import io.github.numberonebot.chairplay.media.Volume
 import io.github.numberonebot.chairplay.media.nightMode
 import io.github.numberonebot.chairplay.media.runWindows
+import io.github.numberonebot.chairplay.drive.Driving
+import io.github.numberonebot.chairplay.drive.GaugePainter
 import io.github.numberonebot.chairplay.hud.HudDemo
 import io.github.numberonebot.chairplay.hud.HudPainter
 import io.github.numberonebot.chairplay.hud.HudView
@@ -112,6 +114,7 @@ private val instanceLock = AtomicReference<InstanceLock?>()
 private const val RECONNECTING = "reconnecting…"
 private const val NOT_CONNECTED = "not connected"
 private const val THEME_POLL_SECONDS = 5L
+private const val GPS_PAGE_MILLIS = 250L
 
 /** The app folder, where the settings, keys and pairings live. */
 private fun dataDirectory(): Path {
@@ -302,6 +305,9 @@ private fun runCarPlay() {
     // bindings in force: the Keyboard page's saves replace them, and the next press reads the new ones.
     val bindings = AtomicReference(controlsConfig)
     val controls = KeyControls { bindings.get() }
+    // The spoofed GPS's car (gps.*): driven on the window loop by a gamepad, or by the arrows in drive mode (F10); each
+    // connection with gps.enabled sends it to the iPhone.
+    val driving = Driving(dir, config.gps, ::log)
     // The main window's title says when there is no session to show, and why.
     fun stream() = window.stream ?: WindowSize(config.displayWidth, config.displayHeight)
     val reconnecting = AtomicBoolean()
@@ -374,6 +380,14 @@ private fun runCarPlay() {
             volume.toggleMute()
             return
         }
+        if (control == Control.DriveMode) {
+            when {
+                driving.toggleKeyboard() -> log("drive mode on: the arrows drive the GPS car")
+                driving.settings.enabled -> log("drive mode off")
+                else -> log("drive mode needs the GPS: turn it on on the GPS page")
+            }
+            return
+        }
         if (control == Control.Reconnect) {
             log("reconnecting at the user's request")
             reconnecting.set(true)
@@ -404,7 +418,7 @@ private fun runCarPlay() {
                     }
                     showAltscreenView(session)
                 }
-                Control.Screenshot, Control.Reconnect, is Control.VolumeStep, Control.MuteToggle -> Unit
+                Control.Screenshot, Control.Reconnect, is Control.VolumeStep, Control.MuteToggle, Control.DriveMode -> Unit
             }
         }
     }
@@ -525,6 +539,8 @@ private fun runCarPlay() {
                     log("prompts duck the music to ${now.duckSetting.level}" + if (now.duckSetting.iPhoneFirst) ", or the iPhone's level" else "")
                 }
             }
+            // A start or heading saved puts the GPS car there; a power or mass saved remakes it where it is.
+            if (saved.keys.any { it.startsWith("gps.") }) runCatching { config.now() }.onSuccess { now -> driving.saved(now.gps, saved.keys) }
             // A saved turn card moves at once, as Shift+F11 moves it.
             saved["altscreen.cards"]?.let { value ->
                 touchSender.execute {
@@ -533,7 +549,7 @@ private fun runCarPlay() {
                 }
             }
         },
-        demo = demos)
+        demo = demos, gps = driving::state)
     // The CarPlay page offers Actual size while the window's size differs from the picture's.
     window.onResize = { ui.windowsChanged() }
     altscreen.onResize = { ui.windowsChanged() }
@@ -574,7 +590,8 @@ private fun runCarPlay() {
                 val held = action != GLFW_RELEASE
                 if (altHeld.getAndSet(held) != held) ui.controlsChanged()
             }
-            if (!covered()) send(controls.key(key, action, mods))
+            // In drive mode the arrows are the car's pedals and wheel, not the knob.
+            if (!covered() && !driving.control.key(key, action)) send(controls.key(key, action, mods))
         }
     }
     window.keyHandler = windowKeys { ui.coversWindow }
@@ -617,6 +634,12 @@ private fun runCarPlay() {
             sendTheme(session)
         }
     }, THEME_POLL_SECONDS, THEME_POLL_SECONDS, TimeUnit.SECONDS)
+    // The GPS page follows the car four times a second, told only when what it shows changed.
+    val gpsShown = AtomicReference<Map<String, Any?>>()
+    themeWatch.scheduleWithFixedDelay({
+        val now = driving.state()
+        if (gpsShown.getAndSet(now) != now) ui.gpsChanged()
+    }, GPS_PAGE_MILLIS, GPS_PAGE_MILLIS, TimeUnit.MILLISECONDS)
     themeSaved.set { value ->
         theme.set(Theme.entries.firstOrNull { it.name.lowercase() == value.trim().lowercase() } ?: Theme.WINDOWS)
         active.get()?.let(::sendTheme)
@@ -646,6 +669,8 @@ private fun runCarPlay() {
             HudView(demo != null || active.get() != null, hudState(snapshot), snapshot.artwork)
         }, ::log, alt::repaint, config.accent)
         carPlayData.bus.addListener { if (alt.hud) alt.repaint() }
+        // The GPS car's speedometer and tachometer over whatever the AltScreen shows, while it is driven.
+        alt.topLayer = GaugePainter(driving::gauges, ::log, config.accent)
     }
     val bootstrap = WirelessBootstrap(config, sink, object : AirPlaySessionListener {
         override fun onSessionActive(session: AirPlaySession) {
@@ -682,6 +707,7 @@ private fun runCarPlay() {
         override fun onTransportError(message: String) = appLog.error("AirPlay transport error: $message")
         override fun onDebugLog(message: String) = appLog.fromDiPlay(message)
     }, carPlayData)
+    bootstrap.newLocation = driving::location
     restartBootstrap.set(bootstrap::restart)
     sessionDropped.set {
         if (active.getAndSet(null) != null) {
@@ -741,6 +767,7 @@ private fun runCarPlay() {
     Runtime.getRuntime().addShutdownHook(Thread {
         // The window is gone at once; the sound fades over the seconds the session takes to end.
         sink.fadeOut()
+        driving.close()
         ui.close()
         themeWatch.shutdownNow()
         bootstrap.close()
@@ -764,7 +791,7 @@ private fun runCarPlay() {
         }
     }, "instance-lock").apply { isDaemon = true }.start()
     // GLFW needs its windows and event loop on this, the main, thread; the bring-up runs on its own.
-    runWindows(window, *listOfNotNull(altscreen, controlsWindow).toTypedArray())
+    runWindows(window, *listOfNotNull(altscreen, controlsWindow).toTypedArray(), pass = driving::pass)
     exitProcess(0)
 }
 

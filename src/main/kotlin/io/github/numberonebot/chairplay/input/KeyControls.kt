@@ -31,6 +31,8 @@ sealed interface Control {
     data class VolumeStep(val steps: Int) : Control
     /** Mutes or unmutes the app; nothing goes to the iPhone. */
     data object MuteToggle : Control
+    /** Turns drive mode on or off: the arrows drive the spoofed GPS car; nothing goes to the iPhone. */
+    data object DriveMode : Control
 }
 
 /**
@@ -154,5 +156,6 @@ internal fun pressControl(action: ControlAction): Control? = when (action) {
     ControlAction.ALTSCREEN_CONTENT -> Control.NextAltscreenContent
     ControlAction.ALTSCREEN_CARDS -> Control.NextAltscreenCards
     ControlAction.VOLUME_MUTE -> Control.MuteToggle
+    ControlAction.DRIVE -> Control.DriveMode
     else -> null
 }

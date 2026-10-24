@@ -252,6 +252,8 @@ class UiController(
     private val onSaved: (Map<String, String>) -> Unit = {},
     /** The HUD's demos on the AltScreen, for the Experiments page; null without them. */
     private val demo: UiDemo? = null,
+    /** The GPS car as the GPS page shows it; null without one. */
+    private val gps: (() -> Map<String, Any?>)? = null,
 ) : UiApi {
     /** The settings as the app started with them, against which a change waits for the next start. */
     private val startup: Map<String, String> = settings.read()
@@ -327,6 +329,9 @@ class UiController(
 
     /** Tells the page that the live setup checks found a change. */
     fun setupChanged() = changed()
+
+    /** Tells the GPS page that the car or the iPhone's listening changed. */
+    fun gpsChanged() = changed()
 
     /** The insets as saved, so the frame previews them before a restart puts them in force; blank is none. */
     override fun showAltscreenFrame(view: String?): Boolean {
@@ -502,6 +507,7 @@ class UiController(
             "autoshow" to state.autoshow,
             "waiting" to state.waiting,
             "demo" to demo?.let { mapOf("playing" to it.playing, "available" to it.available) },
+            "gps" to gps?.invoke(),
             "embedded" to embedded,
             "wifi" to mapOf(
                 "ssid" to values["wifi.ssid"].orEmpty(),

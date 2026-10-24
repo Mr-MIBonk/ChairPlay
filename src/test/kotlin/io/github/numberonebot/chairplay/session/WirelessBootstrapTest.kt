@@ -23,12 +23,15 @@ import com.shilapi.xcertplay.network.WirelessHotspotInfo
 import com.shilapi.xcertplay.network.WirelessHotspotManager
 import com.shilapi.xcertplay.transport.BlockingDuplexByteStream
 import com.shilapi.xcertplay.transport.Iap2IdentificationConfig
+import com.shilapi.xcertplay.transport.Iap2LocationProvider
 import com.shilapi.xcertplay.transport.Iap2WirelessCarPlayEndpoint
 import com.shilapi.xcertplay.transport.Iap2WirelessControlClient
 import com.shilapi.xcertplay.transport.Iap2WirelessControlResult
 import com.shilapi.xcertplay.transport.Iap2WirelessSecurity
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.io.Closeable
@@ -237,6 +240,53 @@ class WirelessBootstrapTest {
         }
     }
 
+    // The spoofed GPS: the tunnel identifies with the location component and runs with the car's position; the
+    // Bluetooth link offers no location, so it gets none.
+    @Test(timeout = 30_000)
+    fun `the tunnel sends the spoofed GPS when it is on`() {
+        val gps = object : Iap2LocationProvider {
+            override fun start() = true
+            override fun stop() {}
+            override fun latestNmea(): String? = null
+        }
+        Harness(settings = "gps.enabled=true\ngps.satellites=true", location = gps).use { harness ->
+            val port = harness.nextPort()
+            RtspClient(harness.loopback, port).use { client ->
+                assertOk(client.request("RECORD", "*"))
+                val parts = harness.parts.last
+                awaitTrue { parts.tunnelHandler.get() != null }
+                assertTrue(parts.tunnelHandler.get()!!(SilentStream()))
+                val bluetooth = parts.runs.poll(10, TimeUnit.SECONDS)!!
+                val tunnel = parts.runs.poll(10, TimeUnit.SECONDS)!!
+
+                assertNull(bluetooth.second)
+                assertFalse(bluetooth.first.locationInformationEnabled)
+                assertSame(gps, tunnel.second)
+                assertTrue(tunnel.first.locationInformationEnabled)
+                assertTrue(tunnel.first.vehicleSpeedEnabled)
+                assertTrue(tunnel.first.satellitesInViewEnabled)
+            }
+        }
+    }
+
+    @Test(timeout = 30_000)
+    fun `the tunnel offers no GPS while it is off`() {
+        Harness().use { harness ->
+            val port = harness.nextPort()
+            RtspClient(harness.loopback, port).use { client ->
+                assertOk(client.request("RECORD", "*"))
+                val parts = harness.parts.last
+                awaitTrue { parts.tunnelHandler.get() != null }
+                assertTrue(parts.tunnelHandler.get()!!(SilentStream()))
+                parts.runs.poll(10, TimeUnit.SECONDS)!!
+                val tunnel = parts.runs.poll(10, TimeUnit.SECONDS)!!
+
+                assertNull(tunnel.second)
+                assertFalse(tunnel.first.locationInformationEnabled)
+            }
+        }
+    }
+
     @Test(timeout = 30_000)
     fun `the end of an active session clears the data`() {
         val tap = RecordingTap()
@@ -343,6 +393,7 @@ class WirelessBootstrapTest {
         knownIphone: Boolean = false,
         settings: String = "",
         sink: MediaSink = object : MediaSink {},
+        location: Iap2LocationProvider? = null,
     ) : Closeable {
         val loopback: InetAddress = InetAddress.getByName("127.0.0.1")
         val logs = CopyOnWriteArrayList<String>()
@@ -375,6 +426,7 @@ class WirelessBootstrapTest {
                     advertised.add(config)
                 }.also(parts::add)
             }.also {
+                it.newLocation = { location }
                 it.onStatus = statuses::add
                 it.onConnection = { now ->
                     displays.add(WindowSize(now.displayWidth, now.displayHeight))
@@ -467,6 +519,8 @@ class WirelessBootstrapTest {
         val tunnelHandler = AtomicReference<((BlockingDuplexByteStream) -> Boolean)?>()
         val readyRuns = AtomicInteger()
         val bootstrapTimeout = LinkedBlockingQueue<Long>()
+        /** Each iAP2 run's identification and location, Bluetooth's first. */
+        val runs = LinkedBlockingQueue<Pair<Iap2IdentificationConfig, Iap2LocationProvider?>>()
         override val mfi: MfiAuthenticator? = null
 
         override fun network() = object : WirelessHotspotManager {
@@ -501,7 +555,9 @@ class WirelessBootstrapTest {
             onReady: () -> Unit,
             keepAliveAfterDeadline: () -> Boolean,
             onIncoming: (Iap2Frame) -> Unit,
+            location: Iap2LocationProvider?,
         ): Iap2WirelessControlResult {
+            runs.add(identification to location)
             if (timeoutMillis != Iap2WirelessControlClient.NO_TIMEOUT_MILLIS) bootstrapTimeout.add(timeoutMillis)
             onIncoming(Iap2Frame(POWER_UPDATE, ByteArray(0)))
             // Only the tunnel runs without a deadline.

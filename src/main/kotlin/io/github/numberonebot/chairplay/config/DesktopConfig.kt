@@ -9,6 +9,9 @@ import com.shilapi.xcertplay.airplay.AirPlayInsets
 import com.shilapi.xcertplay.airplay.AirPlayViewArea
 import com.shilapi.xcertplay.airplay.CarPlayClusterDisplay
 import com.shilapi.xcertplay.airplay.PairingStore
+import io.github.numberonebot.chairplay.drive.CarSpec
+import io.github.numberonebot.chairplay.drive.Coordinates
+import io.github.numberonebot.chairplay.drive.GpsSettings
 import io.github.numberonebot.chairplay.log.LogLevel
 import io.github.numberonebot.chairplay.media.DuckSetting
 import io.github.numberonebot.chairplay.media.MediaDucking
@@ -271,6 +274,25 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
         )
     }
 
+    /** gps.*: the spoofed GPS and the car that drives it; the iPhone learns of the GPS when it connects. */
+    val gps = GpsSettings(
+        enabled = booleanSetting("gps.enabled", false),
+        wheelSpeed = booleanSetting("gps.wheel.speed", true),
+        satellites = booleanSetting("gps.satellites", false),
+        start = settings.getProperty("gps.start")?.trim()?.ifEmpty { null }?.let { text ->
+            requireNotNull(Coordinates.parse(text)) { "gps.start must be a latitude and longitude or a map link, not $text" }
+        },
+        headingDegrees = settings.getProperty("gps.heading")?.trim()?.ifEmpty { null }?.let { text ->
+            requireNotNull(GpsSettings.heading(text)) { "gps.heading must be a number of degrees from 0 to 359, not $text" }
+        } ?: 0.0,
+        resume = booleanSetting("gps.resume", true),
+        car = CarSpec(
+            massKg = decimalSetting("gps.car.mass.kg", CarSpec().massKg, GpsSettings.MASS_KG),
+            powerHp = decimalSetting("gps.car.power.hp", CarSpec().powerHp, GpsSettings.POWER_HP),
+        ),
+        gauges = booleanSetting("gps.gauges", true),
+    )
+
     /** window.keep.aspect: the windows resize only with the picture's shape; a maximized one fills the screen. */
     val keepAspect: Boolean = booleanSetting("window.keep.aspect", true)
 
@@ -488,6 +510,14 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
         return value
     }
 
+    /** A number in [range]; blank means [default]. */
+    private fun decimalSetting(key: String, default: Double, range: ClosedFloatingPointRange<Double>): Double {
+        val raw = settings.getProperty(key)?.trim()?.ifEmpty { null } ?: return default
+        val value = raw.toDoubleOrNull()
+        require(value != null && value in range) { "$key must be a number from ${range.start.toInt()} to ${range.endInclusive.toInt()}, not $raw" }
+        return value
+    }
+
     private fun evenSetting(key: String, default: Int): Int {
         val value = settings.getProperty(key)?.trim()?.toIntOrNull() ?: default
         require(value > 0 && value % 2 == 0) { "$key must be a positive even number, not $value" }
@@ -657,6 +687,22 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
                     "tap, the keys move the focus), 'swipe' or 'tap' (a touchscreen that swipes or only taps; CarPlay shows\n" +
                     "scroll buttons).",
                 "display.touch" to "none",
+            ),
+            SettingBlock(
+                "Spoofed GPS: the iPhone navigates by a car this app drives (F10 or a gamepad), 'true' or 'false' (the\n" +
+                    "iPhone learns of it when it connects); whether it also gets the car's wheel speed for its dead\n" +
+                    "reckoning, and a sky of satellites in view: 'true' or 'false'.",
+                "gps.enabled" to "false", "gps.wheel.speed" to "true", "gps.satellites" to "false",
+            ),
+            SettingBlock(
+                "Where the car starts: 'latitude, longitude' or a Google or Apple Maps link, and its heading in degrees\n" +
+                    "(0 north, 90 east); 'true' starts it where it last stopped instead.",
+                "gps.start" to "", "gps.heading" to "0", "gps.resume" to "true",
+            ),
+            SettingBlock(
+                "The car: its power in hp (20-2000) and its mass in kg (300-10000); 'true' shows its speedometer and\n" +
+                    "tachometer while it drives.",
+                "gps.car.power.hp" to "150", "gps.car.mass.kg" to "1300", "gps.gauges" to "true",
             ),
         )
 

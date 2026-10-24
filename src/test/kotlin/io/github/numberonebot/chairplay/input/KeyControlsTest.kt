@@ -104,6 +104,14 @@ class KeyControlsTest {
 
     // GLFW reports a mouse notch as 1.0 and a touchpad in fractions; scrolling down turns the knob forward.
     // changeMapZoomLevel on the main screen was tried for zoom: the iPhone took it and did nothing.
+    // Drive mode stays on this PC: the arrows drive the spoofed GPS car until F10 is pressed again.
+    @Test
+    fun `F10 turns drive mode on and off once per press`() {
+        assertEquals(Control.DriveMode, press(GLFW_KEY_F10))
+        assertNull(controls.key(GLFW_KEY_F10, GLFW_REPEAT, 0))
+        assertNull(release(GLFW_KEY_F10))
+    }
+
     // The screenshot stays on this PC: one per press, nothing reaches the iPhone on repeat or release.
     @Test
     fun `F12 takes a screenshot once per press`() {

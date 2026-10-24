@@ -9,8 +9,11 @@ import kotlin.io.path.exists
 import kotlin.io.path.reader
 import kotlin.io.path.writeText
 
-/** Everything a key can be bound to, with the setting that names its keys and the keys it has by default. */
-enum class ControlAction(val key: String, val defaults: String, val description: String) {
+/**
+ * Everything a key can be bound to, with the setting that names its keys and the keys it has by default. An action
+ * added after files were written ([yields]) gives up a default key such a file binds to another action.
+ */
+enum class ControlAction(val key: String, val defaults: String, val description: String, val yields: Boolean = false) {
     KNOB_LEFT("key.knob.left", "Left", "tilt the knob left: focus moves left"),
     KNOB_RIGHT("key.knob.right", "Right", "tilt the knob right"),
     KNOB_UP("key.knob.up", "Up", "tilt the knob up"),
@@ -35,6 +38,10 @@ enum class ControlAction(val key: String, val defaults: String, val description:
     VOLUME_UP("key.volume.up", "Ctrl+Up", "turn ChairPlay's own volume up (Windows' volume stays)"),
     VOLUME_DOWN("key.volume.down", "Ctrl+Down", "turn ChairPlay's own volume down"),
     VOLUME_MUTE("key.volume.mute", "Ctrl+M", "mute or unmute ChairPlay"),
+    DRIVE(
+        "key.drive", "F10", "drive the GPS car: the arrows then steer and work the pedals instead of the knob, until pressed again",
+        yields = true,
+    ),
 }
 
 /** A GLFW key code with the Shift, Ctrl and Alt bits that must be held. */
@@ -112,11 +119,13 @@ class ControlsConfig(
             }
             val bindings = LinkedHashMap<KeyBinding, ControlAction>()
             val names = HashMap<KeyBinding, String>()
-            val keyNames = LinkedHashMap<ControlAction, List<String>>()
-            for (action in ControlAction.entries) {
-                val value = settings.getProperty(action.key) ?: action.defaults
+            val boundNames = HashMap<ControlAction, MutableList<String>>()
+            // The file's own keys first: a default of an action newer than the file, given to another there, stays there.
+            for (action in ControlAction.entries.sortedBy { settings.getProperty(it.key) == null }) {
+                val written = settings.getProperty(action.key)
+                val value = written ?: action.defaults
                 val keys = value.split(',').map(String::trim).filter(String::isNotEmpty)
-                keyNames[action] = keys
+                val bound = boundNames.getOrPut(action) { mutableListOf() }
                 for (name in keys) {
                     val binding = parseBinding(name) ?: throw IllegalArgumentException(
                         "$FILE: ${action.key} = $value: \"$name\" is not a key; use a name such as F5, Ctrl+S or #290",
@@ -124,13 +133,17 @@ class ControlsConfig(
                     FIXED.firstOrNull { it.binding == binding && it.action != action }?.let { fixed ->
                         throw IllegalArgumentException("$FILE: ${action.key} = $value: ${fixed.reason}; take $name out of ${action.key}")
                     }
+                    if (written == null && action.yields && binding in bindings) continue
                     bindings[binding]?.let { other ->
                         throw IllegalArgumentException("$FILE: $name is bound to both ${other.key} (as ${names[binding]}) and ${action.key}")
                     }
                     bindings[binding] = action
                     names[binding] = name
+                    bound += name
                 }
             }
+            val keyNames = LinkedHashMap<ControlAction, List<String>>()
+            for (action in ControlAction.entries) keyNames[action] = boundNames[action].orEmpty()
             // A fixed key the file leaves out comes first, as the one the controls window's legends show.
             for (fixed in FIXED) {
                 if (bindings.putIfAbsent(fixed.binding, fixed.action) == null) {

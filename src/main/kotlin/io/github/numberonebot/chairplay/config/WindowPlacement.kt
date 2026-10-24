@@ -1,5 +1,6 @@
 package io.github.numberonebot.chairplay.config
 
+import io.github.numberonebot.chairplay.drive.GeoPoint
 import java.nio.file.Files
 import java.nio.file.Path
 import java.util.Properties
@@ -211,6 +212,29 @@ class SetupStore(private val dir: Path) {
 
     private companion object {
         const val DONE = "setup.done"
+    }
+}
+
+/** Remembers in window.properties where the GPS car stopped and which way it faced, for gps.resume to drive on from. */
+class DrivePlaceStore(private val dir: Path) {
+    /** The place and heading, or null before the car first stopped or when the file is broken. */
+    fun load(): Pair<GeoPoint, Double>? {
+        val state = readWindowState(dir) ?: return null
+        val latitude = state.getProperty(LATITUDE)?.trim()?.toDoubleOrNull()?.takeIf { it in -90.0..90.0 } ?: return null
+        val longitude = state.getProperty(LONGITUDE)?.trim()?.toDoubleOrNull()?.takeIf { it in -180.0..180.0 } ?: return null
+        val heading = state.getProperty(HEADING)?.trim()?.toDoubleOrNull()?.takeIf { it.isFinite() } ?: return null
+        return GeoPoint(latitude, longitude) to heading
+    }
+
+    fun save(place: GeoPoint, headingDegrees: Double) = writeWindowState(
+        dir,
+        listOf(LATITUDE to place.latitude.toString(), LONGITUDE to place.longitude.toString(), HEADING to headingDegrees.toString()),
+    )
+
+    private companion object {
+        const val LATITUDE = "drive.latitude"
+        const val LONGITUDE = "drive.longitude"
+        const val HEADING = "drive.heading"
     }
 }
 
