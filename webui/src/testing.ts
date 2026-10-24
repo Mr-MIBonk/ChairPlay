@@ -15,7 +15,6 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     autoshow: true,
     waiting: false,
     demo: { playing: null, available: true },
-    viewAreas: { count: 0, current: 0 },
     embedded: true,
     wifi: { ssid: 'Home', security: 'WPA_WPA2', passphraseSet: true },
     reconnectPending: [],
@@ -146,14 +145,6 @@ export class FakeBackend implements Backend {
     return true
   }
 
-  /** The AltScreen view areas asked for. */
-  viewAreas: number[] = []
-
-  async viewArea(index: number) {
-    this.viewAreas.push(index)
-    return true
-  }
-
   /** The volume levels the Audio page set. */
   volumes: number[] = []
 
@@ -224,8 +215,12 @@ export class FakeBackend implements Backend {
 
   framesShown = 0
 
-  async showAltscreenFrame() {
-    this.framesShown++
+  /** The views whose frames were asked for, by Show frame under View areas. */
+  viewFrames: string[] = []
+
+  async showAltscreenFrame(view?: string) {
+    if (view) this.viewFrames.push(view)
+    else this.framesShown++
     return true
   }
 

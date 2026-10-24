@@ -5,88 +5,110 @@ import com.shilapi.xcertplay.airplay.AirPlayInsets
 import com.shilapi.xcertplay.airplay.AirPlayViewArea
 
 /**
- * altscreen.experiment.areas: the AltScreen's view areas, rectangles of its stream the iPhone can be told to draw in
- * without reconnecting, laid out for an 8:3 cluster: the whole frame; five eighths at the left or the right, beside a
- * dial; three eighths at the left, the middle or the right, between dials or in a side panel; all of the full height.
- * A width keeps to a multiple of 8, as DiPlay's streams do. Each takes the AltScreen's safe area clipped to it, as
- * DiPlay builds them.
+ * A part of the AltScreen's frame a view can show in, laid out for an 8:3 cluster, all of the full height: the whole
+ * frame; five eighths at the left or the right, beside a dial; three eighths at the left, the middle or the right,
+ * between dials or as a side panel. A width keeps to a multiple of 8, as DiPlay's streams do, and the middle one to an
+ * even origin; [key] is how altscreen.<view>.area names it.
  */
-fun altscreenViewAreas(width: Int, height: Int): List<AirPlayViewArea> {
-    val five = width * 5 / 8 / 8 * 8
-    val three = width * 3 / 8 / 8 * 8
-    return listOf(
-        AirPlayViewArea(width, height),
-        AirPlayViewArea(five, height), AirPlayViewArea(five, height, originX = width - five),
-        AirPlayViewArea(three, height), AirPlayViewArea(three, height, originX = (width - three) / 4 * 2),
-        AirPlayViewArea(three, height, originX = width - three),
-    )
+enum class AreaPreset(val key: String, private val eighths: Int) {
+    FULL("full", 8),
+    LEFT5("left5", 5),
+    RIGHT5("right5", 5),
+    LEFT3("left3", 3),
+    CENTER3("center3", 3),
+    RIGHT3("right3", 3);
+
+    /** The part of a [width]x[height] frame. */
+    fun area(width: Int, height: Int): AirPlayViewArea {
+        if (this == FULL) return AirPlayViewArea(width, height)
+        val w = width * eighths / 8 / 8 * 8
+        val x = when (this) {
+            LEFT5, LEFT3 -> 0
+            CENTER3 -> (width - w) / 4 * 2
+            else -> width - w
+        }
+        return AirPlayViewArea(w, height, originX = x)
+    }
+
+    companion object {
+        fun of(key: String): AreaPreset? = entries.firstOrNull { it.key == key.trim().lowercase() }
+    }
 }
 
 /** The AltScreen's views the iPhone draws, each of which may have a part of the frame of its own; the HUD is ChairPlay's. */
 val AREA_VIEWS = listOf(AltscreenContent.MAP, AltscreenContent.MAP_CARD, AltscreenContent.CARD)
 
-/** altscreen.<view>.area: the view's part of the frame, "left top width height" in pixels. */
+/** The edges of a view's margins, as altscreen.<view>.safe.<edge> names them. */
+val SAFE_EDGES = listOf("top", "bottom", "left", "right")
+
+/** altscreen.<view>.area: the view's part of the frame, an [AreaPreset]'s key. */
 fun areaKey(view: AltscreenContent) = "altscreen.${view.key}.area"
 
-/** altscreen.<view>.safe: the margins inside the view's part, "top right bottom left" in pixels. */
-fun safeKey(view: AltscreenContent) = "altscreen.${view.key}.safe"
-
-private fun fourNumbers(text: String): List<Int>? {
-    val parts = text.trim().split(Regex("\\s+"))
-    if (parts.size != 4) return null
-    return parts.map { it.toIntOrNull() ?: return null }
-}
-
-/** What is wrong with [text] as a view's part of a [width]x[height] frame, as a sentence for the screen; null for nothing. */
-fun areaProblem(text: String, width: Int, height: Int): String? {
-    val (x, y, w, h) = fourNumbers(text)?.takeIf { (x, y, w, h) -> x >= 0 && y >= 0 && w > 0 && h > 0 }
-        ?: return "Enter the left, top, width, and height in pixels, such as 0 0 1200 720"
-    return if (x + w > width || y + h > height) "Keep the area inside the ${width}x$height frame" else null
-}
-
-/** What is wrong with [text] as the margins inside a part [width] by [height], as a sentence; null for nothing. */
-fun safeProblem(text: String, width: Int, height: Int): String? {
-    val (top, right, bottom, left) = fourNumbers(text)?.takeIf { parts -> parts.all { it >= 0 } }
-        ?: return "Enter the top, right, bottom, and left margins in pixels, such as 0 0 0 0"
-    return if (top + bottom >= height || left + right >= width) "Leave some of the area inside the margins" else null
-}
+/** altscreen.<view>.safe.<edge>: a margin inside the view's part, in pixels. */
+fun safeKey(view: AltscreenContent, edge: String) = "altscreen.${view.key}.safe.$edge"
 
 /**
- * The AltScreen's view areas for its views' own parts of a [width]x[height] frame (altscreen.<view>.area and .safe,
- * read through [value]): the whole frame first, for the views without, then one for each view with either, its
- * margins counted inside it and given as insets from the whole frame, as /info takes them. [areas] is null when no
- * view has a part of its own.
+ * The AltScreen's view areas for a [width]x[height] frame, read through [value] (altscreen.<view>.area and .safe.*):
+ * every [AreaPreset] in its order, the whole frame first, with altscreen.safe.* clipped to each as DiPlay builds them;
+ * then every preset again for each view with margins of its own, those margins counted inside each part and given as
+ * insets from the whole frame, as /info takes them. All are declared as the iPhone connects, so a view moves to any
+ * part at once; only its margins wait for the next connection.
  */
 class AltscreenViewParts(width: Int, height: Int, value: (String) -> String?) {
-    private val index = mutableMapOf<AltscreenContent, Int>()
-    val areas: List<AirPlayViewArea>?
+    // Where a view's presets start: 0 for the ones without margins of their own.
+    private val offsets = mutableMapOf<AltscreenContent, Int>()
+    private val presets = mutableMapOf<AltscreenContent, AreaPreset>()
+    val areas: List<AirPlayViewArea>
 
     init {
-        val list = mutableListOf(AirPlayViewArea(width, height))
+        val list = AreaPreset.entries.map { it.area(width, height) }.toMutableList()
         for (view in AREA_VIEWS) {
-            val area = value(areaKey(view))?.trim()?.ifEmpty { null }
-            val safe = value(safeKey(view))?.trim()?.ifEmpty { null }
-            if (area == null && safe == null) continue
-            area?.let { areaProblem(it, width, height) }?.let { throw IllegalArgumentException("${areaKey(view)}: $it, not $area") }
-            val (x, y, w, h) = area?.let(::fourNumbers) ?: listOf(0, 0, width, height)
-            safe?.let { safeProblem(it, w, h) }?.let { throw IllegalArgumentException("${safeKey(view)}: $it, not $safe") }
-            val insets = safe?.let(::fourNumbers)?.let { (top, right, bottom, left) ->
-                AirPlayInsets(top = y + top, bottom = height - y - h + bottom, left = x + left, right = width - x - w + right)
+            val areaText = value(areaKey(view))?.trim()?.ifEmpty { null }
+            val preset = areaText?.let {
+                AreaPreset.of(it) ?: throw IllegalArgumentException(
+                    "${areaKey(view)} must be ${AreaPreset.entries.joinToString { preset -> preset.key }}, not $it")
+            } ?: AreaPreset.FULL
+            presets[view] = preset
+            val margins = SAFE_EDGES.map { edge ->
+                val key = safeKey(view, edge)
+                value(key)?.trim()?.ifEmpty { null }?.let {
+                    it.toIntOrNull()?.takeIf { margin -> margin >= 0 }
+                        ?: throw IllegalArgumentException("$key must be a whole number of zero or more, not $it")
+                }
             }
-            index[view] = list.size
-            list += AirPlayViewArea(w, h, originX = x, originY = y, safeArea = insets)
+            if (margins.all { it == null }) continue
+            val (top, bottom, left, right) = margins.map { it ?: 0 }
+            // The margins must leave some of the narrowest part, as of every other.
+            for (part in AreaPreset.entries.map { it.area(width, height) }) {
+                require(top + bottom < part.height && left + right < part.width) {
+                    "altscreen.${view.key}.safe.* leave nothing of its ${part.width}x${part.height} part"
+                }
+            }
+            offsets[view] = list.size
+            list += AreaPreset.entries.map { preset ->
+                val area = preset.area(width, height)
+                area.copy(safeArea = AirPlayInsets(top = area.originY + top, bottom = height - area.originY - area.height + bottom,
+                    left = area.originX + left, right = width - area.originX - area.width + right))
+            }
         }
-        areas = list.takeIf { it.size > 1 }
+        areas = list
     }
 
-    /** The area [content] shows in: its own, or the whole frame. */
-    fun indexOf(content: AltscreenContent): Int = index[content] ?: 0
+    /** The part [content] was set to show in as the frame was read; the HUD's is the whole frame. */
+    fun presetOf(content: AltscreenContent): AreaPreset = presets[content] ?: AreaPreset.FULL
+
+    /** The area [content] shows in when it shows in [preset]: among its own presets, or the first ones; the HUD's first. */
+    fun indexOf(content: AltscreenContent, preset: AreaPreset): Int =
+        if (content !in AREA_VIEWS) 0 else (offsets[content] ?: 0) + preset.ordinal
+
+    /** The area [content] shows in, in the part it was set to. */
+    fun indexOf(content: AltscreenContent): Int = indexOf(content, presetOf(content))
 }
 
 /**
  * updateViewArea for the AltScreen: DiPlay's AirPlayInfoPlist.viewAreaCommand, which it sends for the main screen
  * alone, with the AltScreen's display. The iPhone acted on the main screen's only with the animation and the adjacent
- * areas; whether it moves the AltScreen at all is what the experiment is for.
+ * areas, and it moves the AltScreen's too.
  */
 fun altscreenViewAreaCommand(index: Int, count: Int): Map<String, Any?> = linkedMapOf(
     "type" to "updateViewArea",

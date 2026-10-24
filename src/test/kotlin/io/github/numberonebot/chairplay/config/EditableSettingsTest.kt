@@ -56,10 +56,11 @@ class EditableSettingsTest {
         assertTrue("auto, driver, bottom" in errors("display.dock" to "left").getValue("display.dock"))
         assertTrue("rounded, square" in errors("display.corners" to "round").getValue("display.corners"))
         assertTrue("map, map-card, hud, card" in errors("altscreen.content" to "radar").getValue("altscreen.content"))
-        assertTrue("auto, left, right, top, off" in errors("altscreen.cards" to "bottom").getValue("altscreen.cards"))
+        assertTrue("auto, left, right, top" in errors("altscreen.cards" to "bottom").getValue("altscreen.cards"))
+        // Neither Google Maps nor Apple Maps takes the turn card away: off is not a place.
+        assertTrue("altscreen.cards" in errors("altscreen.cards" to "off"))
         assertTrue("error, warning, info, debug, trace" in errors("log.level" to "loud").getValue("log.level"))
-        for (key in listOf("display.right.hand.drive", "display.safe.draw.outside", "audio.echo.cancellation", "audio.duck.iphone",
-            "altscreen.experiment.areas")) {
+        for (key in listOf("display.right.hand.drive", "display.safe.draw.outside", "audio.echo.cancellation", "audio.duck.iphone")) {
             assertTrue(key, "true or false" in errors(key to "yes").getValue(key))
         }
     }
@@ -84,24 +85,21 @@ class EditableSettingsTest {
         assertTrue(errors("audio.duck.db" to "0").isEmpty())
     }
 
-    // A view's part of the AltScreen's frame, and the margins inside it, as the settings file writes them.
+    // A view's part of the AltScreen's frame, one of its eighths, and the margins inside it.
     @Test
-    fun `a view's part of the altscreen and its margins are checked against the frame`() {
+    fun `a view's part of the altscreen and its margins are checked against the part`() {
         val sized = current + ("altscreen.width" to "1920") + ("altscreen.height" to "720")
         fun errorsAt(vararg changes: Pair<String, String>) = EditableSettings.validate(changes.toMap(), sized)
 
-        assertEquals(emptyMap<String, String>(), errorsAt("altscreen.card.area" to "720 0 480 720", "altscreen.card.safe" to "10 0 20 0"))
-        assertEquals(emptyMap<String, String>(), errorsAt("altscreen.map.area" to "", "altscreen.map.safe" to " "))
-        assertEquals("Enter the left, top, width, and height in pixels, such as 0 0 1200 720",
-            errorsAt("altscreen.card.area" to "0 0 480")["altscreen.card.area"])
-        assertEquals("Keep the area inside the 1920x720 frame", errorsAt("altscreen.card.area" to "1500 0 480 720")["altscreen.card.area"])
-        // Against the size as it will be.
-        assertEquals("Keep the area inside the 1440x540 frame",
-            errorsAt("altscreen.card.area" to "1000 0 480 540", "altscreen.width" to "1440", "altscreen.height" to "540")["altscreen.card.area"])
-        assertEquals("Enter the top, right, bottom, and left margins in pixels, such as 0 0 0 0",
-            errorsAt("altscreen.map.safe" to "0 -1 0 0")["altscreen.map.safe"])
+        assertEquals(emptyMap<String, String>(),
+            errorsAt("altscreen.card.area" to "center3", "altscreen.card.safe.top" to "10", "altscreen.card.safe.left" to ""))
+        assertTrue("full, left5, right5, left3, center3, right3" in errorsAt("altscreen.card.area" to "half").getValue("altscreen.card.area"))
+        assertEquals("Enter zero or more pixels, or leave it blank", errorsAt("altscreen.map.safe.left" to "-1")["altscreen.map.safe.left"])
+        // Against the part as it will be: three eighths of 1920 are 720.
         assertEquals("Leave some of the area inside the margins",
-            errorsAt("altscreen.card.area" to "720 0 480 720", "altscreen.card.safe" to "0 240 0 240")["altscreen.card.safe"])
+            errorsAt("altscreen.card.area" to "left3", "altscreen.card.safe.left" to "360", "altscreen.card.safe.right" to "360")["altscreen.card.safe.left"])
+        assertEquals(emptyMap<String, String>(),
+            errorsAt("altscreen.card.area" to "full", "altscreen.card.safe.left" to "360", "altscreen.card.safe.right" to "360"))
     }
 
     // The buffering pause and the fade are times, not pixels.
@@ -195,6 +193,16 @@ class EditableSettingsTest {
         assertTrue("even" in errors("altscreen.height" to "").getValue("altscreen.height"))
     }
 
+    // A size is 4096 pixels a side at most; the reasons name no limit.
+    @Test
+    fun `a size is at most 4096 pixels, and the reason names no number`() {
+        assertTrue(errors("display.width" to "4096", "altscreen.width" to "4096", "window.width" to "4096").isEmpty())
+        for (key in listOf("display.width", "display.height", "altscreen.width", "altscreen.height", "window.width", "window.height")) {
+            assertEquals(key, "Enter a smaller number of pixels", errors(key to "4098")[key])
+        }
+        assertEquals("Enter a positive even number of pixels", errors("display.width" to "801")["display.width"])
+    }
+
     // What the screen says after a save.
     @Test
     fun `each setting says when a change takes effect`() {
@@ -219,9 +227,12 @@ class EditableSettingsTest {
         // The iPhone learns of the AltScreen as it connects.
         for (key in listOf("altscreen.enabled", "altscreen.width", "altscreen.height", "altscreen.content",
             "altscreen.safe.top", "altscreen.safe.bottom", "altscreen.safe.left", "altscreen.safe.right",
-            "altscreen.experiment.areas", "altscreen.map.area", "altscreen.map.safe", "altscreen.map-card.area",
-            "altscreen.map-card.safe", "altscreen.card.area", "altscreen.card.safe")) {
+            "altscreen.map.safe.top", "altscreen.map-card.safe.left", "altscreen.card.safe.bottom", "altscreen.card.safe.right")) {
             assertEquals(key, Applies.RECONNECT, EditableSettings.applies(key))
+        }
+        // Every part is declared as the iPhone connects: a view moves to another at once.
+        for (key in listOf("altscreen.map.area", "altscreen.map-card.area", "altscreen.card.area")) {
+            assertEquals(key, Applies.NOW, EditableSettings.applies(key))
         }
         // What the iPhone learns of its screen it asks at each connection.
         for (key in listOf("display.width", "display.height", "display.fps", "display.touch", "display.physical.width.mm",

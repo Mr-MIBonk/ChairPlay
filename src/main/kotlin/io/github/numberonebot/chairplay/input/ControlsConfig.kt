@@ -31,7 +31,7 @@ enum class ControlAction(val key: String, val defaults: String, val description:
     ALTSCREEN_CONTENT("key.altscreen.content", "F11", "show the AltScreen's next content: HUD, map, map with turn card, turn card"),
     ALTSCREEN_ZOOM_IN("key.altscreen.zoom.in", "Equal, Shift+Equal, KP_Add", "zoom the AltScreen map in"),
     ALTSCREEN_ZOOM_OUT("key.altscreen.zoom.out", "Minus, KP_Subtract", "zoom the AltScreen map out"),
-    ALTSCREEN_CARDS("key.altscreen.cards", "Shift+F11", "move the AltScreen's ETA and turn card: auto, left, right, top, off"),
+    ALTSCREEN_CARDS("key.altscreen.cards", "Shift+F11", "move the AltScreen's ETA and turn card: auto, left, right, top"),
     VOLUME_UP("key.volume.up", "Ctrl+Up", "turn ChairPlay's own volume up (Windows' volume stays)"),
     VOLUME_DOWN("key.volume.down", "Ctrl+Down", "turn ChairPlay's own volume down"),
     VOLUME_MUTE("key.volume.mute", "Ctrl+M", "mute or unmute ChairPlay"),

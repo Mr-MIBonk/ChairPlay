@@ -145,7 +145,7 @@ describe('Shell toolbar', () => {
     expect(screen.getByText('Restart needed').closest('[title]')?.getAttribute('title')).toBe(
       'Restart ChairPlay to apply: Experiments',
     )
-    expect(sectionOf('altscreen.experiment.areas')).toBe('experiments')
+    expect(sectionOf('altscreen.card.area')).toBe('altscreen')
     expect(sectionOf('log.level')).toBe('experiments')
   })
 

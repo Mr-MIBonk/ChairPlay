@@ -2,6 +2,7 @@ import type { AltscreenContent, AppState, Backend } from '../api'
 import { keyLabel } from '../ControlsScreen'
 import { Checkbox, Group, Row, Segmented, type Choice } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
+import { AREA_CHOICES } from './areas'
 import { ActualSize, Changed, parts, pendingOf, SafeArea, SizeRows } from './parts'
 
 /** The instrument clusters a size fits, for its preset's tooltip. */
@@ -17,8 +18,16 @@ const DISPLAY_KEYS = ['altscreen.enabled', 'altscreen.width', 'altscreen.height'
 /** What the AltScreen can show, as the controls window lists it. */
 const VIEWS: readonly Choice[] = [['hud', 'HUD'], ['map', 'Map'], ['map-card', 'Map + card'], ['card', 'Turn card']]
 
+/** The iPhone's views that can show in a part of the frame; the HUD is ChairPlay's own and takes the whole window. */
+const AREA_VIEWS: readonly string[] = ['map', 'map-card', 'card']
+
 /** Where the turn card goes over a map view (altscreen.cards). */
-const CARDS: readonly Choice[] = [['auto', 'Auto'], ['left', 'Left'], ['right', 'Right'], ['top', 'Top'], ['off', 'Off']]
+const CARDS: readonly Choice[] = [
+  ['auto', 'Auto', "On the driver's side, as the CarPlay page sets it"],
+  ['left', 'Left'],
+  ['right', 'Right'],
+  ['top', 'Top'],
+]
 
 /** The size blank altscreen.width and .height mean, as the app reads them. */
 const ALTSCREEN_FALLBACK = { width: 1440, height: 540 }
@@ -27,11 +36,17 @@ const ALTSCREEN_FALLBACK = { width: 1440, height: 540 }
 export function AltScreenPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
   const pending = pendingOf(state)
   const { note } = parts(settings, pending)
-  // Only a map view has a turn card to place; with no view yet the choice is for the next one.
+  // Only Map + card has a turn card to place; with no view yet the choice is for the next one.
   const view = state.controls?.altscreen
-  const placesCards = view == null || view === 'map' || view === 'map-card'
+  const placesCards = view == null || view === 'map-card'
   const viewOn = state.controls?.altscreen != null && state.windows.altscreen.available && state.canShowCarPlay
   const cardsKey = state.controls?.keys['altscreen.cards']
+  // The view chosen in Content, or the one the AltScreen opens on without a session, is the one whose part of the
+  // frame and margins the page sets; the HUD has neither, and the margins are then the whole frame's.
+  const shown = view ?? (settings.value('altscreen.content') || 'map')
+  const areaView = AREA_VIEWS.includes(shown) ? shown : null
+  const areaKey = `altscreen.${areaView ?? 'map'}.area`
+  const safePrefix = areaView ? `altscreen.${areaView}.safe` : 'altscreen.safe'
   return (
     <>
       <Group title="Display" note={note(DISPLAY_KEYS)} />
@@ -41,7 +56,6 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
           checked={settings.value('altscreen.enabled') === 'true'}
           onChange={(checked) => settings.save({ 'altscreen.enabled': String(checked) })}
         />
-        <span className="exp">Experimental</span>
         <Changed keys={['altscreen.enabled']} pending={pending} />
       </Row>
       <SizeRows
@@ -63,17 +77,17 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
           onChange={(content) => void backend.altscreen(content as AltscreenContent)}
         />
       </Row>
-      {/* The turn card alone and the HUD have no turn card to place: the choice waits for a map view. */}
+      {/* Map + card alone has a turn card to place: elsewhere the choice waits for it. */}
       <Row
-        label="Turn card"
+        label="Card position"
         title={
           placesCards
             ? `Where the turn card starts${cardsKey ? `; ${keyLabel(cardsKey)} moves it while CarPlay runs` : ''}`
-            : 'Show Map or Map + card to place the turn card'
+            : 'Show Map + card to place the turn card'
         }
       >
         <Segmented
-          label="Turn card"
+          label="Card position"
           value={settings.value('altscreen.cards') || 'auto'}
           options={CARDS}
           disabled={!placesCards}
@@ -81,10 +95,30 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
         />
         <Changed keys={['altscreen.cards']} pending={pending} />
       </Row>
+      {/* The shown view's part of the frame; the HUD has none. */}
+      <Row
+        label="Area"
+        title={
+          areaView
+            ? 'The part of the frame this view shows in, all of its height; the iPhone leaves the rest black'
+            : 'Show Map, Map + card, or Turn card to set its part of the frame'
+        }
+      >
+        <Segmented
+          label="Area"
+          value={settings.value(areaKey) || 'full'}
+          options={AREA_CHOICES}
+          className="rows wide view-areas"
+          disabled={!areaView}
+          onChange={(preset) => settings.save({ [areaKey]: preset })}
+        />
+        <Changed keys={[areaKey]} pending={pending} />
+      </Row>
       <Group title="Safe area" note="Pixels at each edge" />
       <SafeArea
+        key={safePrefix}
         settings={settings}
-        prefix="altscreen.safe"
+        prefix={safePrefix}
         label="Insets"
         pending={pending}
         after={
@@ -92,8 +126,8 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
             <button
               type="button"
               className="btn small show-frame"
-              title="Show the safe area on the AltScreen for 3 seconds"
-              onClick={() => backend.showAltscreenFrame()}
+              title="Show the safe area on the AltScreen for a second"
+              onClick={() => backend.showAltscreenFrame(areaView ?? undefined)}
             >
               Show frame
             </button>

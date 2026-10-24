@@ -6,17 +6,17 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class AltscreenAreasTest {
-    // altscreen.experiment.areas, for an 8:3 cluster: the whole frame; five eighths at the left or the right, beside a
+    // The parts a view can show in, for an 8:3 cluster: the whole frame; five eighths at the left or the right, beside a
     // dial; three eighths at the left, the middle or the right, between dials or in a side panel. All of the full height.
     @Test
-    fun `the experiment's areas are the whole frame and parts of its eighths`() {
+    fun `the parts are the whole frame and parts of its eighths`() {
         assertEquals(
             listOf(
                 AirPlayViewArea(1920, 720),
                 AirPlayViewArea(1200, 720), AirPlayViewArea(1200, 720, originX = 720),
                 AirPlayViewArea(720, 720), AirPlayViewArea(720, 720, originX = 600), AirPlayViewArea(720, 720, originX = 1200),
             ),
-            altscreenViewAreas(1920, 720),
+            AreaPreset.entries.map { it.area(1920, 720) },
         )
         // A width keeps to a multiple of 8, as DiPlay's streams do, and the middle one to an even origin.
         assertEquals(
@@ -25,7 +25,7 @@ class AltscreenAreasTest {
                 AirPlayViewArea(896, 540), AirPlayViewArea(896, 540, originX = 544),
                 AirPlayViewArea(536, 540), AirPlayViewArea(536, 540, originX = 452), AirPlayViewArea(536, 540, originX = 904),
             ),
-            altscreenViewAreas(1440, 540),
+            AreaPreset.entries.map { it.area(1440, 540) },
         )
     }
 

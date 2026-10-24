@@ -64,14 +64,17 @@ object EditableSettings {
         "altscreen.width" to Setting(Applies.RECONNECT, check = ::checkPositiveEven),
         "altscreen.height" to Setting(Applies.RECONNECT, check = ::checkPositiveEven),
         "altscreen.content" to choice("map", "map-card", "hud", "card", applies = Applies.RECONNECT),
-        "altscreen.cards" to choice("auto", "left", "right", "top", "off", applies = Applies.NOW),
+        "altscreen.cards" to choice("auto", "left", "right", "top", applies = Applies.NOW),
         "altscreen.safe.top" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
         "altscreen.safe.bottom" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
         "altscreen.safe.left" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
         "altscreen.safe.right" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
-        "altscreen.experiment.areas" to switch(Applies.RECONNECT),
-        // Checked together against the frame's size, in validate.
-        *AREA_VIEWS.flatMap { listOf(areaKey(it), safeKey(it)) }.map { it to Setting(Applies.RECONNECT) { null } }.toTypedArray(),
+        // The margins checked against their part as well, in validate.
+        // Every part is declared as the iPhone connects, so a view moves to another at once; its margins are in /info.
+        *AREA_VIEWS.map { areaKey(it) to choice(*AreaPreset.entries.map { preset -> preset.key }.toTypedArray(), applies = Applies.NOW) }
+            .toTypedArray(),
+        *AREA_VIEWS.flatMap { view -> SAFE_EDGES.map { safeKey(view, it) to Setting(Applies.RECONNECT, check = ::checkOptionalNonNegative) } }
+            .toTypedArray(),
         // "default" or a device's name; a name no device has stops the next start, as a typo in the file would.
         "audio.output" to Setting(Applies.RESTART) { null },
         "audio.input" to Setting(Applies.RESTART) { null },
@@ -130,17 +133,13 @@ object EditableSettings {
         val width = value("altscreen.width")?.toIntOrNull() ?: DesktopConfig.DEFAULT_ALTSCREEN_WIDTH
         val height = value("altscreen.height")?.toIntOrNull() ?: DesktopConfig.DEFAULT_ALTSCREEN_HEIGHT
         for (view in AREA_VIEWS) {
-            val areaKey = areaKey(view)
-            val safeKey = safeKey(view)
-            if (!sizeChanged && areaKey !in changes && safeKey !in changes) continue
-            val area = value(areaKey)
-            val areaProblem = area?.let { areaProblem(it, width, height) }
-            if (areaProblem != null) {
-                errors[areaKey] = areaProblem
-                continue
-            }
-            val parts = area?.split(Regex("\\s+"))?.map { it.toInt() } ?: listOf(0, 0, width, height)
-            value(safeKey)?.let { safeProblem(it, parts[2], parts[3]) }?.let { errors[safeKey] = it }
+            val keys = SAFE_EDGES.map { safeKey(view, it) }
+            if (!sizeChanged && areaKey(view) !in changes && keys.none { it in changes }) continue
+            if (areaKey(view) in errors || keys.any { it in errors }) continue
+            val area = (value(areaKey(view))?.let(AreaPreset::of) ?: AreaPreset.FULL).area(width, height)
+            val (top, bottom, left, right) = keys.map { value(it)?.toIntOrNull() ?: 0 }
+            if (top + bottom < area.height && left + right < area.width) continue
+            errors[keys.firstOrNull { it in changes } ?: keys.first()] = "Leave some of the area inside the margins"
         }
     }
 
@@ -199,7 +198,7 @@ object EditableSettings {
         return when {
             number == null || number < 1 -> "Enter a positive whole number of pixels, or leave it blank"
             number < min -> "The main window is at least $min pixels"
-            number > MAX_PIXELS -> "The main window is at most $MAX_PIXELS pixels"
+            number > MAX_PIXELS -> TOO_MANY_PIXELS
             else -> null
         }
     }
@@ -228,6 +227,9 @@ object EditableSettings {
     private fun checkMillis(value: String): String? =
         if ((value.trim().toIntOrNull() ?: -1) >= 0) null else "Enter zero or more milliseconds"
 
+    private fun checkOptionalNonNegative(value: String): String? =
+        if (value.isBlank() || (value.trim().toIntOrNull() ?: -1) >= 0) null else "Enter zero or more pixels, or leave it blank"
+
     private fun checkDuckDecibels(value: String): String? =
         if (value.trim().toIntOrNull() in DesktopConfig.DUCK_DECIBELS) null else "Enter a level from -30 to 0 dB"
 
@@ -236,9 +238,14 @@ object EditableSettings {
 
     private fun checkPositiveEven(value: String): String? {
         val number = value.trim().toIntOrNull()
-        return if (number != null && number in 1..MAX_PIXELS && number % 2 == 0) null
-            else "Enter a positive even number of pixels (at most $MAX_PIXELS)"
+        return when {
+            number == null || number < 1 || number % 2 != 0 -> "Enter a positive even number of pixels"
+            number > MAX_PIXELS -> TOO_MANY_PIXELS
+            else -> null
+        }
     }
 
-    private const val MAX_PIXELS = 16384
+    /** The most pixels a side of a screen or window may have. */
+    private const val MAX_PIXELS = 4096
+    private const val TOO_MANY_PIXELS = "Enter a smaller number of pixels"
 }

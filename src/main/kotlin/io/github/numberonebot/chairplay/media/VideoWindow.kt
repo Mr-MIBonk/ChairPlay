@@ -97,7 +97,7 @@ class VideoWindow(
      * Safe from any thread: frames the picture's safe area, the insets in its pixels, in green dots for [millis], over
      * whatever the window shows, the picture or the HUD.
      */
-    fun showFrame(top: Int, bottom: Int, left: Int, right: Int, millis: Long = 3_000) {
+    fun showFrame(top: Int, bottom: Int, left: Int, right: Int, millis: Long = 1_000) {
         frame = FrameRequest(top, bottom, left, right, System.nanoTime() + millis * 1_000_000)
         wake()
         // One more pass when it is due to go.

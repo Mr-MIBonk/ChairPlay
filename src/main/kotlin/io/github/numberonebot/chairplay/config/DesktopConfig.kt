@@ -50,24 +50,25 @@ enum class AltscreenContent(val key: String, val cluster: CarPlayClusterDisplay.
     MAP_CARD("map-card", CarPlayClusterDisplay.Content.INSTRUMENTS),
     CARD("card", CarPlayClusterDisplay.Content.TURN_CARD);
 
-    /** Whether altscreen.cards places anything in this view: the map's turn card; the turn card alone and the HUD have none. */
-    val placesCards: Boolean get() = this == MAP || this == MAP_CARD
+    /** Whether altscreen.cards places anything in this view: Map + card's turn card; the others have none to place. */
+    val placesCards: Boolean get() = this == MAP_CARD
 
     /** F11's next view, in the order the controls window's buttons and the AltScreen page show them. */
     fun next(): AltscreenContent = entries[(ordinal + 1) % entries.size]
 }
 
 /**
- * Where CarPlay lays out the navigation app's ETA and turn card on the altscreen. DashBoard reads it from the
- * cluster URL for every app (notes of the MHI2Q CarPlay project); without one it chooses, and a third-party app
- * on a wide cluster keeps a column at the left free, even showing the map alone.
+ * Where CarPlay lays out the navigation app's ETA and turn card on the altscreen, on Map + card: the other views
+ * have none to place. DashBoard reads it from the cluster URL for every app (notes of the MHI2Q CarPlay project).
+ * Without one, AUTO, it takes the driver's side the main screen was declared with (display.right.hand.drive): seen
+ * with Google Maps, the left for a left-hand drive car, the right for a right-hand drive one. Neither Google Maps nor
+ * Apple Maps takes the card away for showETA=no&maneuverLayout=no, so there is no off.
  */
 enum class AltscreenCards(val key: String, val query: String) {
     AUTO("auto", ""),
     LEFT("left", "showETA=yes&maneuverLayout=leftAligned"),
     RIGHT("right", "showETA=yes&maneuverLayout=rightAligned"),
-    TOP("top", "showETA=yes&maneuverLayout=topAligned"),
-    OFF("off", "showETA=no&maneuverLayout=no");
+    TOP("top", "showETA=yes&maneuverLayout=topAligned");
 
     fun next(): AltscreenCards = entries[(ordinal + 1) % entries.size]
 }
@@ -218,22 +219,26 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
         Altscreen(size, viewContent, viewCards, configured = content to cards)
     }
 
-    /** altscreen.experiment.areas: the view areas an enabled AltScreen declares, null for its whole frame as one. */
-    private val areaExperiment = altscreen != null && booleanSetting("altscreen.experiment.areas", false)
-
     /** altscreen.<view>.area and .safe: the views' own parts of an enabled AltScreen's frame. */
     private val viewParts = altscreen?.let { alt -> AltscreenViewParts(alt.size.width, alt.size.height) { settings.getProperty(it) } }
 
-    /** The view areas an enabled AltScreen declares, the experiment's in place of the views' own; null for one. */
-    private val altscreenAreas = altscreen?.let { alt ->
-        if (areaExperiment) altscreenViewAreas(alt.size.width, alt.size.height) else viewParts?.areas
-    }
+    /** The view areas an enabled AltScreen declares: every part of its frame, again for each view with its margins. */
+    private val altscreenAreas = viewParts?.areas
 
-    /** How many view areas the AltScreen declared, which the Experiments page moves it between; 0 for none to move. */
+    /** How many view areas the AltScreen declared; 0 without an AltScreen. */
     val altscreenAreaCount: Int = altscreenAreas?.size ?: 0
 
     /** The view area [content] shows in on the AltScreen, which it moves to as the view changes; 0 for the first. */
-    fun altscreenAreaFor(content: AltscreenContent): Int = if (areaExperiment) 0 else viewParts?.indexOf(content) ?: 0
+    fun altscreenAreaFor(content: AltscreenContent): Int = viewParts?.indexOf(content) ?: 0
+
+    /** altscreen.<view>.area: the part [content] is set to show in, the whole frame without an AltScreen or for the HUD. */
+    fun altscreenPreset(content: AltscreenContent): AreaPreset = viewParts?.presetOf(content) ?: AreaPreset.FULL
+
+    /**
+     * The view area [content] shows in when set to [preset], among the ones this connection declared: a part set since,
+     * while CarPlay runs, is one of them.
+     */
+    fun altscreenAreaIndex(content: AltscreenContent, preset: AreaPreset): Int = viewParts?.indexOf(content, preset) ?: 0
 
     /**
      * DiPlay rounds its cluster stream to multiples of 8; the AltScreen goes out at the size set, 1440x540 by
@@ -613,15 +618,15 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
                 "window.controls" to "false",
             ),
             SettingBlock(
-                "Altscreen (experimental): the car's instrument cluster as a second CarPlay screen in a window of its\n" +
+                "Altscreen: the car's instrument cluster as a second CarPlay screen in a window of its\n" +
                     "own, 'true' or 'false' (the iPhone learns of it when it connects); its size in pixels (positive even\n" +
                     "numbers); what it starts with: 'map', 'map-card', 'hud' or 'card' (the turn card).",
                 "altscreen.enabled" to "false", "altscreen.width" to "1440", "altscreen.height" to "540",
                 "altscreen.content" to "map",
             ),
             SettingBlock(
-                "Where the altscreen shows the navigation app's ETA and turn card: 'auto' (CarPlay decides), 'left',\n" +
-                    "'right', 'top', or 'off' (the map alone).",
+                "Where the altscreen shows the navigation app's ETA and turn card on Map + card: 'auto' (the driver's\n" +
+                    "side, as display.right.hand.drive declares it), 'left', 'right', or 'top'.",
                 "altscreen.cards" to "auto",
             ),
             SettingBlock(
@@ -631,19 +636,11 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
                 "altscreen.safe.right" to "0",
             ),
             SettingBlock(
-                "The altscreen's own part of its frame for each view the iPhone draws there, as 'left top width height'\n" +
-                    "in pixels, and the margins inside it its map text and car marker keep out of, as 'top right bottom\n" +
-                    "left'; blank uses the whole frame and altscreen.safe.*. The altscreen moves to a view's part as it\n" +
-                    "changes view.",
-                "altscreen.map.area" to "", "altscreen.map.safe" to "",
-                "altscreen.map-card.area" to "", "altscreen.map-card.safe" to "",
-                "altscreen.card.area" to "", "altscreen.card.safe" to "",
-            ),
-            SettingBlock(
-                "Experimental: the altscreen declares six view areas, its whole frame, five eighths at either side, and\n" +
-                    "three eighths at the left, middle, or right, that the Experiments page moves CarPlay between while it\n" +
-                    "runs: 'true' or 'false'.",
-                "altscreen.experiment.areas" to "false",
+                "The altscreen's own part of its frame for each view the iPhone draws there, all of its height: 'full',\n" +
+                    "five eighths at the side ('left5', 'right5'), or three eighths ('left3', 'center3', 'right3'); and\n" +
+                    "the margins inside that part its map text and car marker keep out of, in pixels. A view with the full\n" +
+                    "frame and blank margins uses altscreen.safe.*. The altscreen moves to a view's part as it changes view.",
+                *AREA_VIEWS.flatMap { view -> listOf(areaKey(view) to "full") + SAFE_EDGES.map { safeKey(view, it) to "" } }.toTypedArray(),
             ),
             SettingBlock("'windows' (follow the Windows theme), 'light', 'dark', or 'phone' (the iPhone decides).", "display.theme" to "windows"),
             SettingBlock("'true' puts CarPlay's dock and controls on the right, 'false' on the left.", "display.right.hand.drive" to "false"),

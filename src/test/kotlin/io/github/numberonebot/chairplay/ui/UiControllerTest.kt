@@ -45,7 +45,6 @@ class UiControllerTest {
         altscreenFrame: UiSafeAreaFrame? = null,
         onSaved: (Map<String, String>) -> Unit = {},
         demo: UiDemo? = null,
-        viewAreas: UiViewAreas? = null,
     ): UiController {
         Files.writeString(file, settings)
         val values = SettingsFile(file).read()
@@ -65,7 +64,7 @@ class UiControllerTest {
             }
         }, logged::add, autoconnect, windows, controls, launch, audio, mainWindow, bindings, applied::add, checks, elevate, setupStore,
             about, windowsVersion = { "Windows 11 24H2 (build 26300)" }, altscreenWindow = altscreenWindow, altscreenFrame = altscreenFrame,
-            onSaved = onSaved, demo = demo, viewAreas = viewAreas)
+            onSaved = onSaved, demo = demo)
     }
 
     // Copy details and New issue carry the same text: the build, the DiPlay core, and Windows; never a setting.
@@ -158,35 +157,6 @@ class UiControllerTest {
         }
     }
 
-    private class FakeViewAreas(override var count: Int = 3) : UiViewAreas {
-        override var current = 0
-        override fun show(index: Int): Boolean {
-            if (index !in 0 until count) return false
-            current = index
-            return true
-        }
-    }
-
-    // The Experiments page moves the AltScreen between the view areas it declared, while a session runs.
-    @Test
-    fun `the Experiments page moves the AltScreen between its view areas`() {
-        val areas = FakeViewAreas()
-        val ui = controller(viewAreas = areas)
-        assertEquals(mapOf("count" to 3, "current" to 0), ui.state()["viewAreas"])
-        val version = ui.version
-
-        assertTrue(ui.viewArea(2))
-        assertEquals(mapOf("count" to 3, "current" to 2), ui.state()["viewAreas"])
-        assertTrue(ui.version > version)
-        assertTrue(logged.any { "view area 2" in it })
-
-        assertFalse(ui.viewArea(3))
-        areas.count = 0
-        assertFalse(ui.viewArea(0))
-        assertFalse(controller().viewArea(0))
-        assertNull(controller().state()["viewAreas"])
-    }
-
     // The Experiments page plays the HUD's demos on the AltScreen, one at a time, and stops them.
     @Test
     fun `the Experiments page plays a HUD demo and stops it`() {
@@ -239,6 +209,26 @@ class UiControllerTest {
 
         assertEquals(listOf(listOf(40, 0, 100, 0)), shown)
         assertFalse(controller().showAltscreenFrame())
+    }
+
+    // A view's Show frame draws its own margins inside its part, as insets from the whole frame; a view without either
+    // draws the AltScreen's, as it uses them.
+    @Test
+    fun `Show frame for a view draws its part's margins`() {
+        val shown = mutableListOf<List<Int>>()
+        val frame = UiSafeAreaFrame { top, bottom, left, right -> shown += listOf(top, bottom, left, right) }
+        val ui = controller(settings = "altscreen.width=1920\naltscreen.height=720\naltscreen.safe.top=40\n" +
+            "altscreen.card.area=center3\naltscreen.card.safe.top=10\n", altscreenFrame = frame)
+
+        assertTrue(ui.showAltscreenFrame("card"))
+        assertTrue(ui.showAltscreenFrame("map"))
+        assertFalse(ui.showAltscreenFrame("hud"))
+        // A part without margins of its own has the AltScreen's clipped to it, as DiPlay declares it.
+        val clipped = controller(settings = "altscreen.width=1920\naltscreen.height=720\naltscreen.safe.top=40\naltscreen.map.area=left5\n",
+            altscreenFrame = frame)
+        assertTrue(clipped.showAltscreenFrame("map"))
+
+        assertEquals(listOf(listOf(10, 0, 600, 600), listOf(40, 0, 0, 0), listOf(40, 0, 0, 720)), shown)
     }
 
     // The pages colour themselves from it.

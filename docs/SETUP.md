@@ -149,7 +149,7 @@ The files below live in the app folder, next to `ChairPlay.exe`.
    - `window.keep.aspect` (default `true`): the windows resize only with the shape of their picture, the
      main window's that of `display.width` x `display.height` and the AltScreen's that of its size; a maximized
      window still fills the screen. `false` lets them take any shape;
-   - `altscreen.enabled` (experimental, default `false`): `true` declares a second CarPlay screen, the car's
+   - `altscreen.enabled` (default `false`): `true` declares a second CarPlay screen, the car's
      instrument cluster, and shows it in a window of its own (place and size remembered under `altscreen.` in
      `window.properties`). The iPhone learns of it when it connects, so a change applies at the next connection:
      the window appears, hides, or takes its new size then.
@@ -157,9 +157,10 @@ The files below live in the app folder, next to `ChairPlay.exe`.
      panel), and `altscreen.content` what it starts with: `map`, `card` (the turn card) or `map-card`. F11
      (`key.altscreen.content`) switches between them without reconnecting, and the mouse wheel over the window
      or + and − on either keyboard (`key.altscreen.zoom.in`/`out`) zoom the map, as a car's zoom control does. `altscreen.cards` places the navigation app's ETA and turn
-     card: `auto` (default, CarPlay decides; with a wide cluster it keeps a column at the left free), `left`,
-     `right`, `top`, or `off` (the map alone); Shift+F11 (`key.altscreen.cards`) moves them on the fly, and so does
-     a change on the AltScreen page. The
+     card on `map-card`: `auto` (default, the driver's side `display.right.hand.drive` declares, at the left of a
+     left-hand drive car's cluster and at the right of a right-hand drive one's, as seen with Google Maps), `left`,
+     `right`, or `top`. Neither Google Maps nor Apple Maps hides them for an "off", so there is none. Shift+F11
+     (`key.altscreen.cards`) moves them on the fly on `map-card`, and so does a change on the AltScreen page. The
      AltScreen opens on the content and layout F11 and Shift+F11 left it on (kept in `window.properties`), unless
      these two settings changed since. `altscreen.safe.top`/`bottom`/`left`/`right` (default 0) are
      pixels at each edge the iPhone keeps its map attribution and car marker out of, for an overlay of our own;
