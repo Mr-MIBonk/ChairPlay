@@ -92,6 +92,9 @@ class DriveControl(
     @Volatile var keyboard = false
         private set
 
+    /** An experiment's script on the pedals and the wheel, on top of the keys and a gamepad; at rest lets go. */
+    @Volatile var scripted = CarInput()
+
     /** Whether a gamepad answered the last pass. */
     @Volatile var gamepad = false
         private set
@@ -114,7 +117,7 @@ class DriveControl(
     fun pass(): Double? {
         val axes = readGamepad()
         gamepad = axes != null
-        val input = combined(if (keyboard) keys.input() else CarInput(), axes?.let(::gamepadInput) ?: CarInput())
+        val input = combined(combined(if (keyboard) keys.input() else CarInput(), axes?.let(::gamepadInput) ?: CarInput()), scripted)
         drive.input = input
         val active = keyboard || input != CarInput() || drive.moving
         if (active) {

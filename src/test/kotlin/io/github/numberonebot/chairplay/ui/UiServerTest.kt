@@ -87,6 +87,17 @@ class UiServerTest {
         assertEquals(listOf("volume 37"), api.calls)
     }
 
+    // GPS experiments: the car driven by a script (its pedals and wheel, each optional), and the CarPlay screen saved
+    // to look at where the iPhone puts it.
+    @Test
+    fun `a script drives the GPS car and saves the CarPlay screen`() {
+        assertEquals(200, post("/api/gps-drive", """{"throttle":0.5,"steer":-0.25}""").statusCode())
+        assertEquals(200, post("/api/gps-drive", """{}""").statusCode())
+        assertEquals(400, post("/api/gps-drive", """{"throttle":"fast"}""").statusCode())
+        assertEquals(200, post("/api/screenshot", "{}").statusCode())
+        assertEquals(listOf("gpsDrive 0.5 0.0 -0.25", "gpsDrive 0.0 0.0 0.0", "screenshot"), api.calls)
+    }
+
     // The Experiments page's Play and Stop: a demo by name, or none to stop it.
     @Test
     fun `a HUD demo is played and stopped`() {

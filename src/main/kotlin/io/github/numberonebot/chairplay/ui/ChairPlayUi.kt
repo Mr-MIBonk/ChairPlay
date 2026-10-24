@@ -14,6 +14,13 @@ import io.github.numberonebot.chairplay.session.firewallHint
 import java.io.Closeable
 import java.nio.file.Path
 
+/** What GPS experiments ask of the app through the API: see [UiApi.gpsDrive] and [UiApi.screenshot]. */
+interface UiExperiments {
+    fun gpsDrive(throttle: Double, brake: Double, steer: Double): Boolean
+
+    fun screenshot(): Boolean
+}
+
 /**
  * The start and settings screens as the app runs them: the state machine, the settings file, the HTTP bridge on
  * 127.0.0.1, and the page in the main window ([view]), or in the default browser without WebView2. [wake] makes
@@ -49,6 +56,8 @@ class ChairPlayUi(
     demo: UiDemo? = null,
     /** The GPS car as the GPS page shows it. */
     gps: (() -> Map<String, Any?>)? = null,
+    /** The GPS experiments' calls: the car driven by a script, and the CarPlay screens saved. */
+    private val experiments: UiExperiments? = null,
 ) : Closeable {
     val model = UiModel(config.wifi != null, config.autoconnect, config.autoshow, setupDone = SetupStore(dir).done())
 
@@ -101,7 +110,15 @@ class ChairPlayUi(
     /** Tells the GPS page that the car or the iPhone's listening changed. */
     fun gpsChanged() = controller.gpsChanged()
 
-    private val server = UiServer(controller, pageAssets(), System.getenv("CHAIRPLAY_UI_PORT")?.toIntOrNull() ?: 0, log = log)
+    // The controller's API, with the GPS experiments' calls, which only the app's windows and car can answer.
+    private val api = object : UiApi by controller {
+        override fun gpsDrive(throttle: Double, brake: Double, steer: Double) =
+            experiments?.gpsDrive(throttle, brake, steer) ?: false
+
+        override fun screenshot() = experiments?.screenshot() ?: false
+    }
+
+    private val server = UiServer(api, pageAssets(), System.getenv("CHAIRPLAY_UI_PORT")?.toIntOrNull() ?: 0, log = log)
 
     /** The page in the main window; give it to the window before it opens. */
     val view: EmbeddedUi

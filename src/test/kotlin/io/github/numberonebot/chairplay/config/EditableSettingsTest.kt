@@ -64,7 +64,9 @@ class EditableSettingsTest {
         assertEquals(emptyMap<String, String>(), errors("gps.rate" to "10", "gps.nmea" to "modern"))
         assertTrue("gps.rate" in errors("gps.rate" to "3"))
         assertTrue("gps.nmea" in errors("gps.nmea" to "ancient"))
-        for (key in listOf("gps.start", "gps.heading", "gps.resume", "gps.car.power.hp", "gps.car.mass.kg", "gps.gauges", "gps.rate", "gps.nmea")) {
+        assertEquals(emptyMap<String, String>(), errors("gps.framing" to "messages"))
+        assertTrue("gps.framing" in errors("gps.framing" to "pigeons"))
+        for (key in listOf("gps.start", "gps.heading", "gps.resume", "gps.car.power.hp", "gps.car.mass.kg", "gps.gauges", "gps.rate", "gps.nmea", "gps.framing")) {
             assertEquals(Applies.NOW, EditableSettings.applies(key))
         }
 

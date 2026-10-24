@@ -103,6 +103,17 @@ internal fun postRoute(api: UiApi, route: String, body: Map<*, *>): Pair<Int, Ma
             }
         }
         "windows-location" -> json(200, api.windowsLocation())
+        "gps-drive" -> {
+            // Each pedal and the wheel as a number, a missing one at rest.
+            val values = listOf("throttle", "brake", "steer").map { key -> body[key]?.let { it as? Number ?: return@map null }?.toDouble() ?: 0.0 }
+            when {
+                values.any { it == null } -> json(400, mapOf("error" to "throttle, brake and steer must be numbers"))
+                api.gpsDrive(values[0]!!, values[1]!!, values[2]!!) -> json(200, mapOf("ok" to true))
+                else -> json(409, mapOf("error" to "no GPS car"))
+            }
+        }
+        "screenshot" ->
+            if (api.screenshot()) json(200, mapOf("ok" to true)) else json(409, mapOf("error" to "no screens"))
         "firewall-rule" ->
             if (api.addFirewallRule()) json(200, mapOf("ok" to true))
             else json(409, mapOf("error" to "The rule was not added"))

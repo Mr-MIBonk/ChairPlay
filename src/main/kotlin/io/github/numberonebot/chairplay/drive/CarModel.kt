@@ -20,6 +20,11 @@ data class CarSpec(
     /** Drag coefficient times frontal area. */
     val dragAreaSquareMeters: Double = 0.65,
     val rollingResistance: Double = 0.012,
+    /**
+     * Whether the brake held at a standstill backs the car up. Off for now, at the owner's wish (2026-10-24): the brake
+     * only holds the car. Make the default true to have it back.
+     */
+    val reverse: Boolean = false,
 )
 
 /** The pedals and the wheel, each from 0 to 1; steer from -1 (left) to 1 (right). */
@@ -37,7 +42,7 @@ data class CarState(val speed: Double = 0.0, val headingDegrees: Double = 0.0, v
  * Basic car physics with arcade handling. The engine gives its power at every speed, so the pull is power over speed,
  * held at a launch by what the driven wheels grip; drag and rolling resistance take it back, which sets the top speed.
  * An automatic gearbox only turns the tachometer. The wheel turns the car without slip, as fast as a tight circle at
- * low speed and as a lateral pull allows at high speed. Held at a standstill, the brake backs the car up.
+ * low speed and as a lateral pull allows at high speed. Held at a standstill, the brake backs the car up, when the car has reverse ([CarSpec.reverse]).
  */
 class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
     var state: CarState = initial.copy(rpm = initial.rpm.coerceIn(spec.idleRpm, spec.redlineRpm))
@@ -66,7 +71,7 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         // and the brake held a moment selects reverse.
         standstillBrakeSeconds = if (stopped && gear > 0 && brake > 0 && throttle == 0.0) standstillBrakeSeconds + dt else 0.0
         if (stopped && gear < 0 && throttle > 0 && brake == 0.0) gear = 1
-        if (standstillBrakeSeconds >= REVERSE_HOLD_SECONDS) gear = -1
+        if (spec.reverse && standstillBrakeSeconds >= REVERSE_HOLD_SECONDS) gear = -1
         val drive = if (gear > 0) throttle else brake
         val stopping = if (gear > 0) brake else throttle
         val direction = if (gear > 0) 1.0 else -1.0

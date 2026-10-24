@@ -96,6 +96,21 @@ class DriveControlTest {
         assertFalse(control.gamepad && axes == null)
     }
 
+    // An experiment's script presses the pedals and turns the wheel, as the keys or a gamepad would, until it lets go.
+    @Test
+    fun `a script drives the car until it lets go`() {
+        val drive = Drive(CarSpec(), kyiv, 0.0) { now }
+        val control = DriveControl(drive, gamepad = { null })
+        control.scripted = CarInput(throttle = 1.0, steer = 0.5)
+        repeat(120) { now += 16_666_667L; assertEquals(DriveControl.FRAME_SECONDS, control.pass()) }
+        assertEquals(CarInput(throttle = 1.0, steer = 0.5), drive.input)
+        assertTrue(drive.snapshot().car.speed > 5.0)
+        control.scripted = CarInput()
+        now += 16_666_667L
+        control.pass()
+        assertEquals(CarInput(), drive.input)
+    }
+
     @Test
     fun `drive mode keeps the loop at frame pace and lets go of the keys as it ends`() {
         val drive = Drive(CarSpec(), kyiv, 0.0) { now }

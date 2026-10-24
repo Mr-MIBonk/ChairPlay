@@ -11,8 +11,11 @@ import kotlin.math.abs
 
 /** A location source that sends at its own pace on the link it is [attach]ed to, rather than DiPlay's once a second. */
 interface PacedLocation {
-    /** [send] puts the given NMEA text on the link as one LocationInformation; it throws once the link is gone. */
-    fun attach(send: (String) -> Unit)
+    /**
+     * [send] puts one LocationInformation on the link, with each given NMEA text as an NMEA parameter of its own; it
+     * throws once the link is gone.
+     */
+    fun attach(send: (List<String>) -> Unit)
 }
 
 /**
@@ -41,7 +44,7 @@ class DriveLocation(
     @Volatile private var listening = false
     @Volatile private var requested: Set<Int> = emptySet()
     @Volatile private var sent = 0L
-    @Volatile private var send: ((String) -> Unit)? = null
+    @Volatile private var send: ((List<String>) -> Unit)? = null
     private val lock = Any()
     private var sender: AutoCloseable? = null
     private var lastSkyNanos: Long? = null
@@ -51,7 +54,7 @@ class DriveLocation(
     private var windowPositions = 0
     private var windowSamples = 0
 
-    override fun attach(send: (String) -> Unit) {
+    override fun attach(send: (List<String>) -> Unit) {
         this.send = send
     }
 
@@ -63,7 +66,7 @@ class DriveLocation(
         listening = true
         val now = settings()
         log("GPS: the iPhone asks for ${components(requested)}; sending ${now.nmea.key} sentences " +
-            if (send != null) "at ${now.rate} a second" else "once a second")
+            if (send != null) "at ${now.rate} a second, ${now.framing.key}" else "once a second")
         val link = send ?: return true
         synchronized(lock) {
             sender?.close()
@@ -87,10 +90,16 @@ class DriveLocation(
 
     private fun sending() = synchronized(lock) { sender != null }
 
-    private fun tick(link: (String) -> Unit) {
+    private fun tick(link: (List<String>) -> Unit) {
         val nmea = compose() ?: return
         try {
-            link(nmea)
+            // gps.framing: one string as DiPlay sends it, a message for each sentence, or a parameter for each.
+            val sentences = nmea.split("\r\n").filter(String::isNotEmpty).map { "$it\r\n" }
+            when (settings().framing) {
+                NmeaFraming.JOINED -> link(listOf(nmea))
+                NmeaFraming.MESSAGES -> sentences.forEach { link(listOf(it)) }
+                NmeaFraming.PARAMETERS -> link(sentences)
+            }
             sent++
         } catch (error: Exception) {
             log("GPS: the tunnel took no more updates (${error.message}); sending stops")

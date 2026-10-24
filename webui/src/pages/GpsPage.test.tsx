@@ -89,7 +89,7 @@ describe('GPS page', () => {
   it('turns the GPS on', async () => {
     const backend = await gps(appState(live), gpsBackend(false))
 
-    fireEvent.click(screen.getByRole('checkbox', { name: "Spoof the iPhone's GPS" }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Enable spoofing' }))
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'gps.enabled': 'true' }]))
   })
@@ -101,7 +101,7 @@ describe('GPS page', () => {
     const held = screen.getByRole('textbox', { name: 'latitude' }).closest('[inert]') as HTMLElement
     expect(held).not.toBeNull()
     expect(held.contains(screen.getByRole('textbox', { name: 'Power' }))).toBe(true)
-    expect(held.contains(screen.getByRole('checkbox', { name: "Spoof the iPhone's GPS" }))).toBe(false)
+    expect(held.contains(screen.getByRole('checkbox', { name: 'Enable spoofing' }))).toBe(false)
   })
 
   it('saves what car it is', async () => {

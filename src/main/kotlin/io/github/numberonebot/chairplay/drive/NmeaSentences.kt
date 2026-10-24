@@ -14,6 +14,22 @@ enum class NmeaDialect(val key: String) {
     MODERN("modern"),
 }
 
+/**
+ * gps.framing: how an update's sentences go into LocationInformation messages. The iPhone follows a sentence in a message
+ * of its own, or in a parameter of its own; the sentences joined into one string, as DiPlay sends them, it ignores, and
+ * keeps its own location (checked with Apple Maps, iOS 26, 2026-10-24).
+ */
+enum class NmeaFraming(val key: String) {
+    /** As DiPlay sends them: all of them as one string, the message's one NMEA parameter. */
+    JOINED("joined"),
+
+    /** Each sentence in a message of its own. */
+    MESSAGES("messages"),
+
+    /** Each sentence a parameter of one message, the NMEA parameter repeated. */
+    PARAMETERS("params"),
+}
+
 /** Where the car is and how it goes, for one fix: its [course] over the ground, null standing still. */
 data class NmeaFix(val position: GeoPoint, val metersPerSecond: Double, val course: Double?)
 

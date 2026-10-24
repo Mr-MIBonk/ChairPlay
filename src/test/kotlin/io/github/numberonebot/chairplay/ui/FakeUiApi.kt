@@ -68,6 +68,16 @@ internal class FakeUiApi : UiApi {
         return kind != "tetris"
     }
 
+    override fun gpsDrive(throttle: Double, brake: Double, steer: Double): Boolean {
+        calls += "gpsDrive $throttle $brake $steer"
+        return true
+    }
+
+    override fun screenshot(): Boolean {
+        calls += "screenshot"
+        return true
+    }
+
 
     override fun volume(level: Int): Boolean {
         calls += "volume $level"

@@ -156,6 +156,12 @@ internal val SETTINGS_TEMPLATE = listOf(
             "and the sentences, 'classic' (\$GPGGA, \$GPRMC) or 'modern' (\$GNGGA, \$GNRMC, \$GNGSA, \$GNVTG).",
         "gps.rate" to "4", "gps.nmea" to "classic",
     ),
+    SettingBlock(
+        "How an update's sentences go to the iPhone: 'params' (a parameter each, in one message) or 'messages' (a\n" +
+            "message each), which the iPhone follows; or 'joined' (one string in one message, as DiPlay sends them),\n" +
+            "which it ignores.",
+        "gps.framing" to "params",
+    ),
 )
 
 /** A commented group of settings in the template, with their default values. */

@@ -198,6 +198,15 @@ interface UiApi {
     fun windowsLocation(): Map<String, Any?> = mapOf("error" to "unknown")
 
     /**
+     * GPS experiments: presses the GPS car's pedals and turns its wheel as a script asks, on top of the keys and a
+     * gamepad, until it asks again (all zero lets go); false without a car.
+     */
+    fun gpsDrive(throttle: Double, brake: Double, steer: Double): Boolean = false
+
+    /** Saves the CarPlay screens as F12 does, to look at where the iPhone puts the car; false without them. */
+    fun screenshot(): Boolean = false
+
+    /**
      * The Keyboard page's bindings: each action's keys, defaults and fixed keys, and the wheel and repeat settings as
      * controls.properties names them; null when the app has none to change.
      */

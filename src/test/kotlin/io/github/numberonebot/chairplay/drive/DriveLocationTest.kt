@@ -50,7 +50,7 @@ class DriveLocationTest {
         assertEquals(drive.snapshot().car.speed * 1.94384449, rmc[7].toDouble(), 0.01)
         assertEquals(90.0, rmc[8].toDouble(), 0.5)
 
-        val back = drive(heading = 90.0)
+        val back = Drive(CarSpec(reverse = true), kyiv, 90.0) { now }
         back.input = CarInput(brake = 1.0)
         back.tick(3.0)
         val reversing = location(back)
@@ -83,7 +83,7 @@ class DriveLocationTest {
 
     @Test
     fun `backing up says reverse in the wheel speed`() {
-        val drive = drive()
+        val drive = Drive(CarSpec(reverse = true), kyiv, 0.0) { now }
         drive.input = CarInput(brake = 1.0)
         val location = location(drive)
         location.onRequested(setOf(1, 2, 4))
@@ -139,7 +139,7 @@ class DriveLocationTest {
         val location = DriveLocation(drive, satellites = true, nanoTime = { now }, wallMillis = { wall },
             settings = { settings }, schedule = schedule::start)
         val sent = mutableListOf<String>()
-        location.attach(sent::add)
+        location.attach { parameters -> sent += parameters.joinToString("") }
         location.onRequested(setOf(1, 2, 3, 4))
         location.start()
 
@@ -165,6 +165,37 @@ class DriveLocationTest {
 
         location.stop()
         assertTrue(schedule.closed)
+    }
+
+    // gps.framing: all of an update's sentences as one string in one LocationInformation, as DiPlay sends them; each in
+    // a message of its own; or each a parameter of one message.
+    @Test
+    fun `an update's sentences go joined, a message each, or a parameter each`() {
+        var settings = GpsSettings(true, rate = 4, framing = NmeaFraming.JOINED)
+        val schedule = FakeSchedule()
+        val location = DriveLocation(drive(), satellites = false, nanoTime = { now }, wallMillis = { wallClock },
+            settings = { settings }, schedule = schedule::start)
+        val messages = mutableListOf<List<String>>()
+        location.attach { messages += it }
+        location.onRequested(setOf(1, 2, 4))
+        location.start()
+
+        schedule.tick!!()
+        assertEquals(1, messages.size)
+        assertEquals(listOf("\$GPGGA", "\$GPRMC", "\$PASCD"), messages[0].single().split("\r\n").filter(String::isNotEmpty).map { it.substringBefore(',') })
+
+        settings = GpsSettings(true, rate = 4, framing = NmeaFraming.MESSAGES)
+        messages.clear()
+        schedule.tick!!()
+        assertEquals(listOf(listOf("\$GPGGA"), listOf("\$GPRMC"), listOf("\$PASCD")), messages.map { message -> message.map { it.substringBefore(',') } })
+        assertTrue(messages.all { message -> message.single().endsWith("\r\n") })
+
+        settings = GpsSettings(true, rate = 4, framing = NmeaFraming.PARAMETERS)
+        messages.clear()
+        schedule.tick!!()
+        assertEquals(listOf(listOf("\$GPGGA", "\$GPRMC", "\$PASCD")), messages.map { message -> message.map { it.substringBefore(',') } })
+        // Each update counts once, however it is framed.
+        assertEquals(3L, location.status().sent)
     }
 
     // A tunnel that fails a send ends the sending; the next subscription starts it again.

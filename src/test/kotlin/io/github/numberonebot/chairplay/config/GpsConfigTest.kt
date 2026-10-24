@@ -4,6 +4,7 @@ import io.github.numberonebot.chairplay.drive.CarSpec
 import io.github.numberonebot.chairplay.drive.GeoPoint
 import io.github.numberonebot.chairplay.drive.GpsSettings
 import io.github.numberonebot.chairplay.drive.NmeaDialect
+import io.github.numberonebot.chairplay.drive.NmeaFraming
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -30,6 +31,8 @@ class GpsConfigTest {
         assertEquals(NmeaDialect.CLASSIC, off.nmea)
         assertEquals(10, configWith("gps.rate=10").gps.rate)
         assertEquals(NmeaDialect.MODERN, configWith("gps.nmea=modern").gps.nmea)
+        assertEquals(NmeaFraming.PARAMETERS, off.framing)
+        assertEquals(NmeaFraming.JOINED, configWith("gps.framing=joined").gps.framing)
 
         val on = configWith(
             "gps.enabled=true", "gps.satellites=true", "gps.wheel.speed=false", "gps.start=https://maps.apple.com/?ll=50.4501,30.5234",
@@ -46,7 +49,7 @@ class GpsConfigTest {
     fun `rejects GPS values the car cannot have`() {
         for (bad in listOf(
             "gps.start=Kyiv", "gps.heading=north", "gps.heading=360", "gps.car.power.hp=5", "gps.car.mass.kg=50", "gps.rate=3",
-            "gps.nmea=ancient",
+            "gps.nmea=ancient", "gps.framing=pigeons",
         )) {
             val key = bad.substringBefore('=')
             val error = assertThrows(IllegalArgumentException::class.java) { configWith(bad).gps }

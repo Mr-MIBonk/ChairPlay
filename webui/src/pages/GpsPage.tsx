@@ -73,7 +73,7 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
   return (
     <>
       <Group title="GPS" note={note(LINK_KEYS)} />
-      {check('gps.enabled', "Spoof the iPhone's GPS", undefined, false, true)}
+      {check('gps.enabled', 'Enable spoofing', undefined, false, true)}
       <Row className="hint-row">
         <span className="hint">
           The iPhone gets a made-up GPS signal in place of the car's: the position of a car ChairPlay drives, with a

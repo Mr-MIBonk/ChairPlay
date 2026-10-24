@@ -9,6 +9,7 @@ import io.github.numberonebot.chairplay.data.DataLink
 import io.github.numberonebot.chairplay.drive.GpsSettings
 import io.github.numberonebot.chairplay.drive.PacedLocation
 import io.github.numberonebot.chairplay.media.AudioDuckSink
+import com.shilapi.xcertplay.iap2.message.Iap2Messages
 import com.shilapi.xcertplay.iap2.session.Iap2Session
 import com.shilapi.xcertplay.iap2.wire.Iap2Frame
 import com.shilapi.xcertplay.network.HotspotAddressPolicy
@@ -242,8 +243,10 @@ class WirelessBootstrap internal constructor(
             return false
         }
         // A GPS that paces itself sends on this link at its own rate; the link's sends are serialised.
-        (location as? PacedLocation)?.attach { nmea ->
-            channel.send(Iap2LocationMessages.locationInformation(nmea), LOCATION_SEND_TIMEOUT_MILLIS)
+        // Built without DiPlay's schema, which allows its one NMEA parameter only once.
+        (location as? PacedLocation)?.attach { sentences ->
+            val frame = Iap2Messages.buildRaw(Iap2LocationMessages.LOCATION_INFORMATION) { sentences.forEach { string(0, it) } }
+            channel.send(frame, LOCATION_SEND_TIMEOUT_MILLIS)
         }
         Thread({
             try {

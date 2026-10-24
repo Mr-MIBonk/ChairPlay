@@ -57,10 +57,20 @@ class CarModelTest {
         assertTrue("stopped at $stoppedAt s", stoppedAt in 2.0..6.0)
     }
 
-    // Arcade: held at a standstill, the brake backs the car up, slowly; the throttle then stops it and drives on.
+    // Reverse is off for now: held at a standstill, the brake only holds the car.
+    @Test
+    fun `without reverse the brake held at a standstill holds the car`() {
+        val car = CarModel(CarSpec())
+        car.run(4.0, CarInput(brake = 1.0))
+        assertEquals(0.0, car.state.speed, 0.0)
+        assertEquals(1, car.state.gear)
+    }
+
+    // Arcade, with reverse on: held at a standstill, the brake backs the car up, slowly; the throttle then stops it and
+    // drives on.
     @Test
     fun `the brake held at a standstill reverses, and the throttle drives forward again`() {
-        val car = CarModel(CarSpec())
+        val car = CarModel(CarSpec(reverse = true))
         car.run(4.0, CarInput(brake = 1.0))
         assertTrue("speed ${car.state.speed}", car.state.speed < -1.0)
         assertEquals(-1, car.state.gear)

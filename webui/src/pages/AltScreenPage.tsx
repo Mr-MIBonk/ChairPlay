@@ -77,7 +77,7 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
         />
         <Row className="hint-row">
           <span className="hint">
-            Most clusters have an 8:3 aspect ratio, so the area presets below split the width into eighths
+            Most instrument clusters have an 8:3 aspect ratio, so the area presets below split the width into eighths
           </span>
         </Row>
         <Group title="View" />
@@ -131,8 +131,8 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
         </Row>
         <Row className="hint-row">
           <span className="hint">
-            HUD is ChairPlay's own screen, drawn from the route, song, and call data the iPhone sends rather than from
-            CarPlay's video stream
+            HUD is a custom screen drawn from the route, song, and call data the iPhone sends, not from CarPlay's video
+            stream
           </span>
         </Row>
         <Group title="Safe area" note="Pixels at each edge" />

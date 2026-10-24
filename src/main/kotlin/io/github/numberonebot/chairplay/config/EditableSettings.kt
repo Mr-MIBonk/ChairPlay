@@ -105,6 +105,7 @@ object EditableSettings {
         // The next fix goes so.
         "gps.rate" to choice(*GpsSettings.RATES.map { it.toString() }.toTypedArray(), applies = Applies.NOW),
         "gps.nmea" to choice("classic", "modern", applies = Applies.NOW),
+        "gps.framing" to choice("joined", "messages", "params", applies = Applies.NOW),
     )
 
     /** The keys the screens may change. */
