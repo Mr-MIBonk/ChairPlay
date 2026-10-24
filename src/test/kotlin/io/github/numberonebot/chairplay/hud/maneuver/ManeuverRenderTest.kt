@@ -1,108 +1,19 @@
 package io.github.numberonebot.chairplay.hud.maneuver
 
-import io.github.numberonebot.chairplay.data.DrivingSide
 import io.github.numberonebot.chairplay.data.JunctionType
 import io.github.numberonebot.chairplay.data.Lane
 import io.github.numberonebot.chairplay.data.LaneGuidance
 import io.github.numberonebot.chairplay.data.LaneStatus
-import io.github.numberonebot.chairplay.data.Maneuver
 import io.github.numberonebot.chairplay.data.ManeuverType
 import io.github.numberonebot.chairplay.hud.HudDemo
 import io.github.numberonebot.chairplay.hud.hudState
-import org.junit.AfterClass
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
-import org.junit.BeforeClass
 import org.junit.Test
-import org.lwjgl.glfw.GLFW.*
-import org.lwjgl.opengl.GL
-import org.lwjgl.opengl.GL33C.*
-import java.awt.image.BufferedImage
-import java.io.File
 import java.nio.ByteBuffer
-import java.nio.ByteOrder
-import javax.imageio.ImageIO
 
-/**
- * The renderer in a hidden window's OpenGL 3.3 core context, as the HUD runs it: maneuvers go in as packets, frames
- * come out of its texture. Skipped where no window or GL 3.3 can be had. Each picture is also written to
- * build/maneuver-renders/ for a person to look at.
- */
-class ManeuverRenderTest {
-    companion object {
-        private const val WIDTH = 656
-        private const val HEIGHT = 362
-        private var window = 0L
-        private var texture = 0
-        private val out = File("build/maneuver-renders").apply { mkdirs() }
-
-        @BeforeClass
-        @JvmStatic
-        fun open() {
-            assumeTrue("chairplay_maneuver.dll: ${ManeuverNative.loadError}", ManeuverNative.loadError == null)
-            assumeTrue("no GLFW", glfwInit())
-            glfwDefaultWindowHints()
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3)
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3)
-            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE)
-            glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE)
-            window = glfwCreateWindow(64, 64, "maneuver test", 0, 0)
-            assumeTrue("no OpenGL 3.3 core window", window != 0L)
-            glfwMakeContextCurrent(window)
-            GL.createCapabilities()
-            texture = ManeuverNative.init(WIDTH, HEIGHT)
-            assertNotEquals("init: ${ManeuverNative.lastError()}", 0, texture)
-            assertTrue("the destination flag", ManeuverNative.loadFlagAtlas())
-        }
-
-        @AfterClass
-        @JvmStatic
-        fun close() {
-            if (window != 0L) {
-                ManeuverNative.shutdown()
-                glfwDestroyWindow(window)
-                window = 0L
-            }
-            glfwTerminate()
-        }
-    }
-
-    private var clock = 1000.0
-
-    /** Runs frames at 30 fps for [seconds]; returns the last frame's result bits. */
-    private fun run(seconds: Double): Int {
-        var status = 0
-        repeat((seconds * 30).toInt()) {
-            clock += 1.0 / 30
-            status = ManeuverNative.frame(clock)
-        }
-        return status
-    }
-
-    private fun show(maneuver: Maneuver, progress: ArrowProgress = ArrowProgress.OFF) {
-        assertTrue(ManeuverNative.command(ManeuverPackets.maneuver(rendererManeuver(maneuver), progress, refresh = false)))
-    }
-
-    private fun pixels(): ByteBuffer {
-        val buffer = ByteBuffer.allocateDirect(WIDTH * HEIGHT * 4).order(ByteOrder.nativeOrder())
-        assertTrue(ManeuverNative.read(WIDTH, HEIGHT, buffer))
-        return buffer
-    }
-
-    /** Saves the frame over the HUD's black, top row first. */
-    private fun save(name: String, pixels: ByteBuffer) {
-        val image = BufferedImage(WIDTH, HEIGHT, BufferedImage.TYPE_INT_RGB)
-        for (y in 0 until HEIGHT) for (x in 0 until WIDTH) {
-            val i = ((HEIGHT - 1 - y) * WIDTH + x) * 4
-            // Premultiplied over black is the colour itself.
-            val rgb = (pixels[i].toInt() and 0xFF shl 16) or (pixels[i + 1].toInt() and 0xFF shl 8) or (pixels[i + 2].toInt() and 0xFF)
-            image.setRGB(x, y, rgb)
-        }
-        ImageIO.write(image, "png", File(out, "$name.png"))
-    }
-
+/** The maneuver renderer: the shaders, each maneuver's arrow, transitions, lanes, and the demo route through the feed. */
+class ManeuverRenderTest : ManeuverRenderFixture() {
     /**
      * The bright, near-white route pixels: how many in the whole frame, and their mean x (0 left, 1 right) in its
      * upper 60 %, above the entry road.
@@ -127,9 +38,6 @@ class ManeuverRenderTest {
         }
         return (if (upper == 0) 0.5 else sum / upper) to count
     }
-
-    private fun maneuver(type: ManeuverType, exit: Int? = null, roads: List<Int> = emptyList(), junction: JunctionType = JunctionType.INTERSECTION, index: Int = 0) =
-        Maneuver(index = index, typeCode = type.code, exitAngle = exit, junctionAngles = roads, junctionType = junction, drivingSide = DrivingSide.RIGHT)
 
     @Test
     fun `the shaders translate to GLSL 3_30 core`() {
@@ -192,95 +100,6 @@ class ManeuverRenderTest {
         save("transition-end", pixels())
         // Nothing changed: no frame is drawn again.
         assertEquals(0, ManeuverNative.frame(clock + 0.1) and ManeuverNative.RENDERED)
-    }
-
-    @Test
-    fun `progress fills the arrow and the flag keeps waving`() {
-        ManeuverNative.command(ManeuverPackets.clear())
-        run(0.2)
-        show(maneuver(ManeuverType.LEFT_TURN, -90, listOf(-90, 0), index = 0), ArrowProgress(8, ArrowProgress.FILL))
-        run(1.5)
-        save("progress-half", pixels())
-        ManeuverNative.command(ManeuverPackets.progress(ArrowProgress(16, ArrowProgress.BLINK_HIGH)))
-        run(0.5)
-        save("progress-blink-high", pixels())
-        show(maneuver(ManeuverType.ARRIVE_AT_DESTINATION, index = 1))
-        val arriving = run(4.0)
-        assertTrue("looping: $arriving", arriving and ManeuverNative.LOOPING != 0)
-        save("arrive", pixels())
-    }
-
-    // At the arrival the arrow's head turns into a disc over the end of its shaft. The fill rising into the disc must
-    // colour both alike: the shaft under the disc filled while the disc stayed white, and as the two lie in one plane
-    // they took turns row by row, white stripes across the blue.
-    @Test
-    fun `the fill rises into the arrival's disc in one piece`() {
-        // A sixteenth or two still to go: the front is in the disc.
-        for (level in listOf(1, 2, 3)) {
-            ManeuverNative.command(ManeuverPackets.clear())
-            run(0.2)
-            show(maneuver(ManeuverType.ARRIVE_AT_DESTINATION, index = 200 + level), ArrowProgress(level, ArrowProgress.FILL))
-            run(3.0)
-            val frame = pixels()
-            save("arrive-fill-$level", frame)
-            // Up the middle columns, bottom row first: blue, then white from the front on, and no white amid blue.
-            val worst = (WIDTH / 2 - 12..WIDTH / 2 + 12).maxOf { x ->
-                var changes = 0
-                var last: Boolean? = null
-                for (y in 0 until HEIGHT) {
-                    val i = (y * WIDTH + x) * 4
-                    val r = frame[i].toInt() and 0xFF
-                    val g = frame[i + 1].toInt() and 0xFF
-                    val b = frame[i + 2].toInt() and 0xFF
-                    val blue = b > 200 && r < 150 && b - r > 80
-                    val white = r > 200 && g > 200 && b > 200
-                    if (!blue && !white) continue
-                    if (last != null && last != blue) changes++
-                    last = blue
-                }
-                changes
-            }
-            assertTrue("level $level: the colour changes $worst times up a column", worst <= 1)
-        }
-    }
-
-    // Each frame of this atlas is a gradient, red across and green down: the flag drawn from it must show both to
-    // their ends. Drawn as a 3D quad in this context, the flag's texture coordinates reached the fragments divided
-    // by w after some frames, and it showed the top left quarter of its picture.
-    @Test
-    fun `the flag's picture covers its whole sprite`() {
-        val frames = ManeuverNative.FLAG_FRAMES
-        val size = ManeuverNative.FLAG_FRAME
-        val atlas = ByteBuffer.allocateDirect(size * frames * size * 4)
-        for (y in 0 until size) for (x in 0 until size * frames) {
-            atlas.put(((x % size) * 255 / (size - 1)).toByte()).put((y * 255 / (size - 1)).toByte()).put(0).put(-1)
-        }
-        atlas.flip()
-        assertTrue(ManeuverNative.flagAtlas(atlas, size, size, frames))
-        try {
-            ManeuverNative.command(ManeuverPackets.clear())
-            run(0.2)
-            show(maneuver(ManeuverType.ARRIVE_AT_DESTINATION, index = 70))
-            run(4.0)
-            val frame = pixels()
-            save("flag-coordinates", frame)
-            var across = 0
-            var down = 0
-            for (i in 0 until WIDTH * HEIGHT) {
-                val r = frame[i * 4].toInt() and 0xFF
-                val g = frame[i * 4 + 1].toInt() and 0xFF
-                val b = frame[i * 4 + 2].toInt() and 0xFF
-                // The gradient has no blue; the road's greys and the progress blue do.
-                if (maxOf(r, g) > 60 && b * 3 < maxOf(r, g)) {
-                    across = maxOf(across, r)
-                    down = maxOf(down, g)
-                }
-            }
-            assertTrue("the flag's picture reaches across to $across of 255", across > 220)
-            assertTrue("the flag's picture reaches down to $down of 255", down > 220)
-        } finally {
-            assertTrue(ManeuverNative.loadFlagAtlas())
-        }
     }
 
     /** The lane panel's blue pixels (a recommended lane, lane_panel.cpp) in the frame's bottom 34 of 181 rows. */

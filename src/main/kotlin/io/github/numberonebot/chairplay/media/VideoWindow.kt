@@ -1,6 +1,5 @@
 package io.github.numberonebot.chairplay.media
 
-import io.github.numberonebot.chairplay.config.ScreenArea
 import io.github.numberonebot.chairplay.config.WindowPlacement
 import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.config.fittedTo
@@ -12,15 +11,12 @@ import io.github.numberonebot.chairplay.input.PointerEvent
 import io.github.numberonebot.chairplay.input.Size
 import io.github.numberonebot.chairplay.input.toFramebuffer
 import org.lwjgl.glfw.GLFW.*
-import org.lwjgl.glfw.GLFWErrorCallback
 import org.lwjgl.glfw.GLFWNativeWin32.glfwGetWin32Window
 import org.lwjgl.opengl.GL
 import org.lwjgl.opengl.GLCapabilities
 import org.lwjgl.opengl.GL33C.*
 import java.awt.image.BufferedImage
 import java.io.Closeable
-import java.nio.ByteBuffer
-import java.nio.ByteOrder
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
@@ -275,20 +271,11 @@ class VideoWindow(
     private var handle = 0L
     private var capabilities: GLCapabilities? = null
     private var tracker: PlacementTracker? = null
-    private var program = 0
-    private var sourceUniform = -1
-    // Black over the window at the fades' depth: one layer dims the picture and the HUD alike.
-    private var dimProgram = 0
-    private var dimUniform = -1
-    // The safe-area frame's dots.
-    private var frameProgram = 0
-    private var frameUniform = -1
+    // The picture's programs and textures, made once the window's context is current.
+    private var gl: PictureGl? = null
     // The child (the settings over CarPlay) and the HUD (over the AltScreen's picture) each come and go through black.
     private var childFade: Fade<Boolean>? = null
     private var viewFade: Fade<View>? = null
-    private var vao = 0
-    private val textures = IntArray(3)
-    private val planeSizes = IntArray(6)
     private var picture: Size? = null
     private val w = IntArray(1)
     private val h = IntArray(1)
@@ -341,31 +328,10 @@ class VideoWindow(
         glfwSwapInterval(0)
         capabilities = GL.createCapabilities()
         installInput(window)
-
-        dimProgram = buildProgram(DIM_FRAGMENT)
-        dimUniform = glGetUniformLocation(dimProgram, "alpha")
-        frameProgram = buildProgram(FRAME_FRAGMENT)
-        frameUniform = glGetUniformLocation(frameProgram, "rect")
-        program = buildProgram()
-        vao = glGenVertexArrays()
-        for (plane in 0 until 3) textures[plane] = glGenTextures()
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
-        glUseProgram(program)
-        for (plane in 0 until 3) {
-            glActiveTexture(GL_TEXTURE0 + plane)
-            glBindTexture(GL_TEXTURE_2D, textures[plane])
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR)
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE)
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
-            glUniform1i(glGetUniformLocation(program, arrayOf("planeY", "planeU", "planeV")[plane]), plane)
-        }
-        glBindVertexArray(vao)
-        sourceUniform = glGetUniformLocation(program, "source")
-        glUniform4f(sourceUniform, 0f, 0f, 1f, 1f)
+        val gl = PictureGl().also { gl = it }
         // Black from the start, like the title bar, instead of the system's white until the first frame.
         glfwGetFramebufferSize(window, w, h)
-        clear(w[0], h[0])
+        gl.clear(w[0], h[0])
         glfwSwapBuffers(window)
         // While an edge is dragged Windows runs its own message loop, and runWindows' passes wait for it to end: the
         // window draws, and lays out the web view, from the repaints Windows asks for meanwhile, or the part it grows
@@ -446,6 +412,7 @@ class VideoWindow(
         if (glfwWindowShouldClose(window) || closing.get()) return false
         glfwMakeContextCurrent(window)
         GL.setCapabilities(capabilities)
+        val gl = checkNotNull(gl)
         if (minimizing.getAndSet(false)) glfwIconifyWindow(window)
         shownRequest.getAndSet(null)?.let { applyShown(window, it) }
         newTitle.getAndSet(null)?.let { glfwSetWindowTitle(window, it) }
@@ -465,7 +432,7 @@ class VideoWindow(
         val fresh = latest.getAndSet(null)
         if (fresh != null) {
             // glTexImage2D and glTexSubImage2D have read client memory by the time they return.
-            upload(fresh, textures, planeSizes)
+            gl.upload(fresh)
             reveal.picture(meanLuma(fresh))
             fresh.release()
             val size = Size(fresh.width, fresh.height)
@@ -498,7 +465,7 @@ class VideoWindow(
         val layer = overlay
         when {
             showsHud -> {
-                clear(w[0], h[0])
+                gl.clear(w[0], h[0])
                 if (layer != null) {
                     if (!overlayOpen) {
                         layer.open()
@@ -506,11 +473,11 @@ class VideoWindow(
                     }
                     layer.paint(w[0], h[0])
                     // The overlay changes GL state; the picture's own is set again for the next pass.
-                    restoreVideoState()
+                    gl.restore()
                 }
             }
-            shown == null -> clear(w[0], h[0])
-            else -> draw(shown, w[0], h[0])
+            shown == null -> gl.clear(w[0], h[0])
+            else -> gl.draw(shown, w[0], h[0])
         }
         topLayer?.let { top ->
             if (!topLayerOpen) {
@@ -520,41 +487,24 @@ class VideoWindow(
             // Over the whole window, not the picture's letterbox.
             glViewport(0, 0, w[0], h[0])
             top.paint(w[0], h[0])
-            restoreVideoState()
+            gl.restore()
         }
-        dim(1f - minOf(cover?.brightness ?: 1f, content.brightness), w[0], h[0])
-        drawFrame(w[0], h[0])
+        gl.dim(1f - minOf(cover?.brightness ?: 1f, content.brightness), w[0], h[0])
+        drawFrame(gl, w[0], h[0])
         val shot = screenshotRequest.getAndSet(null)
         if (shot != null && showsHud) {
             // The HUD is ours, not the iPhone's picture: save what the window shows.
-            val pixels = readFramebuffer(w[0], h[0])
+            val pixels = gl.readFramebuffer(w[0], h[0])
             val (fw, fh) = w[0] to h[0]
             Thread({ shot(screenshotImage(fw, fh, pixels)) }, "screenshot").apply { isDaemon = true }.start()
         }
         glfwSwapBuffers(window)
         if (fresh != null) onFrameShown()
         if (shot != null && !showsHud && shown != null) {
-            val pixels = readPicture(shown)
+            val pixels = gl.readPicture(shown)
             Thread({ shot(screenshotImage(shown.width, shown.height, pixels)) }, "screenshot").apply { isDaemon = true }.start()
         }
         return true
-    }
-
-    /** The program, vertex array, plane textures and blending the picture is drawn with. */
-    private fun restoreVideoState() {
-        glUseProgram(program)
-        glBindVertexArray(vao)
-        for (plane in 0 until 3) {
-            glActiveTexture(GL_TEXTURE0 + plane)
-            glBindTexture(GL_TEXTURE_2D, textures[plane])
-        }
-        glActiveTexture(GL_TEXTURE0)
-        glDisable(GL_BLEND)
-        glDisable(GL_CULL_FACE)
-        glDisable(GL_STENCIL_TEST)
-        glDisable(GL_SCISSOR_TEST)
-        glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
-        glUniform4f(sourceUniform, 0f, 0f, 1f, 1f)
     }
 
     /** Hands over the place, frees the GL objects and destroys the window. */
@@ -571,88 +521,11 @@ class VideoWindow(
         if (topLayerOpen) runCatching { topLayer?.close() }
         topLayerOpen = false
         child?.let { runCatching { it.detach() } }
-        glDeleteTextures(textures)
-        glDeleteVertexArrays(vao)
-        glDeleteProgram(program)
-        glDeleteProgram(dimProgram)
-        glDeleteProgram(frameProgram)
+        gl?.delete()
+        gl = null
         glfwMakeContextCurrent(0)
         glfwDestroyWindow(window)
         handle = 0L
-    }
-
-    /** The window's back buffer as drawn, bottom row first. */
-    private fun readFramebuffer(width: Int, height: Int): ByteBuffer {
-        val pixels = ByteBuffer.allocateDirect(width * height * 4).order(ByteOrder.nativeOrder())
-        glBindFramebuffer(GL_FRAMEBUFFER, 0)
-        glPixelStorei(GL_PACK_ALIGNMENT, 1)
-        glReadPixels(0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, pixels)
-        return pixels
-    }
-
-    /** Draws the current picture at its own size into an offscreen texture and reads it back, bottom row first. */
-    private fun readPicture(picture: Size): ByteBuffer {
-        val framebuffer = glGenFramebuffers()
-        val target = glGenTextures()
-        // Unit 3: units 0..2 hold the Y, U and V planes the shader samples.
-        glActiveTexture(GL_TEXTURE3)
-        glBindTexture(GL_TEXTURE_2D, target)
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, picture.width, picture.height, 0, GL_RGBA, GL_UNSIGNED_BYTE, null as ByteBuffer?)
-        glBindFramebuffer(GL_FRAMEBUFFER, framebuffer)
-        glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, target, 0)
-        glViewport(0, 0, picture.width, picture.height)
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
-        val pixels = ByteBuffer.allocateDirect(picture.width * picture.height * 4).order(ByteOrder.nativeOrder())
-        glPixelStorei(GL_PACK_ALIGNMENT, 1)
-        glReadPixels(0, 0, picture.width, picture.height, GL_RGBA, GL_UNSIGNED_BYTE, pixels)
-        glBindFramebuffer(GL_FRAMEBUFFER, 0)
-        glDeleteFramebuffers(framebuffer)
-        glDeleteTextures(target)
-        glActiveTexture(GL_TEXTURE0)
-        return pixels
-    }
-
-    private fun workAreas(): List<ScreenArea> {
-        val monitors = glfwGetMonitors() ?: return emptyList()
-        val x = IntArray(1)
-        val y = IntArray(1)
-        val w = IntArray(1)
-        val h = IntArray(1)
-        return (0 until monitors.limit()).map { i ->
-            glfwGetMonitorWorkarea(monitors[i], x, y, w, h)
-            ScreenArea(x[0], y[0], w[0], h[0])
-        }
-    }
-
-    /**
-     * Follows the window's normal (not maximized, not minimized) place and size, since GLFW reports the maximized
-     * or minimized geometry once the window is in that state. A maximized window minimized and closed from the
-     * taskbar stays maximized: GLFW keeps the flag across the minimize.
-     */
-    private class PlacementTracker(private val window: Long, @Volatile private var maximized: Boolean) {
-        private var x = 0
-        private var y = 0
-        private var width = 0
-        private var height = 0
-
-        init {
-            val a = IntArray(1)
-            val b = IntArray(1)
-            glfwGetWindowPos(window, a, b)
-            x = a[0]
-            y = b[0]
-            glfwGetWindowSize(window, a, b)
-            width = a[0]
-            height = b[0]
-            glfwSetWindowMaximizeCallback(window) { _, max -> maximized = max }
-            glfwSetWindowPosCallback(window) { _, newX, newY -> if (normal()) { x = newX; y = newY } }
-            glfwSetWindowSizeCallback(window) { _, newW, newH -> if (normal() && newW > 0 && newH > 0) { width = newW; height = newH } }
-        }
-
-        private fun normal() =
-            glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_FALSE && glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_FALSE
-
-        fun placement() = WindowPlacement(x, y, width, height, maximized)
     }
 
     private fun installInput(window: Long) {
@@ -684,56 +557,8 @@ class VideoWindow(
         inputHandler(PointerEvent(x, y, down).toFramebuffer(Size(ww[0], wh[0]), framebufferSize))
     }
 
-    private fun upload(frame: DecodedFrame, textures: IntArray, sizes: IntArray) {
-        val planes = arrayOf(frame.y, frame.u, frame.v)
-        val widths = intArrayOf(frame.width, (frame.width + 1) / 2, (frame.width + 1) / 2)
-        val heights = intArrayOf(frame.height, (frame.height + 1) / 2, (frame.height + 1) / 2)
-        for (plane in 0 until 3) {
-            glActiveTexture(GL_TEXTURE0 + plane)
-            glBindTexture(GL_TEXTURE_2D, textures[plane])
-            // Planes are tightly packed (DecodedFrame.strides == plane widths), so no row length is needed.
-            if (sizes[plane * 2] != widths[plane] || sizes[plane * 2 + 1] != heights[plane]) {
-                glTexImage2D(GL_TEXTURE_2D, 0, GL_R8, widths[plane], heights[plane], 0, GL_RED, GL_UNSIGNED_BYTE, planes[plane])
-                sizes[plane * 2] = widths[plane]
-                sizes[plane * 2 + 1] = heights[plane]
-            } else {
-                glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, widths[plane], heights[plane], GL_RED, GL_UNSIGNED_BYTE, planes[plane])
-            }
-        }
-    }
-
-    /** Fits the picture inside the window at its own aspect ratio; the rest stays black. */
-    private fun clear(fw: Int, fh: Int) {
-        glViewport(0, 0, fw, fh)
-        glClearColor(0f, 0f, 0f, 1f)
-        glClear(GL_COLOR_BUFFER_BIT)
-    }
-
-    private fun draw(frame: Size, fw: Int, fh: Int) {
-        if (fw == 0 || fh == 0) return
-        clear(fw, fh)
-        val scale = minOf(fw.toDouble() / frame.width, fh.toDouble() / frame.height)
-        val w = (frame.width * scale).toInt()
-        val h = (frame.height * scale).toInt()
-        glViewport((fw - w) / 2, (fh - h) / 2, w, h)
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
-    }
-
-    /** Black over the whole window, [alpha] deep, as the fades dim what it shows; nothing at 0. */
-    private fun dim(alpha: Float, fw: Int, fh: Int) {
-        if (alpha <= 0f || fw == 0 || fh == 0) return
-        glViewport(0, 0, fw, fh)
-        glUseProgram(dimProgram)
-        glUniform1f(dimUniform, alpha)
-        glEnable(GL_BLEND)
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA)
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
-        glDisable(GL_BLEND)
-        glUseProgram(program)
-    }
-
     /** The safe-area frame [showFrame] asked for, while it lasts, over the picture as the window fits it in. */
-    private fun drawFrame(fw: Int, fh: Int) {
+    private fun drawFrame(gl: PictureGl, fw: Int, fh: Int) {
         val request = frame ?: return
         if (System.nanoTime() >= request.until) {
             frame = null
@@ -742,126 +567,10 @@ class VideoWindow(
         if (fw == 0 || fh == 0) return
         val shape = frameShape(picture, stream, opened = Size(width, height))
         val rect = safeAreaRect(shape, fw, fh, request.top, request.bottom, request.left, request.right)
-        glViewport(0, 0, fw, fh)
-        glUseProgram(frameProgram)
-        glUniform4f(frameUniform, rect[0], rect[1], rect[2], rect[3])
-        glDrawArrays(GL_TRIANGLE_STRIP, 0, 4)
-        glUseProgram(program)
+        gl.frame(rect, fw, fh)
     }
 
     /** Whether a fade is under way, which needs passes of the loop at the screen's pace until it ends. */
     internal val animating: Boolean get() = childFade?.moving == true || viewFade?.moving == true
 
-    private fun buildProgram(fragmentSource: String = FRAGMENT): Int {
-        val program = glCreateProgram()
-        val vertex = compile(GL_VERTEX_SHADER, VERTEX)
-        val fragment = compile(GL_FRAGMENT_SHADER, fragmentSource)
-        glAttachShader(program, vertex)
-        glAttachShader(program, fragment)
-        glLinkProgram(program)
-        check(glGetProgrami(program, GL_LINK_STATUS) == GL_TRUE) { "shader link failed: ${glGetProgramInfoLog(program)}" }
-        glDeleteShader(vertex)
-        glDeleteShader(fragment)
-        return program
-    }
-
-    private fun compile(type: Int, source: String): Int {
-        val shader = glCreateShader(type)
-        glShaderSource(shader, source)
-        glCompileShader(shader)
-        check(glGetShaderi(shader, GL_COMPILE_STATUS) == GL_TRUE) { "shader compile failed: ${glGetShaderInfoLog(shader)}" }
-        return shader
-    }
-
-    private companion object {
-        // A strip of four vertices generated from gl_VertexID: no vertex buffer to manage.
-        const val VERTEX = """#version 330 core
-out vec2 uv;
-void main() {
-    vec2 corner = vec2(gl_VertexID & 1, gl_VertexID >> 1);
-    uv = vec2(corner.x, 1.0 - corner.y);
-    gl_Position = vec4(corner * 2.0 - 1.0, 0.0, 1.0);
-}"""
-
-        // BT.709, limited (studio) range: Y 16..235, Cb/Cr 16..240.
-        const val FRAGMENT = """#version 330 core
-in vec2 uv;
-out vec4 color;
-uniform sampler2D planeY;
-uniform sampler2D planeU;
-uniform sampler2D planeV;
-// The part of the picture drawn, in texture coordinates (left, top, right, bottom); all of it by default.
-uniform vec4 source;
-void main() {
-    vec2 at = vec2(mix(source.x, source.z, uv.x), mix(source.y, source.w, uv.y));
-    float y = (texture(planeY, at).r - 16.0 / 255.0) * (255.0 / 219.0);
-    float u = (texture(planeU, at).r - 128.0 / 255.0) * (255.0 / 224.0);
-    float v = (texture(planeV, at).r - 128.0 / 255.0) * (255.0 / 224.0);
-    color = vec4(y + 1.5748 * v, y - 0.1873 * u - 0.4681 * v, y + 1.8556 * u, 1.0);
-}"""
-
-        // The safe-area frame: 4 px thick inside the rectangle (left, bottom, right, top), in 4 px dots and gaps.
-        const val FRAME_FRAGMENT = """#version 330 core
-out vec4 color;
-uniform vec4 rect;
-void main() {
-    vec2 p = gl_FragCoord.xy;
-    float t = 4.0;
-    bool inside = p.x >= rect.x && p.x <= rect.z && p.y >= rect.y && p.y <= rect.w;
-    bool inner = p.x >= rect.x + t && p.x <= rect.z - t && p.y >= rect.y + t && p.y <= rect.w - t;
-    if (!inside || inner) discard;
-    bool horizontal = p.y < rect.y + t || p.y > rect.w - t;
-    float along = horizontal ? p.x - rect.x : p.y - rect.y;
-    if (mod(floor(along / t), 2.0) == 1.0) discard;
-    color = vec4(0.188, 0.820, 0.345, 1.0);
-}"""
-
-        // Black, blended over what is drawn: the fades' depth.
-        const val DIM_FRAGMENT = """#version 330 core
-out vec4 color;
-uniform float alpha;
-void main() {
-    color = vec4(0.0, 0.0, 0.0, alpha);
-}"""
-    }
-}
-
-/** The wait between passes while a fade runs: a little over a frame at 120 Hz. */
-private const val FADE_FRAME_SECONDS = 0.008
-
-/**
- * Runs the GLFW event loop for [main] and [others] on the calling (main) thread until [main] closes. GLFW wants
- * every window and its events on one thread, so the windows take turns after each wake-up. Closing one of
- * [others] closes only that window. [pass] runs on each pass, before the windows draw, and says how soon the next
- * is due (the GPS car while it drives); null leaves the loop to sleep until something happens.
- */
-fun runWindows(main: VideoWindow, vararg others: VideoWindow, pass: () -> Double? = { null }) {
-    GLFWErrorCallback.createPrint(System.err).set()
-    check(glfwInit()) { "cannot initialise GLFW" }
-    val open = mutableListOf(main)
-    try {
-        main.open()
-        for (window in others) {
-            window.open()
-            open += window
-        }
-        var due: Double? = null
-        while (true) {
-            // A fade under way draws at about the screen's pace; otherwise the loop sleeps until something happens.
-            val wait = listOfNotNull(due, FADE_FRAME_SECONDS.takeIf { open.any { it.animating } }).minOrNull()
-            if (wait != null) glfwWaitEventsTimeout(wait) else glfwWaitEvents()
-            due = pass()
-            if (!main.step()) break
-            for (window in open.drop(1)) {
-                if (!window.step()) {
-                    window.dispose()
-                    open -= window
-                }
-            }
-        }
-    } finally {
-        open.forEach { it.dispose() }
-        glfwTerminate()
-        glfwSetErrorCallback(null)?.free()
-    }
 }

@@ -8,7 +8,7 @@ maneuver, lanes) are drawn by `maneuver_render` from LuKa's MHI2Q CarPlay projec
 - Licence: GNU GPL v3 or later (the project's `LICENSE` and `NOTICE.md`), Copyright (c) 2026 LuKa (@LuKa_dev).
   ChairPlay is GPL v3; ChairPlay's changes below are under the same terms.
 
-`build.gradle.kts` (task `maneuverDll`) compiles these files and ChairPlay's own in `chairplay/` with the
+`gradle/native.gradle.kts` (task `maneuverDll`) compiles these files and ChairPlay's own in `chairplay/` with the
 pinned zig into `chairplay_maneuver.dll`; `hud/maneuver/` in the Kotlin code drives it.
 
 ## The files

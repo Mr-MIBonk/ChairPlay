@@ -34,7 +34,8 @@ submodule; its `AGENTS.md` and CI command are for the Android app and do not app
   the tests leaves the previous run's reports behind.
 - Upstream's C code (SpeexDSP behind `SpeexEchoCanceller`) is built by `speexEchoDll` with a pinned zig that
   `installZig` downloads into the Gradle user home. The first build needs about 6 minutes and the network. To
-  move zig, change `zigVersion` and `zigSha256` together (the hash is in https://ziglang.org/download/index.json).
+  move zig, change `zigVersion` and `zigSha256` in `gradle/native.gradle.kts` together (the hash is in
+  https://ziglang.org/download/index.json).
   The DLL ships in the image's root, next to the exe: jpackage's `app/` folder is not on `java.library.path`.
 - `gradlew.bat` is patched: it passes no `-classpath` (the empty one broke the Oracle `javapath` java.exe stub
   when `JAVA_HOME` is unset). Regenerating the wrapper (`gradle wrapper`) drops the patch; put it back.
