@@ -46,8 +46,9 @@ export function AboutPage({
       </Row>
       <Group title="Credits" />
       <Row label="Author">{link('author', 'Oleksiy Strelets', "Open the author's GitHub profile")}</Row>
-      <Row label="CarPlay core">{link('diplay', 'DiPlay')} by shihabal3amri</Row>
-      <Row label="DiPlay's base">{link('xcertplay', 'xcertplay')} by shilapi</Row>
+      <Row label="CarPlay core">
+        {link('diplay', 'DiPlay')} by shihabal3amri, on {link('xcertplay', 'xcertplay')} by shilapi
+      </Row>
       <Row label="HUD maneuvers">LuKa, {link('rgi', 'mib2q-carplay-rgi')}</Row>
       <Row label="License">GPL-3.0 · {link('notices', 'Third-party notices')}</Row>
       <Group title="Support" />

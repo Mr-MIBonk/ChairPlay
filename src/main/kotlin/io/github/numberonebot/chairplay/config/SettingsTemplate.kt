@@ -1,0 +1,167 @@
+package io.github.numberonebot.chairplay.config
+
+import io.github.numberonebot.chairplay.config.DesktopConfig.Companion.DEFAULT_ACCENT
+import io.github.numberonebot.chairplay.config.DesktopConfig.Companion.DEFAULT_CAR_LABEL
+
+/** settings.properties as the first start writes it, and what an older file is completed with. */
+internal val SETTINGS_TEMPLATE = listOf(
+    SettingBlock("Wi-Fi network shared by this PC and the iPhone.", "wifi.ssid" to "", "wifi.passphrase" to ""),
+    SettingBlock("'NONE', 'WEP', 'WPA_WPA2', 'WPA3_TRANSITION' or 'WPA3_ONLY'", "wifi.security" to "WPA_WPA2"),
+    SettingBlock("Paired iPhone's Bluetooth address, needed only when several phones are paired.", "iphone.address" to ""),
+    SettingBlock(
+        "Seconds an iPhone that paired before has to join the Wi-Fi before the app starts over (a new one has five minutes).",
+        "iphone.join.seconds" to "30",
+    ),
+    SettingBlock(
+        "'true' connects to the iPhone as the app starts, 'false' waits for Connect.",
+        "ui.autoconnect" to "true",
+    ),
+    SettingBlock(
+        "'true' shows CarPlay over the settings as soon as the iPhone connects, 'false' stays on the settings\n" +
+            "until you choose CarPlay.",
+        "ui.autoshow" to "true",
+    ),
+    SettingBlock(
+        "'true' shows each controls window button's key on it; 'false' shows them only while Alt is held.",
+        "ui.controls.keys" to "false",
+    ),
+    SettingBlock(
+        "The accent colour of the screens, the controls window, and the HUD, written #rrggbb; its lighter and\n" +
+            "fainter shades are made from it.",
+        "ui.accent" to DEFAULT_ACCENT,
+    ),
+    SettingBlock("The car's name on the iPhone (CarPlay settings, the network); blank is 'ChairPlay'.", "device.name" to ""),
+    SettingBlock(
+        "The car button on the CarPlay home screen: its label, and a square image in this folder\n" +
+            "(sent at 192 pixels at most). carplay-icon.png is written with ChairPlay's armchair to replace.",
+        "car.label" to DEFAULT_CAR_LABEL, "car.icon" to "carplay-icon.png",
+    ),
+    SettingBlock(
+        "Sound devices: 'default' (the Windows default) or a part of a device name that\n" +
+            "`ChairPlay.exe devices` lists.",
+        "audio.output" to "default", "audio.input" to "default",
+    ),
+    SettingBlock(
+        "Echo cancellation for calls through speakers, without headphones (experimental): 'true' or 'false'.",
+        "audio.echo.cancellation" to "false",
+    ),
+    SettingBlock(
+        "How CarPlay's music starts, since the iPhone's first audio comes in bursts: silent for this many\n" +
+            "milliseconds, then rising to full over this many (both 0 play it at once). The sound fades out over\n" +
+            "the second as CarPlay disconnects or reconnects and as the app closes.",
+        "audio.start.silence.ms" to "2000",
+        "audio.start.fade.ms" to "800",
+    ),
+    SettingBlock(
+        "How loud CarPlay's music stays under a navigation prompt, in decibels from -30 to 0 (-14 is\n" +
+            "Apple's own, a fifth of the volume), and whether a level the iPhone sends wins over it: 'true' or 'false'.",
+        "audio.duck.db" to "-14",
+        "audio.duck.iphone" to "true",
+    ),
+    SettingBlock(
+        "Write every message the iPhone sends about the route, the song, calls and its battery to\n" +
+            "logs\\carplay-data-<date-time>.jsonl in this folder, one JSON object per line: 'true' or 'false'.",
+        "log.carplay.data" to "false",
+    ),
+    SettingBlock(
+        "How much the app's log tells, in the console and in logs\\chairplay-<date-time>.log in this folder\n" +
+            "(the ten newest are kept): error, warning, info, debug, or trace (with every packet).",
+        "log.level" to "info",
+    ),
+    SettingBlock(
+        "The CarPlay screen the iPhone draws, in pixels (positive even numbers), and its frame rate (30-60).\n" +
+            "iOS draws at @3x from about 1280x720 on both sides, at @2x below; more pixels fit more on screen.",
+        "display.width" to "1280", "display.height" to "720", "display.fps" to "60",
+    ),
+    SettingBlock(
+        "Its physical size: the millimetres, or a pixel density. Blank (best) uses 200 mm wide with the height\n" +
+            "from the aspect ratio; other proportions than the pixels' squeeze or stretch the picture.",
+        "display.physical.width.mm" to "", "display.physical.height.mm" to "", "display.ppi" to "",
+    ),
+    SettingBlock(
+        "The window on this PC; the picture is scaled into it. Blank uses the display size.\n" +
+            "The app then remembers where you leave the window and its size, until these change.",
+        "window.width" to "", "window.height" to "",
+    ),
+    SettingBlock(
+        "'true' resizes the windows only with the picture's shape (a maximized one still fills the screen),\n" +
+            "'false' lets them take any shape.",
+        "window.keep.aspect" to "true",
+    ),
+    SettingBlock(
+        "'true' opens a window of on-screen car controls: the knob, back, home, media, calls, Siri and the\n" +
+            "AltScreen's zoom; 'false' does not.",
+        "window.controls" to "false",
+    ),
+    SettingBlock(
+        "Altscreen (experimental): the car's instrument cluster as a second CarPlay screen in a window of its\n" +
+            "own, 'true' or 'false' (the iPhone learns of it when it connects); its size in pixels (positive even\n" +
+            "numbers); what it starts with: 'map', 'map-card', 'hud' or 'card' (the turn card).",
+        "altscreen.enabled" to "false", "altscreen.width" to "1440", "altscreen.height" to "540",
+        "altscreen.content" to "map",
+    ),
+    SettingBlock(
+        "Where the altscreen shows the navigation app's ETA and turn card on Map + card: 'auto' (the driver's\n" +
+            "side, as display.right.hand.drive declares it), 'left', 'right', or 'top'.",
+        "altscreen.cards" to "auto",
+    ),
+    SettingBlock(
+        "Altscreen pixels at each edge the iPhone keeps its map text and car marker out of, for an overlay;\n" +
+            "all zero uses the whole panel.",
+        "altscreen.safe.top" to "0", "altscreen.safe.bottom" to "0", "altscreen.safe.left" to "0",
+        "altscreen.safe.right" to "0",
+    ),
+    SettingBlock(
+        "The altscreen's own part of its frame for each view the iPhone draws there, all of its height: 'full',\n" +
+            "five eighths at the side ('left5', 'right5'), a half ('left4', 'center4', 'right4'), or three eighths\n" +
+            "('left3', 'center3', 'right3'); and the margins inside that part its map text and car marker keep out\n" +
+            "of, in pixels. A view with the full frame and blank margins uses altscreen.safe.*. The altscreen moves\n" +
+            "to a view's part as it changes view.",
+        *AREA_VIEWS.flatMap { view -> listOf(areaKey(view) to "full") + SAFE_EDGES.map { safeKey(view, it) to "" } }.toTypedArray(),
+    ),
+    SettingBlock("'windows' (follow the Windows theme), 'light', 'dark', or 'phone' (the iPhone decides).", "display.theme" to "windows"),
+    SettingBlock("'true' puts CarPlay's dock and controls on the right, 'false' on the left.", "display.right.hand.drive" to "false"),
+    SettingBlock("Where the dock goes: 'auto' (the iPhone decides), 'driver' (the driver's side) or 'bottom'.", "display.dock" to "auto"),
+    SettingBlock(
+        "Pixels at each edge CarPlay keeps its controls out of, and whether it may still draw there ('true' or 'false').",
+        "display.safe.top" to "0", "display.safe.bottom" to "0", "display.safe.left" to "0", "display.safe.right" to "0",
+        "display.safe.draw.outside" to "true",
+    ),
+    SettingBlock("'square' (the picture fills the window to its corners) or 'rounded' (CarPlay rounds them).",
+        "display.corners" to "square"),
+    SettingBlock(
+        "The touchscreen CarPlay is told of: 'none' (CarPlay leaves out its scroll buttons; clicks and drags still\n" +
+            "tap, the keys move the focus), 'swipe' or 'tap' (a touchscreen that swipes or only taps; CarPlay shows\n" +
+            "scroll buttons).",
+        "display.touch" to "none",
+    ),
+    SettingBlock(
+        "Spoofed GPS: the iPhone navigates by a car this app drives (F10 or a gamepad), 'true' or 'false' (the\n" +
+            "iPhone learns of it when it connects); whether it also gets the car's wheel speed for its dead\n" +
+            "reckoning, and a sky of satellites in view: 'true' or 'false'.",
+        "gps.enabled" to "false", "gps.wheel.speed" to "true", "gps.satellites" to "false",
+    ),
+    SettingBlock(
+        "Where the car starts: 'latitude, longitude' or a Google or Apple Maps link, and its heading in degrees\n" +
+            "(0 north, 90 east); 'true' starts it where it last stopped instead.",
+        "gps.start" to "", "gps.heading" to "0", "gps.resume" to "true",
+    ),
+    SettingBlock(
+        "The car: its power in hp (20-2000) and its mass in kg (300-10000); 'true' shows its speedometer and\n" +
+            "tachometer while it drives.",
+        "gps.car.power.hp" to "150", "gps.car.mass.kg" to "1300", "gps.gauges" to "true",
+    ),
+    SettingBlock(
+        "Experiments in what the iPhone takes from the GPS: fixes a second, '1', '4' (as the iPhone asks) or '10';\n" +
+            "and the sentences, 'classic' (\$GPGGA, \$GPRMC) or 'modern' (\$GNGGA, \$GNRMC, \$GNGSA, \$GNVTG).",
+        "gps.rate" to "4", "gps.nmea" to "classic",
+    ),
+)
+
+/** A commented group of settings in the template, with their default values. */
+internal class SettingBlock(val comment: String, vararg entries: Pair<String, String>) {
+    val entries = entries.toList()
+
+    fun text(shown: List<Pair<String, String>>): String =
+        comment.lines().joinToString("") { "# $it\n" } + shown.joinToString("") { (key, value) -> "$key=$value\n" }
+}
