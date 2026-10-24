@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-li
 import { afterEach, describe, expect, it } from 'vitest'
 import type { AppState } from '../api'
 import { Shell } from '../shell/Shell'
-import { appState, FakeBackend } from '../testing'
+import { appState, FakeBackend, withKeys } from '../testing'
 
 afterEach(cleanup)
 
@@ -72,10 +72,43 @@ describe('Experiments page', () => {
     expect(backend.opened).toEqual(['logs', 'screenshots'])
   })
 
+  // An experiment: the AltScreen declares its whole frame and its halves as view areas, and CarPlay moves between them.
+  it('moves the AltScreen between its view areas', async () => {
+    const backend = await experiments(appState({ ...live, viewAreas: { count: 3, current: 0 } }))
+    const areas = screen.getByRole('radiogroup', { name: 'View area' })
+
+    expect(within(areas).getAllByRole('radio').map((radio) => radio.textContent)).toEqual(['Whole frame', 'Left half', 'Right half'])
+    expect(within(areas).getByRole('radio', { name: 'Whole frame' }).getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(within(areas).getByRole('radio', { name: 'Right half' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Declare the whole frame and its halves' }))
+
+    await waitFor(() => expect(backend.viewAreas).toEqual([2]))
+    await waitFor(() => expect(backend.saved).toEqual([{ 'altscreen.experiment.areas': 'true' }]))
+  })
+
+  it('waits for a session with view areas to move between', async () => {
+    await experiments()
+    const areas = screen.getByRole('radiogroup', { name: 'View area' })
+
+    expect(within(areas).getAllByRole('radio').every((radio) => (radio as HTMLButtonElement).disabled)).toBe(true)
+    expect(areas.closest('.row')!.getAttribute('title')).toBe('Turn on the view areas, then connect again')
+  })
+
   it('waits for the AltScreen, and says so', async () => {
     await experiments(appState({ ...live, demo: { playing: null, available: false } }))
 
     expect(button('Maneuvers').disabled).toBe(true)
     expect(button('Maneuvers').title).toBe('Turn on the AltScreen on its page first')
+  })
+
+  it('names the screenshot key as bound, and none while it is unbound', async () => {
+    const screenshots = () => screen.getByRole('button', { name: 'Screenshots' }).title
+
+    await experiments(withKeys(appState(live), { screenshot: 'PrintScreen' }))
+    expect(screenshots()).toBe('Open the screenshots folder in File Explorer (Print Screen saves to it)')
+    cleanup()
+
+    await experiments(withKeys(appState(live), { screenshot: null }))
+    expect(screenshots()).toBe('Open the screenshots folder in File Explorer')
   })
 })

@@ -11,6 +11,8 @@ class EmbeddedUiTest {
     private var embedded: Boolean? = null
     private var shows = true
     private var parentFocused = false
+    private var pageFocused = false
+    private var mouseHeld = false
 
     private val backend = object : WebViewBackend {
         override fun create(parent: Long): Long {
@@ -32,8 +34,11 @@ class EmbeddedUiTest {
         }
         override fun focusParent(parent: Long) {
             calls += "focus window"
+            pageFocused = false
         }
         override fun parentHasFocus(parent: Long) = parentFocused
+        override fun pageHasFocus(parent: Long) = pageFocused
+        override fun mouseHeld() = mouseHeld
         override fun destroy(view: Long) {
             calls += "destroy $view"
         }
@@ -111,24 +116,46 @@ class EmbeddedUiTest {
         assertEquals(listOf("focus view"), calls)
     }
 
-    // The controls window's page: the window keeps the keyboard, so the keys stay CarPlay's; a click on the page takes
-    // it, and the window gets it back once the button is released.
-    @Test
-    fun `a page that leaves the keys to the window gives them back after a click`() {
-        val ui = EmbeddedUi("http://127.0.0.1:1/controls?token=t", { true }, { backend }, { opened += it }, { logged += it }, { embedded = it },
+    private fun controlsPage() =
+        EmbeddedUi("http://127.0.0.1:1/controls?token=t", { true }, { backend }, { opened += it }, { logged += it }, { embedded = it },
             takesKeyboard = false)
+
+    // The controls window's page: the window keeps the keyboard, so the keys stay CarPlay's, where with the page they
+    // went nowhere or moved its focus about. A click anywhere on the page takes it; the window gets it back once the
+    // mouse button is up, so a button held down is not let go of.
+    @Test
+    fun `a page that leaves the keys to the window gives them back once the mouse is up`() {
+        val ui = controlsPage()
         ui.attach(42)
         ui.layout(720, 320)
         assertEquals(listOf("create 42", "navigate http://127.0.0.1:1/controls?token=t", "bounds 720x320", "show"), calls)
         calls.clear()
 
-        parentFocused = true
+        pageFocused = true
+        mouseHeld = true
         ui.layout(720, 320)
-        ui.giveKeysBack()
+        assertEquals(emptyList<String>(), calls)
+        mouseHeld = false
         ui.layout(720, 320)
         ui.layout(720, 320)
 
         assertEquals(listOf("focus window"), calls)
+    }
+
+    // Keyboard focus in another app is not the page's: the window does not take it.
+    @Test
+    fun `a page that leaves the keys to the window takes none it does not have`() {
+        val ui = controlsPage()
+        ui.attach(42)
+        ui.layout(720, 320)
+        calls.clear()
+
+        parentFocused = true
+        ui.layout(720, 320)
+        parentFocused = false
+        ui.layout(720, 320)
+
+        assertEquals(emptyList<String>(), calls)
     }
 
     @Test

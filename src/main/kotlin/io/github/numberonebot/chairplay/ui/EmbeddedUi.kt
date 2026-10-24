@@ -23,6 +23,12 @@ interface WebViewBackend {
 
     /** Whether the window itself has the keyboard rather than the page. */
     fun parentHasFocus(parent: Long): Boolean
+
+    /** Whether the page, or any window inside [parent], has the keyboard. */
+    fun pageHasFocus(parent: Long): Boolean
+
+    /** Whether a mouse button is down. */
+    fun mouseHeld(): Boolean
     fun destroy(view: Long)
 }
 
@@ -36,7 +42,8 @@ class WebViewUnavailable(message: String) : Exception(message)
  * the log says why. [onEmbedded] hears which of the two it is.
  *
  * Without [takesKeyboard] (the controls window) the window keeps the keyboard, so its keys stay CarPlay's: a click on
- * the page takes it, and [giveKeysBack] returns it to the window at the next layout.
+ * the page takes it, and the window takes it back at the first layout with the mouse button up, so a button held on
+ * the page is not let go of. The page never keeps it, where its keys went nowhere or moved its focus about.
  */
 class EmbeddedUi(
     private val url: String,
@@ -54,10 +61,6 @@ class EmbeddedUi(
     private var width = -1
     private var height = -1
     private var visible = false
-    private val keysBack = java.util.concurrent.atomic.AtomicBoolean()
-
-    /** Safe from any thread: the window takes the keyboard back from the page at its next layout. */
-    fun giveKeysBack() = keysBack.set(true)
 
     override fun attach(nativeWindow: Long) {
         parent = nativeWindow
@@ -98,7 +101,7 @@ class EmbeddedUi(
                 visible = show
                 made.setVisible(view, show)
             }
-            if (keysBack.getAndSet(false)) made.focusParent(parent)
+            if (made.pageHasFocus(parent) && !made.mouseHeld()) made.focusParent(parent)
             return
         }
         if (show != visible) {

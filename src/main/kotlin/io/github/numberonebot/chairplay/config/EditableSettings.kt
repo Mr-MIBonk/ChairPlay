@@ -69,6 +69,7 @@ object EditableSettings {
         "altscreen.safe.bottom" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
         "altscreen.safe.left" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
         "altscreen.safe.right" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
+        "altscreen.experiment.areas" to switch(Applies.RECONNECT),
         // "default" or a device's name; a name no device has stops the next start, as a typo in the file would.
         "audio.output" to Setting(Applies.RESTART) { null },
         "audio.input" to Setting(Applies.RESTART) { null },
@@ -77,7 +78,7 @@ object EditableSettings {
         "audio.start.silence.ms" to Setting(Applies.NOW, check = ::checkMillis),
         "audio.start.fade.ms" to Setting(Applies.NOW, check = ::checkMillis),
         // The next prompt ducks so.
-        "audio.duck.percent" to Setting(Applies.NOW, check = ::checkPercent),
+        "audio.duck.db" to Setting(Applies.NOW, check = ::checkDuckDecibels),
         "audio.duck.iphone" to switch(Applies.NOW),
         // The data log opens as the app starts.
         "log.carplay.data" to switch(Applies.RESTART),
@@ -200,8 +201,8 @@ object EditableSettings {
     private fun checkMillis(value: String): String? =
         if ((value.trim().toIntOrNull() ?: -1) >= 0) null else "Enter zero or more milliseconds"
 
-    private fun checkPercent(value: String): String? =
-        if (value.trim().toIntOrNull() in 0..100) null else "Enter a percentage from 0 to 100"
+    private fun checkDuckDecibels(value: String): String? =
+        if (value.trim().toIntOrNull() in DesktopConfig.DUCK_DECIBELS) null else "Enter a level from -30 to 0 dB"
 
     private fun checkFps(value: String): String? =
         if (value.trim().toIntOrNull() in 30..60) null else "Enter a frame rate from 30 to 60"

@@ -11,6 +11,8 @@ import com.shilapi.xcertplay.airplay.CarPlayClusterDisplay
 import com.shilapi.xcertplay.airplay.PairingStore
 import io.github.numberonebot.chairplay.log.LogLevel
 import io.github.numberonebot.chairplay.media.DuckSetting
+import io.github.numberonebot.chairplay.media.MediaDucking
+import io.github.numberonebot.chairplay.media.decibelGain
 import io.github.numberonebot.chairplay.network.SavedWifi
 import com.shilapi.xcertplay.transport.Iap2WirelessSecurity
 import java.awt.RenderingHints
@@ -178,16 +180,21 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
     val musicStartFadeMillis: Long = nonNegativeOr("audio.start.fade.ms", 800).toLong()
 
     /**
-     * audio.duck.percent and audio.duck.iphone: the music under a navigation prompt plays at the iPhone's level when one
-     * comes, as a car's head unit takes Apple's, unless turned off; else at this percentage of its volume (30, about
-     * -10 dB, by default).
+     * audio.duck.db and audio.duck.iphone: the music under a navigation prompt plays at the iPhone's level when one
+     * comes, as a car's head unit takes Apple's, unless turned off; else at this level in decibels, from -30 to 0
+     * (Apple's own -14 by default).
      */
     val duckSetting: DuckSetting = DuckSetting(
-        nonNegativeOr("audio.duck.percent", 30).also {
-            require(it <= 100) { "audio.duck.percent must be from 0 to 100, not $it" }
-        } / 100f,
+        decibelGain(duckDecibels().toDouble()),
         booleanSetting("audio.duck.iphone", true),
     )
+
+    private fun duckDecibels(): Int {
+        val raw = settings.getProperty("audio.duck.db")?.trim()?.ifEmpty { null } ?: return MediaDucking.DEFAULT_DECIBELS
+        val value = raw.toIntOrNull()
+        require(value != null && value in DUCK_DECIBELS) { "audio.duck.db must be a whole number from -30 to 0, not $raw" }
+        return value
+    }
 
     private fun nonNegativeOr(key: String, default: Int): Int =
         if (settings.getProperty(key)?.trim().isNullOrEmpty()) default else nonNegativeSetting(key)
@@ -207,6 +214,14 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
         val (viewContent, viewCards) = AltscreenViewStore(dir).load(content, cards)
         Altscreen(size, viewContent, viewCards, configured = content to cards)
     }
+
+    /** altscreen.experiment.areas: the view areas an enabled AltScreen declares, null for its whole frame as one. */
+    private val altscreenAreas = altscreen?.takeIf { booleanSetting("altscreen.experiment.areas", false) }
+        ?.let { altscreenViewAreas(it.size.width, it.size.height) }
+
+    /** How many view areas the AltScreen declared, which the Experiments page moves it between; 0 for none to move. */
+    val altscreenAreaCount: Int = altscreenAreas?.size ?: 0
+
     /**
      * DiPlay rounds its cluster stream to multiples of 8; the AltScreen goes out at the size set, 1440x540 by
      * default for Audi's panel (the MHI2Q CarPlay project declares it as 1440x542). Nothing covers a window on a PC, so the safe area (where Apple Maps keeps its
@@ -234,6 +249,7 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
             heightPhysicalMm = Math.round(ALTSCREEN_WIDTH_MM * height.toDouble() / width).toInt(),
             safeArea = safe.takeIf { it != AirPlayInsets() },
             initialUrl = altscreenUrl(it.content, it.cards),
+            viewAreas = altscreenAreas,
         )
     }
 
@@ -543,9 +559,9 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
                 "audio.start.fade.ms" to "800",
             ),
             SettingBlock(
-                "How loud CarPlay's music stays under a navigation prompt, in percent of its volume (30 is\n" +
-                    "about -10 dB), and whether a level the iPhone sends wins over it: 'true' or 'false'.",
-                "audio.duck.percent" to "30",
+                "How loud CarPlay's music stays under a navigation prompt, in decibels from -30 to 0 (-14 is\n" +
+                    "Apple's own, a fifth of the volume), and whether a level the iPhone sends wins over it: 'true' or 'false'.",
+                "audio.duck.db" to "-14",
                 "audio.duck.iphone" to "true",
             ),
             SettingBlock(
@@ -601,6 +617,11 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
                 "altscreen.safe.top" to "0", "altscreen.safe.bottom" to "0", "altscreen.safe.left" to "0",
                 "altscreen.safe.right" to "0",
             ),
+            SettingBlock(
+                "Experimental: the altscreen declares three view areas, its whole frame and its two halves, that the\n" +
+                    "Experiments page moves CarPlay between while it runs: 'true' or 'false'.",
+                "altscreen.experiment.areas" to "false",
+            ),
             SettingBlock("'windows' (follow the Windows theme), 'light', 'dark', or 'phone' (the iPhone decides).", "display.theme" to "windows"),
             SettingBlock("'true' puts CarPlay's dock and controls on the right, 'false' on the left.", "display.right.hand.drive" to "false"),
             SettingBlock("Where the dock goes: 'auto' (the iPhone decides), 'driver' (the driver's side) or 'bottom'.", "display.dock" to "auto"),
@@ -645,6 +666,8 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
         // The Audi Virtual Cockpit's 12.3-inch Kombi panel; DiPlay's cluster display reports the same 292 mm.
         /** iOS's system blue, CarPlay's own accent. */
         const val DEFAULT_ACCENT = "#0a84ff"
+        /** audio.duck.db: from about a thirtieth of the volume to the full volume. */
+        val DUCK_DECIBELS = -30..0
         private const val DEFAULT_ALTSCREEN_WIDTH = 1440
         private const val DEFAULT_ALTSCREEN_HEIGHT = 540
         private const val ALTSCREEN_WIDTH_MM = 292

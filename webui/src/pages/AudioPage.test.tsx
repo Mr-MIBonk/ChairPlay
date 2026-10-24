@@ -52,16 +52,17 @@ describe('Audio page volume', () => {
   it('sets how low prompts put the music', async () => {
     const backend = await audio()
 
+    // In decibels, as the iPhone sends its own, from -30 dB to 0 in steps of 1, at Apple's -14 dB unless set.
     const level = screen.getByRole('slider', { name: 'Music at' }) as HTMLInputElement
-    expect(level.value).toBe('30')
-    expect(level.step).toBe('5')
-    expect(screen.getByText('30%')).toBeTruthy()
-    fireEvent.change(level, { target: { value: '20' } })
+    expect([level.min, level.max, level.step, level.value]).toEqual(['-30', '0', '1', '-14'])
+    expect(screen.getByText('−14 dB')).toBeTruthy()
+    fireEvent.change(level, { target: { value: '-20' } })
+    expect(screen.getByText('−20 dB')).toBeTruthy()
     const iPhone = screen.getByRole('checkbox', { name: "Prefer the iPhone's level" }) as HTMLInputElement
     expect(iPhone.checked).toBe(true)
     fireEvent.click(iPhone)
 
-    await waitFor(() => expect(backend.saved).toEqual([{ 'audio.duck.percent': '20' }, { 'audio.duck.iphone': 'false' }]))
+    await waitFor(() => expect(backend.saved).toEqual([{ 'audio.duck.db': '-20' }, { 'audio.duck.iphone': 'false' }]))
   })
 
   it('says when the volume is muted', async () => {

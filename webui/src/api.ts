@@ -72,6 +72,11 @@ export interface AppState {
   waiting: boolean
   /** The HUD's demos on the AltScreen (Experiments): the one playing, and whether one can (the AltScreen is on). */
   demo: { playing: DemoKind | null; available: boolean } | null
+  /**
+   * The AltScreen's view areas (Experiments): how many the running session's AltScreen declared, 0 without a session
+   * or areas, and the one CarPlay was moved to.
+   */
+  viewAreas: { count: number; current: number } | null
   /** The page is inside ChairPlay's window rather than a browser. */
   embedded: boolean
   wifi: { ssid: string; security: string; passphraseSet: boolean }
@@ -149,6 +154,8 @@ export interface Backend {
   savedPassphrase(): Promise<string | null>
   /** Plays a HUD demo on the AltScreen, or stops it (null); false when none can play. */
   demo(kind: DemoKind | null): Promise<boolean>
+  /** Moves CarPlay on the AltScreen to view area [index]; false when it cannot. */
+  viewArea(index: number): Promise<boolean>
   /** Sets the app's volume to [level] percent, unmuting it. */
   volume(level: number): Promise<boolean>
   /** Null when connecting started, else why not. */
@@ -221,6 +228,10 @@ export class Api implements Backend {
 
   async demo(kind: DemoKind | null): Promise<boolean> {
     return (await this.request('POST', 'demo', { kind })).status === 200
+  }
+
+  async viewArea(index: number): Promise<boolean> {
+    return (await this.request('POST', 'view-area', { index })).status === 200
   }
 
   async volume(level: number): Promise<boolean> {

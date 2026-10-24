@@ -22,6 +22,8 @@ export function useKeysToApp(backend: Backend, everything: boolean) {
       const name = bindingName(event)
       if (!name) return
       const phase: KeyPhase = event.type === 'keyup' ? 'release' : event.repeat ? 'repeat' : 'press'
+      // Over the controls window a key is the app's alone: Tab does not also move the focus, nor Enter press a button.
+      if (everything) event.preventDefault()
       void backend.key(name, phase, everything)
     }
     window.addEventListener('keydown', onKey)

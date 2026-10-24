@@ -31,6 +31,8 @@ class WebView2(private val userData: Path, private val debug: Boolean) : WebView
     private interface Focus : Library {
         fun GetFocus(): Pointer?
         fun SetFocus(window: Pointer?): Pointer?
+        fun IsChild(parent: Pointer, window: Pointer): Boolean
+        fun GetAsyncKeyState(key: Int): Short
     }
 
     private val api: Api = load()
@@ -67,11 +69,20 @@ class WebView2(private val userData: Path, private val debug: Boolean) : WebView
 
     override fun parentHasFocus(parent: Long): Boolean = focus.GetFocus()?.let { Pointer.nativeValue(it) } == parent
 
+    override fun pageHasFocus(parent: Long): Boolean = focus.GetFocus()?.let { focus.IsChild(Pointer(parent), it) } ?: false
+
+    // The high bit: the button is down now.
+    override fun mouseHeld(): Boolean =
+        listOf(VK_LBUTTON, VK_RBUTTON, VK_MBUTTON).any { focus.GetAsyncKeyState(it).toInt() and 0x8000 != 0 }
+
     override fun destroy(view: Long) = api.cpw_destroy(Pointer(view))
 
     companion object {
         const val DLL = "chairplay_webview.dll"
         const val LOADER = "WebView2Loader.dll"
+        private const val VK_LBUTTON = 0x01
+        private const val VK_RBUTTON = 0x02
+        private const val VK_MBUTTON = 0x04
 
         /** The default browser, for when there is no web view in the window. */
         fun openInBrowser(url: String) {

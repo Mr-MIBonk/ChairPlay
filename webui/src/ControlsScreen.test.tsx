@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { ControlsScreen } from './ControlsScreen'
-import { appState, FakeBackend } from './testing'
+import { appState, FakeBackend, withKeys } from './testing'
 
 afterEach(cleanup)
 
@@ -103,14 +103,13 @@ describe('ControlsScreen', () => {
     expect(screen.getByText('Ctrl+M')).toBeTruthy()
   })
 
-  // Nothing on a button moves as the keys show: a labelled button shows its key in its label's place, an icon's
-  // button in its corner, clear of the icon.
-  it("puts a key in a label's place, and in the corner of an icon", () => {
+  // Every button shows its key in its top-right corner, over the button; its icon and label stay as they are.
+  it('puts every key in its button\'s corner, the labels staying', () => {
     render(<ControlsScreen state={appState({ ...live, controlsKeys: true })} backend={new FakeBackend()} />)
 
     const back = screen.getByRole('button', { name: 'Back' })
-    expect(within(back).getByText('Esc').className).not.toContain('kb')
-    expect(within(back).queryByText('Back')).toBeNull()
+    expect(within(back).getByText('Esc').className).toContain('kb')
+    expect(within(back).getByText('Back')).toBeTruthy()
     expect(within(screen.getByRole('button', { name: 'Mute' })).getByText('Ctrl+M').className).toContain('kb')
   })
 
@@ -123,6 +122,16 @@ describe('ControlsScreen', () => {
     fireEvent.keyUp(window, { code: 'ArrowUp', key: 'ArrowUp' })
 
     expect(backend.keys).toEqual(['Up press everything', 'Up release everything'])
+  })
+
+  // Tab turns the knob; it must not also move a focus ring over the buttons, nor Enter or Space press one.
+  it('keeps the keys it hands on from moving about the page', () => {
+    const backend = new FakeBackend()
+    render(<ControlsScreen state={appState(live)} backend={backend} />)
+
+    expect(fireEvent.keyDown(window, { code: 'Tab', key: 'Tab' })).toBe(false)
+    expect(fireEvent.keyDown(window, { code: 'Enter', key: 'Enter' })).toBe(false)
+    expect(backend.keys).toEqual(['Tab press everything', 'Enter press everything'])
   })
 
   // The Keyboard page's Show keys on the buttons.
@@ -161,5 +170,12 @@ describe('ControlsScreen', () => {
     rerender(<ControlsScreen state={{ ...state, controls: { ...state.controls!, volume: { level: 60, muted: true } } }} backend={new FakeBackend()} />)
 
     expect(screen.getByRole('button', { name: 'Mute' }).getAttribute('aria-pressed')).toBe('true')
+  })
+
+  // The views' key is the one bound on the Keyboard page, not F11 whatever it is.
+  it('names the key that steps through the views as bound', () => {
+    render(<ControlsScreen state={withKeys(appState(live), { 'altscreen.content': 'F10' })} backend={new FakeBackend()} />)
+
+    expect(screen.getByRole('radiogroup', { name: 'AltScreen content' }).title).toBe('F10 steps through them')
   })
 })

@@ -210,27 +210,39 @@ export function Segmented(props: {
 }
 
 /**
- * A level from 0 to 100: a track like a segmented group's frame, lit up to the level as a chosen plate is, with a
- * plate to drag, and the level in percent beside it ([idle] in its place while it is not dragged, for a muted level).
- * Each move passes the level on; while it is dragged the slider keeps its own, so the app's answer does not pull it
- * back, and follows [value] again once let go.
+ * A level from [min] to [max], 0 to 100 unless given: a track like a segmented group's frame, lit up to the level as a
+ * chosen plate is, under [marks] marks, with a plate to drag, and the level beside it, in percent unless [format] says
+ * otherwise ([idle] in its place while it is not dragged, for a muted level). Each move passes the level on; while it
+ * is dragged the slider keeps its own, so the app's answer does not pull it back, and follows [value] again once let go.
  */
-export function Slider(props: { label: string; value: number; onChange: (value: number) => void; idle?: string; step?: number }) {
+export function Slider(props: {
+  label: string
+  value: number
+  onChange: (value: number) => void
+  idle?: string
+  step?: number
+  min?: number
+  max?: number
+  marks?: number
+  format?: (value: number) => string
+}) {
   const [dragged, setDragged] = useState<number | null>(null)
   const value = dragged ?? props.value
   const letGo = () => setDragged(null)
   const idle = dragged === null ? props.idle : undefined
+  const min = props.min ?? 0
+  const max = props.max ?? 100
   return (
     <>
       <input
         type="range"
         className="slider"
         aria-label={props.label}
-        min={0}
-        max={100}
+        min={min}
+        max={max}
         step={props.step ?? 1}
         value={value}
-        style={{ '--level': `${value}%` } as CSSProperties}
+        style={{ '--level': `${((value - min) / (max - min)) * 100}%`, '--marks': props.marks ?? 20 } as CSSProperties}
         onChange={(event) => {
           const level = Number(event.target.value)
           setDragged(level)
@@ -240,7 +252,7 @@ export function Slider(props: { label: string; value: number; onChange: (value: 
         onKeyUp={letGo}
         onBlur={letGo}
       />
-      <span className={`level ${idle ? 'idle' : ''}`}>{idle ?? `${value}%`}</span>
+      <span className={`level ${idle ? 'idle' : ''}`}>{idle ?? props.format?.(value) ?? `${value}%`}</span>
     </>
   )
 }

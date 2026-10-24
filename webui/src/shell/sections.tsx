@@ -16,6 +16,7 @@ export type Section = (typeof SECTIONS)[number]['id']
 
 /** The page a setting of settings.properties or controls.properties is on. */
 export function sectionOf(key: string): Section {
+  if (key.startsWith('log.') || key.startsWith('altscreen.experiment.')) return 'experiments'
   if (key.startsWith('display.') || key.startsWith('window.')) return 'carplay'
   if (key.startsWith('altscreen.')) return 'altscreen'
   if (key.startsWith('audio.')) return 'audio'

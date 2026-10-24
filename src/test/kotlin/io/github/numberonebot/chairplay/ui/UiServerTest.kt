@@ -87,6 +87,15 @@ class UiServerTest {
         assertEquals(listOf("volume 37"), api.calls)
     }
 
+    // The Experiments page's view areas: one by its index.
+    @Test
+    fun `the AltScreen is moved to a view area`() {
+        assertEquals(200, post("/api/view-area", """{"index":1}""").statusCode())
+        assertEquals(409, post("/api/view-area", """{"index":5}""").statusCode())
+        assertEquals(400, post("/api/view-area", """{"index":"left"}""").statusCode())
+        assertEquals(listOf("view area 1", "view area 5"), api.calls)
+    }
+
     // The Experiments page's Play and Stop: a demo by name, or none to stop it.
     @Test
     fun `a HUD demo is played and stopped`() {
@@ -300,6 +309,11 @@ class UiServerTest {
         override fun demo(kind: String?): Boolean {
             calls += "demo $kind"
             return kind != "tetris"
+        }
+
+        override fun viewArea(index: Int): Boolean {
+            calls += "view area $index"
+            return index < 3
         }
 
         override fun volume(level: Int): Boolean {

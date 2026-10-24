@@ -15,6 +15,7 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     autoshow: true,
     waiting: false,
     demo: { playing: null, available: true },
+    viewAreas: { count: 0, current: 0 },
     embedded: true,
     wifi: { ssid: 'Home', security: 'WPA_WPA2', passphraseSet: true },
     reconnectPending: [],
@@ -35,8 +36,8 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
         'knob.left': 'Left', 'knob.right': 'Right', 'knob.up': 'Up', 'knob.down': 'Down', 'knob.next': 'Tab',
         'knob.previous': 'Shift+Tab', select: 'Enter', back: 'Escape', home: 'Home', siri: 'S',
         'media.previous': 'F7', 'media.playpause': 'F8', 'media.next': 'F9', 'call.answer': 'F3', 'call.end': 'F4',
-        'altscreen.content': 'F11', 'altscreen.zoom.in': 'Equal', 'altscreen.zoom.out': 'Minus',
-        'volume.up': 'Ctrl+Up', 'volume.down': 'Ctrl+Down', 'volume.mute': 'Ctrl+M',
+        reconnect: 'Ctrl+R', screenshot: 'F12', 'altscreen.content': 'F11', 'altscreen.zoom.in': 'Equal',
+        'altscreen.zoom.out': 'Minus', 'altscreen.cards': 'Shift+F11', 'volume.up': 'Ctrl+Up', 'volume.down': 'Ctrl+Down', 'volume.mute': 'Ctrl+M',
       },
       volume: { level: 60, muted: false },
       altscreen: 'map',
@@ -54,6 +55,11 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     },
     ...overrides,
   }
+}
+
+/** [state] with the actions in [keys] bound to other keys; null leaves one unbound. */
+export function withKeys(state: AppState, keys: Record<string, string | null>): AppState {
+  return { ...state, controls: { ...state.controls!, keys: { ...state.controls!.keys, ...keys } } }
 }
 
 /** ControlAction's settings and default keys, in its order. */
@@ -137,6 +143,14 @@ export class FakeBackend implements Backend {
 
   async demo(kind: DemoKind | null) {
     this.demos.push(kind)
+    return true
+  }
+
+  /** The AltScreen view areas asked for. */
+  viewAreas: number[] = []
+
+  async viewArea(index: number) {
+    this.viewAreas.push(index)
     return true
   }
 

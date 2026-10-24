@@ -213,11 +213,6 @@ code {
   pointer-events: none;
 }
 
-/* A labelled key's key, in its label's place while the keys show: the label's line and size, dimmer than a label */
-.controls-screen .key .key-name {
-  color: var(--muted);
-}
-
 /* The AltScreen's column: + over − as one bar, the modes as a track; it greys out while there is no AltScreen */
 .controls-screen .alt-column {
   display: grid;
@@ -1682,7 +1677,7 @@ html:has(.shell) {
   width: 280px;
   height: 24px;
   margin: 0;
-  background: repeating-linear-gradient(to right, var(--dim) 0 1px, transparent 1px calc((100% - 1px) / 20)) 7.5px 0 /
+  background: repeating-linear-gradient(to right, var(--dim) 0 1px, transparent 1px calc((100% - 1px) / var(--marks, 20))) 7.5px 0 /
     calc(100% - 15px) 3px no-repeat;
   appearance: none;
   cursor: default;

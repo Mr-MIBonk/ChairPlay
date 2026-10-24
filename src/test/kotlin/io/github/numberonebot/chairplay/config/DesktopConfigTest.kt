@@ -5,6 +5,7 @@ import com.shilapi.xcertplay.airplay.AirPlayViewArea
 import com.shilapi.xcertplay.airplay.AirPlayInsets
 import io.github.numberonebot.chairplay.log.LogLevel
 import io.github.numberonebot.chairplay.media.DuckSetting
+import io.github.numberonebot.chairplay.media.decibelGain
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -273,12 +274,15 @@ class DesktopConfigTest {
         assertTrue(runCatching { configWith("audio.start.fade.ms=-1").musicStartFadeMillis }.exceptionOrNull() is IllegalArgumentException)
     }
 
-    // Under a navigation prompt the music plays at the iPhone's level, or at 30 %, about -10 dB, when it sends none.
+    // Under a navigation prompt the music plays at the iPhone's level, or at -14 dB, Apple's own, when it sends none.
     @Test
-    fun `the music ducks to the iPhone's level, else to 30 percent, unless set`() {
-        assertEquals(DuckSetting(0.3f, iPhoneFirst = true), configWith().duckSetting)
-        assertEquals(DuckSetting(0.15f, iPhoneFirst = false), configWith("audio.duck.percent=15", "audio.duck.iphone=false").duckSetting)
-        assertTrue(runCatching { configWith("audio.duck.percent=101").duckSetting }.exceptionOrNull() is IllegalArgumentException)
+    fun `the music ducks to the iPhone's level, else to -14 dB, unless set`() {
+        assertEquals(DuckSetting(decibelGain(-14.0), iPhoneFirst = true), configWith().duckSetting)
+        assertEquals(DuckSetting(0.1f, iPhoneFirst = false), configWith("audio.duck.db=-20", "audio.duck.iphone=false").duckSetting)
+        assertTrue(DesktopConfig.defaultSettingsText().contains("\naudio.duck.db=-14\n"))
+        for (wrong in listOf("-31", "1", "half")) {
+            assertTrue(wrong, runCatching { configWith("audio.duck.db=$wrong").duckSetting }.exceptionOrNull() is IllegalArgumentException)
+        }
     }
 
     @Test
@@ -298,6 +302,19 @@ class DesktopConfigTest {
     fun `the altscreen is off unless asked for`() {
         assertNull(configWith().airPlay.cluster)
         assertNull(configWith().altscreen)
+    }
+
+    // The view area experiment declares the whole frame and its halves; without it, the AltScreen is one area.
+    @Test
+    fun `the altscreen declares the experiment's view areas only when asked`() {
+        val on = configWith("altscreen.enabled=true", "altscreen.width=1920", "altscreen.height=720", "altscreen.experiment.areas=true")
+
+        assertEquals(altscreenViewAreas(1920, 720), on.airPlay.cluster!!.viewAreas)
+        assertEquals(3, on.altscreenAreaCount)
+        assertNull(configWith("altscreen.enabled=true").airPlay.cluster!!.viewAreas)
+        assertEquals(0, configWith("altscreen.enabled=true").altscreenAreaCount)
+        assertEquals(0, configWith("altscreen.experiment.areas=true").altscreenAreaCount)
+        assertTrue(DesktopConfig.defaultSettingsText().contains("\naltscreen.experiment.areas=false\n"))
     }
 
     // DiPlay's cluster display, at the size asked for, with even margins instead of the BYD cluster's crop.

@@ -60,6 +60,18 @@ interface UiMainWindow {
     fun resizeTo(width: Int, height: Int)
 }
 
+/** The AltScreen's view areas, for the Experiments page's experiment (altscreen.experiment.areas). Safe from any thread. */
+interface UiViewAreas {
+    /** How many the AltScreen declared to the session running; 0 without a session or areas to move between. */
+    val count: Int
+
+    /** The one CarPlay was last moved to. */
+    val current: Int
+
+    /** Moves CarPlay on the AltScreen to area [index]; false when it is none of them or the command was not sent. */
+    fun show(index: Int): Boolean
+}
+
 /** The HUD's demos on the AltScreen, for the Experiments page: "maneuvers" or "lanes", one at a time. Safe from any thread. */
 interface UiDemo {
     /** The demo playing, or null. */
@@ -185,6 +197,9 @@ interface UiApi {
     /** Plays a HUD demo on the AltScreen ("maneuvers" or "lanes"), or stops it (null); false when none can play. */
     fun demo(kind: String?): Boolean = false
 
+    /** Moves CarPlay on the AltScreen to view area [index], for the Experiments page; false when it cannot. */
+    fun viewArea(index: Int): Boolean = false
+
     /** Sets the app's volume to [level] percent, from the Audio page's slider; false without a volume to set. */
     fun volume(level: Int): Boolean = false
 
@@ -247,6 +262,8 @@ class UiController(
     private val onSaved: (Map<String, String>) -> Unit = {},
     /** The HUD's demos on the AltScreen, for the Experiments page; null without them. */
     private val demo: UiDemo? = null,
+    /** The AltScreen's view areas, for the Experiments page; null without them. */
+    private val viewAreas: UiViewAreas? = null,
 ) : UiApi {
     /** The settings as the app started with them, against which a change waits for the next start. */
     private val startup: Map<String, String> = settings.read()
@@ -352,6 +369,14 @@ class UiController(
         if (kind != null && kind !in DEMOS) return false
         if (!demo.play(kind)) return false
         log(if (kind == null) "HUD demo stopped" else "HUD demo playing: $kind")
+        changed()
+        return true
+    }
+
+    override fun viewArea(index: Int): Boolean {
+        val areas = viewAreas ?: return false
+        if (index !in 0 until areas.count || !areas.show(index)) return false
+        log("altscreen view area $index of ${areas.count} asked for")
         changed()
         return true
     }
@@ -482,6 +507,7 @@ class UiController(
             "autoshow" to state.autoshow,
             "waiting" to state.waiting,
             "demo" to demo?.let { mapOf("playing" to it.playing, "available" to it.available) },
+            "viewAreas" to viewAreas?.let { mapOf("count" to it.count, "current" to it.current) },
             "embedded" to embedded,
             "wifi" to mapOf(
                 "ssid" to values["wifi.ssid"].orEmpty(),

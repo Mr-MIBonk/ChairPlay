@@ -13,22 +13,34 @@ class MediaDuckingTest {
     private fun ms(millis: Long) = TimeUnit.MILLISECONDS.toNanos(millis)
     private val iPhoneFirst = DuckSetting(iPhoneFirst = true)
 
+    // An iPhone 2026 sends duckAudio with durationMs=500.0, volume=-13.979399681091309: the level in decibels, a fifth
+    // of the volume; unduckAudio comes with volume=0.0.
     @Test
-    fun `duckAudio's level and ramp are read from its params`() {
-        assertEquals(DuckRequest(0.2f, 500), duckRequest(mapOf("volume" to 0.2, "durationMs" to 500L), iPhoneFirst))
+    fun `duckAudio's level in decibels and its ramp are read from its params`() {
+        val request = duckRequest(mapOf("volume" to -13.979399681091309, "durationMs" to 500.0), iPhoneFirst)
+        assertEquals(0.2f, request.level, 1e-6f)
+        assertEquals(500L, request.rampMillis)
         // Any number type the plist decoder gives.
-        assertEquals(DuckRequest(0.5f, 300), duckRequest(mapOf("volume" to 0.5f, "durationMs" to 300), iPhoneFirst))
-        assertEquals(DuckRequest(0f, 1000), duckRequest(mapOf("volume" to 0, "durationMs" to 1000.0), iPhoneFirst))
+        assertEquals(0.5f, duckRequest(mapOf("volume" to -6.0206f, "durationMs" to 300), iPhoneFirst).level, 1e-4f)
+        assertEquals(DuckRequest(1f, 1000), duckRequest(mapOf("volume" to 0, "durationMs" to 1000L), iPhoneFirst))
     }
 
-    // audio.duck.percent sets the music's level under a prompt; audio.duck.iphone lets a level the iPhone sends win.
+    // audio.duck.db sets the music's level under a prompt; audio.duck.iphone lets a level the iPhone sends win.
     @Test
     fun `the level set wins over the iPhone's unless the iPhone's is let first`() {
-        val params = mapOf("volume" to 0.1, "durationMs" to 400L)
+        val params = mapOf("volume" to -20.0, "durationMs" to 400L)
         assertEquals(DuckRequest(0.5f, 400), duckRequest(params, DuckSetting(0.5f, iPhoneFirst = false)))
         assertEquals(DuckRequest(0.1f, 400), duckRequest(params, DuckSetting(0.5f, iPhoneFirst = true)))
         // An iPhone that sends no level gets the one set.
         assertEquals(DuckRequest(0.5f, 400), duckRequest(mapOf("durationMs" to 400L), DuckSetting(0.5f, iPhoneFirst = true)))
+    }
+
+    // Without a level from the iPhone and none set, the music ducks to Apple's own -14 dB, a fifth of its volume.
+    @Test
+    fun `the default level is Apple's`() {
+        assertEquals(0.1995f, MediaDucking.DEFAULT_LEVEL, 1e-4f)
+        assertEquals(0.5f, decibelGain(-6.0206), 1e-4f)
+        assertEquals(1f, decibelGain(0.0), 0f)
     }
 
     @Test
@@ -36,15 +48,16 @@ class MediaDuckingTest {
         val defaults = DuckRequest(MediaDucking.DEFAULT_LEVEL, MediaDucking.DEFAULT_RAMP_MILLIS)
         assertEquals(defaults, duckRequest(emptyMap(), iPhoneFirst))
         assertEquals(DuckRequest(MediaDucking.DEFAULT_LEVEL, 400), duckRequest(mapOf("durationMs" to 400L), iPhoneFirst))
-        assertEquals(DuckRequest(0.1f, MediaDucking.DEFAULT_RAMP_MILLIS), duckRequest(mapOf("volume" to 0.1), iPhoneFirst))
+        assertEquals(DuckRequest(0.1f, MediaDucking.DEFAULT_RAMP_MILLIS), duckRequest(mapOf("volume" to -20.0), iPhoneFirst))
     }
 
     @Test
     fun `nonsensical params take the defaults or the nearest sane value`() {
         val level = MediaDucking.DEFAULT_LEVEL
         val ramp = MediaDucking.DEFAULT_RAMP_MILLIS
+        // Louder than the music is no duck.
         assertEquals(level, duckRequest(mapOf("volume" to 1.5), iPhoneFirst).level, 0f)
-        assertEquals(level, duckRequest(mapOf("volume" to -0.1), iPhoneFirst).level, 0f)
+        assertEquals(level, duckRequest(mapOf("volume" to Double.NEGATIVE_INFINITY), iPhoneFirst).level, 0f)
         assertEquals(level, duckRequest(mapOf("volume" to Double.NaN), iPhoneFirst).level, 0f)
         assertEquals(level, duckRequest(mapOf("volume" to "0.2"), iPhoneFirst).level, 0f)
         assertEquals(level, duckRequest(mapOf("volume" to null), iPhoneFirst).level, 0f)

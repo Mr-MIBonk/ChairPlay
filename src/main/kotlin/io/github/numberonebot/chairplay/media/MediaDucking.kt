@@ -1,5 +1,7 @@
 package io.github.numberonebot.chairplay.media
 
+import kotlin.math.pow
+
 /**
  * Hears the iPhone's duckAudio (true) and unduckAudio (false), which bracket each navigation prompt, with the command's
  * params. DiPlay's unmerged feat/navigation-audio-focus adds MediaSink.onAudioDuck(ducked) for the same commands; once
@@ -10,8 +12,8 @@ interface AudioDuckSink {
 }
 
 /**
- * audio.duck.percent and audio.duck.iphone: the music's gain under a navigation prompt, and whether a level the iPhone
- * sends with duckAudio wins over it.
+ * audio.duck.db and audio.duck.iphone: the music's gain under a navigation prompt, and whether a level the iPhone sends
+ * with duckAudio wins over it.
  */
 data class DuckSetting(val level: Float = MediaDucking.DEFAULT_LEVEL, val iPhoneFirst: Boolean = true)
 
@@ -19,19 +21,22 @@ data class DuckSetting(val level: Float = MediaDucking.DEFAULT_LEVEL, val iPhone
 internal data class DuckRequest(val level: Float, val rampMillis: Long)
 
 /**
- * The params of duckAudio or unduckAudio. Apple's receiver reads a ramp length (durationMs) and, for a duck, the
- * level to lower the music to (volume, linear 0..1); neither name is confirmed on a real iPhone yet. The level is
+ * The params of duckAudio or unduckAudio: the ramp's length (durationMs) and, for a duck, the level to lower the music
+ * to (volume, in decibels: an iPhone sends -13.98, a fifth of the volume, and 0 with its unduck). The level is
  * [setting]'s unless it lets the iPhone's win and one came. A missing or nonsensical value takes the default, and a ramp
  * is kept between [MediaDucking.MIN_RAMP_MILLIS] and [MediaDucking.MAX_RAMP_MILLIS].
  */
 internal fun duckRequest(params: Map<String, Any?>, setting: DuckSetting): DuckRequest {
-    val sent = (params[VOLUME_PARAM] as? Number)?.toFloat()?.takeIf { it in 0f..1f }
+    val sent = (params[VOLUME_PARAM] as? Number)?.toDouble()?.takeIf { it.isFinite() && it <= 0 }?.let(::decibelGain)
     val level = sent?.takeIf { setting.iPhoneFirst } ?: setting.level
     val ramp = (params[DURATION_PARAM] as? Number)?.toDouble()?.takeIf { it.isFinite() && it >= 0 }
         ?.toLong()?.coerceIn(MediaDucking.MIN_RAMP_MILLIS, MediaDucking.MAX_RAMP_MILLIS)
         ?: MediaDucking.DEFAULT_RAMP_MILLIS
     return DuckRequest(level, ramp)
 }
+
+/** The linear gain of a level in [decibels]: -6 is about a half, -20 a tenth. */
+fun decibelGain(decibels: Double): Float = 10.0.pow(decibels / 20).toFloat()
 
 private const val VOLUME_PARAM = "volume"
 private const val DURATION_PARAM = "durationMs"
@@ -118,8 +123,9 @@ internal class MediaDucking(private val log: (String) -> Unit = {}) {
     }
 
     companion object {
-        /** About -10 dB: the music stays audible under the prompt without covering it. */
-        const val DEFAULT_LEVEL = 0.3f
+        /** Apple's own -14 dB, as an iPhone sends it: the music stays audible under the prompt without covering it. */
+        const val DEFAULT_DECIBELS = -14
+        val DEFAULT_LEVEL = decibelGain(DEFAULT_DECIBELS.toDouble())
         const val DEFAULT_RAMP_MILLIS = 250L
         // A step within one block clicks; a ramp of seconds is no longer heard as making way for the prompt.
         const val MIN_RAMP_MILLIS = 20L

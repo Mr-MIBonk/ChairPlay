@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { Shell } from '../shell/Shell'
-import { appState, FakeBackend } from '../testing'
+import { appState, FakeBackend, withKeys } from '../testing'
 
 afterEach(cleanup)
 
@@ -136,5 +136,17 @@ describe('AltScreen page', () => {
     fireEvent.blur(textbox('Bottom'))
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'altscreen.safe.bottom': '60' }]))
+  })
+
+  it('names the key that moves the turn card as bound, and none while it is unbound', async () => {
+    const live = appState({ phase: 'active', canShowCarPlay: true })
+    const turnCard = () => screen.getByText('Turn card', { selector: 'label' }).closest('[title]')?.getAttribute('title')
+
+    await altscreen(new FakeBackend(), withKeys(live, { 'altscreen.cards': 'Ctrl+T' }))
+    expect(turnCard()).toBe('Where the turn card starts; Ctrl+T moves it while CarPlay runs')
+    cleanup()
+
+    await altscreen(new FakeBackend(), withKeys(live, { 'altscreen.cards': null }))
+    expect(turnCard()).toBe('Where the turn card starts')
   })
 })

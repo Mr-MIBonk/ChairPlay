@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { AppState, Backend, WindowName } from '../api'
+import { keyLabel } from '../ControlsScreen'
 import type { Steps } from '../setup/steps'
 import { describe, type Status } from '../status'
 import { AltScreenIcon, CarPlayIcon, ControlsIcon, DisconnectIcon, ReconnectIcon } from './icons'
@@ -16,6 +17,7 @@ export function Toolbar({ state, backend, guide }: { state: AppState; backend: B
   const session = state.canShowCarPlay
   const restart = sectionsOf(state.restartPending).map((id) => SECTIONS.find((section) => section.id === id)!.title)
   const idle = state.phase === 'setup' || state.phase === 'idle'
+  const reconnectKey = state.controls?.keys.reconnect
   // Under Get started the status says where the steps stand, and Connect waits for the last of them, then lights up.
   const status: Status =
     guide && idle
@@ -69,7 +71,7 @@ export function Toolbar({ state, backend, guide }: { state: AppState; backend: B
             type="button"
             className="btn icon"
             aria-label="Reconnect"
-            title="Reconnect: end the session and connect again (Ctrl+R)"
+            title={`Reconnect: end the session and connect again${reconnectKey ? ` (${keyLabel(reconnectKey)})` : ''}`}
             onClick={() => backend.reconnect()}
           >
             <ReconnectIcon />

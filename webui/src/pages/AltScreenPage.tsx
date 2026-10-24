@@ -1,4 +1,5 @@
 import type { AltscreenContent, AppState, Backend } from '../api'
+import { keyLabel } from '../ControlsScreen'
 import { Checkbox, Group, Row, Segmented, type Choice } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
 import { ActualSize, Changed, parts, pendingOf, SafeArea, SizeRows } from './parts'
@@ -24,6 +25,7 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
   const pending = pendingOf(state)
   const { choice, note } = parts(settings, pending)
   const viewOn = state.controls?.altscreen != null && state.windows.altscreen.available && state.canShowCarPlay
+  const cardsKey = state.controls?.keys['altscreen.cards']
   return (
     <>
       <Group title="Display" note={note(DISPLAY_KEYS)} />
@@ -55,7 +57,7 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
           onChange={(content) => void backend.altscreen(content as AltscreenContent)}
         />
       </Row>
-      <Row label="Turn card" title="Where the turn card starts; Shift+F11 moves it while CarPlay runs">
+      <Row label="Turn card" title={`Where the turn card starts${cardsKey ? `; ${keyLabel(cardsKey)} moves it while CarPlay runs` : ''}`}>
         {choice('altscreen.cards', 'Turn card', 'auto', [['auto', 'Auto'], ['left', 'Left'], ['right', 'Right'], ['top', 'Top'], ['off', 'Off']])}
       </Row>
       <Group title="Safe area" note="Pixels at each edge" />

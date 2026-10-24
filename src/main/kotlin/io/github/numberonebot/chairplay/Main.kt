@@ -13,6 +13,7 @@ import io.github.numberonebot.chairplay.config.WindowPlacementStore
 import io.github.numberonebot.chairplay.config.altscreenTitle
 import io.github.numberonebot.chairplay.config.mainWindowTitle
 import io.github.numberonebot.chairplay.config.altscreenUrl
+import io.github.numberonebot.chairplay.config.AltscreenAreaMove
 import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.data.CarPlayData
 import io.github.numberonebot.chairplay.data.CarPlayDataLog
@@ -62,6 +63,7 @@ import io.github.numberonebot.chairplay.ui.UiMainWindow
 import io.github.numberonebot.chairplay.ui.UiSafeAreaFrame
 import io.github.numberonebot.chairplay.ui.UiControls
 import io.github.numberonebot.chairplay.ui.UiDemo
+import io.github.numberonebot.chairplay.ui.UiViewAreas
 import org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT
 import org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_ALT
 import org.lwjgl.glfw.GLFW.GLFW_RELEASE
@@ -77,6 +79,7 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.abs
 import kotlin.system.exitProcess
@@ -384,7 +387,8 @@ private fun runCarPlay() {
     // Whether the iPhone plays, for the play/pause button's glyph; set once the CarPlay data exists, below.
     val playing = AtomicReference<() -> Boolean> { false }
     val altHeld = AtomicBoolean()
-    val giveKeysBack = AtomicReference<() -> Unit> {}
+    // A pass of the controls window's loop, which takes the keyboard back from its page once the mouse is up.
+    val controlsPass = AtomicReference<() -> Unit> {}
     // The keys a page with the keyboard hands on, held and repeated apart from the window's own.
     val pageKeys = PageKeys { bindings.get() }
     val pageControls = object : UiControls {
@@ -397,7 +401,7 @@ private fun runCarPlay() {
         override fun control(action: String, down: Boolean): Boolean {
             val button = ControlAction.entries.firstOrNull { it.key == "key.$action" } ?: return false
             send(if (down) pad.press(button) else pad.release(button))
-            if (!down) giveKeysBack.get()()
+            if (!down) controlsPass.get()()
             return true
         }
 
@@ -446,6 +450,29 @@ private fun runCarPlay() {
             return true
         }
     }
+    // altscreen.experiment.areas: the view areas the connection's AltScreen declared, and the one CarPlay was moved to,
+    // which each connection starts at the first of (initialViewArea).
+    val areaCount = AtomicInteger(config.altscreenAreaCount)
+    val currentArea = AtomicInteger(0)
+    // The area, then the view asked for again, without which it stays blurred mid-way; on the touch thread, as every
+    // change of the AltScreen's view.
+    fun moveArea(session: AirPlaySession) = AltscreenAreaMove(
+        count = areaCount::get,
+        send = { command ->
+            session.sendCommand(command).also { log("altscreen view area ${(command["params"] as Map<*, *>)["viewAreaIndex"]} of ${areaCount.get()} sent=$it") }
+        },
+        showView = { showAltscreenView(session) },
+    )
+    val viewAreas = object : UiViewAreas {
+        override val count get() = if (active.get() == null) 0 else areaCount.get()
+        override val current get() = currentArea.get()
+
+        override fun show(index: Int): Boolean {
+            val session = active.get() ?: return false
+            touchSender.execute { if (moveArea(session)(index)) currentArea.set(index) }
+            return true
+        }
+    }
     // A theme the CarPlay page saved; set once the session's theme sending exists, below.
     val themeSaved = AtomicReference<(String) -> Unit> {}
     val ui = ChairPlayUi(dir, config, firewall, object : UiActions {
@@ -478,7 +505,7 @@ private fun runCarPlay() {
                 }
             }
             saved["log.level"]?.let { LogLevel.of(it) }?.let { appLog.level = it }
-            if ("audio.duck.percent" in saved || "audio.duck.iphone" in saved) {
+            if ("audio.duck.db" in saved || "audio.duck.iphone" in saved) {
                 runCatching { config.now() }.onSuccess { now ->
                     duckSetting.set(now.duckSetting)
                     log("prompts duck the music to ${now.duckSetting.level}" + if (now.duckSetting.iPhoneFirst) ", or the iPhone's level" else "")
@@ -492,15 +519,12 @@ private fun runCarPlay() {
                 }
             }
         },
-        demo = demos)
+        demo = demos, viewAreas = viewAreas)
     // The CarPlay page offers Actual size while the window's size differs from the picture's.
     window.onResize = { ui.windowsChanged() }
     altscreen.onResize = { ui.windowsChanged() }
     controlsChanged.set { ui.controlsChanged() }
-    giveKeysBack.set {
-        ui.controlsView?.giveKeysBack()
-        controlsWindow.repaint()
-    }
+    controlsPass.set { controlsWindow.repaint() }
     altscreen.onVisibility = {
         ui.windowsChanged()
         // A closed AltScreen is not drawn on the iPhone, and asked for again as it opens; none once the app closes.
@@ -509,7 +533,14 @@ private fun runCarPlay() {
     // Each new AltScreen stream starts on the iPhone's initial view: it is told what the window shows now.
     sink.onAltscreenStream = {
         altscreenUi.newStream()
-        runCatching { touchSender.execute { showAltscreenView(active.get()) } }
+        runCatching {
+            touchSender.execute {
+                // It may start in the first view area again, as it starts on the initial view: the area goes first.
+                val session = active.get()
+                val area = currentArea.get()
+                if (session == null || area == 0 || !moveArea(session)(area)) showAltscreenView(session)
+            }
+        }
     }
     // taskkill without /F asks one of the app's windows to close: the AltScreen's or the controls window's ends the app
     // as the main window's does, where its close button only hides it.
@@ -659,6 +690,8 @@ private fun runCarPlay() {
     // The screens saved since come with the next connection: the main window takes the new picture's shape and size,
     // and the AltScreen turns on or off, or takes its new size and the view it starts with.
     bootstrap.onConnection = { now ->
+        areaCount.set(now.altscreenAreaCount)
+        currentArea.set(0)
         val size = WindowSize(now.displayWidth, now.displayHeight)
         if (size != window.stream) {
             log("display ${size.width}x${size.height} px from this connection on")

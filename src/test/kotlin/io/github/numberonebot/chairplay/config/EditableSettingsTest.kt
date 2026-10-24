@@ -58,7 +58,8 @@ class EditableSettingsTest {
         assertTrue("map, map-card, hud, card" in errors("altscreen.content" to "radar").getValue("altscreen.content"))
         assertTrue("auto, left, right, top, off" in errors("altscreen.cards" to "bottom").getValue("altscreen.cards"))
         assertTrue("error, warning, info, debug, trace" in errors("log.level" to "loud").getValue("log.level"))
-        for (key in listOf("display.right.hand.drive", "display.safe.draw.outside", "audio.echo.cancellation", "audio.duck.iphone")) {
+        for (key in listOf("display.right.hand.drive", "display.safe.draw.outside", "audio.echo.cancellation", "audio.duck.iphone",
+            "altscreen.experiment.areas")) {
             assertTrue(key, "true or false" in errors(key to "yes").getValue(key))
         }
     }
@@ -75,10 +76,12 @@ class EditableSettingsTest {
     }
 
     @Test
-    fun `the music's level under prompts is a percentage`() {
-        assertTrue("0 to 100" in errors("audio.duck.percent" to "101").getValue("audio.duck.percent"))
-        assertTrue("0 to 100" in errors("audio.duck.percent" to "half").getValue("audio.duck.percent"))
-        assertTrue(errors("audio.duck.percent" to "0", "audio.duck.iphone" to "true").isEmpty())
+    fun `the music's level under prompts is in decibels`() {
+        for (wrong in listOf("-31", "1", "half")) {
+            assertEquals(wrong, "Enter a level from -30 to 0 dB", errors("audio.duck.db" to wrong)["audio.duck.db"])
+        }
+        assertTrue(errors("audio.duck.db" to "-30", "audio.duck.iphone" to "true").isEmpty())
+        assertTrue(errors("audio.duck.db" to "0").isEmpty())
     }
 
     // The buffering pause and the fade are times, not pixels.
@@ -190,12 +193,13 @@ class EditableSettingsTest {
         assertEquals(Applies.NOW, EditableSettings.applies("altscreen.cards"))
         assertEquals(Applies.NOW, EditableSettings.applies("audio.start.silence.ms"))
         assertEquals(Applies.NOW, EditableSettings.applies("audio.start.fade.ms"))
-        assertEquals(Applies.NOW, EditableSettings.applies("audio.duck.percent"))
+        assertEquals(Applies.NOW, EditableSettings.applies("audio.duck.db"))
         assertEquals(Applies.NOW, EditableSettings.applies("log.level"))
         assertEquals(Applies.NOW, EditableSettings.applies("audio.duck.iphone"))
         // The iPhone learns of the AltScreen as it connects.
         for (key in listOf("altscreen.enabled", "altscreen.width", "altscreen.height", "altscreen.content",
-            "altscreen.safe.top", "altscreen.safe.bottom", "altscreen.safe.left", "altscreen.safe.right")) {
+            "altscreen.safe.top", "altscreen.safe.bottom", "altscreen.safe.left", "altscreen.safe.right",
+            "altscreen.experiment.areas")) {
             assertEquals(key, Applies.RECONNECT, EditableSettings.applies(key))
         }
         // What the iPhone learns of its screen it asks at each connection.

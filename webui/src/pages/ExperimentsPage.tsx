@@ -1,7 +1,14 @@
 import type { AppState, Backend, DemoKind } from '../api'
+import { keyLabel } from '../ControlsScreen'
 import { Checkbox, Group, Row, Segmented, type Choice } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
 import { Changed, parts, pendingOf } from './parts'
+
+const AREAS: readonly Choice[] = [
+  ['0', 'Whole frame'],
+  ['1', 'Left half'],
+  ['2', 'Right half'],
+]
 
 const LEVELS: readonly Choice[] = [
   ['error', 'Errors'],
@@ -18,11 +25,14 @@ const DEMOS: readonly (readonly [kind: DemoKind, label: string, title: string])[
 
 /**
  * What is still being tried, and what helps to look into it: the HUD's demos, played on the AltScreen without an iPhone,
- * the app log's level, the CarPlay data log, and the folders the logs and the screenshots go to.
+ * the AltScreen's view areas, the app log's level, the CarPlay data log, and the folders the logs and the screenshots
+ * go to.
  */
 export function ExperimentsPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
   const demo = state.demo
   const { note } = parts(settings)
+  const areas = (state.viewAreas?.count ?? 0) >= AREAS.length
+  const screenshotKey = state.controls?.keys.screenshot
   return (
     <>
       <Group title="HUD demo" note="On the AltScreen's HUD" />
@@ -42,6 +52,27 @@ export function ExperimentsPage({ state, backend, settings }: { state: AppState;
           </Row>
         )
       })}
+      <Group title="AltScreen view areas" note={note(['altscreen.experiment.areas'])} />
+      <Row title="The AltScreen tells the iPhone of three view areas as it connects, which CarPlay can be moved between">
+        <Checkbox
+          label="Declare the whole frame and its halves"
+          checked={settings.value('altscreen.experiment.areas') === 'true'}
+          onChange={(checked) => settings.save({ 'altscreen.experiment.areas': String(checked) })}
+        />
+        <Changed keys={['altscreen.experiment.areas']} pending={pendingOf(state)} />
+      </Row>
+      <Row
+        label="View area"
+        title={areas ? 'Move CarPlay on the AltScreen to this part of its frame' : 'Turn on the view areas, then connect again'}
+      >
+        <Segmented
+          label="View area"
+          value={String(state.viewAreas?.current ?? 0)}
+          options={AREAS}
+          disabled={!areas}
+          onChange={(index) => void backend.viewArea(Number(index))}
+        />
+      </Row>
       <Group title="Logs" note={note(['log.carplay.data'])} />
       <Row label="Log level" title="How much the app's log in the logs folder tells; Trace adds every packet">
         <Segmented
@@ -66,7 +97,7 @@ export function ExperimentsPage({ state, backend, settings }: { state: AppState;
         <button
           type="button"
           className="btn small"
-          title="Open the screenshots folder in File Explorer (F12 saves to it)"
+          title={`Open the screenshots folder in File Explorer${screenshotKey ? ` (${keyLabel(screenshotKey)} saves to it)` : ''}`}
           onClick={() => backend.open('screenshots')}
         >
           Screenshots

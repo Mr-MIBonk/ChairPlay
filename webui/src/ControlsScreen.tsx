@@ -49,8 +49,6 @@ function Key(props: Shared & {
   icon: ReactNode
   /** Shown under the icon; none for the media and volume keys, whose icons say it. */
   text?: string
-  /** The key on a plate of its own beside [text] rather than in its place, as the knob's parts show theirs. */
-  keyApart?: boolean
   className?: string
   disabled?: boolean
   pressed?: boolean
@@ -58,8 +56,6 @@ function Key(props: Shared & {
   const held = useRef(false)
   const [down, setDown] = useState(false)
   const key = props.keys[props.action]
-  // The key a labelled button shows in its label's place while the keys show.
-  const labelKey = props.showKeys && key && props.text && !props.keyApart ? keyLabel(key) : null
   const release = () => {
     if (!held.current) return
     held.current = false
@@ -86,9 +82,9 @@ function Key(props: Shared & {
       onLostPointerCapture={release}
     >
       {props.icon}
-      {/* Nothing moves as the keys show: a label gives its place to the key, an icon's button has it in a corner */}
-      {props.text && <span className={labelKey ? 'key-name' : ''}>{labelKey ?? props.text}</span>}
-      {props.showKeys && key && !labelKey && <small className="kb">{keyLabel(key)}</small>}
+      {props.text && <span>{props.text}</span>}
+      {/* Over the button in its top-right corner: nothing on it moves as the keys show */}
+      {props.showKeys && key && <small className="kb">{keyLabel(key)}</small>}
     </button>
   )
 }
@@ -117,7 +113,7 @@ function Knob(props: Shared & { onTurn: (forward: boolean) => void }) {
       {part('knob.down', 'Tilt down', icons.down, 'tilt tilt-down')}
       {part('knob.left', 'Tilt left', icons.left, 'tilt tilt-left')}
       {part('knob.right', 'Tilt right', icons.right, 'tilt tilt-right')}
-      <Key {...props} action="select" label="Select" icon={null} text="Select" className="select" keyApart />
+      <Key {...props} action="select" label="Select" icon={null} text="Select" className="select" />
     </div>
   )
 }
@@ -168,7 +164,7 @@ export function ControlsScreen({ state, backend }: { state: AppState; backend: B
           <Key {...shared} action="altscreen.zoom.in" label="Zoom in" icon={icons.zoomIn} disabled={!altOn} />
           <Key {...shared} action="altscreen.zoom.out" label="Zoom out" icon={icons.zoomOut} disabled={!altOn} />
         </div>
-        <div className="mode-group" role="radiogroup" aria-label="AltScreen content" title={modesKey ? `F11 steps through them (${keyLabel(modesKey)})` : undefined}>
+        <div className="mode-group" role="radiogroup" aria-label="AltScreen content" title={modesKey ? `${keyLabel(modesKey)} steps through them` : undefined}>
           {MODES.map((mode) => (
             <button
               key={mode.content}

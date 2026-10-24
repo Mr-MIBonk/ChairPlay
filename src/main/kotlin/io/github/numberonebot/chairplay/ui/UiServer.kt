@@ -94,7 +94,7 @@ class UiServer(
             return
         }
         val method = exchange.requestMethod
-        val posts = setOf("settings", "controls", "connect", "reconnect", "disconnect", "screen", "window", "control", "key", "altscreen", "open", "window-size", "firewall-rule", "forget", "altscreen-frame", "demo", "volume")
+        val posts = setOf("settings", "controls", "connect", "reconnect", "disconnect", "screen", "window", "control", "key", "altscreen", "open", "window-size", "firewall-rule", "forget", "altscreen-frame", "demo", "volume", "view-area")
         val gets = setOf("state", "settings", "passphrase", "controls", "events")
         when {
             method == "GET" && route in gets -> when (route) {
@@ -211,6 +211,14 @@ class UiServer(
             "demo" ->
                 if (api.demo(body["kind"] as? String)) json(exchange, 200, mapOf("ok" to true))
                 else json(exchange, 409, mapOf("error" to "No such demo, or the AltScreen is off"))
+            "view-area" -> {
+                val index = (body["index"] as? Number)?.toInt()
+                when {
+                    index == null -> json(exchange, 400, mapOf("error" to "send the area's index as a number"))
+                    api.viewArea(index) -> json(exchange, 200, mapOf("ok" to true))
+                    else -> json(exchange, 409, mapOf("error" to "No such view area, or no session to move"))
+                }
+            }
             "volume" -> {
                 val level = (body["level"] as? Number)?.toInt()
                 when {

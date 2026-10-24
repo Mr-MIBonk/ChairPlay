@@ -1,6 +1,7 @@
 import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
-import { appState, FakeBackend } from '../testing'
+import { appState, FakeBackend, withKeys } from '../testing'
+import { sectionOf } from './sections'
 import { Shell } from './Shell'
 
 afterEach(cleanup)
@@ -135,6 +136,26 @@ describe('Shell toolbar', () => {
     )
     expect(screen.getByRole('tab', { name: /CarPlay/ }).querySelector('[title="Applies after restart"]')).toBeTruthy()
     expect(screen.getByRole('tab', { name: /Audio/ }).querySelector('[title="Applies after restart"]')).toBeNull()
+  })
+
+  it('puts the settings shown on Experiments on Experiments, whatever their key starts with', () => {
+    const state = appState({ ...live, restartPending: ['log.carplay.data'] })
+    render(<Shell state={state} backend={new FakeBackend()} />)
+
+    expect(screen.getByText('Restart needed').closest('[title]')?.getAttribute('title')).toBe(
+      'Restart ChairPlay to apply: Experiments',
+    )
+    expect(sectionOf('altscreen.experiment.areas')).toBe('experiments')
+    expect(sectionOf('log.level')).toBe('experiments')
+  })
+
+  it('names the Reconnect key as bound, and none while it is unbound', () => {
+    render(<Shell state={withKeys(appState(live), { reconnect: 'F5' })} backend={new FakeBackend()} />)
+    expect(button('Reconnect').title).toBe('Reconnect: end the session and connect again (F5)')
+    cleanup()
+
+    render(<Shell state={withKeys(appState(live), { reconnect: null })} backend={new FakeBackend()} />)
+    expect(button('Reconnect').title).toBe('Reconnect: end the session and connect again')
   })
 
   it('has no Restart needed while nothing waits for one', () => {

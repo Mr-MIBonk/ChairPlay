@@ -71,7 +71,7 @@ class DesktopMediaSinkTest {
         override fun close() {}
     }
 
-    // audio.duck.percent: the music under a navigation prompt is as loud as set, whatever level the iPhone asks for.
+    // audio.duck.db: the music under a navigation prompt is as loud as set, whatever level the iPhone asks for.
     @Test
     fun `a prompt ducks the music to the level set`() {
         val line = RecordingLine()

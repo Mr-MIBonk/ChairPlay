@@ -76,14 +76,17 @@ export function AudioPage({ state, backend, settings }: { state: AppState; backe
         <span className="unit">ms</span>
       </Row>
       <Group title="Navigation prompts" note="From the next prompt" />
-      <Row label="Music at" title="How loud the music stays under a prompt, in percent of its volume: 30 is about -10 dB">
+      <Row label="Music at" title="How loud the music stays under a prompt: -14 dB, Apple's own, is a fifth of its volume">
         <Slider
           label="Music at"
-          step={5}
-          value={Number(value('audio.duck.percent') || '30')}
-          onChange={(level) => save({ 'audio.duck.percent': String(level) })}
+          min={-30}
+          max={0}
+          marks={15}
+          value={Number(value('audio.duck.db') || '-14')}
+          format={(level) => `${level < 0 ? '−' : ''}${Math.abs(level)} dB`}
+          onChange={(level) => save({ 'audio.duck.db': String(level) })}
         />
-        <Changed keys={['audio.duck.percent']} pending={pending} />
+        <Changed keys={['audio.duck.db']} pending={pending} />
       </Row>
       <Row title="Use the level the iPhone sends with a prompt; Music at applies when it sends none">
         <Checkbox
