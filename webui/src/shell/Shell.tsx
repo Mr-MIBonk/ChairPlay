@@ -23,6 +23,9 @@ export type { Section } from './sections'
  * section's settings, or Get started in their place until an iPhone has connected, and again from Show again. Escape
  * shows CarPlay when it can, unless a page used the key itself.
  */
+/** The phases in which a connection is being made, from the start to CarPlay's picture, a retry among them. */
+const CONNECTING_PHASES = ['starting', 'calling', 'joining', 'retrying'] as const
+
 export function Shell({ state, backend }: { state: AppState; backend: Backend }) {
   const [section, setSection] = useState<Section>('connection')
   // Get started shows on its own until the setup is done, unless skipped; Show again opens it whatever.
@@ -35,6 +38,10 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
   const guiding = guide === 'shown' || (guide === 'auto' && !state.setupDone)
   const steps = guiding ? setupSteps(state, joinFailureSeen) : null
   const showGuide = () => setGuide('shown')
+  // The connection reads the CarPlay and AltScreen pages as it is made: changed meanwhile, which value it took is
+  // anyone's guess. While it connects they wait, off; the pages that apply at once, and Connection, stay live.
+  const connecting = (CONNECTING_PHASES as readonly string[]).includes(state.phase)
+  const held = connecting && (section === 'carplay' || section === 'altscreen')
 
   // Forget this iPhone undoes the setup: Get started comes back, though it was skipped before.
   useEffect(() => {
@@ -105,8 +112,20 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
             <div className="page-inner">
               {settings.loadError && <Message tone="bad" head="Couldn't read the settings." text={settings.loadError} />}
               {settings.data && section === 'connection' && <ConnectionPage state={state} backend={backend} settings={settings} onShowGuide={showGuide} />}
-              {settings.data && section === 'carplay' && <CarPlayPage state={state} backend={backend} settings={settings} />}
-              {settings.data && section === 'altscreen' && <AltScreenPage state={state} backend={backend} settings={settings} />}
+              {held && (
+                <Message
+                  tone="warn"
+                  head="Connecting."
+                  text="CarPlay reads these settings as it connects. Change them once it is connected, or disconnect first."
+                />
+              )}
+              {/* Only around the pages it may hold: before any other, it would take its first group's place. */}
+              {settings.data && (section === 'carplay' || section === 'altscreen') && (
+                <div className={held ? 'held' : undefined} inert={held}>
+                  {section === 'carplay' && <CarPlayPage state={state} backend={backend} settings={settings} />}
+                  {section === 'altscreen' && <AltScreenPage state={state} backend={backend} settings={settings} />}
+                </div>
+              )}
               {settings.data && section === 'keyboard' && <KeyboardPage backend={backend} settings={settings} />}
               {settings.data && section === 'audio' && <AudioPage state={state} backend={backend} settings={settings} />}
               {settings.data && section === 'experiments' && <ExperimentsPage state={state} backend={backend} settings={settings} />}

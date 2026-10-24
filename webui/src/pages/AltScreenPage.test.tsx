@@ -43,6 +43,23 @@ describe('AltScreen page', () => {
     await waitFor(() => expect(backend.saved).toEqual([{ 'altscreen.enabled': 'true' }]))
   })
 
+  // Off, the AltScreen has nothing to set: everything under Enabled waits for it, and says so.
+  it('holds every other setting while the AltScreen is off', async () => {
+    await altscreen()
+    const held = screen.getByRole('radiogroup', { name: 'Size' }).closest('[inert]') as HTMLElement
+
+    expect(held).not.toBeNull()
+    expect(held.title).toBe('Turn on the AltScreen to set it')
+    expect(held.contains(screen.getByRole('radiogroup', { name: 'Area' }))).toBe(true)
+    expect(held.contains(screen.getByRole('checkbox', { name: 'Enabled' }))).toBe(false)
+    cleanup()
+
+    const backend = new FakeBackend()
+    backend.data = { ...backend.data, values: { ...backend.data.values, 'altscreen.enabled': 'true' } }
+    await altscreen(backend)
+    expect(document.querySelector('[inert]')).toBeNull()
+  })
+
   it('names the cars a preset fits, and saves it as both numbers', async () => {
     const backend = await altscreen()
     expect(chosen('Size')).toEqual(['1440×540'])
@@ -101,6 +118,9 @@ describe('AltScreen page', () => {
 
     expect(backend.altscreens).toEqual(['map-card'])
     expect(backend.saved).toEqual([])
+    // The controls window has the views alone, not the card's position or the part: the row says so, not the group.
+    expect(screen.queryByText('Also on the controls window')).toBeNull()
+    expect(row('Content').title).toBe('What the AltScreen shows now, as the controls window switches it too; it opens on it again')
   })
 
   // Without a session there is no map to show: the group is off and shows nothing chosen.
@@ -189,8 +209,8 @@ describe('AltScreen page', () => {
     await waitFor(() => expect(backend.saved).toEqual([{ 'altscreen.card.area': 'center3' }, { 'altscreen.card.safe.top': '10' }]))
   })
 
-  // The HUD is ChairPlay's own, on the whole window: no part to set, and the AltScreen's margins of the whole frame.
-  it('keeps the whole frame and its margins for the HUD', async () => {
+  // The HUD is ChairPlay's own, on the whole window: neither a part of the frame nor margins to set.
+  it('sets neither part nor margins for the HUD', async () => {
     const backend = new FakeBackend()
     const altscreenWindow = { width: 1440, height: 540, pictureWidth: 1440, pictureHeight: 540, minWidth: 0, minHeight: 0 }
     const state = appState({ phase: 'active', canShowCarPlay: true, altscreenWindow })
@@ -199,12 +219,9 @@ describe('AltScreen page', () => {
 
     expect(within(parts).getAllByRole('radio').every((radio) => (radio as HTMLButtonElement).disabled)).toBe(true)
     expect(parts.closest('.row')!.getAttribute('title')).toBe('Show Map, Map + card, or Turn card to set its part of the frame')
-    fireEvent.change(inRow('Insets', 'Bottom'), { target: { value: '60' } })
-    fireEvent.blur(inRow('Insets', 'Bottom'))
-    fireEvent.click(within(row('Insets')).getByRole('button', { name: 'Show frame' }))
-
-    await waitFor(() => expect(backend.saved).toEqual([{ 'altscreen.safe.bottom': '60' }]))
-    expect(backend.framesShown).toBe(1)
+    expect(['Top', 'Bottom', 'Left', 'Right'].every((edge) => inRow('Insets', edge).disabled)).toBe(true)
+    expect(row('Insets').getAttribute('title')).toBe('Show Map, Map + card, or Turn card to set its safe area')
+    expect(within(row('Insets')).queryByRole('button', { name: 'Show frame' })).toBeNull()
   })
 
   it('names the key that moves the turn card as bound, and none while it is unbound', async () => {

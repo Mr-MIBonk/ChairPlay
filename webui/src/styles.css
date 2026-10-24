@@ -974,6 +974,39 @@ html:has(.shell) {
   margin: 0 auto;
 }
 
+/* A page the connection reads, off while it is made (inert keeps the pointer and the keys out) */
+.shell .held {
+  opacity: 0.45;
+}
+
+/* Held twice over, as an AltScreen turned off while CarPlay connects, it dims once */
+.shell .held .held {
+  opacity: 1;
+}
+
+/* In a held page a group is as one that is off: black, and none chosen */
+.shell .held .seg {
+  background: var(--bg);
+}
+
+.shell .held .seg button.on {
+  background: transparent;
+  color: var(--muted);
+  box-shadow: none;
+}
+
+.shell .held .seg button.on::before,
+.shell .held .seg button.on + button::before {
+  display: block;
+}
+
+.shell .held input.t,
+.shell .held select {
+  border-color: var(--line);
+  background: var(--bg);
+  color: var(--dim);
+}
+
 /* Property grid: groups under a header, rows of a label and its controls */
 .shell .grp {
   display: flex;
@@ -1107,7 +1140,7 @@ html:has(.shell) {
   color: var(--dim);
 }
 
-.shell input.t:hover {
+.shell input.t:hover:not(:disabled) {
   border-color: #5a5a62;
   background-image: linear-gradient(rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.03));
 }
@@ -1827,8 +1860,22 @@ html:has(.shell) {
   color: var(--text);
 }
 
+/* A control that does nothing now goes black, as the page under it */
 .shell .seg:has(button:disabled) {
   opacity: 0.45;
+  background: var(--bg);
+}
+
+.shell input.t:disabled,
+.shell select:disabled {
+  border-color: var(--line);
+  background: var(--bg);
+  color: var(--dim);
+  cursor: default;
+}
+
+.shell input.t:disabled::placeholder {
+  color: var(--line);
 }
 
 /* Checkboxes */

@@ -148,7 +148,16 @@ const EDGES = [
  * Four numbers round a little frame, one for each edge of [prefix] ("display.safe" or "altscreen.safe"): top and
  * bottom centred, the sides against the frame. A refused one turns red, with its reason under the frame.
  */
-export function SafeArea(props: { settings: Settings; prefix: string; label: string; pending?: Pending; after?: ReactNode }) {
+export function SafeArea(props: {
+  settings: Settings
+  prefix: string
+  label: string
+  pending?: Pending
+  after?: ReactNode
+  /** The row's tooltip; off, it says what turns the fields on. */
+  title?: string
+  disabled?: boolean
+}) {
   const { settings, prefix, label } = props
   const reason = EDGES.map(([edge]) => settings.error(`${prefix}.${edge}`)).find(Boolean)
   const [top, left, right, bottom] = EDGES.map(([edge, name, align]) => {
@@ -163,12 +172,13 @@ export function SafeArea(props: { settings: Settings; prefix: string; label: str
         placeholder="0"
         error={settings.error(key)}
         showReason={false}
+        disabled={props.disabled}
         onCommit={(text) => settings.save({ [key]: text })}
       />
     )
   })
   return (
-    <Row label={label} className="safe-row">
+    <Row label={label} className="safe-row" title={props.title}>
       <span className="safe">
         <span />
         {top}

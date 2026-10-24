@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, describe, expect, it } from 'vitest'
 import { appState, FakeBackend, withKeys } from '../testing'
 import { sectionOf } from './sections'
@@ -185,6 +185,55 @@ describe('Shell fading', () => {
 })
 
 describe('Shell', () => {
+  // The connection reads the CarPlay and AltScreen pages as it is made: changed meanwhile, who knows which value it
+  // took. While it connects they wait, off, and say so; the pages that apply at once, and Connection, stay live.
+  it('holds the pages the connection reads while it connects', async () => {
+    for (const phase of ['starting', 'calling', 'joining', 'retrying'] as const) {
+      render(<Shell state={appState({ phase, canShowCarPlay: true })} backend={new FakeBackend()} />)
+      await screen.findByRole('textbox', { name: 'Network' })
+      expect(document.querySelector('[inert]')).toBeNull()
+
+      for (const name of ['CarPlay', 'AltScreen']) {
+        fireEvent.click(screen.getByRole('tab', { name }))
+        const held = screen.getByRole('tabpanel').querySelector('[inert]')
+        expect(held, `${phase} ${name}`).not.toBeNull()
+        expect(held!.contains(screen.getByRole('radiogroup', { name: name === 'CarPlay' ? 'Frame rate' : 'Area' }))).toBe(true)
+        expect(screen.getByText('Connecting.')).toBeTruthy()
+      }
+      fireEvent.click(screen.getByRole('tab', { name: 'Audio' }))
+      expect(document.querySelector('[inert]')).toBeNull()
+      cleanup()
+    }
+  })
+
+  // Nothing comes before a page's first group, which keeps no margin above it.
+  it('opens every page on its first group', async () => {
+    render(<Shell state={appState(live)} backend={new FakeBackend()} />)
+    await screen.findByRole('textbox', { name: 'Network' })
+
+    for (const name of ['Connection', 'CarPlay', 'AltScreen', 'Keyboard', 'Audio', 'Experiments']) {
+      fireEvent.click(screen.getByRole('tab', { name }))
+      // The Keyboard page shows once its bindings are in.
+      const first = await waitFor(() => {
+        const group = document.querySelector('.page-inner .grp')
+        if (!group) throw new Error(`no group on ${name}`)
+        return group
+      })
+      expect(first.previousElementSibling, name).toBeNull()
+    }
+  })
+
+  it('lets the pages the connection reads change once it is made, or when there is none', async () => {
+    for (const phase of ['active', 'idle'] as const) {
+      render(<Shell state={appState({ phase, canShowCarPlay: phase === 'active' })} backend={new FakeBackend()} />)
+      await screen.findByRole('textbox', { name: 'Network' })
+      fireEvent.click(screen.getByRole('tab', { name: 'CarPlay' }))
+
+      expect(document.querySelector('[inert]')).toBeNull()
+      cleanup()
+    }
+  })
+
   // A narrow window shows the sections' icons alone (CSS): each keeps its name, and says it when hovered.
   it('names each section whether or not its label shows', () => {
     render(<Shell state={appState({ ...live, restartPending: ['display.width'] })} backend={new FakeBackend()} />)

@@ -35,6 +35,7 @@ const ALTSCREEN_FALLBACK = { width: 1440, height: 540 }
 /** The second, cluster-sized window: whether it opens, its size, what it starts with, and its safe area. */
 export function AltScreenPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
   const pending = pendingOf(state)
+  const off = settings.value('altscreen.enabled') !== 'true'
   const { note } = parts(settings, pending)
   // Only Map + card has a turn card to place; with no view yet the choice is for the next one.
   const view = state.controls?.altscreen
@@ -42,7 +43,7 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
   const viewOn = state.controls?.altscreen != null && state.windows.altscreen.available && state.canShowCarPlay
   const cardsKey = state.controls?.keys['altscreen.cards']
   // The view chosen in Content, or the one the AltScreen opens on without a session, is the one whose part of the
-  // frame and margins the page sets; the HUD has neither, and the margins are then the whole frame's.
+  // frame and margins the page sets; the HUD, which ChairPlay draws on the whole window, has neither: both are off.
   const shown = view ?? (settings.value('altscreen.content') || 'map')
   const areaView = AREA_VIEWS.includes(shown) ? shown : null
   const areaKey = `altscreen.${areaView ?? 'map'}.area`
@@ -58,82 +59,88 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
         />
         <Changed keys={['altscreen.enabled']} pending={pending} />
       </Row>
-      <SizeRows
-        settings={settings}
-        prefix="altscreen"
-        presets={PRESETS}
-        fallback={ALTSCREEN_FALLBACK}
-        after={<ActualSize sizes={state.altscreenWindow} window="altscreen" backend={backend} />}
-        pending={pending}
-      />
-      <Group title="View" note="Also on the controls window" />
-      <Row label="Content" title="What the AltScreen shows now; it opens on it again">
-        {/* Without a session the AltScreen has no map to show: off, with nothing chosen, as on the controls window. */}
-        <Segmented
-          label="View"
-          value={state.controls?.altscreen ?? ''}
-          options={VIEWS}
-          disabled={!viewOn}
-          onChange={(content) => void backend.altscreen(content as AltscreenContent)}
+      {/* Off, the AltScreen has nothing to set: the rest waits for it. */}
+      <div className={off ? 'held' : undefined} inert={off} title={off ? 'Turn on the AltScreen to set it' : undefined}>
+        <SizeRows
+          settings={settings}
+          prefix="altscreen"
+          presets={PRESETS}
+          fallback={ALTSCREEN_FALLBACK}
+          after={<ActualSize sizes={state.altscreenWindow} window="altscreen" backend={backend} />}
+          pending={pending}
         />
-      </Row>
-      {/* Map + card alone has a turn card to place: elsewhere the choice waits for it. */}
-      <Row
-        label="Card position"
-        title={
-          placesCards
-            ? `Where the turn card starts${cardsKey ? `; ${keyLabel(cardsKey)} moves it while CarPlay runs` : ''}`
-            : 'Show Map + card to place the turn card'
-        }
-      >
-        <Segmented
+        <Group title="View" />
+        <Row label="Content" title="What the AltScreen shows now, as the controls window switches it too; it opens on it again">
+          {/* Without a session the AltScreen has no map to show: off, with nothing chosen, as on the controls window. */}
+          <Segmented
+            label="View"
+            value={state.controls?.altscreen ?? ''}
+            options={VIEWS}
+            disabled={!viewOn}
+            onChange={(content) => void backend.altscreen(content as AltscreenContent)}
+          />
+        </Row>
+        {/* Map + card alone has a turn card to place: elsewhere the choice waits for it. */}
+        <Row
           label="Card position"
-          value={settings.value('altscreen.cards') || 'auto'}
-          options={CARDS}
-          disabled={!placesCards}
-          onChange={(cards) => settings.save({ 'altscreen.cards': cards })}
-        />
-        <Changed keys={['altscreen.cards']} pending={pending} />
-      </Row>
-      {/* The shown view's part of the frame; the HUD has none. */}
-      <Row
-        label="Area"
-        title={
-          areaView
-            ? 'The part of the frame this view shows in, all of its height; the iPhone leaves the rest black'
-            : 'Show Map, Map + card, or Turn card to set its part of the frame'
-        }
-      >
-        <Segmented
+          title={
+            placesCards
+              ? `Where the turn card starts${cardsKey ? `; ${keyLabel(cardsKey)} moves it while CarPlay runs` : ''}`
+              : 'Show Map + card to place the turn card'
+          }
+        >
+          <Segmented
+            label="Card position"
+            value={settings.value('altscreen.cards') || 'auto'}
+            options={CARDS}
+            disabled={!placesCards}
+            onChange={(cards) => settings.save({ 'altscreen.cards': cards })}
+          />
+          <Changed keys={['altscreen.cards']} pending={pending} />
+        </Row>
+        {/* The shown view's part of the frame; the HUD has none. */}
+        <Row
           label="Area"
-          value={settings.value(areaKey) || 'full'}
-          options={AREA_CHOICES}
-          className="rows wide view-areas"
+          title={
+            areaView
+              ? 'The part of the frame this view shows in, all of its height; the iPhone leaves the rest black'
+              : 'Show Map, Map + card, or Turn card to set its part of the frame'
+          }
+        >
+          <Segmented
+            label="Area"
+            value={settings.value(areaKey) || 'full'}
+            options={AREA_CHOICES}
+            className="rows wide view-areas"
+            disabled={!areaView}
+            onChange={(preset) => settings.save({ [areaKey]: preset })}
+          />
+          <Changed keys={[areaKey]} pending={pending} />
+        </Row>
+        <Group title="Safe area" note="Pixels at each edge" />
+        <SafeArea
+          key={safePrefix}
+          settings={settings}
+          prefix={safePrefix}
+          label="Insets"
+          pending={pending}
           disabled={!areaView}
-          onChange={(preset) => settings.save({ [areaKey]: preset })}
+          title={areaView ? undefined : 'Show Map, Map + card, or Turn card to set its safe area'}
+          after={
+            areaView &&
+            state.altscreenWindow && (
+              <button
+                type="button"
+                className="btn small show-frame"
+                title="Show the safe area on the AltScreen for a second"
+                onClick={() => backend.showAltscreenFrame(areaView)}
+              >
+                Show frame
+              </button>
+            )
+          }
         />
-        <Changed keys={[areaKey]} pending={pending} />
-      </Row>
-      <Group title="Safe area" note="Pixels at each edge" />
-      <SafeArea
-        key={safePrefix}
-        settings={settings}
-        prefix={safePrefix}
-        label="Insets"
-        pending={pending}
-        after={
-          state.altscreenWindow && (
-            <button
-              type="button"
-              className="btn small show-frame"
-              title="Show the safe area on the AltScreen for a second"
-              onClick={() => backend.showAltscreenFrame(areaView ?? undefined)}
-            >
-              Show frame
-            </button>
-          )
-        }
-      />
+      </div>
     </>
   )
 }
