@@ -36,6 +36,7 @@
   }
 
   .shell .seg.view-areas,
+  .shell .area-drawing,
   .shell .seg.cities {
     width: min(var(--row-width), 100%);
   }

@@ -2,7 +2,8 @@ import type { AltscreenContent, AppState, Backend } from '../api'
 import { keyLabel } from '../ControlsScreen'
 import { Checkbox, Group, Row, Segmented, type Choice } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
-import { AREA_CHOICES } from './areas'
+import { AreaChooser, type AreaGroup } from './AreaChooser'
+import { CustomArea } from './CustomArea'
 import { ActualSize, Changed, parts, pendingOf, SafeArea, SizeRows } from './parts'
 
 /** The common sizes of an instrument cluster, all 8:3. */
@@ -37,6 +38,12 @@ const CARDS: readonly Choice[] = [
 /** The size blank altscreen.width and .height mean, as the app reads them. */
 const ALTSCREEN_FALLBACK = { width: 1440, height: 540 }
 
+/** altscreen.width or .height as the app takes it: the saved number, or the fallback while it is blank. */
+function sizeOf(settings: Settings, side: 'width' | 'height') {
+  const saved = Number(settings.value(`altscreen.${side}`))
+  return Number.isInteger(saved) && saved > 0 ? saved : ALTSCREEN_FALLBACK[side]
+}
+
 /** The second, cluster-sized window: whether it opens, its size, what it starts with, and its safe area. */
 export function AltScreenPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
   const pending = pendingOf(state)
@@ -47,12 +54,15 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
   const cardsKey = state.controls?.keys['altscreen.cards']
   // The view chosen in Content, or the one the AltScreen opens on without a session, is the one whose part of the
   // frame and margins the page sets; the HUD, which ChairPlay draws on the whole window, has neither: both are off.
-  const shown = view ?? (settings.value('altscreen.content') || 'map')
+  const shown = view ?? (settings.value('altscreen.content') || 'map-card')
   // Only Map + card has a turn card to place.
   const placesCards = shown === 'map-card'
   const areaView = AREA_VIEWS.includes(shown) ? shown : null
-  const areaKey = `altscreen.${areaView ?? 'map'}.area`
-  const safePrefix = areaView ? `altscreen.${areaView}.safe` : 'altscreen.safe'
+  // Map and Map + card share one part of the frame and one set of margins; the turn card has its own.
+  const group: AreaGroup = shown === 'card' ? 'card' : 'map'
+  const safePrefix = areaView ? `altscreen.${group}.safe` : 'altscreen.safe'
+  // The frame as saved, which the areas are set in.
+  const frame = { width: sizeOf(settings, 'width'), height: sizeOf(settings, 'height') }
   return (
     <>
       <Group title="Display" note={note(DISPLAY_KEYS)} />
@@ -110,31 +120,25 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
           </Row>
         )}
         {/* The shown view's part of the frame; the HUD has none. */}
-        <Row
-          label="Area"
-          title={
-            areaView
-              ? 'The part of the frame this view shows in, all of its height; the iPhone leaves the rest black'
-              : 'Show Map, Map + card, or Turn card to set its part of the frame'
-          }
-        >
-          <Segmented
-            label="Area"
-            value={settings.value(areaKey) || 'full'}
-            options={AREA_CHOICES}
-            className="rows view-areas"
-            columns={3}
-            disabled={!areaView}
-            onChange={(preset) => settings.save({ [areaKey]: preset })}
-          />
-          <Changed keys={[areaKey]} pending={pending} />
-        </Row>
-        {/* A part too narrow for the view's margins is refused here, not on a margin. */}
-        {settings.error(areaKey) && (
-          <Row>
-            <span className="errtext">{settings.error(areaKey)}</span>
-          </Row>
-        )}
+        <AreaChooser
+          group={group}
+          settings={settings}
+          pending={pending}
+          disabled={!areaView}
+          frame={frame}
+          onCustom={() => (
+            <CustomArea
+              group={group}
+              view={shown}
+              frame={frame}
+              wells={state.altscreenWells}
+              settings={settings}
+              pending={pending}
+              backend={backend}
+              showable={state.altscreenWindow != null}
+            />
+          )}
+        />
         <Row title="Keep the iPhone drawing the map view picked last while the HUD shows, so the map comes back at once; the iPhone works harder">
           <Checkbox
             label="Keep map stream behind HUD"

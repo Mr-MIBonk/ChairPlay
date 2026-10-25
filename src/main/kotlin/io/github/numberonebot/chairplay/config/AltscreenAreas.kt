@@ -6,14 +6,15 @@ import com.shilapi.xcertplay.airplay.AirPlayViewArea
 
 /**
  * A part of the AltScreen's frame a view can show in, laid out for an 8:3 cluster, all of the full height: the whole
- * frame; five eighths at the left or the right, beside a dial; four eighths, a half, at the left, the middle or the
- * right; three eighths at the left, the middle or the right, between dials or as a side panel. A width keeps to a
- * multiple of 8, as DiPlay's streams do, and the middle ones to an even origin; [key] is how altscreen.<view>.area
- * names it.
+ * frame; five eighths at the left, the middle or the right, beside a dial or between two; four eighths, a half, at the
+ * left, the middle or the right; three eighths at the left, the middle or the right, between dials or as a side panel.
+ * A width keeps to a multiple of 8, as DiPlay's streams do, and the middle ones to an even origin; [key] is how
+ * altscreen.<group>.area names it.
  */
 enum class AreaPreset(val key: String, private val eighths: Int) {
     FULL("full", 8),
     LEFT5("left5", 5),
+    CENTER5("center5", 5),
     RIGHT5("right5", 5),
     LEFT4("left4", 4),
     CENTER4("center4", 4),
@@ -28,7 +29,7 @@ enum class AreaPreset(val key: String, private val eighths: Int) {
         val w = width * eighths / 8 / 8 * 8
         val x = when (this) {
             LEFT5, LEFT4, LEFT3 -> 0
-            CENTER4, CENTER3 -> (width - w) / 4 * 2
+            CENTER5, CENTER4, CENTER3 -> (width - w) / 4 * 2
             else -> width - w
         }
         return AirPlayViewArea(w, height, originX = x)
@@ -39,60 +40,65 @@ enum class AreaPreset(val key: String, private val eighths: Int) {
     }
 }
 
-/** The AltScreen's views the iPhone draws, each of which may have a part of the frame of its own; the HUD is ChairPlay's. */
-val AREA_VIEWS = listOf(AltscreenContent.MAP, AltscreenContent.MAP_CARD, AltscreenContent.CARD)
+/**
+ * The AltScreen's views that share a part of the frame: the two maps (Map, Map + card) in one, the turn card in another.
+ * [key] is how altscreen.<group>.area names it. The HUD is ChairPlay's and has none.
+ */
+enum class AreaGroup(val key: String) { MAP("map"), CARD("card") }
 
-/** The edges of a view's margins, as altscreen.<view>.safe.<edge> names them. */
+/** The group whose part of the frame this view shows in; null for the HUD. */
+val AltscreenContent.areaGroup: AreaGroup?
+    get() = when (this) {
+        AltscreenContent.MAP, AltscreenContent.MAP_CARD -> AreaGroup.MAP
+        AltscreenContent.CARD -> AreaGroup.CARD
+        AltscreenContent.HUD -> null
+    }
+
+/** The edges of a group's margins, as altscreen.<group>.safe.<edge> names them. */
 val SAFE_EDGES = listOf("top", "bottom", "left", "right")
 
 /**
- * A view's part when altscreen.<view>.area is blank, as the owner set the views up (2026-10-24): the turn card in the
+ * A group's part when altscreen.<group>.area is blank, as the owner set the views up (2026-10-24): the turn card in the
  * middle three eighths, between the dials; the maps on the whole frame.
  */
-fun defaultArea(view: AltscreenContent): AreaPreset = if (view == AltscreenContent.CARD) AreaPreset.CENTER3 else AreaPreset.FULL
+fun defaultArea(group: AreaGroup): AreaPreset = if (group == AreaGroup.CARD) AreaPreset.CENTER3 else AreaPreset.FULL
+
+/** altscreen.<group>.area: the group's part of the frame, an [AreaPreset]'s key. */
+fun areaKey(group: AreaGroup) = "altscreen.${group.key}.area"
+
+/** altscreen.<group>.safe.<edge>: a margin inside the group's part, in pixels. */
+fun safeKey(group: AreaGroup, edge: String) = "altscreen.${group.key}.safe.$edge"
 
 /**
- * A new settings file's altscreen.<view>.safe.<edge> for a [width]x[height] frame: Map + card's map kept to the middle
- * three eighths under its card; the others blank, the map's whole frame then safe by altscreen.safe.*.
- */
-fun defaultSafe(view: AltscreenContent, edge: String, width: Int, height: Int): String {
-    if (view != AltscreenContent.MAP_CARD) return ""
-    val middle = AreaPreset.CENTER3.area(width, height)
-    return when (edge) {
-        "left" -> middle.originX.toString()
-        "right" -> (width - middle.originX - middle.width).toString()
-        else -> ""
-    }
-}
-
-/** altscreen.<view>.area: the view's part of the frame, an [AreaPreset]'s key. */
-fun areaKey(view: AltscreenContent) = "altscreen.${view.key}.area"
-
-/** altscreen.<view>.safe.<edge>: a margin inside the view's part, in pixels. */
-fun safeKey(view: AltscreenContent, edge: String) = "altscreen.${view.key}.safe.$edge"
-
-/**
- * The AltScreen's view areas for a [width]x[height] frame, read through [value] (altscreen.<view>.area and .safe.*):
- * every [AreaPreset] in its order, the whole frame first, with altscreen.safe.* clipped to each as DiPlay builds them;
- * then every preset again for each view with margins of its own, those margins counted inside each part and given as
- * insets from the whole frame, as /info takes them. All are declared as the iPhone connects, so a view moves to any
- * part at once; only its margins wait for the next connection.
+ * The AltScreen's view areas for a [width]x[height] frame, read through [value] (altscreen.<group>.area, .area.custom
+ * and .safe.*): every [AreaPreset] in its order, the whole frame first, then each group's custom part (the maps', then
+ * the turn card's), with altscreen.safe.* clipped to each as DiPlay builds them; then, for each group with margins of
+ * its own, every preset and its custom part again, those margins counted inside each part and given as insets from the
+ * whole frame, as /info takes them. All are declared as the iPhone connects, so a view moves to any part, its custom one
+ * too, at once; its margins and its custom rectangle wait for the next connection.
  */
 class AltscreenViewParts(width: Int, height: Int, value: (String) -> String?) {
-    // Where a view's presets start: 0 for the ones without margins of their own.
-    private val offsets = mutableMapOf<AltscreenContent, Int>()
-    private val presets = mutableMapOf<AltscreenContent, AreaPreset>()
+    // Where a group's own block starts: none for the groups without margins of their own.
+    private val offsets = mutableMapOf<AreaGroup, Int>()
+    private val choices = mutableMapOf<AreaGroup, AreaChoice>()
+    private val problems = mutableListOf<String>()
     val areas: List<AirPlayViewArea>
 
+    /** What reading the parts had to put right, for the log: a saved rectangle clamped into a smaller frame. */
+    val warnings: List<String> get() = problems
+
     init {
-        val list = AreaPreset.entries.map { it.area(width, height) }.toMutableList()
-        for (view in AREA_VIEWS) {
-            val areaText = value(areaKey(view))?.trim()?.ifEmpty { null }
-            val preset = areaText?.let {
-                AreaPreset.of(it) ?: throw IllegalArgumentException(
-                    "${areaKey(view)} must be ${AreaPreset.entries.joinToString { preset -> preset.key }}, not $it")
-            } ?: defaultArea(view)
-            presets[view] = preset
+        val presets = AreaPreset.entries.map { it.area(width, height) }
+        val customs = AreaGroup.entries.associateWith { group ->
+            val choice = value(areaKey(group))?.trim()?.ifEmpty { null }?.let {
+                AreaChoice.of(it) ?: throw IllegalArgumentException(
+                    "${areaKey(group)} must be ${AreaPreset.entries.joinToString { preset -> preset.key }} or custom, not $it")
+            } ?: AreaChoice.Preset(defaultArea(group))
+            choices[group] = choice
+            customArea(group, choice, width, height, value)
+        }
+        val list = (presets + AreaGroup.entries.map(customs::getValue)).toMutableList()
+        for (view in AreaGroup.entries) {
             val margins = SAFE_EDGES.map { edge ->
                 val key = safeKey(view, edge)
                 value(key)?.trim()?.ifEmpty { null }?.let {
@@ -104,13 +110,13 @@ class AltscreenViewParts(width: Int, height: Int, value: (String) -> String?) {
             if (margins.all { it == null || it == 0 }) continue
             val (top, bottom, left, right) = margins.map { it ?: 0 }
             // The margins must leave some of the view's own part.
-            val own = preset.area(width, height)
+            val custom = customs.getValue(view)
+            val own = (choices.getValue(view) as? AreaChoice.Preset)?.preset?.area(width, height) ?: custom
             require(top + bottom < own.height && left + right < own.width) {
                 "altscreen.${view.key}.safe.* leave nothing of its ${own.width}x${own.height} part"
             }
             offsets[view] = list.size
-            list += AreaPreset.entries.map { other ->
-                val area = other.area(width, height)
+            list += (presets + custom).map { area ->
                 // A part too narrow or low for them takes them shrunk with it, as a share of the view's own part.
                 val across = if (left + right < area.width) 1.0 else area.width.toDouble() / own.width
                 val down = if (top + bottom < area.height) 1.0 else area.height.toDouble() / own.height
@@ -123,15 +129,39 @@ class AltscreenViewParts(width: Int, height: Int, value: (String) -> String?) {
         areas = list
     }
 
-    /** The part [content] was set to show in as the frame was read; the HUD's is the whole frame. */
-    fun presetOf(content: AltscreenContent): AreaPreset = presets[content] ?: AreaPreset.FULL
+    /**
+     * [group]'s custom part: its saved rectangle on the grid, clamped into a frame made smaller since; while none is
+     * saved, its preset, or its default one while it is set to custom, holds the place.
+     */
+    private fun customArea(group: AreaGroup, choice: AreaChoice, width: Int, height: Int, value: (String) -> String?): AirPlayViewArea {
+        val key = customKey(group)
+        val text = value(key)?.trim()?.ifEmpty { null }
+            ?: return ((choice as? AreaChoice.Preset)?.preset ?: defaultArea(group)).area(width, height)
+        val rect = AreaRect.parseValid(text)?.snapped()
+            ?: throw IllegalArgumentException("$key must be four whole numbers x, y, width, height, at least $MIN_AREA each way, not $text")
+        val clamped = rect.clampedInto(width, height)
+        if (clamped != rect) problems += "$key ($rect) does not fit the ${width}x$height altscreen; it is shown at $clamped"
+        return clamped.area()
+    }
 
-    /** The area [content] shows in when it shows in [preset]: among its own presets, or the first ones; the HUD's first. */
-    fun indexOf(content: AltscreenContent, preset: AreaPreset): Int =
-        if (content !in AREA_VIEWS) 0 else (offsets[content] ?: 0) + preset.ordinal
+    /** What [content]'s group was set to show in as the frame was read; the HUD's is the whole frame. */
+    fun choiceOf(content: AltscreenContent): AreaChoice = content.areaGroup?.let(choices::get) ?: AreaChoice.Preset(AreaPreset.FULL)
+
+    /**
+     * The area [content] shows in when set to [choice]: among its group's own block, or the plain areas; the HUD's the
+     * first.
+     */
+    fun indexOf(content: AltscreenContent, choice: AreaChoice): Int {
+        val group = content.areaGroup ?: return 0
+        val offset = offsets[group]
+        return when (choice) {
+            is AreaChoice.Preset -> (offset ?: 0) + choice.preset.ordinal
+            AreaChoice.Custom -> offset?.let { it + AreaPreset.entries.size } ?: (AreaPreset.entries.size + group.ordinal)
+        }
+    }
 
     /** The area [content] shows in, in the part it was set to. */
-    fun indexOf(content: AltscreenContent): Int = indexOf(content, presetOf(content))
+    fun indexOf(content: AltscreenContent): Int = indexOf(content, choiceOf(content))
 }
 
 /**

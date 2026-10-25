@@ -70,7 +70,7 @@ internal class AltscreenView(
     @Volatile private var drawing: String? = null
     // The view of the iPhone's picked last, F11's other one from the HUD.
     @Volatile
-    private var mapView = config.altscreen?.content?.takeIf { it != AltscreenContent.HUD } ?: AltscreenContent.MAP
+    private var mapView = config.altscreen?.content?.takeIf { it != AltscreenContent.HUD } ?: AltscreenContent.MAP_CARD
 
     /**
      * The HUD demo playing (HudDemo), by its kind ("maneuvers" or "lanes"): CHAIRPLAY_HUD_DEMO starts one, the
@@ -173,7 +173,7 @@ internal class AltscreenView(
     /** A view's part saved, as the settings read [now]: the view moves there at once, among the areas declared. */
     fun areasSaved(now: DesktopConfig) {
         val connection = declared.get()
-        areaFor.set { content -> connection.altscreenAreaIndex(content, now.altscreenPreset(content)) }
+        areaFor.set { content -> connection.altscreenAreaIndex(content, now.altscreenChoice(content)) }
         touchSender.execute { show(active()) }
         bring()
     }

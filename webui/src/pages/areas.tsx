@@ -19,12 +19,12 @@ export function areaIcon(from: number, eighths: number) {
 
 /**
  * The parts of the AltScreen's frame a view can show in, as AreaPreset (AltscreenAreas.kt) names them, laid out as they
- * lie, three a row: the full screen between the two fives, then the halves and the threes, each left, middle, and
- * right; each with where it starts and how many eighths it takes.
+ * lie, three a row: the fives, the halves, then the threes, each left, middle, and right; each with where it starts
+ * and how many eighths it takes. The whole frame is Full screen, a choice of its own beside Preset and Custom.
  */
 export const AREA_PRESETS = [
   ['left5', 'Left 5/8', 'Five eighths at the left, beside a dial', 0, 5],
-  ['full', 'Full screen', 'The whole frame', 0, 8],
+  ['center5', 'Center 5/8', 'Five eighths in the middle, between two dials', 1.5, 5],
   ['right5', 'Right 5/8', 'Five eighths at the right, beside a dial', 3, 5],
   ['left4', 'Left 4/8', 'The left half', 0, 4],
   ['center4', 'Center 4/8', 'The middle half, between two dials', 2, 4],

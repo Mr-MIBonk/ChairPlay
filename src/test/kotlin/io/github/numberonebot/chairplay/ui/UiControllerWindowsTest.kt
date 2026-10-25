@@ -43,6 +43,20 @@ class UiControllerWindowsTest : UiControllerFixture() {
         assertEquals(listOf(listOf(10, 0, 600, 600, 1920, 720), listOf(40, 0, 0, 0, 1920, 720), listOf(40, 0, 0, 720, 1920, 720)), shown)
     }
 
+    // A group set to custom shows its saved rectangle as insets from the whole frame, its own margins inside it.
+    @Test
+    fun `Show frame for a view set to custom draws its rectangle and margins`() {
+        val shown = mutableListOf<List<Int>>()
+        val frame = UiSafeAreaFrame { top, bottom, left, right, width, height -> shown += listOf(top, bottom, left, right, width, height) }
+        val rect = "altscreen.card.area=custom\naltscreen.card.area.custom=412, 36, 616, 468\n"
+
+        assertTrue(controller(settings = rect + "altscreen.card.safe.top=10\naltscreen.card.safe.left=20\n", altscreenFrame = frame)
+            .showAltscreenFrame("card"))
+        assertTrue(controller(settings = rect, altscreenFrame = frame).showAltscreenFrame("card"))
+
+        assertEquals(listOf(listOf(46, 36, 432, 412, 1440, 540), listOf(36, 36, 412, 412, 1440, 540)), shown)
+    }
+
     // Actual size cannot go below the window's smallest size, which Windows' display scale makes larger.
     @Test
     fun `the state carries the main window's smallest size`() {

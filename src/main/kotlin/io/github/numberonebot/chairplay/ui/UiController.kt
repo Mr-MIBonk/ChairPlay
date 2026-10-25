@@ -239,6 +239,7 @@ class UiController(
             },
             "mainWindow" to mainWindow?.sizes(display),
             "altscreenWindow" to altscreenWindow?.takeIf { it.available }?.sizes(display),
+            "altscreenWells" to altscreenWellsState(values),
             "controls" to controls?.state(),
             "controlsKeys" to (values["ui.controls.keys"]?.trim() == "true"),
             "setupDone" to setupDone,

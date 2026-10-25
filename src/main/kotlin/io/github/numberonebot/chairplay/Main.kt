@@ -2,7 +2,7 @@ package io.github.numberonebot.chairplay
 
 import com.shilapi.xcertplay.airplay.AirPlaySession
 import io.github.numberonebot.chairplay.config.DesktopConfig
-import io.github.numberonebot.chairplay.config.AREA_VIEWS
+import io.github.numberonebot.chairplay.config.AreaGroup
 import io.github.numberonebot.chairplay.config.areaKey
 import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.data.CarPlayData
@@ -150,7 +150,7 @@ private fun runCarPlay() {
             audio.saved(saved, config)
             saved["log.level"]?.let { LogLevel.of(it) }?.let { appLog.level = it }
             // A view's part saved: the view moves there at once, among the areas this connection declared.
-            if (saved.keys.any { key -> AREA_VIEWS.any { areaKey(it) == key } }) {
+            if (saved.keys.any { key -> AreaGroup.entries.any { areaKey(it) == key } }) {
                 runCatching { config.now() }.onSuccess(altView::areasSaved)
             }
             // A start or heading saved puts the GPS car there; a power or mass saved remakes it where it is.
@@ -253,6 +253,7 @@ private fun runCarPlay() {
             window.setStream(size)
             title.connecting(size)
         }
+        now.altscreenWarnings.forEach { appLog.log(LogLevel.WARNING, it) }
         altView.connected(now)
     }
     Runtime.getRuntime().addShutdownHook(Thread {

@@ -98,7 +98,7 @@ internal val SETTINGS_TEMPLATE = listOf(
             "own, 'true' or 'false' (the iPhone learns of it when it connects); its size in pixels (positive even\n" +
             "numbers); what it starts with: 'map', 'map-card', 'hud' or 'card' (the turn card).",
         "altscreen.enabled" to "false", "altscreen.width" to "1440", "altscreen.height" to "540",
-        "altscreen.content" to "map",
+        "altscreen.content" to "map-card",
     ),
     SettingBlock(
         "Where the altscreen shows the navigation app's ETA and turn card on Map + card: 'auto' (the driver's\n" +
@@ -117,15 +117,15 @@ internal val SETTINGS_TEMPLATE = listOf(
         "altscreen.safe.right" to "0",
     ),
     SettingBlock(
-        "The altscreen's own part of its frame for each view the iPhone draws there, all of its height: 'full',\n" +
-            "five eighths at the side ('left5', 'right5'), a half ('left4', 'center4', 'right4'), or three eighths\n" +
-            "('left3', 'center3', 'right3'); and the margins inside that part its map text and car marker keep out\n" +
-            "of, in pixels. A view with the full frame and blank margins uses altscreen.safe.*. The altscreen moves\n" +
-            "to a view's part as it changes view.",
-        *AREA_VIEWS.flatMap { view ->
-            listOf(areaKey(view) to defaultArea(view).key) + SAFE_EDGES.map { edge ->
-                safeKey(view, edge) to defaultSafe(view, edge, DesktopConfig.DEFAULT_ALTSCREEN_WIDTH, DesktopConfig.DEFAULT_ALTSCREEN_HEIGHT)
-            }
+        "The altscreen's own part of its frame for the maps (Map, Map + card) and for the turn card: 'full'; of all\n" +
+            "its height, five eighths ('left5', 'center5', 'right5'), a half ('left4', 'center4', 'right4'), or three\n" +
+            "eighths ('left3', 'center3', 'right3'); or 'custom', the rectangle in .area.custom: 'x, y, width, height'\n" +
+            "in altscreen pixels, blank until set. Then the margins inside that part its map text and car marker keep\n" +
+            "out of, in pixels. A group with the full frame and blank margins uses altscreen.safe.*. The altscreen\n" +
+            "moves to a group's part as it changes view.",
+        *AreaGroup.entries.flatMap { group ->
+            listOf(areaKey(group) to defaultArea(group).key, customKey(group) to "") +
+                SAFE_EDGES.map { edge -> safeKey(group, edge) to "" }
         }.toTypedArray(),
     ),
     SettingBlock("'windows' (follow the Windows theme), 'light', 'dark', or 'phone' (the iPhone decides).", "display.theme" to "windows"),

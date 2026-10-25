@@ -62,7 +62,7 @@ internal class AppWindows(dir: Path, config: DesktopConfig, mainTitle: String) {
             val alt = config.altscreen
             VideoWindow(
                 size.width, size.height, altPlacements.load(size),
-                altscreenTitle(size, alt?.content ?: AltscreenContent.MAP, alt?.cards ?: AltscreenCards.TOP),
+                altscreenTitle(size, alt?.content ?: AltscreenContent.MAP_CARD, alt?.cards ?: AltscreenCards.TOP),
                 aspect = size.takeIf { config.keepAspect }, hideOnClose = true, shown = alt != null,
                 minSize = WindowSize(ALTSCREEN_MIN_WIDTH, 1).fittedTo(size), minScales = false,
                 stream = size, dragAnywhere = true,

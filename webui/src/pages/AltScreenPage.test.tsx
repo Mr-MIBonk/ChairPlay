@@ -198,9 +198,10 @@ describe('AltScreen page', () => {
     backend.data = { ...backend.data, values: { ...backend.data.values, 'altscreen.card.area': 'right5' } }
     const state = appState({ phase: 'active', canShowCarPlay: true })
     await altscreen(backend, { ...state, controls: { ...state.controls!, altscreen: 'card' } })
-    const parts = screen.getByRole('radiogroup', { name: 'Area' })
+    const parts = screen.getByRole('radiogroup', { name: 'Area preset' })
 
-    expect(chosen('Area')).toEqual(['Right 5/8'])
+    expect(chosen('Area')).toEqual(['Preset'])
+    expect(chosen('Area preset')).toEqual(['Right 5/8'])
     fireEvent.click(within(parts).getByRole('radio', { name: 'Center 3/8' }))
     fireEvent.change(inRow('Insets', 'Top'), { target: { value: '10' } })
     fireEvent.blur(inRow('Insets', 'Top'))
@@ -225,6 +226,7 @@ describe('AltScreen page', () => {
     await altscreen(backend, { ...state, controls: { ...state.controls!, altscreen: 'hud' } })
     const parts = screen.getByRole('radiogroup', { name: 'Area' })
 
+    expect(chosen('Area')).toEqual([])
     expect(
       within(parts)
         .getAllByRole('radio')

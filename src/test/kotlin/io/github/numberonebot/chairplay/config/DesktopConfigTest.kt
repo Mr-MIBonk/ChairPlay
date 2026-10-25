@@ -160,8 +160,8 @@ class DesktopConfigTest {
         assertEquals(1600, cluster.widthPixels)
         assertEquals(600, cluster.heightPixels)
         assertEquals(30, cluster.fps)
-        assertEquals("maps:/car/instrumentcluster/map", cluster.initialUrl)
-        assertEquals(AltscreenContent.MAP, config.altscreen!!.content)
+        assertEquals("maps:/car/instrumentcluster", cluster.initialUrl)
+        assertEquals(AltscreenContent.MAP_CARD, config.altscreen!!.content)
         assertEquals(WindowSize(1600, 600), config.altscreen!!.size)
     }
 

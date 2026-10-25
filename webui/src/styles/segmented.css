@@ -119,13 +119,18 @@
 }
 
 /* The AltScreen's view areas: three plates a row, each with its part of an 8:3 frame before its name */
-/* As long as a group of four, as Content above it, at every width of the page */
-.shell .seg.view-areas {
+/*
+ * As long as a group of four, as Content above it, at every width of the page; the custom area's drawing
+ * (custom-area.css) under the same rule, so that it lines up with the grid
+ */
+.shell .seg.view-areas,
+.shell .area-drawing {
   width: var(--row-width);
 }
 
 @container (min-width: 496px) {
-  .shell .seg.view-areas {
+  .shell .seg.view-areas,
+  .shell .area-drawing {
     width: calc(4 * var(--choice) + 6px);
   }
 }

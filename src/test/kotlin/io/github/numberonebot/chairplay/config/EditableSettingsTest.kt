@@ -264,11 +264,11 @@ class EditableSettingsTest {
         // The iPhone learns of the AltScreen as it connects.
         for (key in listOf("altscreen.enabled", "altscreen.width", "altscreen.height", "altscreen.content",
             "altscreen.safe.top", "altscreen.safe.bottom", "altscreen.safe.left", "altscreen.safe.right",
-            "altscreen.map.safe.top", "altscreen.map-card.safe.left", "altscreen.card.safe.bottom", "altscreen.card.safe.right")) {
+            "altscreen.map.safe.top", "altscreen.map.safe.left", "altscreen.card.safe.bottom", "altscreen.card.safe.right")) {
             assertEquals(key, Applies.RECONNECT, EditableSettings.applies(key))
         }
         // Every part is declared as the iPhone connects: a view moves to another at once.
-        for (key in listOf("altscreen.map.area", "altscreen.map-card.area", "altscreen.card.area")) {
+        for (key in listOf("altscreen.map.area", "altscreen.card.area")) {
             assertEquals(key, Applies.NOW, EditableSettings.applies(key))
         }
         // What the iPhone learns of its screen it asks at each connection.

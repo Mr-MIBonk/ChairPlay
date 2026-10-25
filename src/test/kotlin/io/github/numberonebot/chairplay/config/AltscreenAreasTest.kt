@@ -6,15 +6,15 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class AltscreenAreasTest {
-    // The parts a view can show in, for an 8:3 cluster: the whole frame; five eighths at the left or the right, beside a
-    // dial; four eighths, a half, at the left, the middle or the right; three eighths at the left, the middle or the
+    // The parts a view can show in, for an 8:3 cluster: the whole frame; five eighths at the left, the middle or the
+    // right; four eighths, a half, at the left, the middle or the right; three eighths at the left, the middle or the
     // right, between dials or in a side panel. All of the full height.
     @Test
     fun `the parts are the whole frame and parts of its eighths`() {
         assertEquals(
             listOf(
                 AirPlayViewArea(1920, 720),
-                AirPlayViewArea(1200, 720), AirPlayViewArea(1200, 720, originX = 720),
+                AirPlayViewArea(1200, 720), AirPlayViewArea(1200, 720, originX = 360), AirPlayViewArea(1200, 720, originX = 720),
                 AirPlayViewArea(960, 720), AirPlayViewArea(960, 720, originX = 480), AirPlayViewArea(960, 720, originX = 960),
                 AirPlayViewArea(720, 720), AirPlayViewArea(720, 720, originX = 600), AirPlayViewArea(720, 720, originX = 1200),
             ),
@@ -24,7 +24,7 @@ class AltscreenAreasTest {
         assertEquals(
             listOf(
                 AirPlayViewArea(1440, 540),
-                AirPlayViewArea(896, 540), AirPlayViewArea(896, 540, originX = 544),
+                AirPlayViewArea(896, 540), AirPlayViewArea(896, 540, originX = 272), AirPlayViewArea(896, 540, originX = 544),
                 AirPlayViewArea(720, 540), AirPlayViewArea(720, 540, originX = 360), AirPlayViewArea(720, 540, originX = 720),
                 AirPlayViewArea(536, 540), AirPlayViewArea(536, 540, originX = 452), AirPlayViewArea(536, 540, originX = 904),
             ),

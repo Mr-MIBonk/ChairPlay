@@ -128,13 +128,13 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
     val altscreenSize = WindowSize(settings.evenSetting("altscreen.width", DEFAULT_ALTSCREEN_WIDTH), settings.evenSetting("altscreen.height", DEFAULT_ALTSCREEN_HEIGHT))
 
     val altscreen: Altscreen? = if (!settings.booleanSetting("altscreen.enabled", false)) null else {
-        val content = settings.choiceSetting("altscreen.content", AltscreenContent.MAP, AltscreenContent.entries.associateBy { it.key })
+        val content = settings.choiceSetting("altscreen.content", AltscreenContent.MAP_CARD, AltscreenContent.entries.associateBy { it.key })
         val size = altscreenSize
         val cards = settings.choiceSetting("altscreen.cards", AltscreenCards.TOP, AltscreenCards.entries.associateBy { it.key })
         Altscreen(size, content, cards, settings.booleanSetting("altscreen.hud.stream", false))
     }
 
-    /** altscreen.<view>.area and .safe: the views' own parts of an enabled AltScreen's frame. */
+    /** altscreen.<group>.area, .area.custom and .safe: the views' own parts of an enabled AltScreen's frame. */
     private val viewParts = altscreen?.let { alt -> AltscreenViewParts(alt.size.width, alt.size.height) { settings.getProperty(it) } }
 
     /** The view areas an enabled AltScreen declares: every part of its frame, again for each view with its margins. */
@@ -146,14 +146,17 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
     /** The view area [content] shows in on the AltScreen, which it moves to as the view changes; 0 for the first. */
     fun altscreenAreaFor(content: AltscreenContent): Int = viewParts?.indexOf(content) ?: 0
 
-    /** altscreen.<view>.area: the part [content] is set to show in, the whole frame without an AltScreen or for the HUD. */
-    fun altscreenPreset(content: AltscreenContent): AreaPreset = viewParts?.presetOf(content) ?: AreaPreset.FULL
+    /** altscreen.<group>.area: what [content] is set to show in, the whole frame without an AltScreen or for the HUD. */
+    fun altscreenChoice(content: AltscreenContent): AreaChoice = viewParts?.choiceOf(content) ?: AreaChoice.Preset(AreaPreset.FULL)
 
     /**
-     * The view area [content] shows in when set to [preset], among the ones this connection declared: a part set since,
+     * The view area [content] shows in when set to [choice], among the ones this connection declared: a part set since,
      * while CarPlay runs, is one of them.
      */
-    fun altscreenAreaIndex(content: AltscreenContent, preset: AreaPreset): Int = viewParts?.indexOf(content, preset) ?: 0
+    fun altscreenAreaIndex(content: AltscreenContent, choice: AreaChoice): Int = viewParts?.indexOf(content, choice) ?: 0
+
+    /** What reading the AltScreen's parts had to put right, such as a rectangle clamped into a smaller frame. */
+    val altscreenWarnings: List<String> = viewParts?.warnings.orEmpty()
 
     /** The AltScreen as /info declares it; null when off. The iPhone learns of it only when it connects. */
     private val altscreenDisplay = altscreen?.let { altscreenDisplay(it, settings, altscreenAreas) }

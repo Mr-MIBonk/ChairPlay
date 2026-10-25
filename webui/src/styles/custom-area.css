@@ -1,0 +1,57 @@
+/* The AltScreen's custom area: its drawing of the frame */
+
+/*
+ * The frame on the fields' ground, as wide as the view areas' grid (segmented.css sizes both with one rule) and as high
+ * as the frame's aspect makes it; the virtual car's dials dashed, the area tinted as a chosen plate, its corners lit
+ */
+.shell .area-drawing {
+  display: block;
+  height: auto;
+  border: 1px solid var(--edge);
+  border-radius: 3px;
+  background: var(--ground);
+  touch-action: none;
+  user-select: none;
+}
+
+/* Its row keeps the 5 px above and below that a row of 24 px fields gets, so the gap over it is the one between those */
+.shell .row:has(.area-drawing) {
+  padding: 5px 0;
+}
+
+/* The x between Position's two fields as wide as Size's ×, so the second fields of the two rows line up */
+.shell .unit.pair {
+  width: 9px;
+  text-align: center;
+}
+
+.shell .area-drawing .well {
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1;
+  stroke-dasharray: 4 3;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.shell .area-drawing .area {
+  fill: color-mix(in srgb, var(--accent) 35%, transparent);
+  stroke: var(--accent);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+  cursor: move;
+}
+
+.shell .area-drawing .handle {
+  fill: var(--accent);
+}
+
+.shell .area-drawing .handle.nw,
+.shell .area-drawing .handle.se {
+  cursor: nwse-resize;
+}
+
+.shell .area-drawing .handle.ne,
+.shell .area-drawing .handle.sw {
+  cursor: nesw-resize;
+}

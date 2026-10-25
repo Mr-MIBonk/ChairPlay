@@ -129,6 +129,8 @@ export interface AppState {
   mainWindow: WindowSizes | null
   /** The AltScreen's window, the same way; null without an AltScreen. */
   altscreenWindow: WindowSizes | null
+  /** The virtual car's two wells in the AltScreen's frame (left first), empty while the AltScreen is off. */
+  altscreenWells: { x: number; y: number; radius: number }[]
   /** Null when the app has no controls window. */
   controls: ControlsState | null
   /** The controls window shows each button's key always, not only while Alt is held (ui.controls.keys). */

@@ -29,6 +29,9 @@ object EditableSettings {
         if (value.trim().lowercase() in values) null else "Must be one of ${values.joinToString()}"
     }
 
+    // Before the settings, which take them as they initialise: altscreen.<group>.area's presets and custom.
+    private val AREA_CHOICES = (AreaPreset.entries.map { it.key } + AreaChoice.Custom.KEY).toTypedArray()
+
     // Everything the app reads only as it starts applies after a restart: the iPhone's, the screens', and the sound's.
     // What the iPhone learns of its screen it asks at each connection, so that applies at the next one.
     private val settings: Map<String, Setting> = mapOf(
@@ -74,9 +77,10 @@ object EditableSettings {
         "altscreen.safe.right" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
         // The margins checked against their part as well, in validate.
         // Every part is declared as the iPhone connects, so a view moves to another at once; its margins are in /info.
-        *AREA_VIEWS.map { areaKey(it) to choice(*AreaPreset.entries.map { preset -> preset.key }.toTypedArray(), applies = Applies.NOW) }
-            .toTypedArray(),
-        *AREA_VIEWS.flatMap { view -> SAFE_EDGES.map { safeKey(view, it) to Setting(Applies.RECONNECT, check = ::checkOptionalNonNegative) } }
+        *AreaGroup.entries.map { areaKey(it) to choice(*AREA_CHOICES, applies = Applies.NOW) }.toTypedArray(),
+        // Each group's custom part is declared as the iPhone connects, its rectangle in /info; checked against the frame in validate.
+        *AreaGroup.entries.map { customKey(it) to Setting(Applies.RECONNECT, check = ::checkAreaRect) }.toTypedArray(),
+        *AreaGroup.entries.flatMap { group -> SAFE_EDGES.map { safeKey(group, it) to Setting(Applies.RECONNECT, check = ::checkOptionalNonNegative) } }
             .toTypedArray(),
         // "default" or a device's name; a name no device has stops the next start, as a typo in the file would.
         "audio.output" to Setting(Applies.RESTART) { null },
@@ -121,6 +125,17 @@ object EditableSettings {
     fun caseless(key: String): Boolean = settings[key]?.caseless ?: false
 
     /**
+     * [value] of [key] as it is saved: trimmed, a switch or a choice in lower case, a custom rectangle on the grid as the
+     * app reads it (one that is wrong stays as typed, for its error).
+     */
+    fun normalized(key: String, value: String): String = when {
+        caseless(key) -> value.trim().lowercase()
+        AreaGroup.entries.any { customKey(it) == key } ->
+            AreaRect.parseValid(value)?.snapped()?.toString() ?: value.trim()
+        else -> value.trim()
+    }
+
+    /**
      * The problems with [changes] to the settings [current], by key, as sentences for the screen; empty when all can
      * be saved. The password is checked against the security it goes with, changed or not.
      */
@@ -142,34 +157,6 @@ object EditableSettings {
         for (screen in listOf("display", "altscreen")) checkSafeArea(screen, changes, current, errors)
         checkViewParts(changes, current, errors)
         return errors
-    }
-
-    /**
-     * Each AltScreen view's part must lie inside the frame and leave some of itself inside its margins, all taken as
-     * they will be after [changes]; an error goes on the key that is wrong, when it or the frame's size changed.
-     */
-    private fun checkViewParts(changes: Map<String, String>, current: Map<String, String>, errors: MutableMap<String, String>) {
-        fun value(key: String) = (changes[key] ?: current[key])?.trim()?.ifEmpty { null }
-        val sizeChanged = "altscreen.width" in changes || "altscreen.height" in changes
-        val width = value("altscreen.width")?.toIntOrNull() ?: DesktopConfig.DEFAULT_ALTSCREEN_WIDTH
-        val height = value("altscreen.height")?.toIntOrNull() ?: DesktopConfig.DEFAULT_ALTSCREEN_HEIGHT
-        for (view in AREA_VIEWS) {
-            val keys = SAFE_EDGES.map { safeKey(view, it) }
-            if (!sizeChanged && areaKey(view) !in changes && keys.none { it in changes }) continue
-            if (areaKey(view) in errors || keys.any { it in errors }) continue
-            val area = (value(areaKey(view))?.let(AreaPreset::of) ?: defaultArea(view)).area(width, height)
-            val (top, bottom, left, right) = keys.map { value(it)?.toIntOrNull() ?: 0 }
-            val across = left + right >= area.width
-            val down = top + bottom >= area.height
-            if (!across && !down) continue
-            // On what made them too wide: a side of the axis that fails changed, else the part, else the frame's size.
-            val sides = (if (across) listOf("left", "right") else emptyList()) + (if (down) listOf("top", "bottom") else emptyList())
-            val blamed = sides.map { safeKey(view, it) }.firstOrNull { it in changes }
-                ?: areaKey(view).takeIf { it in changes }
-                ?: listOfNotNull("altscreen.width".takeIf { across }, "altscreen.height".takeIf { down }).firstOrNull { it in changes }
-                ?: safeKey(view, sides.first())
-            errors[blamed] = "Leave some of the area inside the margins"
-        }
     }
 
     /**
@@ -280,6 +267,12 @@ object EditableSettings {
             number > MAX_PIXELS -> TOO_MANY_PIXELS
             else -> null
         }
+    }
+
+    private fun checkAreaRect(value: String): String? {
+        if (value.isBlank()) return null
+        val rect = AreaRect.parse(value) ?: return "Enter four whole numbers: x, y, width, height"
+        return if (!rect.isLargeEnough) "Enter a width and height of at least $MIN_AREA px" else null
     }
 
     /** The most pixels a side of a screen or window may have. */

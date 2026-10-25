@@ -1,8 +1,9 @@
 package io.github.numberonebot.chairplay.ui
 
 import com.shilapi.xcertplay.airplay.AirPlayInsets
-import io.github.numberonebot.chairplay.config.AREA_VIEWS
+import io.github.numberonebot.chairplay.config.AltscreenContent
 import io.github.numberonebot.chairplay.config.AltscreenViewParts
+import io.github.numberonebot.chairplay.config.areaGroup
 import io.github.numberonebot.chairplay.config.DesktopConfig
 
 /**
@@ -14,7 +15,7 @@ import io.github.numberonebot.chairplay.config.DesktopConfig
 internal fun altscreenFrameInsets(values: Map<String, String>, view: String?): AirPlayInsets? {
     fun inset(edge: String) = values["altscreen.safe.$edge"]?.trim()?.toIntOrNull()?.coerceAtLeast(0) ?: 0
     if (view == null) return AirPlayInsets(top = inset("top"), bottom = inset("bottom"), left = inset("left"), right = inset("right"))
-    val content = AREA_VIEWS.firstOrNull { it.key == view } ?: return null
+    val content = AltscreenContent.entries.firstOrNull { it.key == view && it.areaGroup != null } ?: return null
     val (width, height) = altscreenFrameSize(values)
     val parts = runCatching { AltscreenViewParts(width, height, values::get) }.getOrNull() ?: return null
     val part = parts.areas[parts.indexOf(content)]

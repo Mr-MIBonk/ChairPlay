@@ -175,6 +175,15 @@ class UiControllerSettingsTest : UiControllerFixture() {
         }
     }
 
+    // A custom rectangle off the grid is saved on it, as the app would read it.
+    @Test
+    fun `a custom rectangle is saved snapped`() {
+        val result = controller().saveSettings(mapOf("altscreen.card.area.custom" to "413, 37, 619, 469"))
+
+        assertTrue(result.errors.toString(), result.errors.isEmpty())
+        assertTrue("altscreen.card.area.custom=412, 36, 616, 468\n" in Files.readString(file))
+    }
+
     // The Audio page offers the devices Windows has, by the names the settings match.
     @Test
     fun `the settings carry the sound devices`() {

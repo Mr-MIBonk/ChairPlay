@@ -21,6 +21,7 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     windows: { altscreen: { available: true, visible: true }, controls: { available: true, visible: true } },
     mainWindow: null,
     altscreenWindow: null,
+    altscreenWells: [],
     controlsKeys: false,
     setupDone: true,
     accent: '#52c4ff',

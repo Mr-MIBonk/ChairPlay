@@ -121,7 +121,7 @@ internal class UiSettings(
     private fun normalize(key: String, value: String): String = when (key) {
         // A network name and a password are taken as typed: spaces may belong to them.
         "wifi.ssid", PASSPHRASE -> value
-        else -> if (EditableSettings.caseless(key)) value.trim().lowercase() else value.trim()
+        else -> EditableSettings.normalized(key, value)
     }
 
     private fun appliesName(applies: Applies) = applies.name.lowercase()
