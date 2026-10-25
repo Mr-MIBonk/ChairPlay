@@ -217,7 +217,7 @@ class UiController(
         val state = model.state
         val values = runCatching { settings.read() }.getOrDefault(emptyMap())
         return linkedMapOf(
-            "version" to version,
+            "version" to version, "settingsVersion" to settingsApi.version,
             "phase" to state.phase.name.lowercase(),
             "screen" to state.screen.name.lowercase(),
             "error" to state.error?.let { mapOf("message" to it.message, "at" to it.at.format(TIME)) },

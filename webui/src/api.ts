@@ -102,6 +102,8 @@ export interface WindowState {
 
 export interface AppState {
   version: number
+  /** Moves on with each settings save; the page re-reads /api/settings when it changes, since the state omits them. */
+  settingsVersion: number
   phase: Phase
   screen: Screen
   error: { message: string; at: string } | null

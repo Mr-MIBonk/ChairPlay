@@ -35,7 +35,7 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
   const ids = useId()
   const showable = state.canShowCarPlay && state.embedded
   const restart = new Set(sectionsOf(state.restartPending))
-  const settings = useSettings(backend)
+  const settings = useSettings(backend, state.settingsVersion)
   const guiding = guide === 'shown' || (guide === 'auto' && !state.setupDone)
   const steps = guiding ? setupSteps(state, joinFailureSeen) : null
   const showGuide = () => setGuide('shown')

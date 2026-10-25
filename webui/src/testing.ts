@@ -4,6 +4,7 @@ import type { AppState, ControlsData } from './api'
 export function appState(overrides: Partial<AppState> = {}): AppState {
   return {
     version: 1,
+    settingsVersion: 1,
     phase: 'calling',
     screen: 'start',
     error: null,

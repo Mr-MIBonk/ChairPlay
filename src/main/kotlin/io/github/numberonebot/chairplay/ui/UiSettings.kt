@@ -32,6 +32,11 @@ internal class UiSettings(
     /** The settings as the app started with them, against which a change waits for the next start. */
     private val startup: Map<String, String> = settings.read()
 
+    /** Moves on with each settings save, for the state's settingsVersion, so an open page re-reads what it does not stream. */
+    @Volatile
+    var version = 0L
+        private set
+
     fun savedPassphrase(): String? = settings.read()[PASSPHRASE]?.ifEmpty { null }
 
     fun settings(): Map<String, Any?> {
@@ -70,6 +75,7 @@ internal class UiSettings(
             log("Wi-Fi network set; connecting")
             connect()
         }
+        version++
         changed()
         return SaveResult(emptyMap(), applies)
     }

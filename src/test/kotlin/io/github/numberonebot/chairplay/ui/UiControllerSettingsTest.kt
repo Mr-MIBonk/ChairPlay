@@ -207,4 +207,18 @@ class UiControllerSettingsTest : UiControllerFixture() {
         assertTrue(ui.version > before)
         assertEquals(ui.version, ui.awaitChange(before, 10))
     }
+
+    // The state does not stream the settings a page reads; a settings version in it tells an open page to re-read them.
+    // Only a settings save moves it on (so a key like Shift+F10 reaches the page), not every other change.
+    @Test
+    fun `a settings save moves the settings version on, a plain change does not`() {
+        val ui = controller()
+        val before = ui.state()["settingsVersion"] as Long
+
+        ui.model.sessionActive()
+        assertEquals(before, ui.state()["settingsVersion"])
+
+        ui.saveSettings(mapOf("gps.gauges" to "small"))
+        assertTrue((ui.state()["settingsVersion"] as Long) > before)
+    }
 }

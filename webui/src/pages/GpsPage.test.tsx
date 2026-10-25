@@ -250,6 +250,30 @@ describe('GPS page', () => {
     await waitFor(() => expect(backend.saved).toEqual([{ 'gps.car.handling': 'sharp' }, { 'gps.gauges': 'small' }]))
   })
 
+  // The gauges can change from outside the page (Shift+F10 saves gps.gauges): the app bumps the settings version and
+  // the page re-reads the settings it does not stream, so the segmented follows.
+  it('reflects a gauges change made outside the page', async () => {
+    const backend = gpsBackend(true)
+    backend.data.values['gps.gauges'] = 'large'
+    const { rerender } = render(<Shell state={appState({ ...live, settingsVersion: 1 })} backend={backend} />)
+    await screen.findByRole('textbox', { name: 'Network' })
+    fireEvent.click(screen.getByRole('tab', { name: 'GPS' }))
+
+    const gauges = screen.getByRole('radiogroup', { name: 'Gauges' })
+    expect(within(gauges).getByRole('radio', { name: 'Large' }).getAttribute('aria-checked')).toBe('true')
+
+    backend.data = { ...backend.data, values: { ...backend.data.values, 'gps.gauges': 'small' } }
+    rerender(<Shell state={appState({ ...live, settingsVersion: 2 })} backend={backend} />)
+
+    await waitFor(() =>
+      expect(
+        within(screen.getByRole('radiogroup', { name: 'Gauges' }))
+          .getByRole('radio', { name: 'Small' })
+          .getAttribute('aria-checked'),
+      ).toBe('true'),
+    )
+  })
+
   // The wheel's mode: the heading (north up) until set; choosing steering (track up) saves the key.
   it('sets the wheel mode', async () => {
     const backend = await gps()

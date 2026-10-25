@@ -13,14 +13,18 @@ export interface Settings {
   save(changes: Record<string, string>): Promise<boolean>
 }
 
-export function useSettings(backend: Backend): Settings {
+/**
+ * [settingsVersion] is the app's settings-save counter (AppState.settingsVersion): the state does not stream the
+ * settings, so the page re-reads them whenever it moves on, catching changes made outside the page (e.g. Shift+F10).
+ */
+export function useSettings(backend: Backend, settingsVersion?: number): Settings {
   const [data, setData] = useState<SettingsData | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
   useEffect(() => {
     backend.settings().then(setData, (error) => setLoadError(error instanceof Error ? error.message : String(error)))
-  }, [backend])
+  }, [backend, settingsVersion])
 
   async function save(changes: Record<string, string>) {
     const keys = Object.keys(changes)
