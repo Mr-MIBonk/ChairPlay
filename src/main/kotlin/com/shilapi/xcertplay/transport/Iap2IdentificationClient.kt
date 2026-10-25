@@ -2,7 +2,9 @@
  * ChairPlay: a copy of DiPlay's shared/.../transport/Iap2IdentificationClient.kt (upstream commit 143f4674), which
  * build.gradle.kts leaves out of the core it compiles. Changed, each change marked "ChairPlay": the identification
  * asks the iPhone for lane guidance as LuKa's MHI2Q project does, LaneGuidanceInfoUpdate (0x5204) among the messages
- * it receives and the RouteGuidanceDisplayComponent's lane limits. On a newer DiPlay, copy its file again and apply
+ * it receives and the RouteGuidanceDisplayComponent's lane limits; route guidance can be left out of the Bluetooth
+ * link (bootstrapRouteGuidance), and 0x4300/0x4301 out of every link (carPlayAvailabilityEnabled), for the CarPlay
+ * Ultra experiments. On a newer DiPlay, copy its file again and apply
  * these changes to it.
  */
 package com.shilapi.xcertplay.transport
@@ -67,6 +69,12 @@ data class Iap2IdentificationConfig(
     val vehicleSpeedEnabled: Boolean = false,
     /** ChairPlay: also offer satellites in view ($GPGSV) in the location component; needs [locationInformationEnabled]. */
     val satellitesInViewEnabled: Boolean = false,
+    /** ChairPlay: false leaves route guidance out of the Bluetooth link's identification, for the CarPlay Ultra experiments. */
+    val bootstrapRouteGuidance: Boolean = true,
+    /** ChairPlay: declares the RouteGuidanceDisplayComponent and its messages; [forWirelessLink] sets it per link. */
+    val routeGuidanceEnabled: Boolean = true,
+    /** ChairPlay: false leaves 0x4300/0x4301 out on every link, as for an older iOS, for the CarPlay Ultra experiments. */
+    val carPlayAvailabilityEnabled: Boolean = true,
 ) {
     constructor(
         name: String,
@@ -140,6 +148,7 @@ internal fun Iap2IdentificationConfig.forWirelessLink(
             vehicleStatusEnabled = false,
             vehicleSpeedEnabled = false,
             satellitesInViewEnabled = false,
+            routeGuidanceEnabled = bootstrapRouteGuidance,
         )
         Iap2WirelessLinkRole.RUNTIME_TUNNEL -> wirelessConfig
     }
@@ -309,7 +318,9 @@ class Iap2IdentificationClient(private val session: Iap2Session) {
         }
 
         /** Builds the smallest honest LIVI-compatible wired or wireless IdentificationInformation. */
-        fun identificationInformation(config: Iap2IdentificationConfig, omitted: Set<Int> = emptySet()): Iap2Frame {
+        fun identificationInformation(config: Iap2IdentificationConfig, rejected: Set<Int> = emptySet()): Iap2Frame {
+            // ChairPlay: the CarPlay start pair left out as an older iOS's rejection leaves it out.
+            val omitted = if (config.carPlayAvailabilityEnabled) rejected else rejected + setOf(CARPLAY_AVAILABILITY, CARPLAY_START_SESSION)
             val wireless = config.wireless
             var sentMessages = if (config.locationInformationEnabled) {
                 MESSAGES_SENT_BY_ACCESSORY + LOCATION_INFORMATION
@@ -327,6 +338,11 @@ class Iap2IdentificationClient(private val session: Iap2Session) {
                     Iap2VehicleStatus.START_VEHICLE_STATUS_UPDATES,
                     Iap2VehicleStatus.STOP_VEHICLE_STATUS_UPDATES,
                 )
+            }
+            if (!config.routeGuidanceEnabled) {
+                // ChairPlay: without the component, none of its messages.
+                sentMessages = sentMessages.filterNot { it in ROUTE_GUIDANCE_MESSAGES }.toIntArray()
+                receivedMessages = receivedMessages.filterNot { it in ROUTE_GUIDANCE_MESSAGES }.toIntArray()
             }
             return Iap2Messages.build(Iap2Endpoints.IDENTIFICATION_INFORMATION) {
                 string(0, config.name)
@@ -398,7 +414,7 @@ class Iap2IdentificationClient(private val session: Iap2Session) {
                         if (config.vehicleSpeedEnabled) void(20)
                     }
                 }
-                group(30) {
+                if (config.routeGuidanceEnabled) group(30) {
                     u16(0, 42)
                     // ChairPlay: the component as LuKa's MHI2Q project gives it (rgd_tlv.c, rgd_build_component_tlv,
                     // after the MHI3 head unit's own); DiPlay names it "RouteGuidance", gives road names 64 characters,
@@ -466,5 +482,6 @@ class Iap2IdentificationClient(private val session: Iap2Session) {
         private const val START_LOCATION_INFORMATION = 0xfffa
         private const val STOP_LOCATION_INFORMATION = 0xfffc
         private val WIRELESS_PHONE_MESSAGES = intArrayOf(0x4e0d, 0x4e0e, 0x5702)
+        private val ROUTE_GUIDANCE_MESSAGES = setOf(0x5200, 0x5201, 0x5202, 0x5203, 0x5204) // ChairPlay
     }
 }

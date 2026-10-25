@@ -198,7 +198,7 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
         deviceName = deviceName,
         deviceId = deviceId(identity),
         btMac = deviceId(identity),
-        sourceVersion = "950.7.1",
+        sourceVersion = sourceVersion(),
         main = display.airPlay(),
         rightHandDrive = display.rightHandDrive,
         port = 7000,

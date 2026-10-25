@@ -6,6 +6,8 @@ import com.shilapi.xcertplay.network.WirelessHotspotInfo
 import com.shilapi.xcertplay.transport.Iap2IdentificationConfig
 import com.shilapi.xcertplay.transport.Iap2WirelessCarPlayEndpoint
 import io.github.numberonebot.chairplay.config.DesktopConfig
+import io.github.numberonebot.chairplay.config.bootstrapRouteGuidance
+import io.github.numberonebot.chairplay.config.carPlayAvailability
 import io.github.numberonebot.chairplay.drive.GpsSettings
 import java.net.Inet6Address
 import java.net.InetAddress
@@ -32,6 +34,8 @@ internal fun desktopIdentification(
     locationInformationEnabled = gps.enabled,
     vehicleSpeedEnabled = gps.enabled && gps.wheelSpeed,
     satellitesInViewEnabled = gps.enabled && gps.satellites,
+    bootstrapRouteGuidance = bootstrapRouteGuidance(),
+    carPlayAvailabilityEnabled = carPlayAvailability(),
 )
 
 /** The 0x4301/0x5703 endpoint; the address goes as upstream sends it, compressed and without scope. */

@@ -4,6 +4,8 @@ import com.shilapi.xcertplay.airplay.AirPlaySession
 import io.github.numberonebot.chairplay.config.DesktopConfig
 import io.github.numberonebot.chairplay.config.AreaGroup
 import io.github.numberonebot.chairplay.config.areaKey
+import io.github.numberonebot.chairplay.config.bootstrapRouteGuidance
+import io.github.numberonebot.chairplay.config.carPlayAvailability
 import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.data.CarPlayData
 import io.github.numberonebot.chairplay.data.CarPlayDataLog
@@ -73,6 +75,7 @@ private fun runCarPlay(windowsOpen: () -> Unit) {
     log(controlsConfig.summary())
     val firewall = checkFirewall(config.airPlay.port)
     log(config.displaySummary())
+    log("airplay sourceVersion=${config.airPlay.sourceVersion} bootstrapRouteGuidance=${bootstrapRouteGuidance()} carPlayAvailability=${carPlayAvailability()}")
     val windows = AppWindows(dir, config, MainTitle.opening(config))
     val window = windows.main
     val title = MainTitle(window, config)
