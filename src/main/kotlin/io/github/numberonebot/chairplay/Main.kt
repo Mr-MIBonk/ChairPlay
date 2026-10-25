@@ -15,11 +15,14 @@ import io.github.numberonebot.chairplay.input.TouchTracker
 import io.github.numberonebot.chairplay.log.AppLog
 import io.github.numberonebot.chairplay.log.LogLevel
 import io.github.numberonebot.chairplay.log.routeAllOutput
+import io.github.numberonebot.chairplay.log.routeFfmpegLog
 import io.github.numberonebot.chairplay.media.runWindows
 import io.github.numberonebot.chairplay.drive.Driving
 import io.github.numberonebot.chairplay.media.saveScreenshot
 import io.github.numberonebot.chairplay.session.WirelessBootstrap
+import io.github.numberonebot.chairplay.ui.BuildInfo
 import io.github.numberonebot.chairplay.ui.ChairPlayUi
+import io.github.numberonebot.chairplay.ui.startLine
 import io.github.numberonebot.chairplay.ui.UiActions
 import io.github.numberonebot.chairplay.ui.UiSafeAreaFrame
 import java.nio.file.Path
@@ -31,7 +34,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
-    if (args.firstOrNull() == "run") runCarPlay() else exitProcess(runCommand(args))
+    if (args.firstOrNull() == "run") guardStart(appLog, start = ::runCarPlay) else exitProcess(runCommand(args))
 }
 
 /** The console and, once the app folder is known, logs\chairplay-<time>.log, at log.level. */
@@ -55,12 +58,15 @@ internal fun dataDirectory(): Path {
 
 /**
  * Wireless CarPlay with the screen shown in a window and its sound played through Java Sound. Runs until the window
- * is closed or the process is stopped; every session end or failure restarts the bring-up.
+ * is closed or the process is stopped; every session end or failure restarts the bring-up. [windowsOpen] is called
+ * once every window is open.
  */
-private fun runCarPlay() {
+private fun runCarPlay(windowsOpen: () -> Unit) {
     routeAllOutput(appLog)
     val dir = dataDirectory()
     appLog.open(dir.resolve("logs"))
+    appLog.log(LogLevel.WARNING, BuildInfo.load().startLine())
+    routeFfmpegLog(appLog)
     val config = DesktopConfig(dir)
     appLog.level = config.logLevel
     val controlsConfig = ControlsConfig.load(dir)
@@ -283,6 +289,6 @@ private fun runCarPlay() {
         }
     }, "instance-lock").apply { isDaemon = true }.start()
     // GLFW needs its windows and event loop on this, the main, thread; the bring-up runs on its own.
-    runWindows(window, *listOfNotNull(altscreen, controlsWindow).toTypedArray(), pass = windowPass(driving, appControls))
+    runWindows(window, *listOfNotNull(altscreen, controlsWindow).toTypedArray(), pass = windowPass(driving, appControls), opened = windowsOpen)
     exitProcess(0)
 }

@@ -3,6 +3,7 @@ package io.github.numberonebot.chairplay.config
 import com.shilapi.xcertplay.airplay.AirPlayInfoPlist
 import io.github.numberonebot.chairplay.log.LogLevel
 import io.github.numberonebot.chairplay.media.DuckSetting
+import io.github.numberonebot.chairplay.ui.BuildInfo
 import io.github.numberonebot.chairplay.media.decibelGain
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -176,10 +177,12 @@ class DesktopConfigTest {
 
     // The app's log tells what happens without DiPlay's packet-by-packet lines unless asked for.
     @Test
-    fun `the log is at info unless set`() {
-        assertEquals(LogLevel.INFO, configWith().logLevel)
+    fun `the log level defaults to the build's, a set level is read, and an unknown one is refused`() {
+        // A new settings file carries the level of its build: warning in a release, info in a development build.
+        val default = defaultLogLevel(BuildInfo.load().version)
+        assertEquals(default, configWith().logLevel.key)
         assertEquals(LogLevel.TRACE, configWith("log.level=Trace").logLevel)
-        assertTrue(DesktopConfig.defaultSettingsText().contains("\nlog.level=info\n"))
+        assertTrue(DesktopConfig.defaultSettingsText().contains("\nlog.level=$default\n"))
         assertTrue(runCatching { configWith("log.level=loud").logLevel }.exceptionOrNull() is IllegalArgumentException)
     }
 

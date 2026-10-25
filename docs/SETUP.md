@@ -183,9 +183,10 @@ The files below live in the app folder, next to `ChairPlay.exe`.
    `display 1280x720 px, 200x113 mm (163 ppi), 60 fps; window 1280x720`.
 4. **Firewall.** Windows Firewall drops the iPhone's inbound connections. Add the rule, in Get started and on the
    Connection page, adds these rules with the administrator's consent (Windows asks once); or add them yourself, once,
-   from Terminal (Admin) (the paths are those of the packaged exe; adjust them if you move the folder). The app
-   prints the same commands at start when no rule named `ChairPlay CarPlay inbound` exists, unless the firewall is
-   off for the networks the PC is on, which needs no rule:
+   from Terminal (Admin) (the paths are those of the packaged exe; adjust them if you move the folder). At start the
+   app writes the same commands into its log as warnings, which a release's default log level keeps, when no rule
+   named `ChairPlay CarPlay inbound` exists, unless the firewall is off for the networks the PC is on, which needs no
+   rule:
 
    ```
    netsh advfirewall firewall add rule name="ChairPlay CarPlay inbound" dir=in action=allow program="<folder>\ChairPlay.exe" protocol=TCP localport=7000-7010,49152-65535
@@ -200,6 +201,21 @@ The files below live in the app folder, next to `ChairPlay.exe`.
    its exe; delete those, or set them to Allow, in Windows Defender Firewall > Advanced settings > Inbound Rules. The
    check uses PowerShell's firewall cmdlets and finds rules whose program path is written out in full, not through an
    environment variable such as `%ProgramFiles%`.
+
+## Releases
+
+A release is a tag `vX.Y.Z` on `main`. Create it and push it:
+
+`git tag v0.1.0` then `git push origin v0.1.0`
+
+The workflow in `.github/workflows/release.yml` runs the tests, builds `ChairPlay-X.Y.Z-setup.exe` with
+`gradlew installer`, and drafts a GitHub release with the installer attached. Write the release notes, then publish the
+draft. Versions that start with 0 are marked as pre-releases. A tag that is not `vX.Y.Z` fails the workflow before
+it builds anything. To run the workflow again for the same tag, delete its draft release first: the workflow does not
+replace one.
+
+For a dry run without a tag, run the workflow from the Actions tab (Run workflow): it runs the same tests and builds
+`ChairPlay-0.0.0-setup.exe`, kept as the run's artifact, and drafts no release.
 
 ## Running
 

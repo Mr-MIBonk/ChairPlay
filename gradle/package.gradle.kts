@@ -8,6 +8,8 @@ interface FileOps {
 
 @Suppress("UNCHECKED_CAST")
 val socketHandleOpens = project.extra["socketHandleOpens"] as List<String>
+// The release version (chairplay.version, X.Y.Z), set in build.gradle.kts; null in a development build.
+val appVersion = project.extra["appVersion"] as String?
 val javaToolchains = extensions.getByType<JavaToolchainService>()
 val mainSourceSet = the<SourceSetContainer>()["main"]
 
@@ -73,6 +75,8 @@ val jpackageImage by tasks.registering(Exec::class) {
             launcher.get().metadata.installationPath.file("bin/jpackage.exe").asFile.path,
             "--type", "app-image",
             "--name", "ChairPlay",
+            "--app-version", appVersion ?: "0.0.0",
+            "--vendor", "Oleksiy Strelets",
             "--input", installDir.get().dir("lib").asFile.path,
             "--main-jar", "chairplay.jar",
             "--main-class", "io.github.numberonebot.chairplay.MainKt",
@@ -112,15 +116,21 @@ val jpackageImage by tasks.registering(Exec::class) {
 val appHome: Provider<String> = providers.gradleProperty("chairplay.home")
     .orElse(layout.projectDirectory.dir("dist/ChairPlay").asFile.path)
 
+// The app data, which the app writes next to its exe: settings, controls, window places and car icon, the AirPlay
+// identity, pairings, the MFi files, the data logs, screenshots and the instance lock. deploy keeps them, and the
+// installer (gradle/installer.gradle.kts) refuses an image holding any of them.
+val appDataFiles = listOf(
+    "settings.properties", "controls.properties", "window.properties", "carplay-icon.png", "identity.properties",
+    "pairings/**", "offline-mfi/**", "logs/**", "screenshots/**", "ChairPlay.lock",
+)
+project.extra["appDataFiles"] = appDataFiles
+
 val syncApp by tasks.registering(Sync::class) {
     description = "Copies the app image into the app folder (chairplay.home), keeping its settings, keys and pairings."
     dependsOn(jpackageImage)
     from(layout.buildDirectory.dir("jpackage/ChairPlay"))
     into(appHome)
-    // The app data: settings, controls and car icon, the AirPlay identity, pairings, the MFi files and the data logs.
-    preserve {
-        include("settings.properties", "controls.properties", "carplay-icon.png", "window.properties", "identity.properties", "pairings/**", "offline-mfi/**", "screenshots/**", "logs/**")
-    }
+    preserve { include(appDataFiles) }
     // jpackage leaves ChairPlay.exe read-only, and Windows refuses to replace a read-only file: the copies stay
     // writable, so the next deploy can replace them.
     filePermissions { user { write = true } }

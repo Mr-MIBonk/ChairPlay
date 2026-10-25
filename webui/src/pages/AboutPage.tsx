@@ -39,6 +39,7 @@ export function AboutPage({
       </div>
       <Group title="Version" />
       <Row label="Build">
+        {state.about.version && `${state.about.version} · `}
         <Commit commit={state.about.app} />
       </Row>
       <Row label="DiPlay core">

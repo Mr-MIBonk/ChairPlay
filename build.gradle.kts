@@ -76,11 +76,20 @@ sourceSets {
 // date, in build-info.properties (BuildInfo). The commits move without a file Gradle watches, so the task runs every
 // build; it writes the file only when that changes, which leaves the jar up to date otherwise.
 val buildInfoResources = layout.buildDirectory.dir("generated/build-info")
+// The release version, X.Y.Z, from -Pchairplay.version=...; a build without it is a development build.
+val appVersion: String? = providers.gradleProperty("chairplay.version").orNull?.also {
+    require(Regex("""\d+\.\d+\.\d+""").matches(it)) {
+        "chairplay.version must be three numbers separated by dots, like 0.1.0 (without a v); got '$it'"
+    }
+}
+extra["appVersion"] = appVersion
 val buildInfo by tasks.registering {
     group = "build"
-    description = "Writes the app's and the DiPlay core's commits for the About page."
+    description = "Writes the app's version and the app's and the DiPlay core's commits for the About page."
     val out = buildInfoResources.map { it.file("build-info.properties") }
     val root = layout.projectDirectory.asFile
+    val version = appVersion
+    inputs.property("version", version ?: "")
     outputs.file(out)
     outputs.upToDateWhen { false }
     doLast {
@@ -89,7 +98,7 @@ val buildInfo by tasks.registering {
             val text = process.inputStream.bufferedReader().readText().trim()
             if (process.waitFor() == 0) text.split(' ') else emptyList()
         }.getOrDefault(emptyList())
-        val lines = listOf("app" to commit(root), "core" to commit(root.resolve("upstream")))
+        val lines = listOfNotNull(version?.let { "app.version=$it" }) + listOf("app" to commit(root), "core" to commit(root.resolve("upstream")))
             .filter { (_, commit) -> commit.size == 2 }
             .flatMap { (name, commit) -> listOf("$name.commit=${commit[0]}", "$name.date=${commit[1]}") }
         val text = lines.joinToString("") { "$it\n" }
@@ -117,3 +126,4 @@ tasks.processResources {
 apply(from = "gradle/native.gradle.kts")
 apply(from = "gradle/web.gradle.kts")
 apply(from = "gradle/package.gradle.kts")
+apply(from = "gradle/installer.gradle.kts")

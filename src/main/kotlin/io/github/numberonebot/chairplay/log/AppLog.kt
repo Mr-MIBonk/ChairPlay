@@ -57,6 +57,11 @@ class AppLog(
     @Volatile
     private var installed = false
 
+    /** The file [open] started, null before it or when it could not open. */
+    @Volatile
+    var path: Path? = null
+        private set
+
     private var file: BufferedWriter? = null
     private var early: MutableList<String>? = mutableListOf()
 
@@ -126,6 +131,7 @@ class AppLog(
             Files.createDirectories(dir)
             val path = dir.resolve("$prefix-${clock().format(FILE_TIME)}.log")
             file = Files.newBufferedWriter(path)
+            this.path = path
             dir.listDirectoryEntries("$prefix-*.log").sortedByDescending { it.name }.drop(KEPT).forEach { Files.deleteIfExists(it) }
         }.onFailure { console?.println("log file not opened in $dir: $it") }
         lines.forEach { toFile(it) }

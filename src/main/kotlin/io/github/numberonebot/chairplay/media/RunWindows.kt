@@ -18,9 +18,10 @@ private const val FADE_FRAME_SECONDS = 0.008
  * Runs the GLFW event loop for [main] and [others] on the calling (main) thread until [main] closes. GLFW wants
  * every window and its events on one thread, so the windows take turns after each wake-up. Closing one of
  * [others] closes only that window. [pass] runs on each pass, before the windows draw, and says how soon the next
- * is due (the GPS car while it drives); null leaves the loop to sleep until something happens.
+ * is due (the GPS car while it drives); null leaves the loop to sleep until something happens. [opened] runs once every
+ * window is open, as the loop starts.
  */
-fun runWindows(main: VideoWindow, vararg others: VideoWindow, pass: () -> Double? = { null }) {
+fun runWindows(main: VideoWindow, vararg others: VideoWindow, pass: () -> Double? = { null }, opened: () -> Unit = {}) {
     glfwErrorCallback(appLog).set()
     check(glfwInit()) { "cannot initialise GLFW" }
     val open = mutableListOf(main)
@@ -30,6 +31,7 @@ fun runWindows(main: VideoWindow, vararg others: VideoWindow, pass: () -> Double
             window.open()
             open += window
         }
+        opened()
         var due: Double? = null
         while (true) {
             // A fade under way draws at about the screen's pace; otherwise the loop sleeps until something happens.

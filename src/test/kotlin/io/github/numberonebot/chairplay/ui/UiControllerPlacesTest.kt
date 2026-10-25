@@ -30,6 +30,14 @@ class UiControllerPlacesTest : UiControllerFixture() {
     }
 
     @Test
+    fun `the details for a report name the release version when there is one`() {
+        val release = BuildInfo(Commit("4e6d50df", "2026-10-25"), Commit("143f4674", "2026-10-21"), "0.1.0")
+        val details = (controller(about = release).state()["about"] as Map<*, *>)["details"] as String
+
+        assertTrue(details, "0.1.0" in details)
+    }
+
+    @Test
     fun `New issue opens GitHub with the details filled in`() {
         val ui = controller()
         assertTrue(ui.open("issues"))

@@ -67,11 +67,14 @@ internal class UiPlaces(
         }.getOrDefault(0L)
     }
 
-    /** What a report needs to say which ChairPlay it is about: the build, the DiPlay core, and Windows; no setting. */
+    /**
+     * What a report needs to say which ChairPlay it is about: the release version (or a development build) and its commit,
+     * the DiPlay core, and Windows; no setting.
+     */
     fun details(): String {
-        fun commit(name: String, commit: Commit?) = "$name ${commit?.let { "${it.id} (${it.date})" } ?: "not recorded"}"
+        val core = "DiPlay core ${about.core?.let { "${it.id} (${it.date})" } ?: "not recorded"}"
         val windows = runCatching(windowsVersion).getOrDefault("Windows")
-        return "${commit("ChairPlay", about.app)}\n${commit("DiPlay core", about.core)}\n$windows"
+        return "${about.startLine()}\n$core\n$windows"
     }
 
     private companion object {

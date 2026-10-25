@@ -244,7 +244,7 @@ class UiController(
             "controlsKeys" to (values["ui.controls.keys"]?.trim() == "true"),
             "setupDone" to setupDone,
             "accent" to setup.accent,
-            "about" to mapOf("app" to about.app?.let(::commitMap), "core" to about.core?.let(::commitMap), "details" to places.details()),
+            "about" to about.toPage(places.details()),
             "reconnectPending" to state.reconnectPending.sorted(),
             "restartPending" to state.restartPending.sorted(),
             "setup" to linkedMapOf(
@@ -258,8 +258,6 @@ class UiController(
             ),
         )
     }
-
-    private fun commitMap(commit: Commit) = mapOf("commit" to commit.id, "date" to commit.date)
 
     override fun savedPassphrase(): String? = settingsApi.savedPassphrase()
 

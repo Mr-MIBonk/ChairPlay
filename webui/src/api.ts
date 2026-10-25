@@ -141,6 +141,8 @@ export interface AppState {
   accent: string
   /** Which build this is: this repository's commit and the DiPlay core's; null for one the build did not record. */
   about: {
+    /** The release, X.Y.Z; null for a development build. */
+    version: string | null
     app: BuildCommit | null
     core: BuildCommit | null
     /** What a report needs, for Copy details and New issue: the build, the core, and Windows. */

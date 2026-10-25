@@ -69,7 +69,17 @@ Tested on Windows 11 with an iPhone 15 (iOS 18.6).
 - JDK 17 to build. The build downloads the rest itself (zig, Node.js for the screens, the WebView2 SDK), each
   pinned and checked.
 
+## Install
+
+Download `ChairPlay-X.Y.Z-setup.exe` from the [Releases page](https://github.com/NumberOneBot/ChairPlay/releases) and
+run it. It installs for your Windows account only, without administrator rights, into
+`%LOCALAPPDATA%\Programs\ChairPlay`, and adds ChairPlay to the Start menu. A newer installer updates that folder in
+place and keeps your settings, keys, pairings, and logs; uninstalling leaves them there too. Then follow steps 1 to 4
+below, with that folder in place of `dist\ChairPlay`.
+
 ## Quick start
+
+To build it yourself:
 
 ```
 git clone --recursive https://github.com/NumberOneBot/ChairPlay.git
@@ -129,7 +139,8 @@ Everything lives next to the exe, in plain text:
 - `window.properties`: where you left the windows and their sizes, and whether Get started is done, written by the
   app.
 
-A wrong value stops the start with the setting named, and the console prints what the iPhone was told.
+A wrong value stops the start with a message that names the setting. The app's log, `logs\chairplay-<date-time>.log`
+in the app folder, has the details, and on a normal start what the iPhone was told.
 
 ## Good to know
 
@@ -167,9 +178,10 @@ not include any Apple MFi identity.
 ## Contributing
 
 Ideas, bug reports and fixes are welcome. Open an issue or a pull request, or write to me at
-[alex.strelets@gmail.com](mailto:alex.strelets@gmail.com) with what you would like to see. A log from the console
-helps with anything that does not connect; the app leaves the Wi-Fi password out of it, but look it over before
-sending.
+[alex.strelets@gmail.com](mailto:alex.strelets@gmail.com) with what you would like to see. To report a connection
+problem, set Log level to Info on the Experiments page, reproduce it, then send the log
+(`logs\chairplay-<date-time>.log` in the app folder; a release logs only warnings by default). The app leaves the
+Wi-Fi password out of it, but look it over before sending.
 
 ## Support the project
 

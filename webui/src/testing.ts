@@ -26,6 +26,7 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     setupDone: true,
     accent: '#52c4ff',
     about: {
+      version: null,
       app: { commit: '4e6d50df', date: '2026-10-23' },
       core: { commit: '143f4674', date: '2026-10-21' },
       details: 'ChairPlay 4e6d50df (2026-10-23)\nDiPlay core 143f4674 (2026-10-21)\nWindows 11 24H2 (build 26300)',

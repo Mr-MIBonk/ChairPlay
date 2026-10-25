@@ -2,6 +2,10 @@ package io.github.numberonebot.chairplay.config
 
 import io.github.numberonebot.chairplay.config.DesktopConfig.Companion.DEFAULT_ACCENT
 import io.github.numberonebot.chairplay.config.DesktopConfig.Companion.DEFAULT_CAR_LABEL
+import io.github.numberonebot.chairplay.ui.BuildInfo
+
+/** log.level in a new settings file: a release build (it has a version) logs warnings and errors, a development build more. */
+internal fun defaultLogLevel(version: String?) = if (version != null) "warning" else "info"
 
 /** settings.properties as the first start writes it, and what an older file is completed with. */
 internal val SETTINGS_TEMPLATE = listOf(
@@ -66,7 +70,7 @@ internal val SETTINGS_TEMPLATE = listOf(
     SettingBlock(
         "How much the app's log tells, in logs\\chairplay-<date-time>.log in this folder\n" +
             "(the ten newest are kept): error, warning, info, debug, or trace (with every packet).",
-        "log.level" to "info",
+        "log.level" to defaultLogLevel(BuildInfo.load().version),
     ),
     SettingBlock(
         "The CarPlay screen the iPhone draws, in pixels (positive even numbers), and its frame rate (30-60).\n" +
