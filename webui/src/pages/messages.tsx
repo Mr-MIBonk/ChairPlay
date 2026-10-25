@@ -69,8 +69,9 @@ export function ErrorMessage({
   const { error, setup } = state
   if (!error || state.phase === 'active') return null
   const kind = errorKind(error.message)
-  // Files that are not there have their own message.
+  // Files that are not there, and an iPhone that is not paired, have their own message.
   if (kind === 'mfi' && !setup.mfiPresent) return null
+  if (kind === 'bluetooth' && !setup.pairedIphone) return null
   const messages: Record<ErrorKind, [head: string, text: string, actions: ReactNode]> = {
     join: [
       "The iPhone didn't join the Wi-Fi.",

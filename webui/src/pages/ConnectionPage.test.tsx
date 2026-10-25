@@ -227,6 +227,14 @@ describe('Connection page, messages', () => {
     expect(backend.opened).toEqual(['bluetooth'])
   })
 
+  // No paired iPhone has its own message, which says what to do; the error it causes would only repeat it.
+  it('shows only the pairing message when no iPhone is paired', async () => {
+    const error = { message: 'Bluetooth device 98:0D:AF:F1:12:48 is not paired with this PC', at: '14:02:11' }
+    await connection(appState({ phase: 'retrying', error, setup: setup({ pairedIphone: null }) }))
+
+    expect(screen.getAllByRole('alert')).toHaveLength(1)
+  })
+
   it('offers no Bluetooth settings for a join that timed out', async () => {
     const error = { message: 'Bluetooth control ended TIMEOUT before the iPhone joined over Wi-Fi', at: '14:02:11' }
     await connection(appState({ phase: 'retrying', error }))
