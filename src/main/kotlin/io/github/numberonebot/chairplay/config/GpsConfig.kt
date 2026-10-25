@@ -20,7 +20,6 @@ internal fun Properties.gpsSettings() = GpsSettings(
     headingDegrees = getProperty("gps.heading")?.trim()?.ifEmpty { null }?.let { text ->
         requireNotNull(GpsSettings.heading(text)) { "gps.heading must be a number of degrees from 0 to 359, not $text" }
     } ?: 0.0,
-    resume = booleanSetting("gps.resume", true),
     car = CarSpec(
         massKg = decimalSetting("gps.car.mass.kg", CarSpec().massKg, GpsSettings.MASS_KG),
         powerHp = decimalSetting("gps.car.power.hp", CarSpec().powerHp, GpsSettings.POWER_HP),

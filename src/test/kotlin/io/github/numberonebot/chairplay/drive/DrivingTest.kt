@@ -1,7 +1,5 @@
 package io.github.numberonebot.chairplay.drive
 
-import io.github.numberonebot.chairplay.config.DrivePlaceStore
-import java.nio.file.Files
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -11,22 +9,22 @@ import org.junit.Test
 class DrivingTest {
     private val kyiv = GeoPoint(50.4501, 30.5234)
     private val lviv = GeoPoint(49.8397, 24.0297)
-    private val dir = Files.createTempDirectory("chairplay-driving")
     private var now = 0L
 
-    private fun driving(settings: GpsSettings) = Driving(dir, settings, gamepad = { null }, nanoTime = { now })
+    private val placeSaved = mutableListOf<Map<String, String>>()
 
+    private fun driving(settings: GpsSettings) =
+        Driving(settings, gamepad = { null }, nanoTime = { now }).also { it.savePlace = { place -> placeSaved += place } }
+
+    // gps.start is where the car is: it starts there, facing gps.heading.
     @Test
-    fun `the car starts at its start, or where it stopped when it resumes`() {
-        assertEquals(kyiv, driving(GpsSettings(true, start = kyiv, headingDegrees = 90.0)).drive.snapshot().position)
-        DrivePlaceStore(dir).save(lviv, 180.0)
-        val resumed = driving(GpsSettings(true, start = kyiv, resume = true)).drive.snapshot()
-        assertEquals(lviv, resumed.position)
-        assertEquals(180.0, resumed.car.headingDegrees, 0.0)
-        assertEquals(kyiv, driving(GpsSettings(true, start = kyiv, resume = false)).drive.snapshot().position)
+    fun `the car starts at its start`() {
+        val start = driving(GpsSettings(true, start = kyiv, headingDegrees = 90.0)).drive.snapshot()
+        assertEquals(kyiv, start.position)
+        assertEquals(90.0, start.car.headingDegrees, 0.0)
     }
 
-    // Without a start or a place to resume, the car is nowhere: the iPhone gets no position, only the wheel speed.
+    // Without a start, the car is nowhere: the iPhone gets no position, only the wheel speed.
     @Test
     fun `a car with no start sends no position`() {
         val driving = driving(GpsSettings(true))
@@ -44,7 +42,7 @@ class DrivingTest {
     // Saving a start or heading puts the car there at once; saving the car changes it where it is.
     @Test
     fun `saved settings place the car or change it at once`() {
-        val driving = driving(GpsSettings(true, start = kyiv, resume = false))
+        val driving = driving(GpsSettings(true, start = kyiv))
         driving.saved(GpsSettings(true, start = lviv, headingDegrees = 45.0), setOf("gps.start", "gps.heading"))
         assertEquals(lviv, driving.drive.snapshot().position)
         assertEquals(45.0, driving.drive.snapshot().car.headingDegrees, 0.0)
@@ -62,7 +60,7 @@ class DrivingTest {
     // The page's heading field turns the car where it stands, rather than sending it back to the start point.
     @Test
     fun `a heading saved alone turns the car where it is`() {
-        val driving = driving(GpsSettings(true, start = kyiv, resume = false))
+        val driving = driving(GpsSettings(true, start = kyiv))
         driving.drive.input = CarInput(throttle = 1.0)
         repeat(120) { now += 16_666_667L; driving.drive.advance() }
         val there = driving.drive.snapshot().position
@@ -71,26 +69,44 @@ class DrivingTest {
         assertEquals(200.0, driving.drive.snapshot().car.headingDegrees, 0.0)
     }
 
-    // Where the car stopped is kept for the next start, and again as the app closes.
+    // Where the car stopped goes into gps.start and gps.heading, which the page shows and the next start begins at; and
+    // again as the app closes.
     @Test
-    fun `the car's place is remembered as it stops and as the app closes`() {
-        val driving = driving(GpsSettings(true, start = kyiv, resume = false))
+    fun `the car's place is saved into the settings as the app closes`() {
+        val driving = driving(GpsSettings(true, start = kyiv))
         driving.drive.input = CarInput(throttle = 1.0)
         repeat(120) { now += 16_666_667L; driving.drive.advance() }
         driving.close()
-        val (place, _) = DrivePlaceStore(dir).load()!!
-        assertTrue(place.latitude > kyiv.latitude)
+        val saved = placeSaved.single()
+        val (latitude, longitude) = saved.getValue("gps.start").split(",").map { it.trim().toDouble() }
+        assertTrue(latitude > kyiv.latitude)
+        assertEquals(kyiv.longitude, longitude, 1e-4)
+        assertEquals("0", saved["gps.heading"])
+    }
+
+    // The place the car saved itself comes back as a saved setting: it is where the car is, so the car drives on.
+    @Test
+    fun `the car's own saved place does not place it again`() {
+        val driving = driving(GpsSettings(true, start = kyiv))
+        driving.drive.input = CarInput(throttle = 1.0)
+        repeat(120) { now += 16_666_667L; driving.drive.advance() }
+        driving.close()
+        val (latitude, longitude) = placeSaved.single().getValue("gps.start").split(",").map { it.trim().toDouble() }
+        val speed = driving.drive.snapshot().car.speedKmh
+        driving.saved(GpsSettings(true, start = GeoPoint(latitude, longitude)), setOf("gps.start", "gps.heading"))
+        assertEquals(speed, driving.drive.snapshot().car.speedKmh, 0.0)
+        assertFalse(driving.drive.snapshot().car.parked)
     }
 
     // With the GPS off the car stays put: the gamepad and drive mode do nothing, and a drive mode on ends.
     @Test
     fun `the car is driven only while the GPS is on`() {
-        val off = Driving(dir, GpsSettings(false, start = kyiv), gamepad = { floatArrayOf(0f, 0f, 0f, 0f, -1f, 1f) }, nanoTime = { now })
+        val off = Driving(GpsSettings(false, start = kyiv), gamepad = { floatArrayOf(0f, 0f, 0f, 0f, -1f, 1f) }, nanoTime = { now })
         assertNull(off.pass())
         assertFalse(off.toggleKeyboard())
         assertEquals(0.0, off.drive.snapshot().car.speed, 0.0)
 
-        val on = Driving(dir, GpsSettings(true, start = kyiv), gamepad = { null }, nanoTime = { now })
+        val on = Driving(GpsSettings(true, start = kyiv), gamepad = { null }, nanoTime = { now })
         assertTrue(on.toggleKeyboard())
         on.drive.input = CarInput(throttle = 1.0)
         repeat(120) { now += 16_666_667L; on.drive.advance() }

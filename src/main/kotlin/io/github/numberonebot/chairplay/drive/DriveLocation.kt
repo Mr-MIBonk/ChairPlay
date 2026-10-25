@@ -37,6 +37,8 @@ class DriveLocation(
     private val settings: () -> GpsSettings = { GpsSettings(enabled = true, rate = 1) },
     /** Runs the action every period, read again each time, until closed. */
     private val schedule: (period: () -> Long, action: () -> Unit) -> AutoCloseable = ::repeatEvery,
+    /** Hears each update as it goes, for the GPS page to show what the iPhone was just sent. */
+    private val onSent: () -> Unit = {},
 ) : Iap2LocationProvider, PacedLocation {
     /** What the GPS page shows: whether the iPhone listens, the sentence types it asked for, and the updates sent. */
     data class Status(val listening: Boolean, val requested: Set<Int>, val sent: Long)
@@ -84,7 +86,7 @@ class DriveLocation(
     }
 
     /** DiPlay's once-a-second update: nothing while this sends on its own. */
-    override fun latestNmea(): String? = if (sending()) null else compose()?.also { sent++ }
+    override fun latestNmea(): String? = if (sending()) null else compose()?.also { sent++; runCatching(onSent) }
 
     fun status() = Status(listening, requested, sent)
 
@@ -101,6 +103,7 @@ class DriveLocation(
                 NmeaFraming.PARAMETERS -> link(sentences)
             }
             sent++
+            runCatching(onSent)
         } catch (error: Exception) {
             log("GPS: the tunnel took no more updates (${error.message}); sending stops")
             stop()

@@ -1,38 +1,40 @@
 package io.github.numberonebot.chairplay.drive
 
 import com.shilapi.xcertplay.transport.Iap2LocationProvider
-import io.github.numberonebot.chairplay.config.DrivePlaceStore
-import java.nio.file.Path
+import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /**
- * The spoofed GPS's car for the app: placed where it last stopped ([GpsSettings.resume]) or at gps.start, driven by
- * [control] from the window loop, sent to the iPhone by the [location] each connection makes, and shown on the GPS
- * page by [state]. Its place is kept in window.properties as it stops and as the app closes.
+ * The spoofed GPS's car for the app: placed at gps.start facing gps.heading, driven by [control] from the window loop,
+ * sent to the iPhone by the [location] each connection makes, and shown on the GPS page by [state], as each update goes.
+ * Its place goes back into gps.start and gps.heading ([savePlace]) as it stops and as the app closes, so the settings
+ * always say where the car is and the next start begins there.
  */
 class Driving(
-    dir: Path,
     settings: GpsSettings,
     private val log: (String) -> Unit = {},
     gamepad: () -> FloatArray? = GlfwGamepad::axes,
     private val nanoTime: () -> Long = System::nanoTime,
 ) {
-    private val store = DrivePlaceStore(dir)
+    /** Saves the car's place as gps.start and gps.heading, as the GPS page saves them; the app sets it. */
+    @Volatile var savePlace: (Map<String, String>) -> Unit = {}
+
+    /** Hears each update sent to the iPhone; the app shows the GPS page the car then. */
+    @Volatile var onSent: () -> Unit = {}
 
     @Volatile var settings: GpsSettings = settings
         private set
 
-    /** Whether the car is anywhere yet: without a start or a place to resume it sends no position. */
+    /** Whether the car is anywhere yet: without a start it sends no position. */
     @Volatile var placed: Boolean
         private set
 
     val drive: Drive
 
     init {
-        val resumed = if (settings.resume) runCatching { store.load() }.getOrNull() else null
-        val place = resumed ?: settings.start?.let { it to settings.headingDegrees }
-        placed = place != null
-        drive = Drive(settings.car, place?.first ?: GeoPoint(0.0, 0.0), place?.second ?: settings.headingDegrees, nanoTime)
+        placed = settings.start != null
+        drive = Drive(settings.car, settings.start ?: GeoPoint(0.0, 0.0), settings.headingDegrees, nanoTime)
     }
 
     val control = DriveControl(drive, gamepad, onStopped = ::remember, nanoTime = nanoTime)
@@ -66,21 +68,25 @@ class Driving(
 
     /** The iPhone's GPS for a connection that identified with it. */
     fun location(gps: GpsSettings): Iap2LocationProvider =
-        DriveLocation(drive, gps.satellites, log, nanoTime = nanoTime, placed = { placed }, settings = { settings }).also { link = it }
+        DriveLocation(drive, gps.satellites, log, nanoTime = nanoTime, placed = { placed }, settings = { settings },
+            onSent = { onSent() }).also { link = it }
 
     /**
      * The gps.* settings saved as [now], [keys] among them: a place puts the car there facing the heading, a heading
-     * alone turns it where it is, and a power, mass or handling remakes it.
+     * alone turns it where it is, and a power, mass or handling remakes it. The place the car saved itself is where it
+     * is: it drives on.
      */
     fun saved(now: GpsSettings, keys: Set<String>) {
         settings = now
-        if ("gps.start" in keys) {
+        val here = drive.snapshot()
+        val own = now.start?.let { abs(it.latitude - here.position.latitude) < SAME && abs(it.longitude - here.position.longitude) < SAME }
+        if ("gps.start" in keys && own != true) {
             now.start?.let { start ->
                 drive.place(start, now.headingDegrees)
                 placed = true
                 log("GPS car placed at ${start.latitude}, ${start.longitude}, heading ${now.headingDegrees}°")
             }
-        } else if ("gps.heading" in keys) {
+        } else if (keys.any { it == "gps.heading" || it == "gps.start" } && headingText(here.car.headingDegrees) != headingText(now.headingDegrees)) {
             drive.turn(now.headingDegrees)
             log("GPS car turned to ${now.headingDegrees}°")
         }
@@ -130,17 +136,23 @@ class Driving(
         )
     }
 
-    /** Keeps where the car is for the next start; the app calls it as it closes. */
+    /** Saves where the car is for the next start; the app calls it as it closes. */
     fun close() = remember(drive.snapshot())
 
     private fun remember(snapshot: DriveSnapshot) {
         if (!placed) return
-        runCatching { store.save(snapshot.position, snapshot.car.headingDegrees) }.onFailure { log("GPS car place not saved: $it") }
+        val place = String.format(Locale.ROOT, "%.5f, %.5f", snapshot.position.latitude, snapshot.position.longitude)
+        runCatching { savePlace(mapOf("gps.start" to place, "gps.heading" to headingText(snapshot.car.headingDegrees))) }
+            .onFailure { log("GPS car place not saved: $it") }
     }
+
+    private fun headingText(degrees: Double) = (degrees.roundToInt() % 360 + 360).rem(360).toString()
 
     private companion object {
         /** 0xFFFA's selectors, identification fields 17 to 20 less 16. */
         val SENTENCES = mapOf(1 to "GGA", 2 to "RMC", 3 to "GSV", 4 to "PASCD")
         val CAR_KEYS = setOf("gps.car.power.hp", "gps.car.mass.kg", "gps.car.handling")
+        /** Degrees apart within the five decimals the place is saved with. */
+        const val SAME = 1e-5
     }
 }

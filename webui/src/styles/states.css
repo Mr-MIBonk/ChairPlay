@@ -21,9 +21,10 @@
 
 .shell input.t:disabled,
 .shell select:disabled {
-  border-color: var(--line);
+  /* A segmented group's edge and text at its 0.45 opacity above */
+  border-color: color-mix(in srgb, var(--edge) 45%, transparent);
   background: var(--bg);
-  color: var(--dim);
+  color: color-mix(in srgb, var(--muted) 45%, transparent);
   cursor: default;
 }
 

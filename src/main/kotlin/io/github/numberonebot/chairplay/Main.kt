@@ -105,7 +105,7 @@ private fun runCarPlay() {
     val bindings = AtomicReference(controlsConfig)
     // The spoofed GPS's car (gps.*): driven on the window loop by a gamepad, or by the arrows in drive mode (F10); each
     // connection with gps.enabled sends it to the iPhone.
-    val driving = Driving(dir, config.gps, ::log)
+    val driving = Driving(config.gps, ::log)
     // Ctrl+R: set once the bootstrap exists; closing a session talks to the network, so not on the GL thread.
     val restartBootstrap = AtomicReference<() -> Unit> {}
     // Reconnect retires the session unheard: set below, this ends it on the screens as a lost one would, CarPlay giving
@@ -210,11 +210,13 @@ private fun runCarPlay() {
         if (altscreen.hud) altscreen.repaint()
         if (active.get() == null) altView.sessionGone()
     }
-    // The GPS page follows the car four times a second, told only when what it shows changed.
+    // The GPS page follows the car as each update goes to the iPhone, else four times a second, told only when what it
+    // shows changed; the car's place goes into gps.start and gps.heading as it stops.
     val gpsShown = AtomicReference<Map<String, Any?>>()
+    driving.onSent = { driving.state().let { now -> if (gpsShown.getAndSet(now) != now) ui.gpsChanged() } }
+    driving.savePlace = { place -> ui.saveSettings(place) }
     themeWatch.scheduleWithFixedDelay({
-        val now = driving.state()
-        if (gpsShown.getAndSet(now) != now) ui.gpsChanged()
+        if (driving.state()["listening"] != true) driving.onSent()
     }, GPS_PAGE_MILLIS, GPS_PAGE_MILLIS, TimeUnit.MILLISECONDS)
     // The iPhone's route, song, call and battery messages, for later screens and, with log.carplay.data, a file.
     val carPlayData = CarPlayData(if (config.logCarPlayData) CarPlayDataLog(dir.resolve("logs"), log = ::log) else null)

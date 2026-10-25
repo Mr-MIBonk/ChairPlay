@@ -25,7 +25,6 @@ class GpsConfigTest {
         assertFalse(off.satellites)
         assertNull(off.start)
         assertEquals(0.0, off.headingDegrees, 0.0)
-        assertTrue(off.resume)
         assertEquals(CarSpec(), off.car)
         // The experiments: the rate the iPhone asks for, and DiPlay's sentences.
         assertEquals(4, off.rate)
@@ -37,11 +36,11 @@ class GpsConfigTest {
 
         val on = configWith(
             "gps.enabled=true", "gps.satellites=true", "gps.wheel.speed=false", "gps.start=https://maps.apple.com/?ll=50.4501,30.5234",
-            "gps.heading=270.5", "gps.resume=false", "gps.car.power.hp=300", "gps.car.mass.kg=1600",
+            "gps.heading=270.5", "gps.car.power.hp=300", "gps.car.mass.kg=1600",
         ).gps
         assertEquals(
             GpsSettings(true, wheelSpeed = false, satellites = true, start = GeoPoint(50.4501, 30.5234), headingDegrees = 270.5,
-                resume = false, car = CarSpec(massKg = 1600.0, powerHp = 300.0)),
+                car = CarSpec(massKg = 1600.0, powerHp = 300.0)),
             on,
         )
     }

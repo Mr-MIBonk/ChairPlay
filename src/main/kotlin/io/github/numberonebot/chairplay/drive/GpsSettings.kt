@@ -2,8 +2,8 @@ package io.github.numberonebot.chairplay.drive
 
 /**
  * gps.*: whether the iPhone navigates by the spoofed car, and what it is told besides its place ([wheelSpeed] for
- * $PASCD, [satellites] for $GPGSV); where the car starts ([start], null until set) and which way it faces, or where it
- * last stopped ([resume]); the car itself; and the experiments in how the fixes go ([rate], [nmea], [framing]).
+ * $PASCD, [satellites] for $GPGSV); where the car is ([start], null until set; the car saves it as it stops) and which
+ * way it faces; the car itself; and the experiments in how the fixes go ([rate], [nmea], [framing]).
  */
 data class GpsSettings(
     val enabled: Boolean,
@@ -11,7 +11,6 @@ data class GpsSettings(
     val satellites: Boolean = false,
     val start: GeoPoint? = null,
     val headingDegrees: Double = 0.0,
-    val resume: Boolean = true,
     val car: CarSpec = CarSpec(),
     /** Experiments: fixes a second on the tunnel (the iPhone asks for 4), and which sentences carry them. */
     val rate: Int = 4,

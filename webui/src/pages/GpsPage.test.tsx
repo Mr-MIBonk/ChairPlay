@@ -43,7 +43,6 @@ function gpsBackend(on: boolean) {
       'gps.satellites': 'reconnect',
       'gps.start': 'now',
       'gps.heading': 'now',
-      'gps.resume': 'now',
       'gps.car.power.hp': 'now',
       'gps.car.mass.kg': 'now',
     },
@@ -223,7 +222,7 @@ describe('GPS page', () => {
   it('sets the GPS rate and sentences', async () => {
     const backend = await gps()
 
-    const fixes = screen.getByRole('radiogroup', { name: 'Fixes' })
+    const fixes = screen.getByRole('radiogroup', { name: 'Updates' })
     expect(within(fixes).getByRole('radio', { name: '4' }).getAttribute('aria-checked')).toBe('true')
     expect(screen.getByRole('radio', { name: 'Classic' }).getAttribute('aria-checked')).toBe('true')
     fireEvent.click(within(fixes).getByRole('radio', { name: '10' }))

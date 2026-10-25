@@ -32,7 +32,7 @@
 
 .shell .t.n {
   width: 60px;
-  text-align: right;
+  text-align: center;
 }
 .shell .t.n3 {
   width: 46px;
@@ -54,6 +54,7 @@
 /* A coordinate, -122.41942 at most, beside its name: as wide as one choice of a segmented group */
 .shell .t.choice-wide {
   width: var(--choice);
+  text-align: center;
 }
 .shell .t.w120 {
   width: 120px;

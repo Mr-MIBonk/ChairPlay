@@ -5,7 +5,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.nio.file.Files
 
 class GaugesTest {
     // The speedometer as a fast car's: numbered by 20 to 140 and by 40 from there to 260, the numbers evenly apart, so
@@ -46,9 +45,8 @@ class GaugesTest {
     // The gauges are drive mode's: on with it (F10 or the GPS page), gone with it, and never while the GPS is off.
     @Test
     fun `the gauges show exactly while drive mode is on`() {
-        val dir = Files.createTempDirectory("chairplay-gauges")
         val settings = GpsSettings(true, start = GeoPoint(50.0, 30.0), headingDegrees = 135.0)
-        val driving = Driving(dir, settings, gamepad = { null }, nanoTime = { 0L })
+        val driving = Driving(settings, gamepad = { null }, nanoTime = { 0L })
         assertNull(driving.gauges())
         assertTrue(driving.driveMode(true))
         driving.pass()
@@ -68,7 +66,7 @@ class GaugesTest {
         driving.pass()
         assertNull(driving.gauges())
 
-        val off = Driving(dir, GpsSettings(false, start = GeoPoint(50.0, 30.0)), gamepad = { null }, nanoTime = { 0L })
+        val off = Driving(GpsSettings(false, start = GeoPoint(50.0, 30.0)), gamepad = { null }, nanoTime = { 0L })
         assertFalse(off.driveMode(true))
         off.pass()
         assertNull(off.gauges())

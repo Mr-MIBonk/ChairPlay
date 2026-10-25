@@ -20,10 +20,11 @@
   /* As much outside the keys as between them, 6 px, at the sides and the bottom; none at the top. The knob, 14.3 px of
    * its box clear, keeps about as much room below it as beside it with 1 px between it and the keys */
   padding: 0 6px 6px;
-  /* The knob on top, its box a little wider than the keys' 195 px, its clear edge into the padding; the keys under it */
+  /* The knob on top, its box a little wider than the keys' 195 px, its clear edge into the padding; the keys under it.
+   * Its row is 4 px shorter than the knob, whose clear top edge passes the window's */
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: 206px 1fr;
+  grid-template-rows: 202px 1fr;
   justify-items: center;
   gap: 1px;
   color: var(--text);

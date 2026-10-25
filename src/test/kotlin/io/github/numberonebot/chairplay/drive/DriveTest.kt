@@ -1,7 +1,5 @@
 package io.github.numberonebot.chairplay.drive
 
-import io.github.numberonebot.chairplay.config.DrivePlaceStore
-import java.nio.file.Files
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -99,16 +97,5 @@ class DriveTest {
         assertEquals(before.position, drive.snapshot().position)
         assertEquals(before.car.speed, drive.snapshot().car.speed, 0.0)
         assertEquals(400.0, drive.spec.powerHp, 0.0)
-    }
-
-    @Test
-    fun `the car's last place is remembered between starts`() {
-        val dir = Files.createTempDirectory("chairplay-drive")
-        val store = DrivePlaceStore(dir)
-        assertEquals(null, store.load())
-        store.save(kyiv, 123.5)
-        assertEquals(kyiv to 123.5, store.load())
-        Files.writeString(dir.resolve("window.properties"), "drive.latitude=north\n")
-        assertEquals(null, store.load())
     }
 }

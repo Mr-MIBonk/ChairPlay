@@ -57,6 +57,14 @@ export function AboutPage({
           Show again
         </button>
       </Row>
+      <Row label="Community">
+        {link('discussions', 'Discussions', 'Ask a question or share an idea')} ·{' '}
+        {link('pull-requests', 'Pull requests', 'How to send a change')}
+      </Row>
+      <Row label="Source">
+        {link('source', 'github.com/NumberOneBot/ChairPlay')} ·{' '}
+        {link('releases', 'Releases', 'Every version, with what changed')}
+      </Row>
       <Row label="Report a problem">
         {link('issues', 'New issue on GitHub', 'Open a new issue on GitHub, with this build filled in')}
         <span className="copy-details">
@@ -66,14 +74,6 @@ export function AboutPage({
             title="Copy the build, the DiPlay core, and the Windows version"
           />
         </span>
-      </Row>
-      <Row label="Community">
-        {link('discussions', 'Discussions', 'Ask a question or share an idea')} ·{' '}
-        {link('pull-requests', 'Pull requests', 'How to send a change')}
-      </Row>
-      <Row label="Source">
-        {link('source', 'github.com/NumberOneBot/ChairPlay')} ·{' '}
-        {link('releases', 'Releases', 'Every version, with what changed')}
       </Row>
       <Row className="hint-row">
         <span className="hint">

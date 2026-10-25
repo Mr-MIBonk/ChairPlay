@@ -106,9 +106,9 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
           true,
         )}
         {/* Experiments in what the iPhone takes, from the next fix: how often the position goes, and in which sentences. */}
-        <Row label="Fixes" title="How often the car's position goes to the iPhone while it listens">
+        <Row label="Updates" title="How often the car's position goes to the iPhone while it listens">
           <Segmented
-            label="Fixes"
+            label="Updates"
             value={value('gps.rate') || '4'}
             options={RATES}
             onChange={(rate) => save({ 'gps.rate': rate })}
@@ -126,12 +126,6 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
         {now && <Row label="iPhone">{now.iphone}</Row>}
         {/* Where the car is, apart from the car itself, whose own settings grow. */}
         <Group title="Position" />
-        {check(
-          'gps.resume',
-          'Start where the car last stopped',
-          'Where the car last came to a stop, or where ChairPlay closed, rather than where the fields last put it',
-          true,
-        )}
         <Row
           label="Coordinates"
           title="Where the car is now, following it as it drives; change it to move the car there, or paste a map link"
@@ -162,7 +156,7 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
         <Row>
           <WindowsLocationButton backend={backend} settings={settings} heading={heading} />
         </Row>
-        <Group title="Car" note={now?.going} />
+        <Group title="Virtual car" note={now?.going} />
         <Row
           title={`Drive the car with the arrows instead of the knob, and show its speedometer and tachometer on the AltScreen${driveKey ? ` (${keyLabel(driveKey)})` : ''}`}
         >
@@ -174,6 +168,12 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
           <span className="exp">Experimental</span>
           <span className="exp fun">Extra fun</span>
         </Row>
+        <Row label="Power and mass" title="The car's power and mass, which set how it pulls and how fast it goes">
+          {field('gps.car.power.hp', 'Power', '300')}
+          <span className="unit">hp</span>
+          {field('gps.car.mass.kg', 'Mass', '1500')}
+          <span className="unit">kg</span>
+        </Row>
         <Row
           label="Gauges"
           title={`The speedometer and tachometer in drive mode: as tall as the AltScreen, or small in its lower corners${gaugesKey ? ` (${keyLabel(gaugesKey)})` : ''}`}
@@ -184,12 +184,6 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
             options={GAUGES}
             onChange={(size) => save({ 'gps.gauges': size })}
           />
-        </Row>
-        <Row label="Power and mass" title="The car's power and mass, which set how it pulls and how fast it goes">
-          {field('gps.car.power.hp', 'Power', '300')}
-          <span className="unit">hp</span>
-          {field('gps.car.mass.kg', 'Mass', '1500')}
-          <span className="unit">kg</span>
         </Row>
         <Row label="Handling" title="How fast the car turns standing and slow, and how well it holds a fast corner">
           <Segmented

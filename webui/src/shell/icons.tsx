@@ -188,6 +188,39 @@ export function AboutIcon() {
   )
 }
 
+/** A page with a folded corner and lines of text: the logs folder. */
+export function LogsIcon() {
+  return (
+    <svg viewBox="0 0 14 14" aria-hidden="true">
+      <path
+        d="M3 1.5h5.3L11 4.2v8.3H3zM8.3 1.5v2.7H11"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.3"
+        strokeLinejoin="round"
+      />
+      <path d="M5 7h4M5 9.3h4" stroke="currentColor" strokeWidth="1.1" />
+    </svg>
+  )
+}
+
+/** A framed picture of hills under a sun: the screenshots folder. */
+export function ScreenshotsIcon() {
+  return (
+    <svg viewBox="0 0 14 14" aria-hidden="true">
+      <rect x="1.2" y="2.4" width="11.6" height="9.2" rx="1" fill="none" stroke="currentColor" strokeWidth="1.3" />
+      <path
+        d="M1.8 10.6l3.4-3.5 2.4 2.4 1.6-1.6 3 3"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.2"
+        strokeLinejoin="round"
+      />
+      <circle cx="9.6" cy="5.3" r="1" fill="none" stroke="currentColor" strokeWidth="1.1" />
+    </svg>
+  )
+}
+
 export function EyeIcon() {
   return (
     <svg viewBox="0 0 16 16" aria-hidden="true">

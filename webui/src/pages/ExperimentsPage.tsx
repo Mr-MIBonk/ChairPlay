@@ -1,6 +1,7 @@
 import type { AppState, Backend, DemoKind } from '../api'
 import { keyLabel } from '../ControlsScreen'
 import { Checkbox, Group, Row, Segmented, type Choice } from '../shell/controls'
+import { LogsIcon, ScreenshotsIcon } from '../shell/icons'
 import type { Settings } from '../shell/useSettings'
 import { Changed, parts, pendingOf } from './parts'
 
@@ -81,6 +82,7 @@ export function ExperimentsPage({
           title="Open the logs folder in File Explorer"
           onClick={() => backend.open('logs')}
         >
+          <LogsIcon />
           Logs
         </button>
         <button
@@ -89,6 +91,7 @@ export function ExperimentsPage({
           title={`Open the screenshots folder in File Explorer${screenshotKey ? ` (${keyLabel(screenshotKey)} saves to it)` : ''}`}
           onClick={() => backend.open('screenshots')}
         >
+          <ScreenshotsIcon />
           Screenshots
         </button>
       </Row>

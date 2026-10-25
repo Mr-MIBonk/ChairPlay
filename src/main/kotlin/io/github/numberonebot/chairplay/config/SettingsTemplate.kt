@@ -151,9 +151,9 @@ internal val SETTINGS_TEMPLATE = listOf(
         "gps.enabled" to "false", "gps.wheel.speed" to "true", "gps.satellites" to "false",
     ),
     SettingBlock(
-        "Where the car starts: 'latitude, longitude' or a Google or Apple Maps link, and its heading in degrees\n" +
-            "(0 north, 90 east); 'true' starts it where it last stopped instead.",
-        "gps.start" to "", "gps.heading" to "0", "gps.resume" to "true",
+        "Where the car is: 'latitude, longitude' or a Google or Apple Maps link, and its heading in degrees\n" +
+            "(0 north, 90 east); the app writes them as the car stops, and the next start begins there.",
+        "gps.start" to "", "gps.heading" to "0",
     ),
     SettingBlock(
         "The car: its power in hp (20-2000) and its mass in kg (300-10000); how it turns, 'gentle', 'normal' or\n" +

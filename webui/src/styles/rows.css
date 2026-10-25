@@ -41,9 +41,10 @@
 
 .shell .held input.t,
 .shell .held select {
-  border-color: var(--line);
+  /* A held segmented group's edge and text, at its 0.45 opacity */
+  border-color: color-mix(in srgb, var(--edge) 45%, transparent);
   background: var(--bg);
-  color: var(--dim);
+  color: color-mix(in srgb, var(--muted) 45%, transparent);
 }
 
 .shell .held input.t::placeholder {
