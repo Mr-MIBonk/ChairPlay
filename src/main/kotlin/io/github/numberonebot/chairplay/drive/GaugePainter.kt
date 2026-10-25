@@ -36,7 +36,7 @@ class GaugePainter(
     private val view: () -> GaugeView?,
     private val log: (String) -> Unit = {},
     /** ui.accent as 0xRRGGBB: the needles and their sweep. */
-    accent: Int = 0x0A84FF,
+    accent: Int = 0x52C4FF,
     private val motion: GaugeMotion = GaugeMotion(),
     /** How small the small wells are in a window of the given width and height, in the large ones' size. */
     private val smallScale: (Float, Float) -> Float = { _, _ -> 0.65f },

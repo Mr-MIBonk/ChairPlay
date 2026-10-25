@@ -17,7 +17,7 @@ data class HudRect(val left: Float, val top: Float, val right: Float, val bottom
  * width, so the song shows between them as it does without them; no smaller than a third.
  */
 fun smallWellScale(width: Float, height: Float): Float {
-    val song = mediaBlockWidth(mediaBox(width, height, 0f), height)
+    val song = mediaBlockWidth(mediaBox(width, height), height)
     val edge = (width - song) / 2 - GaugeLayout.margin(height)
     return ((edge - GaugeLayout.margin(height)) / (2 * GaugeLayout.radius(width, height))).coerceIn(1f / 3, 1f)
 }
@@ -33,14 +33,17 @@ fun driveStage(width: Float, height: Float, smallness: Float = 0f): HudRect {
 }
 
 /**
- * The route's slot and the song's in the [driveStage]: the route over the song, half the height each when both are
- * there, the whole of it alone; [route] and [media] are how present each is, so the song moves down as the route comes.
+ * The route's slot and the song's in the [driveStage]: the song over the route, two of the wells' margins apart and
+ * as tall as each other when both are there, the whole of it alone; [route] and [media] are how far the other has made
+ * room for each (HudMotionFrame.mediaPlace and routePlace), so the song moves up as the route comes.
  */
 fun driveSlots(width: Float, height: Float, route: Float, media: Float, smallness: Float = 0f): Pair<HudRect, HudRect> {
     val stage = driveStage(width, height, smallness)
-    val half = stage.height / 2
-    return HudRect(stage.left, stage.top, stage.right, stage.bottom - half * media) to
-        HudRect(stage.left, stage.top + half * route, stage.right, stage.bottom)
+    val gap = 2 * GaugeLayout.margin(height)
+    // Each gives up half the room and half the gap as the other comes.
+    val share = (stage.height + gap) / 2
+    return HudRect(stage.left, stage.top + share * media, stage.right, stage.bottom) to
+        HudRect(stage.left, stage.top, stage.right, stage.bottom - share * route)
 }
 
 /** The scale that fits a block of [width] x [height] into [slot], keeping its shape; never above 1. */

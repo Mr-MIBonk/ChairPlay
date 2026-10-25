@@ -133,7 +133,7 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
         val cards = settings.choiceSetting("altscreen.cards", AltscreenCards.TOP, AltscreenCards.entries.associateBy { it.key })
         // The view F11 and Shift+F11 left it on, unless these settings changed since.
         val (viewContent, viewCards) = AltscreenViewStore(dir).load(content, cards)
-        Altscreen(size, viewContent, viewCards, configured = content to cards)
+        Altscreen(size, viewContent, viewCards, content to cards, settings.booleanSetting("altscreen.hud.stream", false))
     }
 
     /** altscreen.<view>.area and .safe: the views' own parts of an enabled AltScreen's frame. */
@@ -258,8 +258,8 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
         const val DEFAULT_ICON_FILE = "carplay-icon.png"
         internal const val DEFAULT_CAR_LABEL = DEFAULT_DEVICE_NAME
         const val SETTINGS_FILE = "settings.properties"
-        /** iOS's system blue, CarPlay's own accent. */
-        const val DEFAULT_ACCENT = "#0a84ff"
+        /** The blue the HUD's animated maneuvers fill with (native/maneuver/render.c, ice). */
+        const val DEFAULT_ACCENT = "#52c4ff"
         /** audio.duck.db: from about a thirtieth of the volume to the full volume. */
         val DUCK_DECIBELS = -30..0
         internal const val DEFAULT_ALTSCREEN_WIDTH = 1440

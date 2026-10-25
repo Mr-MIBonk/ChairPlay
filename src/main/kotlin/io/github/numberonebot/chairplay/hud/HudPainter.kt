@@ -45,7 +45,7 @@ class HudPainter(
     private val log: (String) -> Unit = {},
     repaint: (() -> Unit)? = null,
     /** ui.accent as 0xRRGGBB: the route's colour. */
-    accent: Int = 0x0A84FF,
+    accent: Int = 0x52C4FF,
 ) : WindowOverlay {
     internal val accentColor = 0xFF000000.toInt() or accent
     internal var vg = 0L
@@ -120,41 +120,40 @@ class HudPainter(
         // No clock, signal or battery: the CarPlay screen always shows them.
         // In the app's display face, as the main window's waiting screen says where the connection stands.
         emerging(shown.waiting, w / 2, h / 2) { centred(HUD_WAITING, w / 2, h / 2, 0.07f * h, GREY, WIDE) }
-        // In drive mode the route and the song each lay out as alone, the route over the song between the wells.
-        // By the wells' own motion and curve, so the blocks move as the wells do; the window draws on while they move.
+        // The song and the route each keep one layout round the middle and are only moved and scaled: beside each other,
+        // and in drive mode into their slots between the wells, the song over the route, by the wells' own motion and
+        // curve, so the blocks move as the wells do; the window draws on while they move.
         val driving = GaugeMotion.eased(now.drive)
-        val (routeSlot, mediaSlot) = driveSlots(w, h, shown.route, shown.media, GaugeMotion.sized(now.driveSmallness))
-        val alone = routeBox(w, h, 0f)
+        val smallness = GaugeMotion.sized(now.driveSmallness)
         shownManeuver?.let { maneuver ->
-            val block = routeBlock(maneuver, shownArrival, alone, h)
-            fitted(driving, w, h, block.width, block.height, routeSlot) {
-                navigation(maneuver, shownArrival, routeBox(w, h, lerp(shown.routePlace, 0f, driving)), alone, h, shown.route)
-            }
+            val box = routeBox(w, h, 1f)
+            val block = routeBlock(maneuver, shownArrival, box, h)
+            val place = routePlacement(w, h, shown.routePlace, block.width, block.height, block.viewHeight, driving, smallness)
+            val sharp = block.viewHeight * maxOf(1f, routeAloneScale(w, h, block.width, block.viewHeight))
+            placed(place, (box.left + box.right) / 2, h / 2) { navigation(maneuver, shownArrival, box, h, shown.route, sharp) }
         }
         shownMedia?.let { song ->
-            val alone = mediaBox(w, h, 0f)
-            fitted(driving, w, h, mediaBlockWidth(alone, h), alone.cover, mediaSlot) {
-                media(song, now, mediaBox(w, h, lerp(shown.mediaPlace, 0f, driving)), h, shown.media)
+            placed(songPlacement(w, h, shown.mediaPlace, driving, smallness), w / 2, h / 2) {
+                media(song, now, mediaBox(w, h), h, shown.media)
             }
         }
         shownCall?.let { call ->
-            fitted(driving, w, h, w * (1 - 2 * HUD_SIDE), 0.30f * h, driveStage(w, h, GaugeMotion.sized(now.driveSmallness))) { callCard(call, w, h, shown.call) }
+            val stage = driveStage(w, h, smallness)
+            val place = HudPlace(w / 2, h / 2, 1f)
+                .toward(HudPlace(stage.centerX, stage.centerY, fitScale(w * (1 - 2 * HUD_SIDE), 0.30f * h, stage)), driving)
+            placed(place, w / 2, h / 2) { callCard(call, w, h, shown.call) }
         }
         nvgEndFrame(vg)
         if (shown.moving) frames?.after(FRAME_MILLIS)
     }
 
-    /**
-     * Draws [content], laid out for the whole HUD around its middle, [driving] of the way into [slot]: moved there and
-     * scaled to fit a block of [width] x [height] in it.
-     */
-    private inline fun fitted(driving: Float, w: Float, h: Float, width: Float, height: Float, slot: HudRect, content: () -> Unit) {
-        if (driving <= 0f) return content()
-        val scale = lerp(1f, fitScale(width, height, slot), driving)
+    /** Draws [content], laid out round [cx], [cy], moved and scaled to [place]. */
+    private inline fun placed(place: HudPlace, cx: Float, cy: Float, content: () -> Unit) {
+        if (place == HudPlace(cx, cy, 1f)) return content()
         nvgSave(vg)
-        nvgTranslate(vg, lerp(w / 2, slot.centerX, driving), lerp(h / 2, slot.centerY, driving))
-        nvgScale(vg, scale, scale)
-        nvgTranslate(vg, -w / 2, -h / 2)
+        nvgTranslate(vg, place.x, place.y)
+        nvgScale(vg, place.scale, place.scale)
+        nvgTranslate(vg, -cx, -cy)
         content()
         nvgRestore(vg)
     }

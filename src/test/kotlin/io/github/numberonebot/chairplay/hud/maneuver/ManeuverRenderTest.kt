@@ -187,7 +187,7 @@ class ManeuverRenderTest : ManeuverRenderFixture() {
         val feed = ManeuverFeed()
         var millis = 0L
         while (millis < HudDemo.STEP_MILLIS * demo.steps) {
-            for (packet in feed.update(hudState(demo.snapshot(millis)).maneuver)) ManeuverNative.command(packet)
+            for (packet in feed.update(hudState(demo.snapshot(millis)).maneuver, millis)) ManeuverNative.command(packet)
             val status = ManeuverNative.frame(clock + millis / 1000.0)
             // Once the maneuver has settled, and before the arrow blinks blue over the last metres.
             if (millis % HudDemo.STEP_MILLIS in 4_000L until 4_016L) {

@@ -11,7 +11,9 @@ import io.github.numberonebot.chairplay.config.DesktopConfig
 import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.config.altscreenTitle
 import io.github.numberonebot.chairplay.config.altscreenUrl
+import io.github.numberonebot.chairplay.config.drawnView
 import io.github.numberonebot.chairplay.config.fittedTo
+import io.github.numberonebot.chairplay.config.hudShowsSession
 import io.github.numberonebot.chairplay.data.CarPlayData
 import io.github.numberonebot.chairplay.drive.Driving
 import io.github.numberonebot.chairplay.drive.GaugeMotion
@@ -107,13 +109,14 @@ internal class AltscreenView(
     fun show(session: AirPlaySession?) {
         val alt = settings.get() ?: return
         val content = content ?: return
-        val url = altscreenUrl(content, cards)
         val cards = cards
         // Without a session there is no picture to show: the HUD says where the connection stands instead.
         val hud = content == AltscreenContent.HUD || hudDemo.get() != null || session == null
-        // The iPhone draws the view only while it is seen: not under the HUD, nor with the window closed.
-        val seen = !hud && window.visible
-        val area = areaFor.get()(content)
+        // The iPhone draws a view only while it is seen, not with the window closed, and under the HUD only if kept.
+        val drawn = drawnView(content, mapView, hud, alt.streamUnderHud).takeIf { session != null }
+        val seen = drawn != null && window.visible
+        val url = altscreenUrl(drawn ?: content, cards)
+        val area = areaFor.get()(drawn ?: content)
         if (session != null && seen && area != currentArea.get()) {
             val moved = AltscreenAreaMove(
                 count = areaCount::get,
@@ -124,8 +127,8 @@ internal class AltscreenView(
             )(area)
             if (moved) {
                 currentArea.set(area)
-                // From the HUD the window goes black at once and waits there for the view the move asks for later.
-                if (window.hud) window.showView(false, seen)
+                // From the HUD to a view the window goes black at once and waits there for the view the move asks for later.
+                if (window.hud && !hud) window.showView(false, seen)
                 return
             }
         }
@@ -261,7 +264,8 @@ internal class AltscreenView(
             val demo = hudDemo.get()?.second
             val live = data.bus.snapshot()
             val snapshot = demo?.over(live) ?: live
-            HudView(demo != null || active() != null, hudState(snapshot), snapshot.artwork, gaugeMotion.there, gaugeMotion.smallness)
+            val connected = hudShowsSession(content, active() != null, demo != null)
+            HudView(connected, hudState(snapshot), snapshot.artwork, gaugeMotion.there, gaugeMotion.smallness)
         }, ::log, window::repaint, accent)
         data.bus.addListener { if (window.hud) window.repaint() }
         window.topLayer = GaugePainter(driving::gauges, ::log, accent, gaugeMotion, ::smallWellScale)

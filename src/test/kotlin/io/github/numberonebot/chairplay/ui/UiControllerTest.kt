@@ -88,7 +88,7 @@ class UiControllerTest : UiControllerFixture() {
     // The pages colour themselves from it.
     @Test
     fun `the state carries the accent colour`() {
-        assertEquals("#0a84ff", controller().state()["accent"])
+        assertEquals("#52c4ff", controller().state()["accent"])
     }
 
     // The About page's Version group.

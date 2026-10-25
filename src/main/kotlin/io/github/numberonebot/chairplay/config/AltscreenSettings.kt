@@ -43,10 +43,11 @@ fun altscreenUrl(content: AltscreenContent, cards: AltscreenCards): String =
 
 /**
  * The AltScreen window's title, with its stream size; without a route every mode looks alike, so the title says
- * which one is on. AltScreen is Apple's name for it (the altScreen feature and altScreenURLs).
+ * which one is on, and the cards' place only where the view places them. AltScreen is Apple's name for it (the
+ * altScreen feature and altScreenURLs).
  */
 fun altscreenTitle(stream: WindowSize, content: AltscreenContent, cards: AltscreenCards): String =
-    "AltScreen · ${stream.width}×${stream.height} · ${content.key} · cards ${cards.key}"
+    "AltScreen · ${stream.width}×${stream.height} · ${content.key}" + if (content.placesCards) " · cards ${cards.key}" else ""
 
 /** The second CarPlay screen, a car's instrument cluster: the stream's [size] and what it starts with. */
 data class Altscreen(
@@ -55,7 +56,24 @@ data class Altscreen(
     val cards: AltscreenCards = AltscreenCards.TOP,
     /** altscreen.content and altscreen.cards as set, which a remembered view gives way to when they change. */
     val configured: Pair<AltscreenContent, AltscreenCards> = content to cards,
+    /** altscreen.hud.stream: whether the iPhone keeps drawing a view under the HUD ([drawnView]). */
+    val streamUnderHud: Boolean = false,
 )
+
+/**
+ * Whether the HUD shows the [session]'s route and song: as the view picked ([content]), or for a demo; on another
+ * view it is shown only while that view's picture is on its way, and keeps its waiting line.
+ */
+fun hudShowsSession(content: AltscreenContent?, session: Boolean, demo: Boolean): Boolean =
+    demo || (session && content == AltscreenContent.HUD)
+
+/**
+ * The iPhone's view drawn while the AltScreen is on [content]: that view, the HUD's being the map view picked last
+ * ([mapView]); while the window shows the HUD ([hud], also over a view for a demo), only if [underHud] keeps it
+ * running, so the view comes back at once, else none.
+ */
+fun drawnView(content: AltscreenContent, mapView: AltscreenContent, hud: Boolean, underHud: Boolean): AltscreenContent? =
+    (if (content == AltscreenContent.HUD) mapView else content).takeIf { !hud || underHud }
 
 // The Audi Virtual Cockpit's 12.3-inch Kombi panel; DiPlay's cluster display reports the same 292 mm.
 private const val ALTSCREEN_WIDTH_MM = 292

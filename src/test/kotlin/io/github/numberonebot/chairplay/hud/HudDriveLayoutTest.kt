@@ -9,16 +9,17 @@ class HudDriveLayoutTest {
     private val w = 1280f
     private val h = 480f
 
-    // In drive mode the route and the song keep to the room between the wells, the route over the song, half each.
+    // In drive mode the route and the song keep to the room between the wells, the song over the route, as tall as each
+    // other, two margins apart.
     @Test
-    fun `the route and the song share the room between the wells, the route on top`() {
+    fun `the song and the route share the room between the wells, the song on top`() {
         val (wellsEnd, wellsStart) = GaugeLayout.between(w, h, 0f, smallWellScale(w, h))
         val (route, media) = driveSlots(w, h, route = 1f, media = 1f)
         for (slot in listOf(route, media)) {
             assertTrue("$slot", slot.left >= wellsEnd && slot.right <= wellsStart)
             assertTrue("$slot", slot.top >= 0f && slot.bottom <= h)
         }
-        assertEquals(route.bottom, media.top, 0.01f)
+        assertEquals(2 * GaugeLayout.margin(h), route.top - media.bottom, 0.01f)
         assertEquals(route.height, media.height, 0.01f)
         assertEquals(route.left, media.left, 0f)
         assertEquals(route.right, media.right, 0f)
@@ -38,7 +39,7 @@ class HudDriveLayoutTest {
     @Test
     fun `small wells leave the song its own size`() {
         for ((width, height) in listOf(1280f to 480f, 1440f to 540f, 1920f to 720f)) {
-            val alone = mediaBox(width, height, 0f)
+            val alone = mediaBox(width, height)
             val (_, slot) = driveSlots(width, height, route = 0f, media = 1f, smallness = 1f)
             assertEquals("$width x $height", 1f, fitScale(mediaBlockWidth(alone, height), alone.cover, slot), 1e-3f)
             assertTrue(smallWellScale(width, height) < 1f)
@@ -49,23 +50,23 @@ class HudDriveLayoutTest {
         }
     }
 
-    // Alone, either has the whole room; the song moves down as the route comes.
+    // Alone, either has the whole room; the song moves up as the route comes.
     @Test
-    fun `either alone has the whole room, and the song moves down as the route comes`() {
+    fun `either alone has the whole room, and the song moves up as the route comes`() {
         val (_, song) = driveSlots(w, h, route = 0f, media = 1f)
         val (road, _) = driveSlots(w, h, route = 1f, media = 0f)
         assertEquals(song.top, road.top, 0.01f)
         assertEquals(song.bottom, road.bottom, 0.01f)
         val (_, halfway) = driveSlots(w, h, route = 0.5f, media = 1f)
-        val (_, below) = driveSlots(w, h, route = 1f, media = 1f)
-        assertTrue(song.top < halfway.top && halfway.top < below.top)
-        assertEquals(song.bottom, below.bottom, 0.01f)
+        val (_, above) = driveSlots(w, h, route = 1f, media = 1f)
+        assertTrue(song.bottom > halfway.bottom && halfway.bottom > above.bottom)
+        assertEquals(song.top, above.top, 0.01f)
     }
 
     // The song's lines take a column 1.5 covers wide, alone as between the wells, so drive mode only scales the block.
     @Test
     fun `the song's lines are 1_5 covers wide, alone or in drive mode`() {
-        val alone = mediaBox(w, h, 0f)
+        val alone = mediaBox(w, h)
         assertEquals(1.5f * alone.cover, mediaBlockWidth(alone, h) - alone.cover - MEDIA_GAP * h, 0.01f)
     }
 

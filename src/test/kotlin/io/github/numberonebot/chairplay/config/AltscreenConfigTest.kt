@@ -163,6 +163,29 @@ class AltscreenConfigTest {
         assertEquals(AltscreenContent.HUD, AltscreenContent.CARD.toggled(AltscreenContent.MAP))
     }
 
+    // Under the HUD the iPhone stops drawing, unless altscreen.hud.stream keeps the map view picked last running, so F11
+    // comes back to it at once. A demo's HUD over a view keeps that view.
+    @Test
+    fun `under the HUD the iPhone draws nothing unless the stream is kept`() {
+        assertEquals(false, configWith("altscreen.enabled=true").altscreen!!.streamUnderHud)
+        assertEquals(true, configWith("altscreen.enabled=true", "altscreen.hud.stream=true").altscreen!!.streamUnderHud)
+        val hud = AltscreenContent.HUD
+        assertNull(drawnView(hud, AltscreenContent.MAP_CARD, hud = true, underHud = false))
+        assertEquals(AltscreenContent.MAP_CARD, drawnView(hud, AltscreenContent.MAP_CARD, hud = true, underHud = true))
+        assertEquals(AltscreenContent.CARD, drawnView(AltscreenContent.CARD, AltscreenContent.MAP, hud = true, underHud = true))
+        assertEquals(AltscreenContent.MAP, drawnView(AltscreenContent.MAP, AltscreenContent.MAP_CARD, hud = false, underHud = false))
+    }
+
+    // The HUD shows a session's route and song only when it is the view picked, or for a demo: on another view, it keeps
+    // its waiting line while that view's picture is on its way, rather than flash the song first.
+    @Test
+    fun `the HUD shows the session only as the view picked or for a demo`() {
+        assertEquals(false, hudShowsSession(AltscreenContent.HUD, session = false, demo = false))
+        assertEquals(true, hudShowsSession(AltscreenContent.HUD, session = true, demo = false))
+        assertEquals(false, hudShowsSession(AltscreenContent.MAP, session = true, demo = false))
+        assertEquals(true, hudShowsSession(AltscreenContent.MAP, session = false, demo = true))
+    }
+
     // The turn card's place (altscreen.cards, Shift+F11) is Map + card's alone: the map, the turn card alone, and the HUD
     // have none to place.
     @Test

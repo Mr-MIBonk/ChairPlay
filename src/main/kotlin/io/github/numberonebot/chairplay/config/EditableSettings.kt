@@ -67,6 +67,7 @@ object EditableSettings {
         "altscreen.height" to Setting(Applies.RECONNECT, check = ::checkPositiveEven),
         "altscreen.content" to choice("map", "map-card", "hud", "card", applies = Applies.RECONNECT),
         "altscreen.cards" to choice("auto", "left", "right", "top", applies = Applies.NOW),
+        "altscreen.hud.stream" to switch(Applies.RECONNECT),
         "altscreen.safe.top" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
         "altscreen.safe.bottom" to Setting(Applies.RECONNECT, check = ::checkNonNegative),
         "altscreen.safe.left" to Setting(Applies.RECONNECT, check = ::checkNonNegative),

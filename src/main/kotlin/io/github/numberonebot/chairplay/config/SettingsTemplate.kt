@@ -106,6 +106,11 @@ internal val SETTINGS_TEMPLATE = listOf(
         "altscreen.cards" to "top",
     ),
     SettingBlock(
+        "Whether the iPhone keeps drawing the map view picked last while the altscreen shows the HUD, 'true' or\n" +
+            "'false': F11 then comes back to the map at once, at the cost of the iPhone's work and Wi-Fi.",
+        "altscreen.hud.stream" to "false",
+    ),
+    SettingBlock(
         "Altscreen pixels at each edge the iPhone keeps its map text and car marker out of, for an overlay;\n" +
             "all zero uses the whole panel.",
         "altscreen.safe.top" to "0", "altscreen.safe.bottom" to "0", "altscreen.safe.left" to "0",

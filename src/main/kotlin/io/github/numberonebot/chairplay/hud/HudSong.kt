@@ -9,8 +9,8 @@ import kotlin.math.roundToInt
 
 /**
  * The song: the cover, and at its right the title, artist and album on lines of their own, a progress bar and the
- * app, all centred, as the iPhone's Now Playing sets them; centred in the [box] with its cover's size, [presence] of
- * the way out of the dark.
+ * app, all centred, as the iPhone's Now Playing sets them; centred in the [box] ([mediaBox]) with its cover's size,
+ * [presence] of the way out of the dark. Always in this one layout: the caller moves and scales it.
  */
 internal fun HudPainter.media(media: HudMedia, now: HudView, box: HudBox, h: Float, presence: Float) {
     val gap = MEDIA_GAP * h
@@ -19,13 +19,12 @@ internal fun HudPainter.media(media: HudMedia, now: HudView, box: HudBox, h: Flo
     val textWidth = blockWidth - coverSize - gap
     val x = box.left + (box.right - box.left - blockWidth) / 2
     val y = h / 2 - coverSize / 2
-    emerging(presence, x + blockWidth / 2, h / 2) { mediaBlock(media, now, x, y, coverSize, gap, textWidth, h, box.text) }
+    emerging(presence, x + blockWidth / 2, h / 2) { mediaBlock(media, now, x, y, coverSize, gap, textWidth, h) }
 }
 
 /**
  * How wide the song's block is in [box] of an [h] high HUD: its lines take a column [MEDIA_TEXT] covers wide beside the
- * cover, alone as between the GPS car's wells, so drive mode only scales it; beside the route its column bounds it. It
- * is as tall as its cover.
+ * cover, unless the box is narrower. It is as tall as its cover.
  */
 internal fun mediaBlockWidth(box: HudBox, h: Float): Float = min(box.right - box.left, box.cover * (1 + MEDIA_TEXT) + MEDIA_GAP * h)
 
@@ -39,14 +38,12 @@ internal const val MEDIA_GAP = 0.074f
 private class Row(val height: Float, val space: Float, val draw: (Float) -> Unit)
 
 private fun HudPainter.mediaBlock(
-    media: HudMedia, now: HudView, x: Float, y: Float, coverSize: Float, gap: Float, textWidth: Float, h: Float, scale: Float,
+    media: HudMedia, now: HudView, x: Float, y: Float, coverSize: Float, gap: Float, textWidth: Float, h: Float,
 ) {
     drawCover(songCover.pick(listOf(media.title, media.artist, media.album), media.artworkId, now.artwork), x, y, coverSize)
     val tx = x + coverSize + gap
     val cx = tx + textWidth / 2
-    // In whole pixels: while the song moves between the middle and its column, every size between would be
-    // another set of glyphs for NanoVG to render.
-    val fullSize = (0.10f * h * scale).roundToInt().toFloat()
+    val fullSize = (0.10f * h).roundToInt().toFloat()
     val lineSize = (fullSize * 0.6f).roundToInt().toFloat()
     val sourceSize = 0.04f * h
     val barHeight = 0.012f * h

@@ -22,7 +22,7 @@ export function appState(overrides: Partial<AppState> = {}): AppState {
     altscreenWindow: null,
     controlsKeys: false,
     setupDone: true,
-    accent: '#0a84ff',
+    accent: '#52c4ff',
     about: {
       app: { commit: '4e6d50df', date: '2026-10-23' },
       core: { commit: '143f4674', date: '2026-10-21' },

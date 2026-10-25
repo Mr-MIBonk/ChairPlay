@@ -13,10 +13,11 @@ import kotlin.math.sin
 /**
  * Everything about the route in one block, centred in the [box]: the arrow, and beside it the distance to the
  * maneuver, the road, the arrival with the time and distance left, and the destination; [presence] of the way out
- * of the dark. The renderer draws for the route's largest box, [alone], so a box that changes during an animation
- * only scales its picture.
+ * of the dark. Always in this one layout, in the column beside the song ([routeBox]): the caller moves and scales it,
+ * and the renderer draws its picture [sharpHeight] tall, the largest it is scaled to, so it stays sharp and never
+ * rebuilds its size.
  */
-internal fun HudPainter.navigation(maneuver: HudManeuver, arrival: HudArrival?, box: HudBox, alone: HudBox, h: Float, presence: Float) {
+internal fun HudPainter.navigation(maneuver: HudManeuver, arrival: HudArrival?, box: HudBox, h: Float, presence: Float, sharpHeight: Float) {
     val block = routeBlock(maneuver, arrival, box, h)
     val (viewWidth, viewHeight, gap, textWidth, lines) = block
     val left = box.left
@@ -24,7 +25,6 @@ internal fun HudPainter.navigation(maneuver: HudManeuver, arrival: HudArrival?, 
     val top = HUD_PAD * h
     val bottom = h - top
     val arrowSize = 0.30f * h
-    val sharpHeight = maneuverSize(alone.left, alone.right, top, bottom, h).second
     val x = left + (right - left - block.width) / 2
     val blockHeight = lines.sumOf { (it.size * it.spacing).toDouble() }.toFloat()
     val cy = (top + bottom) / 2

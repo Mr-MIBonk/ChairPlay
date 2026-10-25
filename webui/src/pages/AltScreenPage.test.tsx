@@ -164,6 +164,16 @@ describe('AltScreen page', () => {
     expect(screen.getByRole('radiogroup', { name: 'Card position' })).toBeTruthy()
   })
 
+  it('keeps the map stream under the HUD when asked, off until set', async () => {
+    const backend = await altscreen()
+    const keep = screen.getByRole('checkbox', { name: 'Keep the map stream under the HUD' }) as HTMLInputElement
+    expect(keep.checked).toBe(false)
+
+    fireEvent.click(keep)
+
+    await waitFor(() => expect(backend.saved).toEqual([{ 'altscreen.hud.stream': 'true' }]))
+  })
+
   it('saves where the turn card starts, Auto until set', async () => {
     const backend = await altscreen(new FakeBackend(), onMapCard())
     expect(chosen('Card position')).toEqual(['Auto'])
