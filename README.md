@@ -4,27 +4,53 @@
 Bluetooth first, then over Wi-Fi. CarPlay opens in a window, and you drive it with the mouse and the keyboard,
 hear it through the PC's speakers and talk to Siri through its microphone.
 
-![CarPlay home screen in the ChairPlay window, with the ChairPlay car button](docs/images/carplay-window.png)
+![ChairPlay on Windows: the AltScreen instrument cluster over a map, the CarPlay home screen in the ChairPlay window, and the on-screen car controls](docs/images/chairplay.png)
 
-Useful for developing and testing CarPlay apps and navigation without sitting in a car, for demos, or simply for
-CarPlay on a desk.
+Useful for building and testing CarPlay apps and navigation without a car, for demos, or just CarPlay on a desk.
 
-ChairPlay is built on [DiPlay](https://github.com/shihabal3amri/DiPlay), the Android CarPlay receiver for head
-units by shihabal3amri, which is itself based on [xcertplay](https://github.com/shilapi/xcertplay) by shilapi. It
-compiles DiPlay's portable CarPlay core (AirPlay, iAP2, MFi authentication) from the `upstream/` submodule and adds
-everything Windows needs around it. It is a separate project, not affiliated with or endorsed by the authors of
-DiPlay or xcertplay, or by Apple.
+ChairPlay is built on [DiPlay](https://github.com/shihabal3amri/DiPlay) by shihabal3amri, the Android CarPlay
+receiver for head units, itself based on [xcertplay](https://github.com/shilapi/xcertplay) by shilapi. It compiles
+DiPlay's portable CarPlay core (AirPlay, iAP2, MFi authentication) from the `upstream/` submodule and wraps it in
+everything Windows needs. It is a separate project, not affiliated with or endorsed by their authors, or by Apple.
+
+## Before you start
+
+You will need:
+
+- **An iPhone** with CarPlay (any reasonably recent one).
+- **A Windows 10 or 11 PC** with its own **Bluetooth** and **Wi-Fi**. The PC has to join Wi-Fi itself — a PC wired to
+  the router by cable is not enough.
+- **The same Wi-Fi network** for the PC and the iPhone, one that lets the devices on it talk to each other. Most home
+  networks do; many guest networks deliberately do not.
+- **An Apple MFi identity** — a small certificate-and-key pair that tells the iPhone it may connect to an accessory.
+  This is the one piece ChairPlay cannot provide for you: Apple does not hand these out freely, so you supply your
+  own. It is the only step that is not point-and-click — [the setup guide](docs/SETUP.md) shows where the files go.
+
+## Your first connection
+
+1. **Install.** Download the latest `ChairPlay-…-setup.exe` from the
+   [Releases page](https://github.com/NumberOneBot/ChairPlay/releases) and run it. It installs just for you, needs no
+   administrator rights, and adds ChairPlay to the Start menu.
+2. **Pair your iPhone** with the PC once, in Windows Settings → Bluetooth & devices — the same as pairing headphones.
+3. **Add your MFi files** to the `offline-mfi` folder next to the app (the setup guide points to it).
+4. **Open ChairPlay.** The first screen, *Get started*, checks everything for you — the MFi files, the firewall (it
+   adds the rule with your permission), your paired iPhone, and your Wi-Fi network — and ticks each item off as it
+   becomes ready.
+5. **Unlock your iPhone and tap *Allow*** when it asks. ChairPlay brings up CarPlay on its own.
+
+After that, every run is the same, only quicker: open ChairPlay with your iPhone unlocked and nearby, and CarPlay
+comes up by itself.
 
 ## What works
 
 - **Wireless CarPlay** with an iPhone on the same Wi-Fi network as the PC, started over Windows Bluetooth.
-- **Get started** before the first connection: four steps the app checks on its own (the MFi files, the firewall,
-  which it lets ChairPlay through with your consent, the paired iPhone, and the Wi-Fi network, filled in with the one
-  the PC is on), each ticking itself once it is done.
-- **Settings** in the window whenever CarPlay is not on it: a toolbar with CarPlay, the AltScreen and controls
-  windows, where the connection stands, and Connect, or Reconnect and Disconnect; and pages for the connection, the
-  CarPlay screen, the AltScreen, the keyboard, audio, and about. Each change is saved into `settings.properties` or
-  `controls.properties` in place and says when it applies; what is wrong shows above the settings, with what to do.
+- **Get started** before the first connection: four steps the app checks itself — the MFi files, the firewall
+  (opened with your consent), the paired iPhone, and the Wi-Fi network (filled in from the one the PC is on) — each
+  ticking off once it is done.
+- **Settings** whenever CarPlay is not covering the window: a toolbar (the CarPlay, AltScreen and controls windows,
+  the connection status, Connect, Reconnect, Disconnect) and pages for the connection, the CarPlay screen, the
+  AltScreen, the keyboard, audio, and about. Each change saves in place and says when it applies; anything wrong shows
+  above the settings, with what to do.
 - **Video** in a resizable window, 1280×720 at 60 fps by default, H.264 decoded in software.
 - **Touch** with the mouse: taps, drags, scrolling lists and the map.
 - **Car controls on the keyboard**: arrows tilt CarPlay's knob, Tab turns it, Enter selects, Esc goes back, plus
@@ -32,17 +58,15 @@ DiPlay or xcertplay, or by Apple.
 - **Audio**: music (AAC-LC 48 kHz stereo), navigation prompts and Siri, on the device you choose.
 - **Microphone** for Siri and calls (Opus), on the device you choose.
 - **Your own "car"**: the name the iPhone shows, the icon and label of the car button on the CarPlay home screen
-  (ChairPlay's armchair by default; tapping it opens the settings).
-- **The CarPlay screen as you want it**: resolution (which decides whether iOS draws at @2x or @3x, and how much
-  fits on the screen), frame rate, light or dark theme following Windows, driving side, dock position, safe area,
-  corner style.
+  (tapping it opens the settings).
+- **The CarPlay screen as you want it**: resolution (it sets @2x vs @3x and how much fits), frame rate, light or
+  dark theme following Windows, driving side, dock position, safe area, corner style.
 - **AltScreen** (experimental): the car's instrument cluster as a second CarPlay screen in its own window,
-  1440x540 like Audi's Virtual Cockpit by default, with the map, the turn card or both, switched on the fly.
-- **HUD** in the AltScreen window (`altscreen.content=hud`): the next maneuver, the distance to it, the arrival
-  and the song on black, drawn by the app itself rather than by the iPhone. The animated 3D maneuvers (turns,
-  roundabouts with their roads, the arrow filling toward the turn, the destination flag) are LuKa's maneuver
-  renderer from the [MHI2Q CarPlay project](https://github.com/luka-dev/mib2q-carplay-rgi), ported to run
-  inside the app's window.
+  1440x540 by default, with the map, the turn card or both, switched on the fly.
+- **HUD** in the AltScreen window (`altscreen.content=hud`): the next maneuver, its distance, the arrival and the
+  song on black, drawn by the app rather than the iPhone. The animated 3D maneuvers (turns, roundabouts and their
+  roads, the arrow filling toward the turn, the destination flag) are LuKa's maneuver renderer from the
+  [MHI2Q CarPlay project](https://github.com/luka-dev/mib2q-carplay-rgi), ported to run inside the window.
 - **On-screen car controls** (`window.controls=true`): a window of buttons for the knob, back, home, Siri, media,
   volume, calls and the AltScreen's zoom and modes, held as long as the mouse holds them; Alt shows their keys.
 - **Volume of its own**: Ctrl+Up, Ctrl+Down and Ctrl+M turn ChairPlay up, down or mute it, leaving Windows' volume
@@ -57,10 +81,10 @@ Tested on Windows 11 with an iPhone 15 (iOS 18.6).
 - **Bluetooth**: a built-in or USB adapter with Bluetooth Classic (BR/EDR), on Windows' own Microsoft Bluetooth
   stack: the app opens the iPhone's iAP2 channel over RFCOMM through Winsock. Bluetooth LE-only adapters and
   third-party stacks (old Broadcom WIDCOMM, Toshiba) do not work. The iPhone must be paired in Windows Settings.
-- **Wi-Fi**: the PC itself must be on Wi-Fi, through its own Wi-Fi adapter, on the same network as the iPhone; a PC
-  wired to the same router by Ethernet is not enough yet. The network must be WPA2-Personal or open (a WPA2/WPA3
-  mixed router works as WPA2; WPA3-only does not), and must let its clients reach each other and pass multicast
-  for Bonjour: no client or AP isolation, which guest networks usually have. Tested on 5 GHz.
+- **Wi-Fi**: the PC must be on Wi-Fi through its own adapter, on the same network as the iPhone; a PC wired to the
+  router by Ethernet is not enough yet. The network must be WPA2-Personal or open (a WPA2/WPA3 mixed router works as
+  WPA2; WPA3-only does not) and must let its clients reach each other and pass Bonjour multicast — no client or AP
+  isolation, which guest networks usually have. Tested on 5 GHz.
 - **Windows Firewall** must let the iPhone in (Get started adds the rule with your consent, or gives the commands).
 - **Microsoft Edge WebView2** for the settings and Get started: part of Windows 11 and of an updated Windows 10.
   Without it they open in the default browser instead.
@@ -72,10 +96,9 @@ Tested on Windows 11 with an iPhone 15 (iOS 18.6).
 ## Install
 
 Download `ChairPlay-X.Y.Z-setup.exe` from the [Releases page](https://github.com/NumberOneBot/ChairPlay/releases) and
-run it. It installs for your Windows account only, without administrator rights, into
-`%LOCALAPPDATA%\Programs\ChairPlay`, and adds ChairPlay to the Start menu. A newer installer updates that folder in
-place and keeps your settings, keys, pairings, and logs; uninstalling leaves them there too. Then follow steps 1 to 4
-below, with that folder in place of `dist\ChairPlay`.
+run it. It installs for your account only, without administrator rights, into `%LOCALAPPDATA%\Programs\ChairPlay`, and
+adds ChairPlay to the Start menu. A newer installer updates that folder in place and keeps your settings, keys,
+pairings and logs; uninstalling leaves them too. Then follow steps 1–4 below, with that folder for `dist\ChairPlay`.
 
 ## Quick start
 
@@ -112,14 +135,17 @@ settings and keys there on later builds. To install it elsewhere, pass `-Pchairp
 | Enter, Space | select |
 | Backspace, Esc | back |
 | Home | home screen |
-| F7 / F8 / F9 | previous track / play-pause / next track |
 | F3 / F4 | answer / end a call |
+| F7 / F8 / F9 | previous track / play-pause / next track |
 | S | Siri |
-| F12 | screenshots of the CarPlay screen and the AltScreen, at the iPhone's resolution, into `screenshots` |
+| Ctrl+Up / Ctrl+Down / Ctrl+M | turn ChairPlay's own volume up / down / mute, leaving Windows' volume alone |
 | Ctrl+R | end the session gracefully and connect again |
+| F10 | drive the GPS car with the arrows (steering and pedals instead of the knob); needs GPS spoofing on |
+| Shift+F10 | switch the GPS car's gauges between large and small; needs GPS spoofing on |
 | F11 | AltScreen: map, turn card, map with turn card |
 | Shift+F11 | AltScreen: move the ETA and turn card (auto, left, right, top, off) |
 | Mouse wheel over the AltScreen, + / − (either keyboard) | zoom the AltScreen map |
+| F12 | screenshots of the CarPlay screen and the AltScreen, at the iPhone's resolution, into `screenshots` |
 | The car button on the CarPlay home screen | the settings; the CarPlay button or Esc returns to CarPlay |
 
 While the settings cover the window, the keys and the mouse are theirs, not CarPlay's.
@@ -133,8 +159,8 @@ Everything lives next to the exe, in plain text:
 
 - `settings.properties`: Wi-Fi, the iPhone, connecting at start and showing CarPlay at once, the car's name and
   icon, sound devices and call echo cancellation, and the CarPlay screen (size, frame rate, physical size, theme,
-  driving side, dock, safe area, corners) and window size. The settings change these in place, keeping the file's
-  comments and the other lines.
+  driving side, dock, safe area, corners) and window size. The settings edit these in place, keeping the file's
+  comments and other lines.
 - `controls.properties`: key bindings and mouse-wheel behaviour, which the Keyboard page changes the same way.
 - `window.properties`: where you left the windows and their sizes, and whether Get started is done, written by the
   app.
@@ -145,17 +171,12 @@ in the app folder, has the details, and on a normal start what the iPhone was to
 ## Good to know
 
 - Quit by closing the window. If the app is killed mid-session (Task Manager), the iPhone may ignore new sessions
-  until it is restarted.
-- Wireless only, and only over a Wi-Fi network shared by the PC and the iPhone (no PC hotspot, no USB).
+  until restarted.
+- Wireless only, over a Wi-Fi network shared by the PC and the iPhone (no PC hotspot, no USB).
 - Echo cancellation for calls is experimental and off by default (`audio.echo.cancellation`); headphones are the
-  safe choice for calls.
+  safe choice.
 - Over Wi-Fi the iPhone sends music only as AAC; lossless formats are refused.
 - The iPhone's own volume buttons do not change CarPlay's volume; Windows' volume does, as a car's knob would.
-
-## Roadmap
-
-- A macOS (Apple Silicon) version, built from source.
-- Replaying recorded GPS tracks into the iPhone, so its navigation apps follow a route from the desk.
 
 ## Building on DiPlay
 
@@ -177,11 +198,10 @@ not include any Apple MFi identity.
 
 ## Contributing
 
-Ideas, bug reports and fixes are welcome. Open an issue or a pull request, or write to me at
-[alex.strelets@gmail.com](mailto:alex.strelets@gmail.com) with what you would like to see. To report a connection
-problem, set Log level to Info on the Experiments page, reproduce it, then send the log
-(`logs\chairplay-<date-time>.log` in the app folder; a release logs only warnings by default). The app leaves the
-Wi-Fi password out of it, but look it over before sending.
+Ideas, bug reports and fixes are welcome: open an issue or a pull request, or write to me at
+[alex.strelets@gmail.com](mailto:alex.strelets@gmail.com). To report a connection problem, set Log level to Info on
+the Experiments page, reproduce it, and send the log (`logs\chairplay-<date-time>.log` in the app folder; a release
+logs only warnings). The app keeps the Wi-Fi password out of it, but look it over before sending.
 
 ## Support the project
 
