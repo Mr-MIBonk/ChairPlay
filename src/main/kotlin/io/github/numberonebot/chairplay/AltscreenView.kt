@@ -6,7 +6,6 @@ import io.github.numberonebot.chairplay.config.AREA_MOVE_SETTLE_MILLIS
 import io.github.numberonebot.chairplay.config.AltscreenAreaMove
 import io.github.numberonebot.chairplay.config.AltscreenCards
 import io.github.numberonebot.chairplay.config.AltscreenContent
-import io.github.numberonebot.chairplay.config.AltscreenViewStore
 import io.github.numberonebot.chairplay.config.DesktopConfig
 import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.config.altscreenTitle
@@ -20,6 +19,7 @@ import io.github.numberonebot.chairplay.drive.GaugeMotion
 import io.github.numberonebot.chairplay.drive.GaugePainter
 import io.github.numberonebot.chairplay.hud.HudDemo
 import io.github.numberonebot.chairplay.hud.HudPainter
+import io.github.numberonebot.chairplay.hud.HudState
 import io.github.numberonebot.chairplay.hud.HudView
 import io.github.numberonebot.chairplay.hud.hudState
 import io.github.numberonebot.chairplay.hud.smallWellScale
@@ -66,10 +66,11 @@ internal class AltscreenView(
     @Volatile
     private var cards = config.altscreen?.cards ?: AltscreenCards.TOP
 
+    // The view the iPhone draws, settled (kept under the HUD: no wait on black); null for none, a new stream, or a move.
+    @Volatile private var drawing: String? = null
     // The view of the iPhone's picked last, F11's other one from the HUD.
     @Volatile
-    private var mapView = AltscreenViewStore(dir).loadMapView()
-        ?: config.altscreen?.content?.takeIf { it != AltscreenContent.HUD } ?: AltscreenContent.MAP
+    private var mapView = config.altscreen?.content?.takeIf { it != AltscreenContent.HUD } ?: AltscreenContent.MAP
 
     /**
      * The HUD demo playing (HudDemo), by its kind ("maneuvers" or "lanes"): CHAIRPLAY_HUD_DEMO starts one, the
@@ -127,6 +128,7 @@ internal class AltscreenView(
             )(area)
             if (moved) {
                 currentArea.set(area)
+                drawing = null
                 // From the HUD to a view the window goes black at once and waits there for the view the move asks for later.
                 if (window.hud && !hud) window.showView(false, seen)
                 return
@@ -141,9 +143,8 @@ internal class AltscreenView(
             if (!seen) window.clearPicture()
             if (session != null) log("altscreen ${content.key}, cards ${cards.key}: $url ${if (seen) "showUI" else "stopUI"} sent=$sent")
             window.setTitle(altscreenTitle(alt.size, content, cards) + if (sent == false) " (not sent)" else "")
+            (seen && drawing == url).also { drawing = url.takeIf { seen } }
         }
-        runCatching { AltscreenViewStore(dir).save(content, cards, alt.configured, mapView) }
-            .onFailure { log("AltScreen view not saved: $it") }
         changed()
     }
 
@@ -193,6 +194,7 @@ internal class AltscreenView(
             touchSender.execute {
                 // It starts in the first view area again, as on the initial view; the view goes back to its own.
                 currentArea.set(0)
+                drawing = null
                 show(active())
             }
         }
@@ -262,10 +264,9 @@ internal class AltscreenView(
         val gaugeMotion = GaugeMotion()
         window.overlay = HudPainter({
             val demo = hudDemo.get()?.second
-            val live = data.bus.snapshot()
-            val snapshot = demo?.over(live) ?: live
-            val connected = hudShowsSession(content, active() != null, demo != null)
-            HudView(connected, hudState(snapshot), snapshot.artwork, gaugeMotion.there, gaugeMotion.smallness)
+            val snapshot = data.bus.snapshot().let { live -> demo?.over(live) ?: live }
+            val state = if (hudShowsSession(content, active() != null, demo != null)) hudState(snapshot) else HudState()
+            HudView(demo != null || active() != null, state, snapshot.artwork, gaugeMotion.there, gaugeMotion.smallness)
         }, ::log, window::repaint, accent)
         data.bus.addListener { if (window.hud) window.repaint() }
         window.topLayer = GaugePainter(driving::gauges, ::log, accent, gaugeMotion, ::smallWellScale)

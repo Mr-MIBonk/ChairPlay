@@ -100,7 +100,8 @@ class AltscreenViewParts(width: Int, height: Int, value: (String) -> String?) {
                         ?: throw IllegalArgumentException("$key must be a whole number of zero or more, not $it")
                 }
             }
-            if (margins.all { it == null }) continue
+            // Margins all zero are none: the view keeps to the plain frame's areas, where a stream starts.
+            if (margins.all { it == null || it == 0 }) continue
             val (top, bottom, left, right) = margins.map { it ?: 0 }
             // The margins must leave some of the view's own part.
             val own = preset.area(width, height)

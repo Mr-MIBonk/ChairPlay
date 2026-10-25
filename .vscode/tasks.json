@@ -1,6 +1,6 @@
 {
   // Terminal > Run Task, or the Gradle panel for the Gradle tasks themselves.
-  // The app runs in its own console window: stop it by closing the CarPlay window or with Ctrl+C there.
+  // The app runs in a hidden console, its log in its logs folder: stop it by closing the CarPlay window.
   // Never end it with VS Code's "Terminate Task" or Task Manager: a hard kill leaves the iPhone ignoring
   // new sessions until it is restarted.
   "version": "2.0.0",
@@ -32,7 +32,7 @@
     },
     {
       "label": "Run ChairPlay",
-      "detail": "Starts the deployed app (dist\\ChairPlay or chairplay.home) in its own console window.",
+      "detail": "Starts the deployed app (dist\\ChairPlay or chairplay.home) in a hidden console; close the CarPlay window to stop it.",
       "type": "shell",
       "command": ".\\gradlew.bat -q launchApp",
       "presentation": { "reveal": "never" },

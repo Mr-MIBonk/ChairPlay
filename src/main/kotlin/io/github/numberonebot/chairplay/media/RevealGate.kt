@@ -36,8 +36,8 @@ internal class RevealGate(
     private var heldAt = NONE
     private var firstPictureAt = NONE
     private val lumas = mutableListOf<Int>()
-    // The wait the ask went out for, and when.
-    private val sent = AtomicReference<Pair<Int, Long>?>()
+    // The wait the ask went out for, when, and whether the iPhone already drew the view.
+    private val sent = AtomicReference<Triple<Int, Long, Boolean>?>()
 
     /** The window is black on another view, and the ask for it goes out now; the number goes to [sent]. */
     fun hold(): Int {
@@ -48,8 +48,11 @@ internal class RevealGate(
         return generation
     }
 
-    /** The ask for the view of wait [generation] went out. */
-    fun sent(generation: Int = this.generation) = sent.set(generation to now())
+    /**
+     * The ask for the view of wait [generation] went out; [drawn] when the iPhone already drew that view (kept running
+     * under the HUD), whose pictures then need no wait.
+     */
+    fun sent(generation: Int = this.generation, drawn: Boolean = false) = sent.set(Triple(generation, now(), drawn))
 
     /** A picture came, its average brightness [luma] from 0 (black) to 255 (white). */
     fun picture(luma: Int) {
@@ -63,11 +66,13 @@ internal class RevealGate(
         if (heldAt == NONE) return true
         val time = now()
         val settled = firstPictureAt != NONE && time - firstPictureAt >= settleMillis * 1_000_000
-        if (!settled && time - heldAt < maxMillis * 1_000_000) return false
+        val drawn = sent.get()?.takeIf { it.first == generation }?.third == true
+        if (!settled && !drawn && time - heldAt < maxMillis * 1_000_000) return false
         val asked = askedAt()
         log(
             when {
                 asked == NONE -> "view: not asked for ${millis(time - heldAt)} ms on black; revealed"
+                drawn -> "view: drawn already, asked ${millis(asked - heldAt)} ms after black; revealed ${millis(time - heldAt)} ms after black"
                 firstPictureAt == NONE ->
                     "view: asked ${millis(asked - heldAt)} ms after black, no picture since; revealed ${millis(time - heldAt)} ms after black"
                 else ->

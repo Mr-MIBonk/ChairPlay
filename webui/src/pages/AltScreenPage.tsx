@@ -94,14 +94,6 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
             onChange={(content) => void backend.altscreen(content as AltscreenContent)}
           />
         </Row>
-        <Row title="Keep the iPhone drawing the map view picked last while the HUD shows, so the map comes back at once; the iPhone works harder">
-          <Checkbox
-            label="Keep the map stream under the HUD"
-            checked={settings.value('altscreen.hud.stream') === 'true'}
-            onChange={(checked) => settings.save({ 'altscreen.hud.stream': String(checked) })}
-          />
-          <Changed keys={['altscreen.hud.stream']} pending={pending} />
-        </Row>
         {/* Map + card alone has a turn card to place: elsewhere the row is not there. */}
         {placesCards && (
           <Row
@@ -143,6 +135,14 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
             <span className="errtext">{settings.error(areaKey)}</span>
           </Row>
         )}
+        <Row title="Keep the iPhone drawing the map view picked last while the HUD shows, so the map comes back at once; the iPhone works harder">
+          <Checkbox
+            label="Keep the map stream under the HUD"
+            checked={settings.value('altscreen.hud.stream') === 'true'}
+            onChange={(checked) => settings.save({ 'altscreen.hud.stream': String(checked) })}
+          />
+          <Changed keys={['altscreen.hud.stream']} pending={pending} />
+        </Row>
         <Row className="hint-row">
           <span className="hint">
             HUD is a custom screen drawn from the route, song, and call data the iPhone sends, not from CarPlay's video

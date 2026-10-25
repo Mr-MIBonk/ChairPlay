@@ -125,49 +125,6 @@ class WindowPlacementStore(private val dir: Path, private val prefix: String = "
     }
 }
 
-/**
- * Remembers the AltScreen's content and card layout (F11, Shift+F11) in window.properties, so it opens on the view
- * it was left on. Like the windows' sizes, a view remembered under other altscreen.content or altscreen.cards
- * settings than today's gives way to the settings.
- */
-class AltscreenViewStore(private val dir: Path) {
-    fun load(content: AltscreenContent, cards: AltscreenCards): Pair<AltscreenContent, AltscreenCards> {
-        val values = readWindowState(dir) ?: return content to cards
-        if (values.getProperty(SETTINGS)?.trim() != "${content.key},${cards.key}") return content to cards
-        val savedContent = AltscreenContent.entries.firstOrNull { it.key == values.getProperty(CONTENT)?.trim() } ?: content
-        val savedCards = AltscreenCards.entries.firstOrNull { it.key == values.getProperty(CARDS)?.trim() } ?: cards
-        return savedContent to savedCards
-    }
-
-    /** The view of the iPhone's picked last, F11's other one from the HUD; null before one was picked. */
-    fun loadMapView(): AltscreenContent? {
-        val key = readWindowState(dir)?.getProperty(MAP_VIEW)?.trim() ?: return null
-        return AltscreenContent.entries.firstOrNull { it.key == key && it != AltscreenContent.HUD }
-    }
-
-    fun save(
-        content: AltscreenContent,
-        cards: AltscreenCards,
-        configured: Pair<AltscreenContent, AltscreenCards>,
-        mapView: AltscreenContent? = null,
-    ) {
-        writeWindowState(
-            dir,
-            listOfNotNull(
-                CONTENT to content.key, CARDS to cards.key, SETTINGS to "${configured.first.key},${configured.second.key}",
-                mapView?.let { MAP_VIEW to it.key },
-            ),
-        )
-    }
-
-    private companion object {
-        const val CONTENT = "altscreen.view.content"
-        const val CARDS = "altscreen.view.cards"
-        const val SETTINGS = "altscreen.view.settings"
-        const val MAP_VIEW = "altscreen.view.map"
-    }
-}
-
 /** Remembers the app's volume and mute in window.properties, as a car keeps its volume; a first start plays at full. */
 class VolumeStore(private val dir: Path) {
     /** The level (0 to 100) and whether it is muted. */

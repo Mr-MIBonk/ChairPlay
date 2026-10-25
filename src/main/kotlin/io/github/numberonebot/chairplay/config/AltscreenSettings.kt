@@ -54,15 +54,13 @@ data class Altscreen(
     val size: WindowSize,
     val content: AltscreenContent,
     val cards: AltscreenCards = AltscreenCards.TOP,
-    /** altscreen.content and altscreen.cards as set, which a remembered view gives way to when they change. */
-    val configured: Pair<AltscreenContent, AltscreenCards> = content to cards,
     /** altscreen.hud.stream: whether the iPhone keeps drawing a view under the HUD ([drawnView]). */
     val streamUnderHud: Boolean = false,
 )
 
 /**
  * Whether the HUD shows the [session]'s route and song: as the view picked ([content]), or for a demo; on another
- * view it is shown only while that view's picture is on its way, and keeps its waiting line.
+ * view it is shown only while that view's picture is on its way, and shows them not, nor its waiting line.
  */
 fun hudShowsSession(content: AltscreenContent?, session: Boolean, demo: Boolean): Boolean =
     demo || (session && content == AltscreenContent.HUD)

@@ -86,7 +86,7 @@ export function PositionFields({
     <>
       <input
         id={`${id}-${field}`}
-        className={`t w96 ${error ? 'err' : ''}`}
+        className={`t choice-wide ${error ? 'err' : ''}`}
         aria-invalid={error ? true : undefined}
         value={shown[field]}
         autoComplete="off"

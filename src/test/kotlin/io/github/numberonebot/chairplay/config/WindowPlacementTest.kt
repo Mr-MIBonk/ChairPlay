@@ -155,39 +155,6 @@ class WindowPlacementTest {
         assertEquals(WindowSize(1280, 720), openingSize(configured, null, pageSized = false))
     }
 
-    // The AltScreen opens on the content and card layout it was left on, beside the windows' places in the file.
-    @Test
-    fun `the AltScreen view is remembered unless the settings changed`() {
-        val dir = Files.createTempDirectory("chairplay-window")
-        val windows = WindowPlacementStore(dir)
-        val view = AltscreenViewStore(dir)
-        windows.save(WindowPlacement(10, 20, 1280, 720, maximized = false), configured)
-        view.save(AltscreenContent.HUD, AltscreenCards.RIGHT, configured = AltscreenContent.MAP to AltscreenCards.AUTO)
-
-        assertEquals(AltscreenContent.HUD to AltscreenCards.RIGHT, view.load(AltscreenContent.MAP, AltscreenCards.AUTO))
-        assertEquals(WindowPlacement(10, 20, 1280, 720, maximized = false), windows.load(configured))
-        // altscreen.content or altscreen.cards edited since: the settings win.
-        assertEquals(AltscreenContent.CARD to AltscreenCards.AUTO, view.load(AltscreenContent.CARD, AltscreenCards.AUTO))
-    }
-
-    // The view of the iPhone's picked last, F11's other one from the HUD, is remembered too; none before one is picked.
-    @Test
-    fun `the AltScreen's last map view is remembered`() {
-        val dir = Files.createTempDirectory("chairplay-window")
-        val view = AltscreenViewStore(dir)
-        assertEquals(null, view.loadMapView())
-        view.save(AltscreenContent.HUD, AltscreenCards.TOP, AltscreenContent.MAP to AltscreenCards.TOP, mapView = AltscreenContent.MAP_CARD)
-        assertEquals(AltscreenContent.MAP_CARD, view.loadMapView())
-    }
-
-    @Test
-    fun `without a remembered view the settings apply`() {
-        assertEquals(
-            AltscreenContent.MAP to AltscreenCards.TOP,
-            AltscreenViewStore(Files.createTempDirectory("chairplay-window")).load(AltscreenContent.MAP, AltscreenCards.TOP),
-        )
-    }
-
     // The controls window opens shown or hidden as it was left; before it was ever left, window.controls decides.
     @Test
     fun `the controls window's visibility is remembered`() {

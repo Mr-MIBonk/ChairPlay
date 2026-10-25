@@ -4,8 +4,12 @@
  * Segmented groups: one rounded frame on the fields' ground; the chosen item a lit plate inside it, the others with
  * short separators between them that stop short of the frame and drop away beside the plate
  */
-.shell .seg {
+.shell {
+  /* One choice's width, which the fields as wide as one take too: 90 px on a wider page, below */
   --choice: 80px;
+}
+
+.shell .seg {
   display: inline-flex;
   padding: 2px;
   border: 1px solid var(--edge);
@@ -44,7 +48,7 @@
 }
 
 @container (min-width: 496px) {
-  .shell .seg {
+  .shell .page-inner > * {
     --choice: 90px;
   }
 

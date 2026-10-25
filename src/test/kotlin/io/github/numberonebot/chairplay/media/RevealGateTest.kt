@@ -21,6 +21,15 @@ class RevealGateTest {
         assertTrue(gate.open())
     }
 
+    // A view the iPhone already draws (kept running under the HUD) has nothing to wait for: it rises once the ask is out.
+    @Test
+    fun `a view already drawn rises as soon as its ask is out`() {
+        val wait = gate.hold()
+        assertFalse(gate.open())
+        gate.sent(wait, drawn = true)
+        assertTrue(gate.open())
+    }
+
     // The iPhone draws the asked-for view only after the ask, and its first pictures can still be the old view or a
     // blank one: the window stays black until pictures have come for a while after the ask went out.
     @Test

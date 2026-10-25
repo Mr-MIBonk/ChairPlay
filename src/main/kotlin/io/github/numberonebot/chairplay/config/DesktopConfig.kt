@@ -131,9 +131,7 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
         val content = settings.choiceSetting("altscreen.content", AltscreenContent.MAP, AltscreenContent.entries.associateBy { it.key })
         val size = altscreenSize
         val cards = settings.choiceSetting("altscreen.cards", AltscreenCards.TOP, AltscreenCards.entries.associateBy { it.key })
-        // The view F11 and Shift+F11 left it on, unless these settings changed since.
-        val (viewContent, viewCards) = AltscreenViewStore(dir).load(content, cards)
-        Altscreen(size, viewContent, viewCards, content to cards, settings.booleanSetting("altscreen.hud.stream", false))
+        Altscreen(size, content, cards, settings.booleanSetting("altscreen.hud.stream", false))
     }
 
     /** altscreen.<view>.area and .safe: the views' own parts of an enabled AltScreen's frame. */

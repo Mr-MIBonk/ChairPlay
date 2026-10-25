@@ -157,12 +157,16 @@ tasks.register<JavaExec>("deploy") {
 // stop button would kill it hard, and the iPhone then ignores new sessions until it restarts.
 tasks.register<Exec>("launchApp") {
     group = "application"
-    description = "Starts ChairPlay.exe from the app folder (chairplay.home) in its own console window."
+    description = "Starts ChairPlay.exe from the app folder (chairplay.home) in a hidden console."
     val home = appHome.map { file(it) }
     doFirst {
         check(home.get().resolve("ChairPlay.exe").isFile) { "no ChairPlay.exe in ${home.get()}; run deploy first" }
     }
-    commandLine("cmd", "/c", "start", "ChairPlay", "/D", home.get().path, "ChairPlay.exe")
+    // Hidden: a console window, closed, would hard-kill the app, and the iPhone then ignores new sessions. The app
+    // logs into its logs folder and closes with its windows.
+    val folder = home.get().path.replace("'", "''")
+    commandLine("powershell", "-NoProfile", "-Command",
+        "Start-Process -FilePath '$folder\\ChairPlay.exe' -WorkingDirectory '$folder' -WindowStyle Hidden")
 }
 
 tasks.register<Exec>("listDevices") {

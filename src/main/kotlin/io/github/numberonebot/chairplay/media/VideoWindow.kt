@@ -144,8 +144,8 @@ class VideoWindow(
 
     @Volatile
     private var view = View(false, null)
-    // What to do once the window is black on the view wanted: ask the iPhone for it.
-    private val onBlack = AtomicReference<(() -> Unit)?>()
+    // What to do once the window is black on the view wanted: ask the iPhone for it; true if it drew it already.
+    private val onBlack = AtomicReference<(() -> Boolean)?>()
 
     /** Whether the window shows (or is going over to) [overlay] on black instead of the picture: the AltScreen's HUD. */
     val hud: Boolean get() = view.hud
@@ -153,10 +153,10 @@ class VideoWindow(
     /**
      * Safe from any thread: shows the HUD ([hud]) or the iPhone's view [key], through black when that changes. [onBlack]
      * runs once the window is black, on a thread of its own, to ask the iPhone for the view: it starts drawing it only
-     * then, so nothing of the change shows; the window stays black until the view's pictures are in (or [hud] needs
-     * none). Unchanged, [onBlack] runs at once. [log] tells how long each change waited.
+     * then, so nothing of the change shows; the window stays black until the view's pictures are in (or [hud] needs none,
+     * or [onBlack] says the iPhone drew the view already). Unchanged, [onBlack] runs at once. [log] tells the waits.
      */
-    fun showView(hud: Boolean, key: Any? = null, onBlack: () -> Unit = {}) {
+    fun showView(hud: Boolean, key: Any? = null, onBlack: () -> Boolean = { false }) {
         // Under the HUD the iPhone's view is not seen: changing it is no change of what shows.
         this.onBlack.set(onBlack)
         view = View(hud, if (hud) null else key)
@@ -455,8 +455,8 @@ class VideoWindow(
                 // change taken back before black never left the view on screen.
                 val wait = if (content.brightness == 0f && !wanted.hud) reveal.hold() else null
                 Thread({
-                    ask()
-                    wait?.let(reveal::sent)
+                    val drawn = ask()
+                    wait?.let { reveal.sent(it, drawn) }
                 }, "view-ask").apply { isDaemon = true }.start()
             }
         }

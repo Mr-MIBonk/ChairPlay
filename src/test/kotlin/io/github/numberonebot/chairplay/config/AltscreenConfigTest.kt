@@ -163,6 +163,15 @@ class AltscreenConfigTest {
         assertEquals(AltscreenContent.HUD, AltscreenContent.CARD.toggled(AltscreenContent.MAP))
     }
 
+    // Margins all zero are none: the view shows in the plain frame's areas, so a stream starts in its area, the first.
+    @Test
+    fun `a view with margins all zero shows in the plain frame's areas`() {
+        val config = configWith("altscreen.enabled=true", "altscreen.map.safe.top=0", "altscreen.map.safe.left=0", *noMapCardMargins)
+
+        assertEquals(0, config.altscreenAreaFor(AltscreenContent.MAP))
+        assertEquals(AreaPreset.entries.size, config.altscreenAreaCount)
+    }
+
     // Under the HUD the iPhone stops drawing, unless altscreen.hud.stream keeps the map view picked last running, so F11
     // comes back to it at once. A demo's HUD over a view keeps that view.
     @Test
@@ -201,19 +210,21 @@ class AltscreenConfigTest {
         assertTrue(runCatching { configWith("altscreen.enabled=true", "altscreen.cards=off") }.exceptionOrNull() is IllegalArgumentException)
     }
 
-    // The iPhone is asked at once for the content the AltScreen was left on.
+    // Every start is on the settings' view, whatever view the AltScreen was left on (an older version remembered it).
     @Test
-    fun `the AltScreen starts on the view it was left on`() {
+    fun `the AltScreen starts on the settings' view, not the one it was left on`() {
         val dir = Files.createTempDirectory("chairplay-config")
         writeTestSettings(dir)
         Files.writeString(dir.resolve("settings.properties"), "altscreen.enabled=true\n", StandardOpenOption.APPEND)
-        AltscreenViewStore(dir).save(AltscreenContent.CARD, AltscreenCards.RIGHT, AltscreenContent.MAP to AltscreenCards.TOP)
+        Files.writeString(
+            dir.resolve("window.properties"),
+            "altscreen.view.content=card\naltscreen.view.cards=right\naltscreen.view.settings=map,top\n",
+        )
 
         val config = DesktopConfig(dir)
 
-        assertEquals(AltscreenContent.CARD, config.altscreen!!.content)
-        assertEquals(AltscreenCards.RIGHT, config.altscreen!!.cards)
-        assertEquals("maps:/car/instrumentcluster/instructioncard?showETA=yes&maneuverLayout=rightAligned", config.airPlay.cluster!!.initialUrl)
+        assertEquals(AltscreenContent.MAP, config.altscreen!!.content)
+        assertEquals(AltscreenCards.TOP, config.altscreen!!.cards)
     }
 
     // Room for an overlay of our own, such as the maneuver layer on the right.

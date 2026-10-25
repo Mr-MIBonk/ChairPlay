@@ -51,9 +51,9 @@
   width: 9px;
   text-align: center;
 }
-/* A coordinate, -122.41942 at most, beside its name */
-.shell .t.w96 {
-  width: 96px;
+/* A coordinate, -122.41942 at most, beside its name: as wide as one choice of a segmented group */
+.shell .t.choice-wide {
+  width: var(--choice);
 }
 .shell .t.w120 {
   width: 120px;

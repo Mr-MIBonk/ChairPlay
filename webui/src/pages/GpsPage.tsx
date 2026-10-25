@@ -126,6 +126,12 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
         {now && <Row label="iPhone">{now.iphone}</Row>}
         {/* Where the car is, apart from the car itself, whose own settings grow. */}
         <Group title="Position" />
+        {check(
+          'gps.resume',
+          'Start where the car last stopped',
+          'Where the car last came to a stop, or where ChairPlay closed, rather than where the fields last put it',
+          true,
+        )}
         <Row
           label="Coordinates"
           title="Where the car is now, following it as it drives; change it to move the car there, or paste a map link"
@@ -156,12 +162,6 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
         <Row>
           <WindowsLocationButton backend={backend} settings={settings} heading={heading} />
         </Row>
-        {check(
-          'gps.resume',
-          'Start where the car last stopped',
-          'Where the car last came to a stop, or where ChairPlay closed, rather than where the fields last put it',
-          true,
-        )}
         <Group title="Car" note={now?.going} />
         <Row
           title={`Drive the car with the arrows instead of the knob, and show its speedometer and tachometer on the AltScreen${driveKey ? ` (${keyLabel(driveKey)})` : ''}`}
