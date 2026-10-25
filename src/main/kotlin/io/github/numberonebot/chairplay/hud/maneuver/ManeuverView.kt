@@ -1,6 +1,8 @@
 package io.github.numberonebot.chairplay.hud.maneuver
 
+import io.github.numberonebot.chairplay.appLog
 import io.github.numberonebot.chairplay.hud.HudManeuver
+import io.github.numberonebot.chairplay.log.AppLog
 import org.lwjgl.nanovg.NVGColor
 import org.lwjgl.nanovg.NVGPaint
 import org.lwjgl.nanovg.NanoVG.*
@@ -16,7 +18,11 @@ import kotlin.math.abs
  * [ACTIVE_FRAME_MILLIS] while something moves, at [FLAG_FRAME_MILLIS] while only the arrival flag waves, and when a
  * next maneuver's wait for the white arrow ends. When nothing moves it asks for nothing.
  */
-class ManeuverView(private val frames: RepaintTimer?, private val log: (String) -> Unit = {}) {
+class ManeuverView(
+    private val frames: RepaintTimer?,
+    private val log: (String) -> Unit = {},
+    private val nativeLog: AppLog = appLog,
+) {
     private val feed = ManeuverFeed()
     private var texture = 0
     private var textureWidth = 0
@@ -37,6 +43,7 @@ class ManeuverView(private val frames: RepaintTimer?, private val log: (String) 
     fun update(maneuver: HudManeuver?) {
         if (unavailable || texture == 0) return
         for (packet in feed.update(maneuver, nowMillis())) ManeuverNative.command(packet)
+        drainManeuverLog(nativeLog)
     }
 
     /**
@@ -52,6 +59,7 @@ class ManeuverView(private val frames: RepaintTimer?, private val log: (String) 
         if (!feed.showing) return false
         val now = nowMillis()
         val status = ManeuverNative.frame(now / 1000.0)
+        drainManeuverLog(nativeLog)
         when {
             status and ManeuverNative.ANIMATING != 0 -> frames?.after(ACTIVE_FRAME_MILLIS)
             status and ManeuverNative.LOOPING != 0 -> frames?.after(FLAG_FRAME_MILLIS)
@@ -112,6 +120,7 @@ class ManeuverView(private val frames: RepaintTimer?, private val log: (String) 
                 return false
             }
             texture = ManeuverNative.init(place.textureWidth, place.textureHeight)
+            drainManeuverLog(nativeLog)
             if (texture == 0) {
                 log("HUD: no animated maneuvers, the renderer did not start: ${ManeuverNative.lastError()}")
                 unavailable = true
@@ -120,8 +129,10 @@ class ManeuverView(private val frames: RepaintTimer?, private val log: (String) 
             textureWidth = place.textureWidth
             textureHeight = place.textureHeight
             if (!ManeuverNative.loadFlagAtlas()) log("HUD: the destination flag's pictures are missing; the renderer draws a placeholder square for it")
+            drainManeuverLog(nativeLog)
         } else if (abs(place.textureWidth - textureWidth) > RESIZE_SLACK || abs(place.textureHeight - textureHeight) > RESIZE_SLACK) {
             ManeuverNative.resize(place.textureWidth, place.textureHeight)
+            drainManeuverLog(nativeLog)
             textureWidth = place.textureWidth
             textureHeight = place.textureHeight
             // NanoVG keeps the image's size: a new one for the new size.

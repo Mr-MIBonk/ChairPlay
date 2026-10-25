@@ -14,6 +14,7 @@ import io.github.numberonebot.chairplay.input.TouchQueue
 import io.github.numberonebot.chairplay.input.TouchTracker
 import io.github.numberonebot.chairplay.log.AppLog
 import io.github.numberonebot.chairplay.log.LogLevel
+import io.github.numberonebot.chairplay.log.routeAllOutput
 import io.github.numberonebot.chairplay.media.runWindows
 import io.github.numberonebot.chairplay.drive.Driving
 import io.github.numberonebot.chairplay.media.saveScreenshot
@@ -30,12 +31,7 @@ import java.util.concurrent.atomic.AtomicReference
 import kotlin.system.exitProcess
 
 fun main(args: Array<String>) {
-    when (args.firstOrNull()) {
-        "devices" -> listDevices()
-        "probe-bt" -> exitProcess(if (probeBluetooth(args.getOrNull(1))) 0 else 1)
-        "run" -> runCarPlay()
-        else -> println("usage: devices | probe-bt [iphone-address] | run")
-    }
+    if (args.firstOrNull() == "run") runCarPlay() else exitProcess(runCommand(args))
 }
 
 /** The console and, once the app folder is known, logs\chairplay-<time>.log, at log.level. */
@@ -62,7 +58,7 @@ internal fun dataDirectory(): Path {
  * is closed or the process is stopped; every session end or failure restarts the bring-up.
  */
 private fun runCarPlay() {
-    appLog.install()
+    routeAllOutput(appLog)
     val dir = dataDirectory()
     appLog.open(dir.resolve("logs"))
     val config = DesktopConfig(dir)

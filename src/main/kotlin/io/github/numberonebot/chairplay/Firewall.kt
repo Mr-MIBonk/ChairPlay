@@ -1,5 +1,7 @@
 package io.github.numberonebot.chairplay
 
+import io.github.numberonebot.chairplay.log.AppLog
+import io.github.numberonebot.chairplay.log.LogLevel
 import io.github.numberonebot.chairplay.session.FIREWALL_RULE
 import io.github.numberonebot.chairplay.session.FirewallState
 import io.github.numberonebot.chairplay.session.firewallHint
@@ -7,28 +9,34 @@ import io.github.numberonebot.chairplay.session.readFirewall
 import io.github.numberonebot.chairplay.ui.FirewallStatus
 
 /**
- * Says what keeps the iPhone out, if anything. A block rule wins over any allow rule, so one left by Windows'
- * first-run prompt is reported even when ours exists. The start screen shows the same.
+ * Says what keeps the iPhone out, if anything, in [log]: as warnings, which a release's log level keeps, with the commands
+ * that add the rule. A block rule wins over any allow rule, so one left by Windows' first-run prompt is reported even when
+ * ours exists. The start screen shows the same. [read] reads the rules for [program].
  */
-internal fun checkFirewall(port: Int): FirewallStatus {
-    val program = ProcessHandle.current().info().command().orElse("java.exe")
+internal fun checkFirewall(
+    port: Int,
+    program: String = ProcessHandle.current().info().command().orElse("java.exe"),
+    read: (String) -> FirewallState? = ::readFirewall,
+    log: AppLog = appLog,
+): FirewallStatus {
+    fun warn(message: String) = log.log(LogLevel.WARNING, message)
     val hint = "from an administrator prompt:\n" + firewallHint(port, program)
-    val state = readFirewall(program)
+    val state = read(program)
     if (state == null) {
-        log("could not read the Windows Firewall rules; if the iPhone cannot connect, add these $hint")
+        warn("could not read the Windows Firewall rules; if the iPhone cannot connect, add these $hint")
         return FirewallStatus.UNKNOWN
     }
     if (state.off) {
-        log("Windows Firewall is off for the networks this PC is on; ChairPlay needs no rule")
+        log.info("Windows Firewall is off for the networks this PC is on; ChairPlay needs no rule")
         return FirewallStatus.OFF
     }
     if (!state.allowRule) {
         // Another rule (Windows' own, from its first-run prompt) may let the iPhone in: ours is only missing.
-        log("no Windows Firewall rule \"$FIREWALL_RULE\"; if the iPhone cannot connect, add it")
-        log(hint)
+        warn("no Windows Firewall rule \"$FIREWALL_RULE\"; if the iPhone cannot connect, add it")
+        warn(hint)
     }
     state.blocking.forEach {
-        log("Windows Firewall rule $it blocks inbound connections to $program; the iPhone cannot connect while " +
+        warn("Windows Firewall rule $it blocks inbound connections to $program; the iPhone cannot connect while " +
             "it applies. Delete it or set it to Allow in Windows Defender Firewall > Advanced settings > Inbound Rules")
     }
     return firewallStatus(state)

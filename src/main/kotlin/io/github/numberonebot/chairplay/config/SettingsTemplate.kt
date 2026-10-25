@@ -64,7 +64,7 @@ internal val SETTINGS_TEMPLATE = listOf(
         "log.carplay.data" to "false",
     ),
     SettingBlock(
-        "How much the app's log tells, in the console and in logs\\chairplay-<date-time>.log in this folder\n" +
+        "How much the app's log tells, in logs\\chairplay-<date-time>.log in this folder\n" +
             "(the ten newest are kept): error, warning, info, debug, or trace (with every packet).",
         "log.level" to "info",
     ),

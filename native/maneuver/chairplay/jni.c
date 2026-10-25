@@ -9,6 +9,7 @@
 
 #include "engine.h"
 #include "gl_core.h"
+#include "stderr_capture.h"
 
 #define FN(name) Java_io_github_numberonebot_chairplay_hud_maneuver_ManeuverNative_##name
 
@@ -87,4 +88,23 @@ JNIEXPORT jstring JNICALL FN(glslToCore)(JNIEnv *env, jclass cls, jstring source
     result = (*env)->NewStringUTF(env, core);
     free(core);
     return result;
+}
+
+/* The renderer's fprintf(stderr, ...) text since the last call (stderr_capture.h), or null when there is none. */
+JNIEXPORT jstring JNICALL FN(drainLog)(JNIEnv *env, jclass cls) {
+    static char text[16 * 1024 + 1];
+    (void)cls;
+    if (chairplay_stderr_take(text, (int)sizeof text) == 0) return NULL;
+    return (*env)->NewStringUTF(env, text);
+}
+
+/* For the tests: writes text to stderr as the renderer does. */
+JNIEXPORT void JNICALL FN(logSelfTest)(JNIEnv *env, jclass cls, jstring text) {
+    const char *utf;
+    (void)cls;
+    if (!text) return;
+    utf = (*env)->GetStringUTFChars(env, text, NULL);
+    if (!utf) return;
+    fprintf(stderr, "%s", utf);
+    (*env)->ReleaseStringUTFChars(env, text, utf);
 }

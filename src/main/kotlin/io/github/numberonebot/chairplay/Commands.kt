@@ -9,23 +9,48 @@ import com.shilapi.xcertplay.transport.Iap2WirelessLinkRole
 import com.shilapi.xcertplay.transport.forWirelessLink
 import io.github.numberonebot.chairplay.bluetooth.WindowsBluetooth
 import io.github.numberonebot.chairplay.bluetooth.selectIphone
+import io.github.numberonebot.chairplay.log.AppLog
+import io.github.numberonebot.chairplay.log.routeAllOutput
 import io.github.numberonebot.chairplay.media.AudioDevices
 import io.github.numberonebot.chairplay.session.IAP2_IPHONE_UUID
 import io.github.numberonebot.chairplay.session.desktopIdentification
 import io.github.numberonebot.chairplay.session.redactTrace
+import java.nio.file.Path
 
 // The command line's tools besides run: the paired devices and audio devices, and the Bluetooth go/no-go probe.
 
+/**
+ * Runs devices, probe-bt or (for anything else) the usage line, with the output in logs\<command>-<time>.log of
+ * [appDir] instead of a console. Returns the process's exit code. [route] sends the process's output to the log.
+ */
+internal fun runCommand(
+    args: Array<String>,
+    appDir: Path = dataDirectory(),
+    route: (AppLog) -> Unit = ::routeAllOutput,
+): Int {
+    route(appLog)
+    val prefix = when (args.firstOrNull()) {
+        "devices", "probe-bt" -> args[0]
+        else -> "chairplay"
+    }
+    appLog.open(appDir.resolve("logs"), prefix)
+    return when (args.firstOrNull()) {
+        "devices" -> 0.also { listDevices() }
+        "probe-bt" -> if (probeBluetooth(args.getOrNull(1))) 0 else 1
+        else -> 0.also { log("usage: devices | probe-bt [iphone-address] | run") }
+    }
+}
+
 internal fun listDevices() {
-    println("radio ${WindowsBluetooth.localRadioAddress()}")
+    log("radio ${WindowsBluetooth.localRadioAddress()}")
     WindowsBluetooth.pairedDevices().forEach {
-        println("${it.address}  class=0x%06X  ${it.name}".format(it.classOfDevice))
+        log("${it.address}  class=0x%06X  ${it.name}".format(it.classOfDevice))
     }
     // The names audio.output and audio.input match against (Java Sound cuts them to 31 characters).
-    println("audio outputs:")
-    AudioDevices.outputs().forEach { println("  ${it.name}") }
-    println("audio inputs:")
-    AudioDevices.inputs().forEach { println("  ${it.name}") }
+    log("audio outputs:")
+    AudioDevices.outputs().forEach { log("  ${it.name}") }
+    log("audio inputs:")
+    AudioDevices.inputs().forEach { log("  ${it.name}") }
 }
 
 /**

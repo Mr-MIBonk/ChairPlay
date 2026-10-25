@@ -40,13 +40,18 @@ enum class LogLevel(val key: String, val shown: String, internal val java: Level
  */
 class AppLog(
     private val clock: () -> LocalDateTime = LocalDateTime::now,
-    private val console: PrintStream = System.out,
+    private val console: PrintStream? = null,
 ) : Closeable {
+    /** Called with the new level each time [level] is set. */
+    @Volatile
+    var onLevel: (LogLevel) -> Unit = {}
+
     @Volatile
     var level = LogLevel.INFO
         set(value) {
             field = value
             if (installed) Logger.getLogger("").level = value.java
+            onLevel(value)
         }
 
     @Volatile
@@ -83,7 +88,8 @@ class AppLog(
             val message = record.message ?: return
             lastJavaLine.set(message)
             val stack = record.thrown?.let { thrown -> "\n" + StringWriter().also { thrown.printStackTrace(PrintWriter(it)) }.toString().trimEnd() }
-            log(LogLevel.of(record.level), message + stack.orEmpty())
+            val tag = if (JMDNS_LOGGERS.any { record.loggerName?.startsWith(it) == true }) "[jmdns] " else ""
+            log(LogLevel.of(record.level), tag + message + stack.orEmpty())
         }
 
         override fun flush() {}
@@ -108,23 +114,26 @@ class AppLog(
         }
     }
 
-    /** Starts this run's file in [dir], removing the oldest beyond the ten newest; a file that cannot open is left out. */
+    /**
+     * Starts this run's file `<prefix>-<date-time>.log` in [dir], removing the oldest of that prefix beyond the ten
+     * newest; a file that cannot open is left out.
+     */
     @Synchronized
-    fun open(dir: Path) {
+    fun open(dir: Path, prefix: String = "chairplay") {
         val lines = early ?: return
         early = null
         runCatching {
             Files.createDirectories(dir)
-            val path = dir.resolve("chairplay-${clock().format(FILE_TIME)}.log")
+            val path = dir.resolve("$prefix-${clock().format(FILE_TIME)}.log")
             file = Files.newBufferedWriter(path)
-            dir.listDirectoryEntries("chairplay-*.log").sortedByDescending { it.name }.drop(KEPT).forEach { Files.deleteIfExists(it) }
-        }.onFailure { console.println("log file not opened in $dir: $it") }
+            dir.listDirectoryEntries("$prefix-*.log").sortedByDescending { it.name }.drop(KEPT).forEach { Files.deleteIfExists(it) }
+        }.onFailure { console?.println("log file not opened in $dir: $it") }
         lines.forEach { toFile(it) }
     }
 
     @Synchronized
     private fun write(line: String) {
-        console.println(line)
+        console?.println(line)
         early?.let { if (it.size < EARLY_MAX) it += line } ?: toFile(line)
     }
 
@@ -136,7 +145,7 @@ class AppLog(
             writer.flush()
         }.onFailure {
             file = null
-            console.println("log file stopped: $it")
+            console?.println("log file stopped: $it")
         }
     }
 
@@ -148,6 +157,7 @@ class AppLog(
 
     private companion object {
         const val TRACE_MARK = "TRACE "
+        val JMDNS_LOGGERS = listOf("javax.jmdns", "org.jmdns")
         const val KEPT = 10
         const val EARLY_MAX = 1000
         val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")

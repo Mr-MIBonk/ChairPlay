@@ -18,6 +18,7 @@ kotlin {
 dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.79")
     implementation("org.jmdns:jmdns:3.6.3")
+    implementation("org.slf4j:slf4j-jdk14:2.0.7")
     implementation("net.java.dev.jna:jna-platform:5.15.0")
     // Native classifiers are pinned to windows-x86_64: the *-platform artifacts of javacpp presets pull
     // every OS, hundreds of megabytes this Windows-only app never loads.

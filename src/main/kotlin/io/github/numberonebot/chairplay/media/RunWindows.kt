@@ -1,7 +1,15 @@
 package io.github.numberonebot.chairplay.media
 
+import io.github.numberonebot.chairplay.appLog
+import io.github.numberonebot.chairplay.log.AppLog
+import io.github.numberonebot.chairplay.log.LogLevel
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWErrorCallback
+
+/** GLFW's errors as warning lines in [log], each as `[glfw] 0x<code>: <description>`. */
+fun glfwErrorCallback(log: AppLog): GLFWErrorCallback = GLFWErrorCallback.create { code, description ->
+    log.log(LogLevel.WARNING, "[glfw] 0x${code.toString(16)}: ${GLFWErrorCallback.getDescription(description)}")
+}
 
 /** The wait between passes while a fade runs: a little over a frame at 120 Hz. */
 private const val FADE_FRAME_SECONDS = 0.008
@@ -13,7 +21,7 @@ private const val FADE_FRAME_SECONDS = 0.008
  * is due (the GPS car while it drives); null leaves the loop to sleep until something happens.
  */
 fun runWindows(main: VideoWindow, vararg others: VideoWindow, pass: () -> Double? = { null }) {
-    GLFWErrorCallback.createPrint(System.err).set()
+    glfwErrorCallback(appLog).set()
     check(glfwInit()) { "cannot initialise GLFW" }
     val open = mutableListOf(main)
     try {

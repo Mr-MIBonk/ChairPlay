@@ -1,5 +1,7 @@
 package io.github.numberonebot.chairplay.hud.maneuver
 
+import io.github.numberonebot.chairplay.log.AppLog
+import io.github.numberonebot.chairplay.log.LogLevel
 import java.nio.ByteBuffer
 
 /**
@@ -74,6 +76,17 @@ internal object ManeuverNative {
 
     @JvmStatic external fun shutdown()
 
+    /** What the renderer wrote to stderr since the last call (the DLL keeps up to 16 KiB), cleared; null when nothing. */
+    @JvmStatic external fun drainLog(): String?
+
+    /** For tests: has the DLL write [text] to stderr, as the renderer does. */
+    @JvmStatic external fun logSelfTest(text: String)
+
     /** The GLSL translation the GL layer applies to the renderer's shaders; needs no GL context. */
     @JvmStatic external fun glslToCore(source: String, fragment: Boolean): String?
+}
+
+/** Logs what the renderer wrote to stderr since the last call, each non-blank line as a warning tagged [native]. */
+internal fun drainManeuverLog(log: AppLog) {
+    ManeuverNative.drainLog()?.lineSequence()?.filter { it.isNotBlank() }?.forEach { log.log(LogLevel.WARNING, "[native] $it") }
 }

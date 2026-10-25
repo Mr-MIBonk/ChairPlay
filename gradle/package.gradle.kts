@@ -77,7 +77,6 @@ val jpackageImage by tasks.registering(Exec::class) {
             "--main-jar", "chairplay.jar",
             "--main-class", "io.github.numberonebot.chairplay.MainKt",
             "--arguments", "run",
-            "--win-console",
             "--icon", icon.asFile.path,
             "--add-modules", appImageModules.joinToString(","),
             "--dest", outDir.get().asFile.path,
@@ -151,20 +150,19 @@ tasks.register<JavaExec>("deploy") {
     args(appHome.get())
 }
 
-// Starts the deployed app in its own console window, so it is stopped by closing its window: a task runner's
-// stop button would kill it hard, and the iPhone then ignores new sessions until it restarts.
+// Starts the deployed app detached, so it is stopped by closing its window: a task runner's stop button
+// would kill it hard, and the iPhone then ignores new sessions until it restarts.
 tasks.register<Exec>("launchApp") {
     group = "application"
-    description = "Starts ChairPlay.exe from the app folder (chairplay.home) in a hidden console."
+    description = "Starts ChairPlay.exe from the app folder (chairplay.home), detached from Gradle."
     val home = appHome.map { file(it) }
     doFirst {
         check(home.get().resolve("ChairPlay.exe").isFile) { "no ChairPlay.exe in ${home.get()}; run deploy first" }
     }
-    // Hidden: a console window, closed, would hard-kill the app, and the iPhone then ignores new sessions. The app
-    // logs into its logs folder and closes with its windows.
+    // The app has no console: it logs into its logs folder and closes with its windows.
     val folder = home.get().path.replace("'", "''")
     commandLine("powershell", "-NoProfile", "-Command",
-        "Start-Process -FilePath '$folder\\ChairPlay.exe' -WorkingDirectory '$folder' -WindowStyle Hidden")
+        "Start-Process -FilePath '$folder\\ChairPlay.exe' -WorkingDirectory '$folder'")
 }
 
 tasks.register<Exec>("listDevices") {
@@ -172,4 +170,11 @@ tasks.register<Exec>("listDevices") {
     description = "Lists the Bluetooth radio, paired devices and sound devices with the deployed app."
     val home = appHome.map { file(it) }
     commandLine(home.get().resolve("ChairPlay.exe").path, "devices")
+    // The app has no console: it wrote the list to logs/devices-<time>.log, which is shown here.
+    doLast {
+        val newest = home.get().resolve("logs").listFiles { f -> f.name.startsWith("devices-") && f.name.endsWith(".log") }
+            ?.maxByOrNull { it.name }
+        check(newest != null) { "no devices-*.log in ${home.get().resolve("logs")}" }
+        println(newest.readText())
+    }
 }

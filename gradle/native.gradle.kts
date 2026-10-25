@@ -126,11 +126,11 @@ tasks.register<Exec>("speexEchoDll") {
 // chairplay_maneuver.dll. It goes wherever speex_echo.dll goes: build/native for tests and run, bin/ of the
 // distribution, the app image's root. The C++ part links zig's static libc++, so the DLL needs only Windows' UCRT.
 val maneuverCSources = listOf("render.c", "maneuver.c", "route_path.c") +
-    listOf("engine.c", "gl_core.c", "jni.c").map { "chairplay/$it" }
+    listOf("engine.c", "gl_core.c", "jni.c", "stderr_capture.c").map { "chairplay/$it" }
 val maneuverCxxSources = listOf("scene.cpp", "geometry.cpp", "layout.cpp", "lane_panel.cpp").map { "scene/$it" }
-// Upstream's flags (maneuver_render/Makefile).
+// Upstream's flags (maneuver_render/Makefile), plus the stderr capture forced into every C file (C++ files print nothing).
 val maneuverDefines = listOf("-DPLATFORM_CHAIRPLAY")
-val maneuverCFlags = listOf("-std=gnu99", "-Wall", "-Wextra", "-Wno-unused-parameter")
+val maneuverCFlags = listOf("-std=gnu99", "-Wall", "-Wextra", "-Wno-unused-parameter", "-include", "chairplay/stderr_capture.h")
 val maneuverCxxFlags = listOf("-std=c++11", "-fno-exceptions", "-fno-rtti", "-Wall")
 
 tasks.register<Exec>("maneuverDll") {

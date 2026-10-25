@@ -69,22 +69,24 @@ To install somewhere else, give the folder as the `chairplay.home` property: onc
 chairplay.home=C:/Apps/ChairPlay
 ```
 
-`gradlew launchApp` starts the app from the same folder in its own console window, and `gradlew listDevices`
-lists the Bluetooth and sound devices with it.
+`gradlew launchApp` starts the app from the same folder, and `gradlew listDevices`
+lists the Bluetooth and sound devices with it: the app has no console, so the list is written to
+`logs\devices-<date-time>.log` in that folder, and `listDevices` prints the newest one.
 
 ## In VS Code
 
 The repository recommends the Gradle for Java extension, whose side panel lists every Gradle task (`test`,
-`jpackageImage`, `deploy`, ...). Terminal > Run Task adds the rest: Deploy and run, Run ChairPlay (in its
-own console window), List devices and Stop Gradle daemon. Stop the app by closing its window or with Ctrl+C in its
-console, never with Terminate Task, which kills it hard.
+`jpackageImage`, `deploy`, ...). Terminal > Run Task adds the rest: Deploy and run, Run ChairPlay, List
+devices and Stop Gradle daemon. The app has no console: stop it by closing the CarPlay window, never with
+Terminate Task, which kills it hard.
 
 ## Set up
 
 The files below live in the app folder, next to `ChairPlay.exe`.
 
 1. **Pair the iPhone** in Windows Settings > Bluetooth & devices. `ChairPlay.exe devices` lists the radio and the
-   paired devices (it connects to nothing).
+   paired devices (it connects to nothing). It has no console, so the list is written to
+   `logs\devices-<date-time>.log` in the app folder; `gradlew listDevices` runs it and prints that file.
 2. **MFi identity files.** The wireless handshake needs an Apple MFi identity (certificate and key files). This
    project does not ship them and the app image never contains them. Put your own files in `offline-mfi\`.
 3. **Settings.** `deploy` (or the first start, for a folder filled by hand) writes `settings.properties` with
@@ -177,7 +179,7 @@ The files below live in the app folder, next to `ChairPlay.exe`.
 
    The settings apply at the next start (the Wi-Fi network with the next connection, `ui.autoshow` and
    `ui.controls.keys` at once); the
-   console prints what the iPhone was told, for example
+   log (`logs\chairplay-<date-time>.log` in the app folder) shows what the iPhone was told, for example
    `display 1280x720 px, 200x113 mm (163 ppi), 60 fps; window 1280x720`.
 4. **Firewall.** Windows Firewall drops the iPhone's inbound connections. Add the rule, in Get started and on the
    Connection page, adds these rules with the administrator's consent (Windows asks once); or add them yourself, once,
@@ -206,8 +208,8 @@ ChairPlay.exe
 ```
 
 With no arguments the launcher runs `run`. Passing any argument replaces that default, so `ChairPlay.exe devices`
-and `ChairPlay.exe probe-bt [iphone-address]` run those commands instead. The app is a console program: it logs
-to the console window, and the CarPlay screen opens in its own window, titled ChairPlay.
+and `ChairPlay.exe probe-bt [iphone-address]` run those commands instead. The app has no console: it logs
+to `logs\chairplay-<date-time>.log` in the app folder, and the CarPlay screen opens in its own window, titled ChairPlay.
 
 The iPhone lists the PC as **ChairPlay** (or `device.name`). The CarPlay home screen shows ChairPlay's armchair (`car.icon`) where a car shows its maker's;
 tapping it opens the settings over CarPlay and leaves CarPlay running.
@@ -220,7 +222,7 @@ always goes back and Enter always selects, whatever the file says; a file that b
 has any other mistake, stops the start and names the setting. Delete the file to get the defaults back.
 
 F12 (`key.screenshot`) saves the CarPlay screen, and the AltScreen when it is on, as PNGs at the size the
-iPhone draws them, not the windows', in `screenshots` in the app folder; the console prints the file names. For unattended runs, the environment variable
+iPhone draws them, not the windows', in `screenshots` in the app folder; the log names the files. For unattended runs, the environment variable
 `CHAIRPLAY_SCREENSHOT_AFTER=<seconds>` saves one screenshot that many seconds after the first picture. It saves
 CarPlay's picture only, never the settings.
 
@@ -278,11 +280,11 @@ While the page covers the window, the keyboard and the mouse are the page's; whi
 hidden and every key works as before.
 
 The page runs in Microsoft Edge WebView2, which Windows 11 and an updated Windows 10 carry. Without it (or without
-`chairplay_webview.dll`) the app opens the page in the default browser, says so in the console, and the car
+`chairplay_webview.dll`) the app opens the page in the default browser, says so in the log, and the car
 button minimizes the window as before. WebView2 keeps its profile (cache) in `%LOCALAPPDATA%\ChairPlay\WebView2`.
 
 The page talks to the app over HTTP on `127.0.0.1` only, on a free port, with a random key in its address; the
-console prints the whole address at start (`UI at http://127.0.0.1:<port>/?token=<key>`), and any browser on the
+log has the whole address from the start (`UI at http://127.0.0.1:<port>/?token=<key>`), and any browser on the
 PC can open it, for example to look at the screens from a second monitor. Every API call carries the key, and a
 request naming another host than `127.0.0.1` or `localhost` is refused.
 
@@ -302,7 +304,7 @@ The page's sources are in `webui\src`. To work on them with Vite's dev server, w
    ```
 
    Its proxy sends `/api` to `127.0.0.1:%CHAIRPLAY_UI_PORT%` (47800 when unset).
-3. Open `http://localhost:5173/?token=<the key from the app's console>` in a browser.
+3. Open `http://localhost:5173/?token=<the key from the app's log>` in a browser.
 
 `npm test` (or `gradlew webuiTest`) runs the page's tests, and `gradlew webuiBuild` builds it as the app ships it.
 `CHAIRPLAY_UI_DEBUG=1` turns on the developer tools (F12) and the context menu inside the app's window.

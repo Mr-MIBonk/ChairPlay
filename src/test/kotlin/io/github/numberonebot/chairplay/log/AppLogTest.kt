@@ -117,6 +117,24 @@ class AppLogTest {
         assertTrue("chairplay-2026-10-04-120000.log" in names)
     }
 
+    // The command-line modes write their own files; each prefix keeps its ten newest and leaves the others alone.
+    @Test
+    fun `a prefix names the file and rotates on its own`() {
+        dir.resolve("chairplay-2026-10-01-120000.log").writeText("app\n")
+        for (day in 1..11) dir.resolve("devices-2026-10-%02d-120000.log".format(day)).writeText("old\n")
+
+        log.info("before open")
+        log.open(dir, prefix = "devices")
+        log.close()
+
+        val names = dir.listDirectoryEntries().map { it.name }.sorted()
+        assertEquals(10, names.count { it.startsWith("devices-") })
+        assertTrue("devices-2026-10-23-203536.log" in names)
+        assertTrue("devices-2026-10-01-120000.log" !in names)
+        assertTrue("chairplay-2026-10-01-120000.log" in names)
+        assertTrue(dir.resolve("devices-2026-10-23-203536.log").readLines().single().endsWith("before open"))
+    }
+
     @Test
     fun `log levels are read from the settings' words`() {
         assertEquals(LogLevel.TRACE, LogLevel.of("trace"))
