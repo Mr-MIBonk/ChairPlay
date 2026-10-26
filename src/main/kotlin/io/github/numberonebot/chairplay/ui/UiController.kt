@@ -7,7 +7,6 @@ import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.input.ControlsConfig
 import io.github.numberonebot.chairplay.input.ControlsFile
 import io.github.numberonebot.chairplay.media.AudioDevices
-import java.nio.file.Files
 import java.time.format.DateTimeFormatter
 
 /**
@@ -249,7 +248,7 @@ class UiController(
             "restartPending" to state.restartPending.sorted(),
             "setup" to linkedMapOf(
                 "mfiFolder" to setup.mfiDirectory.toString(),
-                "mfiPresent" to MFI_FILES.all { Files.isRegularFile(setup.mfiDirectory.resolve(it)) },
+                "mfiPresent" to mfiFilesPresent(setup.mfiDirectory),
                 "firewall" to (checks?.snapshot?.firewall ?: setup.firewall).name.lowercase(),
                 "pairedIphone" to checks?.snapshot?.pairedIphone,
                 "pcWifi" to checks?.snapshot?.pcWifi,
@@ -289,7 +288,6 @@ class UiController(
     }
 
     private companion object {
-        val MFI_FILES = listOf("identity.pk8", "certificate.p7b")
         val TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
         /** The windows the page has triggers for, each in the state whether it is there or not. */
         val WINDOWS = listOf("altscreen", "controls")

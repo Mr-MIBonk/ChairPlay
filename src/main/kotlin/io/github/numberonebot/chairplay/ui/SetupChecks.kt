@@ -1,17 +1,28 @@
 package io.github.numberonebot.chairplay.ui
 
 import java.io.Closeable
+import java.nio.file.Files
+import java.nio.file.Path
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
-/** What Get started and the Connection page check on the PC: the paired iPhone's name, the PC's network, the firewall. */
-data class SetupSnapshot(val pairedIphone: String?, val pcWifi: String?, val firewall: FirewallStatus)
+/** The MFi files the iAP2 authentication signs with, which Get started asks for. */
+private val MFI_FILES = listOf("identity.pk8", "certificate.p7b")
+
+/** Whether both MFi files are in [dir]. */
+internal fun mfiFilesPresent(dir: Path): Boolean = MFI_FILES.all { Files.isRegularFile(dir.resolve(it)) }
+
+/**
+ * What Get started and the Connection page check on the PC: the paired iPhone's name, the PC's network, the firewall,
+ * and whether the MFi files are in their folder.
+ */
+data class SetupSnapshot(val pairedIphone: String?, val pcWifi: String?, val firewall: FirewallStatus, val mfiPresent: Boolean = false)
 
 /**
  * The setup as it is now, read again every few seconds so the steps tick themselves as the PC changes: an iPhone
- * paired, the PC on a network, a firewall rule added. Nothing is read while the page is not shown ([active]). The
- * firewall takes a PowerShell to read, so it is read again only while it is wrong (not while it is off), and at most every
- * [FIREWALL_EVERY_SECONDS]. A reader that fails reads as nothing found.
+ * paired, the PC on a network, a firewall rule added, the MFi files put in place. Nothing is read while the page is not
+ * shown ([active]). The firewall takes a PowerShell to read, so it is read again only while it is wrong (not while it is
+ * off), and at most every [FIREWALL_EVERY_SECONDS]. A reader that fails reads as nothing found.
  */
 class SetupChecks(
     private val pairedIphone: () -> String?,
@@ -21,6 +32,7 @@ class SetupChecks(
     startFirewall: FirewallStatus,
     private val active: () -> Boolean,
     private val now: () -> Long = System::nanoTime,
+    private val mfiPresent: () -> Boolean = { false },
 ) {
     @Volatile
     var snapshot = SetupSnapshot(null, null, startFirewall)
@@ -40,7 +52,10 @@ class SetupChecks(
             firewallRead = time
             firewallNow = runCatching(firewall).getOrDefault(firewallNow)
         }
-        val after = SetupSnapshot(runCatching(pairedIphone).getOrNull(), runCatching(pcWifi).getOrNull(), firewallNow)
+        val after = SetupSnapshot(
+            runCatching(pairedIphone).getOrNull(), runCatching(pcWifi).getOrNull(), firewallNow,
+            runCatching(mfiPresent).getOrDefault(false),
+        )
         snapshot = after
         return after != before
     }

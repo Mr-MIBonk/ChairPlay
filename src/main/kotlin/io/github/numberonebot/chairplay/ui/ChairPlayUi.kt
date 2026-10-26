@@ -72,6 +72,7 @@ class ChairPlayUi(
         firewall = readFirewall,
         startFirewall = firewall,
         active = { model.state.showsUi },
+        mfiPresent = { mfiFilesPresent(config.mfiDirectory().toPath()) },
     )
 
     private val controller = UiController(

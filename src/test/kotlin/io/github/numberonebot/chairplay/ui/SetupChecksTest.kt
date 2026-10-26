@@ -24,6 +24,24 @@ class SetupChecksTest {
         now = { nanos },
     )
 
+    // Get started says ChairPlay finds the MFi files on its own: a round must notice them arrive, as it does a pairing.
+    @Test
+    fun `a round notices the MFi files arrive and go`() {
+        var mfi = false
+        val checks = SetupChecks({ iphone }, { wifi }, { firewall }, FirewallStatus.MISSING, { active }, { nanos }, { mfi })
+        checks.check()
+        assertFalse(checks.snapshot.mfiPresent)
+
+        mfi = true
+        assertTrue(checks.check())
+        assertTrue(checks.snapshot.mfiPresent)
+        assertFalse(checks.check())
+
+        mfi = false
+        assertTrue(checks.check())
+        assertFalse(checks.snapshot.mfiPresent)
+    }
+
     private fun seconds(n: Long) {
         nanos += TimeUnit.SECONDS.toNanos(n)
     }
