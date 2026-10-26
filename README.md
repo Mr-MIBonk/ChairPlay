@@ -20,7 +20,8 @@ separate project, not affiliated with their authors or with Apple.
   devices see each other: most home networks do, guest networks usually don't. It must use WPA2 or no password;
   WPA3-only networks don't work yet.
 - **An Apple MFi identity**, a certificate and key that let the iPhone accept an accessory. ChairPlay doesn't include
-  one and can't: you supply your own. [The setup guide](docs/SETUP.md) shows where the files go.
+  one: provide your own certificate and key.
+  [The setup guide](docs/SETUP.md#set-up) shows where the files go.
 
 ## Get started
 
@@ -28,15 +29,19 @@ separate project, not affiliated with their authors or with Apple.
    [Releases page](https://github.com/NumberOneBot/ChairPlay/releases) and run it. No administrator rights needed.
    If Windows SmartScreen warns about an unrecognized app, choose **More info → Run anyway**.
 2. **Pair your iPhone** with the PC once, in Windows Settings → Bluetooth & devices, as you would headphones.
-3. **Open ChairPlay.** The **Get started** screen checks everything for you: the MFi files (it shows the folder to
-   put them in), the firewall (it adds the rule with your permission), your paired iPhone and your Wi-Fi network. Each
-   step ticks off as soon as it's ready.
-4. **Unlock your iPhone and tap Allow** when it asks. CarPlay comes up.
+3. **Open ChairPlay.** The **Get started** screen checks the MFi files, the firewall, your paired iPhone, and your
+   Wi-Fi network. If the MFi files are missing, it shows the folder to put them in; if both are already there, that
+   step is omitted. The firewall step is also omitted when Windows Firewall is off.
+4. **Connect.** When the checks are complete, keep your iPhone unlocked and nearby and press **Connect**.
+   Accept the CarPlay prompt on the iPhone. CarPlay comes up.
 
 After that, open ChairPlay with your iPhone unlocked and nearby, and CarPlay starts by itself.
 
 A newer installer updates ChairPlay and keeps your settings, pairing and MFi files. Uninstalling asks whether to
 delete them too.
+
+See the [changelog](CHANGELOG.md) for changes between versions and the
+[1.0.1 release notes](docs/RELEASE-NOTES-1.0.1.md) for the upcoming update.
 
 ## Features
 
@@ -48,32 +53,34 @@ delete them too.
   map, the turn card or both, in a preset part of the cluster or a rectangle you draw. It can also show a **HUD**: the
   next turn with animated 3D maneuvers, the distance, the arrival time and the song.
 - **GPS spoofing** (experimental): the iPhone navigates by a virtual car you drive with the keyboard or a gamepad.
-  The optional [satellite reports](docs/GPS.md) predict the sky at the car's position from a downloaded GPS almanac.
+  The optional [satellite reports](docs/GPS.md) predict the sky at the car's position and current time from a
+  downloaded GPS almanac, cached for offline use. They are off by default; enable **Send satellites in view** and
+  reconnect to try them. They do not guarantee a larger accepted spoofing range.
 
 Settings are in the app and save as you change them. Tested on Windows 11 with an iPhone 15 (iOS 18.6).
 
 ## Controls
 
-| Key                                          | Does                                                          |
-| -------------------------------------------- | ------------------------------------------------------------- |
-| Mouse                                        | touch                                                         |
-| Arrows                                       | tilt the knob: move the focus                                 |
-| Tab / Shift+Tab, mouse wheel                 | turn the knob                                                 |
-| Enter, Space                                 | select                                                        |
-| Backspace, Esc                               | back                                                          |
-| Home                                         | home screen                                                   |
-| Ctrl+R                                       | reconnect                                                     |
-| S                                            | Siri                                                          |
-| F3 / F4                                      | answer / end a call                                           |
-| F7 / F8 / F9                                 | previous track / play or pause / next track                   |
-| F10                                          | drive the GPS car with the arrows (GPS spoofing on)           |
-| Shift+F10                                    | large or small gauges for the GPS car                         |
-| F11                                          | AltScreen: switch between the HUD and the map                 |
-| Shift+F11                                    | AltScreen: move the arrival time and turn card                |
-| F12                                          | save screenshots of CarPlay and the AltScreen                 |
-| Ctrl+Up / Ctrl+Down / Ctrl+M                 | ChairPlay's volume up / down / mute                           |
-| Mouse wheel over the AltScreen, + / −        | zoom the AltScreen map                                        |
-| The car button on the CarPlay home screen    | open the settings; the CarPlay button or Esc returns          |
+| Key                                       | Does                                                 |
+| ----------------------------------------- | ---------------------------------------------------- |
+| Mouse                                     | touch                                                |
+| Arrows                                    | tilt the knob: move the focus                        |
+| Tab / Shift+Tab, mouse wheel              | turn the knob                                        |
+| Enter, Space                              | select                                               |
+| Backspace, Esc                            | back                                                 |
+| Home                                      | home screen                                          |
+| Ctrl+R                                    | reconnect                                            |
+| S                                         | Siri                                                 |
+| F3 / F4                                   | answer / end a call                                  |
+| F7 / F8 / F9                              | previous track / play or pause / next track          |
+| F10                                       | drive the GPS car with the arrows (GPS spoofing on)  |
+| Shift+F10                                 | large or small gauges for the GPS car                |
+| F11                                       | AltScreen: switch between the HUD and the map        |
+| Shift+F11                                 | AltScreen: move the arrival time and turn card       |
+| F12                                       | save screenshots of CarPlay and the AltScreen        |
+| Ctrl+Up / Ctrl+Down / Ctrl+M              | ChairPlay's volume up / down / mute                  |
+| Mouse wheel over the AltScreen, + / −     | zoom the AltScreen map                               |
+| The car button on the CarPlay home screen | open the settings; the CarPlay button or Esc returns |
 
 Change any key on the Keyboard page.
 
@@ -117,8 +124,8 @@ The HUD's 3D maneuvers and destination flag are LuKa's, from
 [native/maneuver/README.md](native/maneuver/README.md) lists what was taken and changed. The notices of the bundled
 libraries are in `THIRD_PARTY_NOTICES` and come with the app.
 
-CarPlay, iPhone, AirPlay and Siri are trademarks of Apple Inc. ChairPlay is not affiliated with Apple and does not
-include any Apple MFi identity.
+CarPlay, iPhone, AirPlay and Siri are trademarks of Apple Inc. ChairPlay is not affiliated with Apple.
+No Apple MFi identity is stored in this repository.
 
 ## Support the project
 
