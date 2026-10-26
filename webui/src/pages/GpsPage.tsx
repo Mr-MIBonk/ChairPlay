@@ -105,7 +105,7 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
         {check(
           'gps.satellites',
           'Send satellites in view',
-          'A clear sky of ten satellites; try it if the iPhone keeps to its own GPS',
+          'Predicted satellites for the current position and time, using a downloaded almanac; signal levels are simulated',
           false,
           true,
         )}

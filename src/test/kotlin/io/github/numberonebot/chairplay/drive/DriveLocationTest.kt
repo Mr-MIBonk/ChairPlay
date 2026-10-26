@@ -14,7 +14,9 @@ class DriveLocationTest {
     private fun drive(heading: Double = 0.0) = Drive(CarSpec(), kyiv, heading) { now }
 
     private fun location(drive: Drive, satellites: Boolean = false) =
-        DriveLocation(drive, satellites, nanoTime = { now }, wallMillis = { wallClock })
+        DriveLocation(drive, satellites, nanoTime = { now }, wallMillis = { wallClock }, satelliteSentences = { _, _ -> sky() })
+
+    private fun sky() = SatelliteGeometry.gsv((1..10).map { VisibleSatellite(it, 45, it * 30) })
 
     private fun Drive.tick(seconds: Double) {
         repeat((seconds * 60).toInt()) { now += frame; advance() }
@@ -148,11 +150,11 @@ class DriveLocationTest {
     @Test
     fun `attached to the tunnel, the GPS sends at the rate set`() {
         var wall = wallClock
-        var settings = GpsSettings(true, rate = 4)
+        var settings = GpsSettings(true, satellites = true, rate = 4)
         val schedule = FakeSchedule()
         val drive = drive(heading = 90.0)
         val location = DriveLocation(drive, satellites = true, nanoTime = { now }, wallMillis = { wall },
-            settings = { settings }, schedule = schedule::start)
+            settings = { settings }, schedule = schedule::start, satelliteSentences = { _, _ -> sky() })
         val sent = mutableListOf<String>()
         location.attach { parameters -> sent += parameters.joinToString("") }
         location.onRequested(setOf(1, 2, 3, 4))

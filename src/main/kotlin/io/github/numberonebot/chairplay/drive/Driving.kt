@@ -16,6 +16,7 @@ class Driving(
     private val log: (String) -> Unit = {},
     gamepad: () -> FloatArray? = GlfwGamepad::axes,
     private val nanoTime: () -> Long = System::nanoTime,
+    private val satelliteSentences: (GeoPoint, Long) -> String? = { _, _ -> null },
 ) {
     /** Saves the car's place as gps.start and gps.heading, as the GPS page saves them; the app sets it. */
     @Volatile var savePlace: (Map<String, String>) -> Unit = {}
@@ -69,7 +70,7 @@ class Driving(
     /** The iPhone's GPS for a connection that identified with it. */
     fun location(gps: GpsSettings): Iap2LocationProvider =
         DriveLocation(drive, gps.satellites, log, nanoTime = nanoTime, placed = { placed }, settings = { settings },
-            onSent = { onSent() }).also { link = it }
+            onSent = { onSent() }, satelliteSentences = satelliteSentences).also { link = it }
 
     /**
      * The gps.* settings saved as [now], [keys] among them: a place puts the car there facing the heading, a heading

@@ -20,6 +20,7 @@ import io.github.numberonebot.chairplay.log.routeAllOutput
 import io.github.numberonebot.chairplay.log.routeFfmpegLog
 import io.github.numberonebot.chairplay.media.runWindows
 import io.github.numberonebot.chairplay.drive.Driving
+import io.github.numberonebot.chairplay.drive.AlmanacCache
 import io.github.numberonebot.chairplay.media.saveScreenshot
 import io.github.numberonebot.chairplay.session.WirelessBootstrap
 import io.github.numberonebot.chairplay.ui.BuildInfo
@@ -110,7 +111,8 @@ private fun runCarPlay(windowsOpen: () -> Unit) {
     val bindings = AtomicReference(controlsConfig)
     // The spoofed GPS's car (gps.*): driven on the window loop by a gamepad, or by the arrows in drive mode (F10); each
     // connection with gps.enabled sends it to the iPhone.
-    val driving = Driving(config.gps, ::log)
+    val almanac = AlmanacCache(dir.resolve("gps-almanac.yuma"), ::log)
+    val driving = Driving(config.gps, ::log, satelliteSentences = almanac::sentences)
     // Ctrl+R: set once the bootstrap exists; closing a session talks to the network, so not on the GL thread.
     val restartBootstrap = AtomicReference<() -> Unit> {}
     // Reconnect retires the session unheard: set below, this ends it on the screens as a lost one would, CarPlay giving
@@ -252,7 +254,6 @@ private fun runCarPlay(windowsOpen: () -> Unit) {
         title.notConnected()
     }
     bootstrap.onStatus = ui::bringUp
-    // A display size saved since comes with the next connection: the window takes the new picture's shape and size.
     // The screens saved since come with the next connection: the main window takes the new picture's shape and size,
     // and the AltScreen turns on or off, or takes its new size and the view it starts with.
     bootstrap.onConnection = { now ->
@@ -269,6 +270,7 @@ private fun runCarPlay(windowsOpen: () -> Unit) {
         // The window is gone at once; the sound fades over the seconds the session takes to end.
         sink.fadeOut()
         driving.close()
+        almanac.close()
         ui.close()
         themeWatch.shutdownNow()
         bootstrap.close()

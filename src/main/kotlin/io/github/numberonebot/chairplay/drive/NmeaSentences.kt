@@ -52,8 +52,8 @@ object NmeaSentences {
                 sentence("GPRMC,$time,A,$place,$knots,$course,$date,,")
             NmeaDialect.MODERN -> sentence("GNGGA,$time,$place,1,$SATELLITES_USED,$HDOP,0.0,M,0.0,M,,") +
                 sentence("GNRMC,$time,A,$place,$knots,$course,$date,,,A") +
-                sentence("GNGSA,A,3,${SatellitesInView.PRNS.joinToString(",") { format("%02d", it) }}" +
-                    ",".repeat(12 - SatellitesInView.PRNS.size) + ",$PDOP,$HDOP,$VDOP") +
+                sentence("GNGSA,A,3,${MODELED_USED_PRNS.joinToString(",") { format("%02d", it) }}" +
+                    ",".repeat(12 - MODELED_USED_PRNS.size) + ",$PDOP,$HDOP,$VDOP") +
                 sentence("GNVTG,$course,T,,M,$knots,N,${format("%.2f", fix.metersPerSecond.coerceAtLeast(0.0) * 3.6)},K,A")
         }
     }
@@ -84,4 +84,6 @@ object NmeaSentences {
     private const val PDOP = "0.9"
     private const val VDOP = "0.7"
     private const val SATELLITES_USED = "10"
+    // Legacy modern-dialect fix model, independent of the optional predicted satellites-in-view (GSV).
+    private val MODELED_USED_PRNS = listOf(2, 5, 7, 9, 13, 15, 18, 20, 24, 29)
 }

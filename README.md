@@ -48,6 +48,7 @@ delete them too.
   map, the turn card or both, in a preset part of the cluster or a rectangle you draw. It can also show a **HUD**: the
   next turn with animated 3D maneuvers, the distance, the arrival time and the song.
 - **GPS spoofing** (experimental): the iPhone navigates by a virtual car you drive with the keyboard or a gamepad.
+  The optional [satellite reports](docs/GPS.md) predict the sky at the car's position from a downloaded GPS almanac.
 
 Settings are in the app and save as you change them. Tested on Windows 11 with an iPhone 15 (iOS 18.6).
 

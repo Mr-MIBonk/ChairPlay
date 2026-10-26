@@ -20,7 +20,7 @@ interface PacedLocation {
 
 /**
  * The spoofed car as the iPhone's GPS, for iAP2 LocationInformation: its place, speed and course in the sentences
- * gps.nmea picks; $GPGSV, a sky of strong satellites, once a second when asked and [satellites] is on; and $PASCD, its
+ * gps.nmea picks; predicted $GPGSV at its current position, once a second when asked and [satellites] is on; and $PASCD, its
  * wheel speed ten times a second, when asked, for the iPhone to reckon between the fixes. A car not [placed] anywhere
  * yet sends no position, only its wheel speed.
  *
@@ -34,11 +34,13 @@ class DriveLocation(
     private val nanoTime: () -> Long = System::nanoTime,
     private val wallMillis: () -> Long = System::currentTimeMillis,
     private val placed: () -> Boolean = { true },
-    private val settings: () -> GpsSettings = { GpsSettings(enabled = true, rate = 1) },
+    private val settings: () -> GpsSettings = { GpsSettings(enabled = true, satellites = satellites, rate = 1) },
     /** Runs the action every period, read again each time, until closed. */
     private val schedule: (period: () -> Long, action: () -> Unit) -> AutoCloseable = ::repeatEvery,
     /** Hears each update as it goes, for the GPS page to show what the iPhone was just sent. */
     private val onSent: () -> Unit = {},
+    /** Calculated from the same position and UTC as the fix; null while fresh orbital data is unavailable. */
+    private val satelliteSentences: (GeoPoint, Long) -> String? = { _, _ -> null },
 ) : Iap2LocationProvider, PacedLocation {
     /** What the GPS page shows: whether the iPhone listens, the sentence types it asked for, and the updates sent. */
     data class Status(val listening: Boolean, val requested: Set<Int>, val sent: Long)
@@ -114,16 +116,19 @@ class DriveLocation(
     private fun compose(): String? {
         val now = settings()
         val car = drive.snapshot()
-        val position = if (placed()) {
+        val wall = wallMillis()
+        val hasPosition = placed()
+        val position = if (hasPosition) {
             val course = when {
                 !now.sendHeading -> null
                 car.car.speed > 0 -> car.car.headingDegrees
                 car.car.speed < 0 -> (car.car.headingDegrees + 180) % 360
                 else -> null
             }
-            NmeaSentences.position(NmeaFix(car.position, abs(car.car.speed), course), wallMillis(), now.nmea)
+            NmeaSentences.position(NmeaFix(car.position, abs(car.car.speed), course), wall, now.nmea)
         } else null
-        val sky = if (satellites && SATELLITES_IN_VIEW in requested && skyDue()) SatellitesInView.SENTENCES else null
+        val sky = if (hasPosition && satellites && now.satellites && SATELLITES_IN_VIEW in requested && skyDue())
+            satelliteSentences(car.position, wall) else null
         val reading = if (Iap2LocationMessages.VEHICLE_SPEED_DATA in requested) wheelSpeed(car) else null
         record(position != null, reading?.samples?.size ?: 0, now)
         val text = listOfNotNull(position, sky, reading?.let(PascdEncoder::encode)).joinToString("")
@@ -194,28 +199,4 @@ fun repeatEvery(period: () -> Long, action: () -> Unit): AutoCloseable {
         start()
     }
     return AutoCloseable { thread.interrupt() }
-}
-
-/** $GPGSV for a clear sky: ten satellites spread around, all with a strong signal, in sentences of four. */
-internal object SatellitesInView {
-    // PRN, elevation, azimuth, signal to noise (dB-Hz).
-    private val sky = listOf(
-        listOf(2, 67, 45, 47), listOf(5, 41, 112, 45), listOf(7, 23, 170, 42), listOf(9, 55, 220, 46),
-        listOf(13, 30, 285, 43), listOf(15, 72, 330, 48), listOf(18, 18, 20, 40), listOf(20, 48, 95, 45),
-        listOf(24, 35, 250, 44), listOf(29, 61, 140, 47),
-    )
-
-    /** The satellites, by PRN, as $GNGSA lists those in the fix. */
-    val PRNS: List<Int> = sky.map { it[0] }
-
-    val SENTENCES: String = sky.chunked(4).let { groups ->
-        groups.mapIndexed { index, group ->
-            NmeaSentences.sentence(
-                "GPGSV,${groups.size},${index + 1},${sky.size}," +
-                    group.joinToString(",") { (prn, elevation, azimuth, snr) ->
-                        String.format(Locale.US, "%02d,%02d,%03d,%02d", prn, elevation, azimuth, snr)
-                    },
-            )
-        }.joinToString("")
-    }
 }
