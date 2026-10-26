@@ -36,12 +36,6 @@ const WHEEL: readonly Choice[] = [
   ['steering', 'Steering'],
 ]
 
-// gps.nmea: the Sentences choice, hidden in the UI until it is tested.
-// const SENTENCES: readonly Choice[] = [
-//   ['classic', 'Classic', "DiPlay's $GPGGA and $GPRMC"],
-//   ['modern', 'Modern', "A current receiver's $GNGGA, $GNRMC, $GNGSA, and $GNVTG"],
-// ]
-
 /**
  * What the iPhone takes, for the iPhone row under the fixes; and how the car goes and what drives it, for the Car
  * group's note (where it is and which way it faces are in the fields).
@@ -108,14 +102,13 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
           'The car heading as the course in the position sentences, so the iPhone can face its arrow the way the car goes',
           true,
         )}
-        {/* Hidden until the satellite almanac ($GPGSV) is tested:
         {check(
           'gps.satellites',
           'Send satellites in view',
           'A clear sky of ten satellites; try it if the iPhone keeps to its own GPS',
           false,
           true,
-        )} */}
+        )}
         {/* Experiment in what the iPhone takes, from the next fix: how often the position goes. */}
         <Row label="Updates" title="How often the car's position goes to the iPhone while it listens">
           <Segmented
@@ -127,15 +120,6 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
           />
           <span className="unit">a second</span>
         </Row>
-        {/* Hidden until the Sentences (NMEA dialect) choice is tested:
-        <Row label="Sentences" title="The NMEA sentences the position goes to the iPhone in">
-          <Segmented
-            label="Sentences"
-            value={value('gps.nmea') || 'classic'}
-            options={SENTENCES}
-            onChange={(nmea) => save({ 'gps.nmea': nmea })}
-          />
-        </Row> */}
         {now && <Row label="iPhone">{now.iphone}</Row>}
         {/* Where the car is, apart from the car itself, whose own settings grow. */}
         <Group title="Position" />
