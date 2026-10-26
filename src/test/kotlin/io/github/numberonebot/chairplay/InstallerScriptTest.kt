@@ -9,7 +9,7 @@ import java.io.File
 /**
  * The installer's directives that decide what it may touch: a per-user install without admin rights into the
  * folder ChairPlay reads its data from, never closing a running ChairPlay, recognizing an earlier install, and
- * clearing or shipping nothing but program files.
+ * clearing only program files and deleting user data only on request.
  */
 class InstallerScriptTest {
     private val sections: Map<String, List<String>> = parse(File("packaging/installer/ChairPlay.iss").readLines())
@@ -61,10 +61,11 @@ class InstallerScriptTest {
         val script = File("packaging/installer/ChairPlay.iss").readText()
         assertTrue(script.contains("#ifndef AppData"))
         assertTrue(script.contains("'{#AppData}'"))
-        val code = script.substringAfter("[Code]")
-        // File names only: the question's words (settings, pairings) are no list. ChairPlay.lock is the running check's.
-        val files = userData.filter { it != "ChairPlay.lock" && (it.contains('.') || it.contains('-')) }
-        for (name in files) assertFalse("[Code] names $name", code.contains(name))
+        // Installation may check individual data files; deletion must use only the build-supplied list.
+        val deletion = script.substringAfter("procedure DeleteData();", "")
+            .substringBefore("procedure CurUninstallStepChanged")
+        assertTrue("Missing DeleteData procedure", deletion.isNotBlank())
+        for (name in userData) assertFalse("DeleteData names $name", deletion.contains(name))
         val gradle = File("gradle/installer.gradle.kts").readText()
         assertTrue(Regex(""""/DAppData=\$\{[^}]*appDataFiles""").containsMatchIn(gradle))
     }
