@@ -53,7 +53,8 @@ val upstreamCore by tasks.registering(Sync::class) {
     doLast {
         for ((path, change) in patches) {
             val file = target.get().file(path).asFile
-            val text = file.readText()
+            // A checkout with core.autocrlf=true (git's default on Windows, GitHub's runners) has CRLF: match on LF.
+            val text = file.readText().replace("\r\n", "\n")
             val found = text.split(change.first).size - 1
             check(found == 1) { "upstream $path: the line to patch is there $found times, not once; update gradle/upstream.gradle.kts" }
             file.writeText(text.replace(change.first, change.second))

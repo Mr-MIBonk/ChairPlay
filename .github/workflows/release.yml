@@ -28,6 +28,10 @@ jobs:
         shell: pwsh
         run: '"VERSION=0.0.0" >> $env:GITHUB_ENV'
 
+      # Files with LF as on the owner's PC: the runner's git defaults to core.autocrlf=true.
+      - name: Check out text files with LF
+        run: git config --global core.autocrlf input
+
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           submodules: true
