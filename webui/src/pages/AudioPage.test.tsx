@@ -54,7 +54,7 @@ describe('Audio page volume', () => {
     const level = screen.getByRole('slider', { name: 'Music at' }) as HTMLInputElement
     expect([level.min, level.max, level.step, level.value]).toEqual(['-30', '0', '1', '-14'])
     fireEvent.change(level, { target: { value: '-20' } })
-    const iPhone = screen.getByRole('checkbox', { name: 'Use iPhone ducking level' }) as HTMLInputElement
+    const iPhone = screen.getByRole('switch', { name: 'Use iPhone ducking level' }) as HTMLInputElement
     expect(iPhone.checked).toBe(true)
     fireEvent.click(iPhone)
 
@@ -91,7 +91,7 @@ describe('Audio page', () => {
 
   it('saves echo cancellation', async () => {
     const backend = await audio()
-    const echo = screen.getByRole('checkbox', {
+    const echo = screen.getByRole('switch', {
       name: 'Echo cancellation',
     }) as HTMLInputElement
     expect(echo.checked).toBe(false)

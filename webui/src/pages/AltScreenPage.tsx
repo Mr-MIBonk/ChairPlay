@@ -1,6 +1,6 @@
 import type { AltscreenContent, AppState, Backend } from '../api'
 import { keyLabel } from '../ControlsScreen'
-import { Checkbox, Group, Row, Segmented, type Choice } from '../shell/controls'
+import { Group, Row, Segmented, Switch, type Choice } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
 import { AreaChooser, type AreaGroup } from './AreaChooser'
 import { CustomArea } from './CustomArea'
@@ -67,7 +67,7 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
     <>
       <Group title="Display" note={note(DISPLAY_KEYS)} />
       <Row>
-        <Checkbox
+        <Switch
           label="Enabled"
           checked={settings.value('altscreen.enabled') === 'true'}
           onChange={(checked) => settings.save({ 'altscreen.enabled': String(checked) })}
@@ -140,7 +140,7 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
           )}
         />
         <Row title="Keep the iPhone drawing the map view picked last while the HUD shows, so the map comes back at once; the iPhone works harder">
-          <Checkbox
+          <Switch
             label="Keep map stream behind HUD"
             checked={settings.value('altscreen.hud.stream') === 'true'}
             onChange={(checked) => settings.save({ 'altscreen.hud.stream': String(checked) })}

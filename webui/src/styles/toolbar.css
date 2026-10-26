@@ -75,7 +75,11 @@
   content: '⟳ ';
 }
 
-/* Buttons; background-color, not background, so the hover's layer stays on top of every variant */
+/*
+ * Buttons as iOS draws its gray and tinted ones: a flat translucent fill and no outline, gradient or shadow; a button
+ * that is on is tinted, the accent at a fifth for the fill and lightened for its icon and text. background-color, not
+ * background, so the hover's layer stays on top of every variant.
+ */
 .shell .btn {
   flex: none;
   display: inline-flex;
@@ -83,9 +87,9 @@
   gap: 6px;
   height: 26px;
   padding: 0 11px;
-  border: 1px solid var(--edge);
-  border-radius: 3px;
-  background-color: var(--raised);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background-color: rgb(118 118 128 / 24%);
   color: var(--text);
   font: 13px var(--ui);
   white-space: nowrap;
@@ -99,8 +103,8 @@
 }
 
 .shell .btn.on {
-  border-color: var(--accent);
-  background-color: var(--accent-bg);
+  background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent-text);
 }
 
 .shell .btn.primary {
@@ -118,16 +122,13 @@
   background-image: var(--lighten);
 }
 
+/* The bar's buttons are capsules; an open window's button is on, and Connect is filled with the accent */
 .shell .tb .btn {
   gap: 8px;
   height: 38px;
-  padding: 0 15px;
-  font: 600 13.5px var(--wide);
-}
-
-.shell .tb .btn:not(.on):not(.primary) {
-  border-color: #3e3e44;
-  background-color: #2c2c31;
+  padding: 0 16px;
+  border-radius: 19px;
+  font: 600 14px var(--ui);
 }
 
 .shell .tb .btn svg {

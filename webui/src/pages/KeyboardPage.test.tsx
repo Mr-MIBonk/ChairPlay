@@ -155,7 +155,7 @@ describe('Keyboard page, the mouse and held keys', () => {
     const backend = await keyboard()
 
     fireEvent.click(within(screen.getByRole('radiogroup', { name: 'Wheel' })).getByRole('radio', { name: 'Off' }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Invert' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Invert' }))
     fireEvent.change(screen.getByRole('textbox', { name: 'Step' }), { target: { value: '2' } })
     fireEvent.blur(screen.getByRole('textbox', { name: 'Step' }))
 
@@ -184,7 +184,7 @@ describe('Keyboard page, the mouse and held keys', () => {
   it('saves showing the keys on the controls window', async () => {
     const backend = await keyboard()
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Show keys on the buttons' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Show keys on the buttons' }))
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'ui.controls.keys': 'true' }]))
   })

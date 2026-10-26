@@ -1,8 +1,8 @@
 /* Groups of choices: their widths, rows, the view areas and the city presets */
 
 /*
- * Segmented groups: one rounded frame on the fields' ground; the chosen item a lit plate inside it, the others with
- * short separators between them that stop short of the frame and drop away beside the plate
+ * Segmented groups as iOS draws them: a translucent gray track with no outline, the chosen item a lighter raised plate
+ * inside it, the others with short separators between them that stop short of the track and drop away beside the plate
  */
 .shell {
   /* One choice's width, which the fields as wide as one take too: 90 px on a wider page, below */
@@ -12,9 +12,10 @@
 .shell .seg {
   display: inline-flex;
   padding: 2px;
-  border: 1px solid var(--edge);
-  border-radius: 3px;
-  background: var(--ground);
+  border: 1px solid transparent;
+  /* Capsules: the 26 px track and the 20 px plates rounded by half their height */
+  border-radius: 13px;
+  background: rgb(118 118 128 / 24%);
 }
 
 /* Plates line up from row to row: 80 px on a narrow page, 90 px on a wider one (see .seg.wide below) */
@@ -27,7 +28,7 @@
   height: 20px;
   padding: 0 10px;
   border: 0;
-  border-radius: 2px;
+  border-radius: 10px;
   background: transparent;
   color: var(--muted);
   font-size: 12px;
@@ -75,10 +76,18 @@
   padding: 0 6px;
 }
 
-/* Short figures: the group as long as a size's two fields (.t.short), its × (.x.times) and the gaps (.ctl) */
+/*
+ * Short figures: narrow plates, two of which are as long as a size's two fields (.t.short), its × (.x.times) and the
+ * gaps (.ctl), as Frame rate's are; Updates has three of them
+ */
 .shell .seg.half {
+  --plate: calc((2 * 44px + 9px + 2 * 6px - 6px) / 2);
   box-sizing: border-box;
-  width: calc(2 * 44px + 9px + 2 * 6px);
+  width: calc(var(--plates, 2) * var(--plate) + 6px);
+}
+
+.shell .seg.half[data-items='3'] {
+  --plates: 3;
 }
 
 .shell .seg.half button {
@@ -94,7 +103,7 @@
   top: 5px;
   bottom: 5px;
   width: 1px;
-  background: var(--edge);
+  background: rgb(255 255 255 / 12%);
 }
 
 .shell .seg button.on::before,

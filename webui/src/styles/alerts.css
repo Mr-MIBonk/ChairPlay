@@ -22,7 +22,7 @@
 }
 
 .shell .alert .head {
-  font: 600 13px/18px var(--wide);
+  font: 600 13px/18px var(--ui);
 }
 
 .shell .alert.bad .head {
@@ -85,11 +85,9 @@
 }
 
 .shell .alert.bad .btn {
-  border-color: #7a3430;
   background-color: #552220;
 }
 .shell .alert.warn .btn {
-  border-color: #7a5b22;
   background-color: #553f17;
 }
 

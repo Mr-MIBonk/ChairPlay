@@ -1,14 +1,14 @@
 /* The fonts, the colour and size tokens, and the page itself */
 
 /*
- * Dark like the HUD (HudPainter.kt): black ground, its blue, green, orange, and red. Text is in Windows' own Segoe UI,
- * the accents in the HUD's wide Roboto Flex, from the same file.
+ * Dark like the HUD (HudPainter.kt): black ground, its blue, green, orange, and red. Text is in Reddit Sans, a variable
+ * font for every weight, as the HUD's is; Windows' Segoe UI draws the scripts it lacks, Cyrillic and Greek.
  */
 @font-face {
-  font-family: 'Roboto Flex Wide';
-  font-weight: 600;
+  font-family: 'Reddit Sans';
+  font-weight: 200 900;
   font-display: block;
-  src: url('@fonts/RobotoFlexWide-SemiBold.ttf') format('truetype');
+  src: url('@fonts/RedditSans-Variable.ttf') format('truetype');
 }
 
 :root {
@@ -22,13 +22,15 @@
   --accent: #52c4ff;
   --accent-light: color-mix(in srgb, var(--accent), white 20%);
   --accent-dark: color-mix(in srgb, var(--accent), black 12%);
+  /* Text and icons on the accent's tint, light enough to read on it */
+  --accent-text: color-mix(in srgb, var(--accent), white 45%);
   --green: #30d158;
   --orange: #ff9f0a;
   --red: #ff453a;
-  --wide: 'Roboto Flex Wide', 'Segoe UI', sans-serif;
   color-scheme: dark;
   font:
-    13px/18px 'Segoe UI Variable Text',
+    13px/18px 'Reddit Sans',
+    'Segoe UI Variable Text',
     'Segoe UI',
     sans-serif;
   color: var(--text);

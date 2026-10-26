@@ -24,7 +24,7 @@
 
 .shell .about-name {
   color: #fff;
-  font: 600 20px/26px var(--wide);
+  font: 700 20px/26px var(--ui);
 }
 
 .shell .about .ctl {

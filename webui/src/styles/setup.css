@@ -19,7 +19,7 @@
 .shell .setup h2 {
   margin: 0;
   color: #fff;
-  font: 600 18px/24px var(--wide);
+  font: 700 18px/24px var(--ui);
 }
 
 .shell .setup .sub {
@@ -46,7 +46,7 @@
   border: 1px solid var(--edge);
   border-radius: 50%;
   color: var(--muted);
-  font: 600 13px var(--wide);
+  font: 600 13px var(--ui);
 }
 
 .shell .step .mark svg {
@@ -72,14 +72,14 @@
   color: #000;
 }
 
-/* A step's title heads it, in the accent font as the settings' group headers are; its note stays in Segoe UI */
+/* A step's title heads it in semibold; its note stays in the regular weight */
 .shell .step .st {
   display: flex;
   align-items: center;
   gap: 8px;
   min-height: 20px;
   color: var(--text);
-  font: 600 13px var(--wide);
+  font: 600 13px var(--ui);
 }
 
 .shell .step.todo .st {
@@ -118,7 +118,6 @@
 
 .shell .step .btn {
   height: 24px;
-  border-radius: 2px;
   font-size: 12px;
 }
 

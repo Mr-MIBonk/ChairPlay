@@ -14,15 +14,16 @@
   background: rgba(255, 255, 255, 0.035);
 }
 
+/* A keycap as iOS's own keyboard draws one: the fields' flat gray, no outline, and a dark line of shadow under it */
 .shell .kbd {
   display: inline-flex;
   align-items: center;
   height: 22px;
   padding: 0 6px;
-  border: 1px solid var(--edge);
-  border-bottom-width: 2px;
-  border-radius: 3px;
-  background-color: var(--raised);
+  border: 0;
+  border-radius: 6px;
+  background-color: rgb(118 118 128 / 24%);
+  box-shadow: inset 0 -1px 0 rgb(0 0 0 / 45%);
   color: var(--text);
   font: 12px var(--ui);
   white-space: nowrap;
@@ -30,20 +31,20 @@
 }
 
 .shell button.kbd:hover {
-  background-image: var(--lighten);
+  background-color: rgb(118 118 128 / 32%);
 }
 
+/* Waiting for its key: tinted as a button that is on */
 .shell .kbd.wait {
-  border-color: var(--accent);
-  background-color: var(--accent-bg);
-  color: var(--accent);
+  background-color: color-mix(in srgb, var(--accent) 20%, transparent);
+  color: var(--accent-text);
 }
 
-/* A fixed key: no hover, a small lock after its name */
+/* A fixed key: no fill and no shadow, as it cannot be pressed; a small lock after its name */
 .shell .kbd.lock {
   gap: 4px;
-  border-bottom-width: 1px;
   background-color: transparent;
+  box-shadow: none;
   color: var(--muted);
 }
 
@@ -60,9 +61,9 @@
   width: 21px;
   height: 21px;
   padding: 0;
-  border: 1px dashed var(--edge);
-  border-radius: 2px;
-  background: none;
+  border: 0;
+  border-radius: 6px;
+  background: rgb(118 118 128 / 24%);
   color: var(--muted);
   cursor: default;
 }
@@ -73,7 +74,7 @@
 }
 
 .shell .add:hover {
-  border-color: #5a5a62;
+  background: rgb(118 118 128 / 32%);
   color: var(--text);
 }
 

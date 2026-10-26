@@ -2,7 +2,7 @@
 // headers, segmented groups, checkboxes, and the messages that say what is wrong; the fields are in fields.tsx.
 import { useState, type CSSProperties, type ReactNode } from 'react'
 
-/** A group's header: its name in the accent font, and a note at its right end. */
+/** A group's header: its name in bold capitals, and a note at its right end. */
 export function Group({ title, note }: { title: string; note?: string }) {
   return (
     <h3 className="grp">
@@ -37,8 +37,8 @@ export type Choice = readonly [value: string, text: string, title?: string, icon
  * plates; four or more ("wide") keep to the length of a row's controls, and are as long as four plates where the page
  * has room, and five where it has room for that; six or more ("rows") wrap onto two rows of ordinary plates, as long
  * as a group of as many as a row holds (three for six), or [columns] a row. [className]
- * sets the width by hand instead, for a group no other is like: "half" for short figures, as long as a size's two
- * fields, or a grid of its own ("rows view-areas", "rows cities").
+ * sets the width by hand instead, for a group no other is like: "half" for short figures, narrow plates two of which
+ * are as long as a size's two fields, or a grid of its own ("rows view-areas", "rows cities").
  */
 export function Segmented(props: {
   label: string
@@ -130,7 +130,8 @@ export function Slider(props: {
   )
 }
 
-export function Checkbox(props: {
+/** A setting turned on or off at once: a checkbox drawn and announced as a switch */
+export function Switch(props: {
   label: string
   checked: boolean
   onChange: (checked: boolean) => void
@@ -140,6 +141,7 @@ export function Checkbox(props: {
     <label className="chk">
       <input
         type="checkbox"
+        role="switch"
         checked={props.checked}
         disabled={props.disabled}
         onChange={(event) => props.onChange(event.target.checked)}

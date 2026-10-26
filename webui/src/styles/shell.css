@@ -2,9 +2,9 @@
 
 /*
  * The settings shell (shell/), as desktop-docs/mockups/desktop-ui.html draws it: a toolbar over a section list and the
- * chosen page, dense for a mouse and fitting 800x480. Text in Windows' own Segoe UI; the accents (toolbar buttons,
- * group headers, message heads) in the HUD's wide Roboto Flex. The page scrolls on its own, so its scrollbar runs
- * from the toolbar to the window's bottom edge, and the window itself never does.
+ * chosen page, dense for a mouse and fitting 800x480, all of it in Reddit Sans (base.css).
+ * The page scrolls on its own, so its scrollbar runs from the toolbar to the window's bottom edge, and the window
+ * itself never does.
  */
 html:has(.shell) {
   overflow: hidden;
@@ -25,7 +25,7 @@ html:has(.shell) {
   --accent-bg: color-mix(in srgb, var(--accent) 18%, transparent);
   /* Hover lightens a control's own colours with a thin white layer, so a button on an amber message stays amber */
   --lighten: linear-gradient(rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.09));
-  --ui: 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
+  --ui: 'Reddit Sans', 'Segoe UI Variable Text', 'Segoe UI', sans-serif;
   display: grid;
   /* The window's width decides how the toolbar fits (its narrow form below) */
   container: shell / inline-size;
@@ -81,10 +81,10 @@ html:has(.shell) {
   margin: 0;
 }
 
-/* The status in the app's display face, as the toolbar's buttons and the group headers are, large on the black */
+/* The status large and bold on the black */
 .shell.waiting .title {
   color: #fff;
-  font: 600 22px/30px var(--wide);
+  font: 700 22px/30px var(--ui);
 }
 
 .shell.waiting .detail {

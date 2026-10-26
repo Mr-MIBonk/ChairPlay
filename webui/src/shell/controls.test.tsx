@@ -1,6 +1,6 @@
 import { act, cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { Checkbox, Segmented } from './controls'
+import { Segmented, Switch } from './controls'
 import { Field, PasswordField } from './fields'
 
 afterEach(cleanup)
@@ -149,12 +149,12 @@ describe('PasswordField', () => {
   })
 })
 
-describe('Checkbox', () => {
+describe('Switch', () => {
   it('passes on the new state', () => {
     const onChange = vi.fn()
-    render(<Checkbox label="Connect when ChairPlay starts" checked onChange={onChange} />)
+    render(<Switch label="Connect when ChairPlay starts" checked onChange={onChange} />)
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Connect when ChairPlay starts' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Connect when ChairPlay starts' }))
 
     expect(onChange.mock.calls).toEqual([[false]])
   })

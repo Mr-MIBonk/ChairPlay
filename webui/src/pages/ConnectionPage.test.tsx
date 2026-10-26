@@ -85,15 +85,15 @@ describe('Connection page, iPhone', () => {
   it('saves the switches at once', async () => {
     const backend = await connection()
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Connect on startup' }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Show CarPlay on connect' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Connect on startup' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Show CarPlay on connect' }))
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'ui.autoconnect': 'false' }, { 'ui.autoshow': 'false' }]))
   })
 
   // Only a changed setting that waits is marked: the untouched ones carry nothing.
   it('marks a changed setting that waits for a restart or the next connection, and nothing else', async () => {
-    const rowOf = (name: string) => screen.getByRole('checkbox', { name }).closest('.row') as HTMLElement
+    const rowOf = (name: string) => screen.getByRole('switch', { name }).closest('.row') as HTMLElement
     await connection()
     expect(screen.queryAllByTitle(/^Changed;/)).toEqual([])
     cleanup()

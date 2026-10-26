@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { Backend, ControlsData } from '../api'
 import { keyLabel } from '../ControlsScreen'
-import { Checkbox, Group, Message, Row, Segmented } from '../shell/controls'
+import { Group, Message, Row, Segmented, Switch } from '../shell/controls'
 import { Field } from '../shell/fields'
 import { LockIcon } from '../shell/icons'
 import type { Settings } from '../shell/useSettings'
@@ -242,7 +242,7 @@ export function KeyboardPage({ backend, settings }: { backend: Backend; settings
     <div className="keyboard">
       <Group title="Controls window" />
       <Row title="Hold Alt to see them for a moment">
-        <Checkbox
+        <Switch
           label="Show keys on the buttons"
           checked={settings.value('ui.controls.keys') === 'true'}
           onChange={(checked) => settings.save({ 'ui.controls.keys': String(checked) })}
@@ -266,7 +266,7 @@ export function KeyboardPage({ backend, settings }: { backend: Backend; settings
           onChange={(chosen) => void save({ 'wheel.action': chosen })}
         />
         <span className="gap" />
-        <Checkbox
+        <Switch
           label="Invert"
           checked={value('wheel.invert') === 'true'}
           onChange={(checked) => void save({ 'wheel.invert': String(checked) })}

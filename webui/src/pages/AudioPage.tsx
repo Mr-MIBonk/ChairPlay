@@ -1,5 +1,5 @@
 import type { AppState, Backend } from '../api'
-import { Checkbox, Group, Row, Slider, type Choice } from '../shell/controls'
+import { Group, Row, Slider, Switch, type Choice } from '../shell/controls'
 import { Select } from '../shell/fields'
 import type { Settings } from '../shell/useSettings'
 import { Changed, parts, pendingOf } from './parts'
@@ -56,7 +56,7 @@ export function AudioPage({ state, backend, settings }: { state: AppState; backe
       )}
       {device('audio.input', 'Microphone', devices.inputs)}
       <Row>
-        <Checkbox
+        <Switch
           label="Echo cancellation"
           checked={value('audio.echo.cancellation') === 'true'}
           onChange={(checked) => save({ 'audio.echo.cancellation': String(checked) })}
@@ -99,7 +99,7 @@ export function AudioPage({ state, backend, settings }: { state: AppState; backe
         <Changed keys={['audio.duck.db']} pending={pending} />
       </Row>
       <Row title="Use the level the iPhone sends with a prompt; Music at applies when it sends none">
-        <Checkbox
+        <Switch
           label="Use iPhone ducking level"
           checked={value('audio.duck.iphone') !== 'false'}
           onChange={(checked) => save({ 'audio.duck.iphone': String(checked) })}

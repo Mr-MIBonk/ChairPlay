@@ -6,8 +6,8 @@ import { defineConfig } from 'vitest/config'
 // same port; open http://localhost:5173/?token=<the token in ChairPlay's log>.
 const appPort = process.env.CHAIRPLAY_UI_PORT ?? '47800'
 
-// The HUD's font files (HudPainter.kt), which the stylesheet takes as @fonts/<file>: the build copies them into
-// its assets, so the page and the HUD draw with the same files and the repository holds them once.
+// The app's font files, which the HUD (HudStyle.kt) draws with and the stylesheet takes as @fonts/<file>: the build
+// copies the ones it uses into its assets, so the repository holds each once.
 const fonts = fileURLToPath(new URL('../src/main/resources/fonts', import.meta.url))
 // The window icons, which the About page shows as @icons/<file>, for the same reason.
 const icons = fileURLToPath(new URL('../src/main/resources/icons', import.meta.url))

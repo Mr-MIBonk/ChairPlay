@@ -31,9 +31,9 @@ class HudView(
  * Draws the HUD with NanoVG on black, centred, as desktop-docs/hud-spec.md lays it out:
  * the song, the route or both in the middle, and a call on top; no clock, signal or battery, which the CarPlay
  * screen shows. Sizes
- * follow the window's height. Text is in Inter, the route's distance and a call in the app's accent face, a wide
- * Roboto Flex, after the way Audi pairs Audi Type with Audi Type Extended; both ship with the app, so the HUD
- * looks the same on every system. Symbols the fonts lack (play, pause) are drawn as vectors.
+ * follow the window's height. Text is in Inter ([HUD_FONTS]), the route's distance and a call in its semibold; it
+ * ships with the app, so the HUD looks the same on every system. Symbols the font lacks (play, pause) are drawn as
+ * vectors.
  *
  * The maneuver is the MHI2Q project's animated renderer ([ManeuverView]) where its library runs, else a simple
  * vector arrow. Every part rises from the dark and fades back into it ([HudMotion]); the song moves between the
@@ -78,8 +78,8 @@ class HudPainter(
             fontData += buffer
             return nvgCreateFontMem(vg, name, buffer, false) >= 0
         }
-        fonts = font(REGULAR, "Inter-Regular.ttf") && font(BOLD, "Inter-SemiBold.ttf") && font(WIDE, "RobotoFlexWide-SemiBold.ttf")
-        if (fonts) nvgAddFallbackFont(vg, WIDE, BOLD) else log("HUD: the fonts are missing from the app; the HUD draws no text")
+        fonts = HUD_FONTS.all { font(it.name, it.file) }
+        if (!fonts) log("HUD: the fonts are missing from the app; the HUD draws no text")
         HudPainter::class.java.getResourceAsStream("/icons/music-note.png")?.use { it.readBytes() }
             ?.let(::coverPixels)?.let { pixels ->
                 emptyCoverNote = nvgCreateImageRGBA(vg, pixels.width, pixels.height, NVG_IMAGE_GENERATE_MIPMAPS, pixels.rgba)
@@ -119,7 +119,7 @@ class HudPainter(
         val w = width.toFloat()
         // No clock, signal or battery: the CarPlay screen always shows them.
         // In the app's display face, as the main window's waiting screen says where the connection stands.
-        emerging(shown.waiting, w / 2, h / 2) { centred(HUD_WAITING, w / 2, h / 2, 0.07f * h, GREY, WIDE) }
+        emerging(shown.waiting, w / 2, h / 2) { centred(HUD_WAITING, w / 2, h / 2, 0.07f * h, GREY, BOLD) }
         // The song and the route each keep one layout round the middle and are only moved and scaled: beside each other,
         // and in drive mode into their slots between the wells, the song over the route, by the wells' own motion and
         // curve, so the blocks move as the wells do; the window draws on while they move.
@@ -187,8 +187,8 @@ class HudPainter(
             fill(CALL_GROUND)
             // The call in the wide accent face; a long name shrinks a little before it is cut.
             val width = right - left - 0.1f * h
-            val size = fitSize(call, width, 0.09f * h, 0.075f * h, WIDE)
-            centred(fit(call, width, size, WIDE), w / 2, y + height / 2, size, GREEN, WIDE)
+            val size = fitSize(call, width, 0.09f * h, 0.075f * h, BOLD)
+            centred(fit(call, width, size, BOLD), w / 2, y + height / 2, size, GREEN, BOLD)
         }
     }
 

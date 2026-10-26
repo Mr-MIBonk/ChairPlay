@@ -1,8 +1,8 @@
 /* The volume slider and its level */
 
 /*
- * The volume slider: a thin track, the accent up to the level (--level, set by the slider), and a round pin in the
- * accent within a ring, as long as the device list above it
+ * The volume slider, as iOS draws one: a thin track, the accent up to the level (--level, set by the slider) and the
+ * fields' gray after it, and a white round pin with a soft shadow; as long as the device list above it
  */
 /*
  * Over the track, a mark every 5 % (as the volume keys step): 21 marks from the pin's first centre (8 px in) to its
@@ -28,30 +28,32 @@
 .shell .slider::-webkit-slider-runnable-track {
   height: 4px;
   border-radius: 2px;
-  background: linear-gradient(to right, var(--accent) var(--level), var(--edge) var(--level));
+  background: linear-gradient(to right, var(--accent) var(--level), rgb(118 118 128 / 32%) var(--level));
 }
 
-/* The pin: the accent, a dark ring of 1 px parting it from its border, and the border, which hover and drag light up */
+/* The pin: white, lifted by its shadow; hover and drag widen the shadow, focus rings it in the accent */
 .shell .slider::-webkit-slider-thumb {
   box-sizing: border-box;
   width: 16px;
   height: 16px;
   margin-top: -6px;
-  border: 1px solid #5a5a62;
+  border: 0;
   border-radius: 50%;
-  background: radial-gradient(circle closest-side, var(--accent) calc(100% - 1.5px), #000 calc(100% - 1px));
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 50%);
   appearance: none;
 }
 
 .shell .slider:hover::-webkit-slider-thumb {
-  border-color: #8b8b92;
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 50%),
+    0 0 0 3px rgb(255 255 255 / 12%);
 }
 
-/* Dragged: brighter, with a glow of its own colour */
 .shell .slider:active::-webkit-slider-thumb {
-  border-color: #fff;
-  background: radial-gradient(circle closest-side, var(--accent-light) calc(100% - 1.5px), #000 calc(100% - 1px));
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 35%, transparent);
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 50%),
+    0 0 0 4px color-mix(in srgb, var(--accent) 35%, transparent);
 }
 
 .shell .slider:focus-visible {
@@ -59,7 +61,9 @@
 }
 
 .shell .slider:focus-visible::-webkit-slider-thumb {
-  border-color: var(--accent-light);
+  box-shadow:
+    0 1px 3px rgb(0 0 0 / 50%),
+    0 0 0 2px var(--accent);
 }
 
 /* The level beside it, in figures that keep their width as it moves; Muted in its place, dimmer */

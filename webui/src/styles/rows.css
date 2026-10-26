@@ -20,7 +20,6 @@
  */
 .shell .held .seg {
   opacity: 0.45;
-  background: var(--bg);
 }
 
 .shell .held .seg button.on {
@@ -41,9 +40,9 @@
 
 .shell .held input.t,
 .shell .held select {
-  /* A held segmented group's edge and text, at its 0.45 opacity */
-  border-color: color-mix(in srgb, var(--edge) 45%, transparent);
-  background: var(--bg);
+  /* A held segmented group's track and text, at its 0.45 opacity */
+  border-color: transparent;
+  background-color: rgb(118 118 128 / 11%);
   color: color-mix(in srgb, var(--muted) 45%, transparent);
 }
 
@@ -59,11 +58,9 @@
   padding: 16px 0 6px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   color: var(--muted);
-  font: 600 11px/15px var(--wide);
+  font: 700 11px/15px var(--ui);
   letter-spacing: 0.06em;
   text-transform: uppercase;
-  /* Heavier than the font's one weight: its strokes thickened with an outline of their own colour */
-  -webkit-text-stroke: 0.35px currentColor;
 }
 
 .shell .grp:first-child {
@@ -149,10 +146,11 @@
   cursor: pointer;
 }
 
+/* A tag for what is still being tried: a capsule, its ends wide enough to clear the text */
 .shell .exp {
-  padding: 0 4px;
+  padding: 0 7px;
   border: 1px solid rgba(255, 159, 10, 0.5);
-  border-radius: 2px;
+  border-radius: 9px;
   color: var(--orange);
   font-size: 11px;
   line-height: 16px;
@@ -172,10 +170,9 @@
   cursor: help;
 }
 
-/* Buttons on a page as tall as a field and with its corners; the toolbar's keep their own */
+/* Buttons on a page as tall as a field; the toolbar's keep their own */
 .shell .page .btn {
   height: 24px;
-  border-radius: 2px;
   font-size: 12px;
 }
 

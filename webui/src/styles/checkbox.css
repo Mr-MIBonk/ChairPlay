@@ -1,6 +1,9 @@
-/* Checkboxes */
+/* Switches */
 
-/* Checkboxes */
+/*
+ * A switch as iOS draws one, sized for a mouse: a 30 × 18 track in the fields' gray, the accent when on, and a white
+ * knob with the slider's shadow that slides across
+ */
 .shell .chk {
   display: inline-flex;
   align-items: center;
@@ -11,34 +14,49 @@
 .shell .chk input {
   appearance: none;
   flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 15px;
-  height: 15px;
+  position: relative;
+  width: 30px;
+  height: 18px;
   margin: 0;
-  border: 1px solid var(--edge);
-  border-radius: 2px;
-  background: var(--field);
+  border: 0;
+  border-radius: 9px;
+  background: rgb(118 118 128 / 32%);
+  transition: background-color 0.15s;
   cursor: default;
 }
 
+.shell .chk input::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 2px rgb(0 0 0 / 50%);
+  transition: transform 0.15s;
+}
+
 .shell .chk input:not(:disabled):hover {
-  border-color: #5a5a62;
+  background: rgb(118 118 128 / 44%);
 }
 
 .shell .chk input:checked {
-  border-color: var(--accent);
   background: var(--accent);
 }
 
+.shell .chk input:checked:not(:disabled):hover {
+  background: var(--accent-light);
+}
+
 .shell .chk input:checked::after {
-  content: '';
-  width: 8px;
-  height: 4px;
-  border-left: 2px solid #fff;
-  border-bottom: 2px solid #fff;
-  transform: rotate(-45deg) translate(1px, -1px);
+  transform: translateX(12px);
+}
+
+.shell .chk input:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--accent) 60%, transparent);
+  outline-offset: 1px;
 }
 
 .shell .chk:has(input:disabled) {

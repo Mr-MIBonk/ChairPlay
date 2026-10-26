@@ -87,7 +87,7 @@ describe('GPS page', () => {
   it('turns the GPS on', async () => {
     const backend = await gps(appState(live), gpsBackend(false))
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Enable spoofing' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Enable spoofing' }))
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'gps.enabled': 'true' }]))
   })
@@ -99,7 +99,7 @@ describe('GPS page', () => {
     const held = screen.getByRole('textbox', { name: 'latitude' }).closest('[inert]') as HTMLElement
     expect(held).not.toBeNull()
     expect(held.contains(screen.getByRole('textbox', { name: 'Power' }))).toBe(true)
-    expect(held.contains(screen.getByRole('checkbox', { name: 'Enable spoofing' }))).toBe(false)
+    expect(held.contains(screen.getByRole('switch', { name: 'Enable spoofing' }))).toBe(false)
   })
 
   it('saves what car it is', async () => {
@@ -121,7 +121,7 @@ describe('GPS page', () => {
     await screen.findByRole('textbox', { name: 'Network' })
     fireEvent.click(screen.getByRole('tab', { name: 'GPS' }))
 
-    const driveMode = screen.getByRole('checkbox', { name: 'Drive mode' }) as HTMLInputElement
+    const driveMode = screen.getByRole('switch', { name: 'Drive mode' }) as HTMLInputElement
     expect(driveMode.checked).toBe(false)
     fireEvent.click(driveMode)
     await waitFor(() => expect(backend.driveModes).toEqual([true]))
@@ -221,7 +221,7 @@ describe('GPS page', () => {
     const backend = await gps()
 
     expect(screen.getByRole('textbox', { name: 'Heading' })).not.toBeNull()
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Send the heading' }))
+    fireEvent.click(screen.getByRole('switch', { name: 'Send the heading' }))
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'gps.heading.send': 'false' }]))
   })

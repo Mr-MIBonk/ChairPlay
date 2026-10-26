@@ -1,13 +1,13 @@
 /* Text fields, drop-down lists, and the reasons under refused ones */
 
-/* Fields */
+/* Fields, as iOS fills them: a translucent gray with no outline, lighter under the pointer, ringed in the accent with focus */
 .shell input.t {
   height: 24px;
-  padding: 0 6px;
-  border: 1px solid var(--edge);
-  border-radius: 3px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 12px;
   outline: 0;
-  background: var(--ground);
+  background: rgb(118 118 128 / 24%);
   color: var(--text);
   font: 12px var(--ui);
 }
@@ -17,8 +17,7 @@
 }
 
 .shell input.t:hover:not(:disabled) {
-  border-color: #5a5a62;
-  background-image: linear-gradient(rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.03));
+  background-color: rgb(118 118 128 / 32%);
 }
 
 .shell input.t:focus {
@@ -73,20 +72,26 @@
 .shell select.t {
   appearance: none;
   height: 24px;
-  padding: 0 20px 0 6px;
-  border: 1px solid var(--edge);
-  border-radius: 3px;
+  padding: 0 22px 0 9px;
+  border: 1px solid transparent;
+  border-radius: 12px;
   outline: 0;
-  background: var(--ground)
+  background: rgb(118 118 128 / 24%)
     url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='4'%3E%3Cpath d='M0 0h8L4 4z' fill='%238b8b92'/%3E%3C/svg%3E")
-    no-repeat right 7px center;
+    no-repeat right 9px center;
   color: var(--text);
   font: 12px var(--ui);
   cursor: default;
 }
 
+/* The open list: WebView2 draws it light under a translucent field, so its choices get the dark of iOS's menus */
+.shell select.t option {
+  background-color: #2c2c2e;
+  color: var(--text);
+}
+
 .shell select.t:hover {
-  border-color: #5a5a62;
+  background-color: rgb(118 118 128 / 32%);
 }
 
 .shell select.t:focus-visible {

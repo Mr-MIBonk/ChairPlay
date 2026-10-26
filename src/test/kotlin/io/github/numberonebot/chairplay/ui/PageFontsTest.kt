@@ -4,10 +4,7 @@ import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-/**
- * The built page (the Vite build in the jar's ui/ folder) draws its accents with the HUD's own font file; its text is
- * in Windows' Segoe UI, which it loads no file for.
- */
+/** The built page (the Vite build in the jar's ui/ folder) draws its text with the Reddit Sans the app ships, and loads no other font. */
 class PageFontsTest {
     private val page = classpathAssets()
 
@@ -28,11 +25,14 @@ class PageFontsTest {
     }
 
     @Test
-    fun `the page loads the HUD's accent font and no others`() {
-        val hud = mapOf(("Roboto Flex Wide" to "600") to "RobotoFlexWide-SemiBold.ttf")
+    fun `the page loads its text font and no other`() {
+        val shipped = mapOf(
+            // A variable font: one face for every weight, 200 to 900.
+            ("Reddit Sans" to "200") to "RedditSans-Variable.ttf",
+        )
         val faces = faces()
-        assertEquals(hud.keys, faces.keys)
-        for ((face, file) in hud) {
+        assertEquals(shipped.keys, faces.keys)
+        for ((face, file) in shipped) {
             val hudBytes = PageFontsTest::class.java.getResourceAsStream("/fonts/$file")!!.use { it.readBytes() }
             assertArrayEquals("$face is $file", hudBytes, page(faces.getValue(face)))
         }

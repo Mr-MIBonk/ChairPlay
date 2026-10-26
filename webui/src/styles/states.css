@@ -2,28 +2,27 @@
 
 .shell .seg button.on {
   z-index: 1;
-  /* Halfway between the sidebar's faint chosen page and the sliders' full accent. */
-  background: color-mix(in srgb, var(--accent) 59%, transparent);
+  /* A plate raised off the track as iOS's chosen segment, its gray tinted with the accent */
+  background: color-mix(in srgb, var(--accent) 45%, #3a3a3c);
   color: #fff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 35%);
 }
 
 .shell .seg button:not(.on):not(:disabled):hover {
-  background: rgba(255, 255, 255, 0.07);
+  background: rgb(255 255 255 / 6%);
   color: var(--text);
 }
 
-/* A control that does nothing now goes black, as the page under it */
+/* A control that does nothing now fades to 0.45, its gray track still there */
 .shell .seg:has(button:disabled) {
   opacity: 0.45;
-  background: var(--bg);
 }
 
 .shell input.t:disabled,
 .shell select:disabled {
-  /* A segmented group's edge and text at its 0.45 opacity above */
-  border-color: color-mix(in srgb, var(--edge) 45%, transparent);
-  background: var(--bg);
+  /* A segmented group's track and text at its 0.45 opacity above */
+  border-color: transparent;
+  background-color: rgb(118 118 128 / 11%);
   color: color-mix(in srgb, var(--muted) 45%, transparent);
   cursor: default;
 }

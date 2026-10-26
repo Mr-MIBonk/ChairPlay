@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import type { AppState, Backend, DemoKind, FolderSizes } from '../api'
 import { keyLabel } from '../ControlsScreen'
-import { Checkbox, Group, Row, Segmented, type Choice } from '../shell/controls'
+import { Group, Row, Segmented, Switch, type Choice } from '../shell/controls'
 import { LogsIcon, ScreenshotsIcon } from '../shell/icons'
 import type { Settings } from '../shell/useSettings'
 import { byteSize } from './byteSize'
@@ -95,7 +95,7 @@ export function ExperimentsPage({
         label="CarPlay data"
         title="The iPhone's route, song, call, and battery messages, one JSON object a line, in the logs folder"
       >
-        <Checkbox
+        <Switch
           label="Write the iPhone's messages to a file"
           checked={settings.value('log.carplay.data') === 'true'}
           onChange={(checked) => settings.save({ 'log.carplay.data': String(checked) })}

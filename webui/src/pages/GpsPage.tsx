@@ -1,7 +1,7 @@
 import { useId } from 'react'
 import type { AppState, Backend, GpsState } from '../api'
 import { keyLabel } from '../ControlsScreen'
-import { Checkbox, Group, Row, Segmented, type Choice } from '../shell/controls'
+import { Group, Row, Segmented, Switch, type Choice } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
 import { Compass, HeadingField, PositionFields } from './gpsFields'
 import { Changed, parts, pendingOf } from './parts'
@@ -75,7 +75,7 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
   /** A switch for [key]; [on] is what a blank value means, as the app reads it. */
   const check = (key: string, label: string, title?: string, on = false, experimental = false) => (
     <Row title={title}>
-      <Checkbox
+      <Switch
         label={label}
         checked={on ? value(key) !== 'false' : value(key) === 'true'}
         onChange={(checked) => save({ [key]: String(checked) })}
@@ -123,6 +123,7 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
             value={value('gps.rate') || '4'}
             options={RATES}
             onChange={(rate) => save({ 'gps.rate': rate })}
+            className="half"
           />
           <span className="unit">a second</span>
         </Row>
@@ -138,6 +139,9 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
         {now && <Row label="iPhone">{now.iphone}</Row>}
         {/* Where the car is, apart from the car itself, whose own settings grow. */}
         <Group title="Position" />
+        <Row>
+          <WindowsLocationButton backend={backend} settings={settings} heading={heading} />
+        </Row>
         <Row
           label="Coordinates"
           title="Where the car is now, following it as it drives; change it to move the car there, or paste a map link"
@@ -154,14 +158,11 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
             <Compass heading={Number(heading) || 0} />
           </Row>
         )}
-        <Row>
-          <WindowsLocationButton backend={backend} settings={settings} heading={heading} />
-        </Row>
         <Group title="Virtual car" note={now?.going} />
         <Row
           title={`Drive the car with the arrows instead of the knob, and show its speedometer and tachometer on the AltScreen${driveKey ? ` (${keyLabel(driveKey)})` : ''}`}
         >
-          <Checkbox
+          <Switch
             label="Drive mode"
             checked={state.gps?.keyboard ?? false}
             onChange={(on) => void backend.driveMode(on)}

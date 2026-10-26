@@ -61,7 +61,7 @@ describe('Experiments page', () => {
   it('turns the CarPlay data log on', async () => {
     const backend = await experiments()
 
-    fireEvent.click(screen.getByRole('checkbox', { name: "Write the iPhone's messages to a file" }))
+    fireEvent.click(screen.getByRole('switch', { name: "Write the iPhone's messages to a file" }))
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'log.carplay.data': 'true' }]))
   })

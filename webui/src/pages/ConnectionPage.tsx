@@ -1,5 +1,5 @@
 import type { AppState, Backend } from '../api'
-import { Checkbox, Group, Row, type Choice } from '../shell/controls'
+import { Group, Row, Switch, type Choice } from '../shell/controls'
 import { Field, PasswordField, Select } from '../shell/fields'
 import type { Settings } from '../shell/useSettings'
 import { ErrorMessage, SetupMessages } from './messages'
@@ -102,7 +102,7 @@ export function ConnectionPage(props: {
         {later('iphone.join.seconds')}
       </Row>
       <Row>
-        <Checkbox
+        <Switch
           label="Connect on startup"
           checked={value('ui.autoconnect') !== 'false'}
           onChange={(checked) => save({ 'ui.autoconnect': String(checked) })}
@@ -110,7 +110,7 @@ export function ConnectionPage(props: {
         {later('ui.autoconnect')}
       </Row>
       <Row>
-        <Checkbox
+        <Switch
           label="Show CarPlay on connect"
           checked={value('ui.autoshow') !== 'false'}
           onChange={(checked) => save({ 'ui.autoshow': String(checked) })}

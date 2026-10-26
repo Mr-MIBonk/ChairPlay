@@ -36,7 +36,7 @@ const chosen = (group: string) =>
 describe('AltScreen page', () => {
   it('turns the AltScreen on', async () => {
     const backend = await altscreen()
-    const enabled = screen.getByRole('checkbox', { name: 'Enabled' }) as HTMLInputElement
+    const enabled = screen.getByRole('switch', { name: 'Enabled' }) as HTMLInputElement
     expect(enabled.checked).toBe(false)
 
     fireEvent.click(enabled)
@@ -51,7 +51,7 @@ describe('AltScreen page', () => {
 
     expect(held).not.toBeNull()
     expect(held.contains(screen.getByRole('radiogroup', { name: 'Area' }))).toBe(true)
-    expect(held.contains(screen.getByRole('checkbox', { name: 'Enabled' }))).toBe(false)
+    expect(held.contains(screen.getByRole('switch', { name: 'Enabled' }))).toBe(false)
     cleanup()
 
     const backend = new FakeBackend()
@@ -166,7 +166,7 @@ describe('AltScreen page', () => {
 
   it('keeps the map stream under the HUD when asked, off until set', async () => {
     const backend = await altscreen()
-    const keep = screen.getByRole('checkbox', { name: 'Keep map stream behind HUD' }) as HTMLInputElement
+    const keep = screen.getByRole('switch', { name: 'Keep map stream behind HUD' }) as HTMLInputElement
     expect(keep.checked).toBe(false)
 
     fireEvent.click(keep)
