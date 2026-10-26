@@ -70,7 +70,7 @@ class VideoWindow(
     private val closing = AtomicBoolean()
     private val minimizing = AtomicBoolean()
     private val screenshotRequest = AtomicReference<((BufferedImage) -> Unit)?>()
-    private val newTitle = AtomicReference<String?>()
+    private val titles = WindowTitle()
     private val shownRequest = AtomicReference<Boolean?>()
     private val resizeRequest = AtomicReference<WindowSize?>()
     private val clearRequest = AtomicBoolean()
@@ -250,7 +250,7 @@ class VideoWindow(
 
     /** Safe from any thread: GLFW sets a title on the main thread only, so the next loop pass applies it. */
     fun setTitle(title: String) {
-        newTitle.set(title)
+        titles.base(title)
         wake()
     }
 
@@ -415,7 +415,6 @@ class VideoWindow(
         val gl = checkNotNull(gl)
         if (minimizing.getAndSet(false)) glfwIconifyWindow(window)
         shownRequest.getAndSet(null)?.let { applyShown(window, it) }
-        newTitle.getAndSet(null)?.let { glfwSetWindowTitle(window, it) }
         streamRequest.getAndSet(null)?.let { size ->
             minRequest.getAndSet(null)?.let { minSize = it }
             applyStream(window, size)
@@ -443,6 +442,7 @@ class VideoWindow(
         glfwGetFramebufferSize(window, w, h)
         val resized = Size(w[0], h[0]).takeIf { it != framebufferSize && it.width > 0 && it.height > 0 }
         framebufferSize = Size(w[0], h[0])
+        titles.next(framebufferSize, pictureSize)?.let { glfwSetWindowTitle(window, it) }
         resized?.let(onResize)
         // What the window shows changes through black: the settings over CarPlay, the AltScreen's HUD and its views.
         val cover = child?.let { visible -> (childFade ?: Fade(visible.covers).also { childFade = it }).apply { update(visible.covers) } }
