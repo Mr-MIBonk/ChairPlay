@@ -41,8 +41,8 @@ data class GaugeScale(val numbers: List<Double>, val redFrom: Double? = null, va
         const val START_DEGREES = 130.0
         const val SWEEP_DEGREES = 280.0
 
-        /** km/h, as a 250 km/h car's: by 20 to 140, then by 40 to 260. */
-        fun speedometer(): GaugeScale = GaugeScale(listOf(0.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0, 140.0, 180.0, 220.0, 260.0))
+        /** km/h, as a fast car's: by 20 to 140, then by 40 to 300. */
+        fun speedometer(): GaugeScale = GaugeScale(listOf(0.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0, 140.0, 180.0, 220.0, 260.0, 300.0))
 
         /**
          * Thousands of rpm, half a thousand past the red line and up to the next whole, the red zone from the red line,

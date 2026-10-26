@@ -11,9 +11,9 @@ class CarModelTest {
         repeat((seconds / dt).toInt()) { each(step(input, dt)) }
     }
 
-    // The default car, 300 hp and 1500 kg, geared and gripping for the launch: under 4.5 s to 100 km/h, its short top
-    // gear running out at the red line a little under the 250 km/h limiter, the engine always between idle and the red
-    // line, the six gears going up one by one, each shift close to the red line.
+    // The default car, 300 hp and 1500 kg, geared and gripping for the launch: under 4.5 s to 100 km/h, its long top
+    // gear running out at the red line near 268 km/h, the engine always between idle and the red line, the six gears
+    // going up one by one, each shift close to the red line.
     @Test
     fun `full throttle takes the car to 100 and on to its top speed, shifting close to the red line`() {
         val car = CarModel(CarSpec())
@@ -34,7 +34,7 @@ class CarModelTest {
         }
 
         assertTrue("0-100 in $to100 s", to100 in 3.0..4.5)
-        assertTrue("top ${car.state.speedKmh} km/h", car.state.speedKmh in 230.0..248.0)
+        assertTrue("top ${car.state.speedKmh} km/h", car.state.speedKmh in 255.0..272.0)
         assertEquals(listOf(1, 2, 3, 4, 5, 6), gears)
         assertTrue("shifts at $shiftRpms", shiftRpms.all { it >= 6400 })
     }

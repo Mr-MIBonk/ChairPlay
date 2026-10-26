@@ -7,16 +7,16 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GaugesTest {
-    // The speedometer as a fast car's: numbered by 20 to 140 and by 40 from there to 260, the numbers evenly apart, so
+    // The speedometer as a fast car's: numbered by 20 to 140 and by 40 from there to 300, the numbers evenly apart, so
     // the scale changes at 140; each gap a middle tick and fine tenths.
     @Test
     fun `the speedometer is numbered as a fast car's`() {
         val speed = GaugeScale.speedometer()
         fun values(size: GaugeScale.TickSize) = speed.ticks().filter { it.size == size }.map { it.value }
-        assertEquals(listOf(0.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0, 140.0, 180.0, 220.0, 260.0), values(GaugeScale.TickSize.MAJOR))
-        assertEquals(listOf(10.0, 30.0, 50.0, 70.0, 90.0, 110.0, 130.0, 160.0, 200.0, 240.0), values(GaugeScale.TickSize.MIDDLE))
+        assertEquals(listOf(0.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0, 140.0, 180.0, 220.0, 260.0, 300.0), values(GaugeScale.TickSize.MAJOR))
+        assertEquals(listOf(10.0, 30.0, 50.0, 70.0, 90.0, 110.0, 130.0, 160.0, 200.0, 240.0, 280.0), values(GaugeScale.TickSize.MIDDLE))
         val fine = values(GaugeScale.TickSize.FINE)
-        assertEquals(80, fine.size)
+        assertEquals(88, fine.size)
         assertEquals(listOf(2.0, 4.0, 6.0, 8.0, 12.0), fine.take(5).map { Math.round(it * 1e6) / 1e6 })
         assertTrue(fine.any { Math.abs(it - 144.0) < 1e-9 })
         val step = speed.angle(20.0) - speed.angle(0.0)
