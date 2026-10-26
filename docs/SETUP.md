@@ -88,7 +88,8 @@ The files below live in the app folder, next to `ChairPlay.exe`.
    paired devices (it connects to nothing). It has no console, so the list is written to
    `logs\devices-<date-time>.log` in the app folder; `gradlew listDevices` runs it and prints that file.
 2. **MFi identity files.** The wireless handshake needs an Apple MFi identity (certificate and key files). This
-   project does not ship them and the app image never contains them. Put your own files in `offline-mfi\`.
+   repository contains none and the app image never contains them. Put your own files in `offline-mfi\`, unless
+   your installer includes a pair through the optional release packaging described below.
 3. **Settings.** `deploy` (or the first start, for a folder filled by hand) writes `settings.properties` with
    every setting at its default and a comment on each, together with `controls.properties` and `carplay-icon.png`;
    files already there are kept, and a settings file from an older version gets the settings it lacks added at
@@ -216,6 +217,45 @@ replace one.
 
 For a dry run without a tag, run the workflow from the Actions tab (Run workflow): it runs the same tests and builds
 `ChairPlay-0.0.0-setup.exe`, kept as the run's artifact, and drafts no release.
+
+### Optional MFi packaging
+
+The default installer contains no MFi identity. To include one, store the Base64-encoded bytes of `identity.pk8`
+and `certificate.p7b` in the repository's Actions secrets `MFI_PRIVATE_KEY_B64` and `MFI_CERTIFICATE_B64`.
+Encode the original binary files, not PEM text. Each decoded file must be 1–16384 bytes. Do not commit either file.
+The installer contains the private key: anyone who receives it can extract the pair.
+
+- For a manual dry run, select **bundle_mfi** in Run workflow.
+- For tag releases, set the repository Actions variable **BUNDLE_MFI** to exactly `true`.
+- A manual run uses its checkbox, independently of the tag-release variable. With the option off, secrets are
+  not decoded and no identity is included. With it on, missing or invalid secrets fail the build.
+
+Tests and the app image build run before the secrets are decoded. Packaging writes the pair under
+`%RUNNER_TEMP%\chairplay-mfi`, validates it with JDK 17, then passes that directory directly
+to Inno Setup. It never copies the files into the checkout, JAR, app image, or Gradle cache inputs. An always-run
+cleanup removes the temporary pair before uploading the installer. As with any CI job, forced runner loss can
+prevent cleanup; use disposable runners for this workflow.
+
+Validation requires an unencrypted EC PKCS#8 key, one X.509 certificate with a P-256 public key, and a successful
+signature check with the pair, matching the application's loader. It does not establish Apple trust or prove
+that an iPhone will accept the identity.
+
+For local packaging, point at an existing directory **outside the repository**:
+
+```bat
+gradlew installer -Pchairplay.version=1.0.1 "-Pinstaller.mfiDir=C:\private\chairplay-mfi"
+```
+
+The installer places both files in `{app}\offline-mfi` only when neither destination file exists. It preserves
+both complete and partial existing identities, never mixing an existing key with a bundled certificate. A partial
+identity remains for the user to repair through Get started. The files survive updates and ordinary uninstall;
+the existing **delete data** confirmation removes them when requested. Once both files are available, Get started
+omits the MFi step and adjusts its step count.
+
+Packaging checks use generated, untrusted identities only: with JDK 17 in `JAVA_HOME` and Git for Windows installed,
+run `python packaging\installer\test_mfi.py -v`. Set `TEST_ISCC` to the path of `ISCC.exe` to also compile both
+installer modes and test install/uninstall in temporary folders under a unique test AppId. The test does not launch
+ChairPlay or read real MFi files. `TEST_OPENSSL` and `TEST_POWERSHELL` can override the test tools.
 
 ## Running
 

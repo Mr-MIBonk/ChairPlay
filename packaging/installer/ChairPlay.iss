@@ -2,7 +2,8 @@
 ; passes AppVersion, SourceDir (the jpackage app image), OutputDir and AppData (the app's data, ';' between names).
 ;
 ; ChairPlay keeps its data next to its exe (settings, controls and window files, identity.properties, pairings\,
-; offline-mfi\, carplay-icon.png, logs\, screenshots\, ChairPlay.lock). The installer ships none of them and deletes only
+; offline-mfi\, carplay-icon.png, logs\, screenshots\, ChairPlay.lock). Optional MfiSourceDir supplies an initial MFi pair.
+; Otherwise the installer ships no user data and deletes only
 ; the program folders app\ and runtime\ before an update: a lost identity or pairing makes the iPhone see a new car.
 ; Uninstalling asks whether to delete the data too, No by default and in a silent run.
 
@@ -57,6 +58,10 @@ Type: filesandordirs; Name: "{app}\runtime"
 
 [Files]
 Source: "{#SourceDir}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+#ifdef MfiSourceDir
+Source: "{#MfiSourceDir}\identity.pk8"; DestDir: "{app}\offline-mfi"; Flags: onlyifdoesntexist uninsneveruninstall; Check: InstallBundledMfi
+Source: "{#MfiSourceDir}\certificate.p7b"; DestDir: "{app}\offline-mfi"; Flags: onlyifdoesntexist uninsneveruninstall; Check: InstallBundledMfi
+#endif
 
 [Icons]
 Name: "{autoprograms}\ChairPlay"; Filename: "{app}\ChairPlay.exe"
@@ -81,6 +86,16 @@ external 'CreateFileW@kernel32.dll stdcall';
 
 function CloseHandle(hObject: THandle): Boolean;
 external 'CloseHandle@kernel32.dll stdcall';
+
+#ifdef MfiSourceDir
+var
+  BundledMfiAllowed: Boolean;
+
+function InstallBundledMfi(): Boolean;
+begin
+  Result := BundledMfiAllowed;
+end;
+#endif
 
 // A running ChairPlay holds ChairPlay.lock open from start to the end of its graceful shutdown, so opening it with no
 // sharing fails with a sharing violation. A missing file or folder means no run.
@@ -108,6 +123,14 @@ end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
+#ifdef MfiSourceDir
+  // Decide once for the whole pair, before either file is copied. Never complete a different user's partial pair.
+  BundledMfiAllowed :=
+    not FileExists(ExpandConstant('{app}\offline-mfi\identity.pk8')) and
+    not FileExists(ExpandConstant('{app}\offline-mfi\certificate.p7b')) and
+    not DirExists(ExpandConstant('{app}\offline-mfi\identity.pk8')) and
+    not DirExists(ExpandConstant('{app}\offline-mfi\certificate.p7b'));
+#endif
   if WaitUntilClosed() then
     Result := ''
   else

@@ -28,10 +28,34 @@ fun requireVersion(): String = checkNotNull(appVersion) {
     "The installer needs a release version. Pass it with -Pchairplay.version=X.Y.Z, like 0.1.0."
 }
 
+// Explicit opt-in: Inno reads this external directory directly, never through the app image or a cached task input.
+val mfiSource = providers.gradleProperty("installer.mfiDir")
+fun mfiDirectory(): File? = mfiSource.orNull?.let { value ->
+    check(value.isNotBlank()) { "installer.mfiDir must name an external directory" }
+    val dir = file(value).canonicalFile
+    check(!dir.toPath().startsWith(rootDir.canonicalFile.toPath())) { "MFi packaging input must be outside the repository" }
+    check(listOf("identity.pk8", "certificate.p7b").all { dir.resolve(it).isFile }) {
+        "installer.mfiDir must contain both identity.pk8 and certificate.p7b"
+    }
+    dir
+}
+
+val validateInstallerMfi by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Checks the optional external MFi pair without logging its contents."
+    onlyIf { mfiSource.isPresent }
+    val java = project.extensions.getByType<JavaToolchainService>().launcherFor { languageVersion.set(JavaLanguageVersion.of(17)) }
+    doFirst {
+        commandLine(java.get().executablePath.asFile.path,
+            layout.projectDirectory.file("packaging/installer/ValidateMfi.java").asFile.path,
+            checkNotNull(mfiDirectory()).path)
+    }
+}
+
 val installer by tasks.registering(Exec::class) {
     group = "distribution"
     description = "Builds build/installer/ChairPlay-<version>-setup.exe with Inno Setup 6 (needs -Pchairplay.version)."
-    dependsOn("jpackageImage")
+    dependsOn("jpackageImage", validateInstallerMfi)
     val image = layout.buildDirectory.dir("jpackage/ChairPlay")
     val outDir = layout.buildDirectory.dir("installer")
     val script = layout.projectDirectory.file("packaging/installer/ChairPlay.iss")
@@ -40,15 +64,14 @@ val installer by tasks.registering(Exec::class) {
         // An image is the program alone; a data file in it would overwrite the user's on every update.
         val data = appDataFiles.map { it.removeSuffix("/**") }.filter { dir.resolve(it).exists() }
         check(data.isEmpty()) { "$dir holds app data (${data.joinToString()}); refusing to put it into the installer" }
-        commandLine(
+        commandLine(listOf(
             iscc().path,
             "/DAppVersion=${requireVersion()}",
             "/DSourceDir=${dir.path}",
             "/DOutputDir=${outDir.get().asFile.path}",
             // What the uninstaller deletes when the user asks it to: the data deploy keeps, as file and folder names.
             "/DAppData=${appDataFiles.joinToString(";") { it.removeSuffix("/**") }}",
-            script.asFile.path,
-        )
+        ) + listOfNotNull(mfiDirectory()?.let { "/DMfiSourceDir=${it.path}" }) + script.asFile.path)
     }
 }
 
@@ -57,5 +80,6 @@ gradle.taskGraph.whenReady {
     if (hasTask(installer.get())) {
         requireVersion()
         iscc()
+        mfiDirectory()
     }
 }

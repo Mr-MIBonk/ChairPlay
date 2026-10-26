@@ -5,6 +5,11 @@ on:
     tags: ['v*']
   # A dry run from the Actions tab: the same tests and installer, as version 0.0.0, kept as the run's artifact; no release.
   workflow_dispatch:
+    inputs:
+      bundle_mfi:
+        description: 'Include the MFi pair from Actions secrets in the installer'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -13,6 +18,8 @@ jobs:
   installer:
     runs-on: windows-2022
     timeout-minutes: 60
+    env:
+      BUNDLE_MFI: ${{ github.event_name == 'workflow_dispatch' && inputs.bundle_mfi || github.event_name == 'push' && vars.BUNDLE_MFI == 'true' }}
     steps:
       - name: Read the version from the tag
         if: github.event_name == 'push'
@@ -56,9 +63,45 @@ jobs:
           $info = (Get-Item $iscc).VersionInfo
           "ISCC $($info.ProductVersion) (file $($info.FileVersion)) at $iscc"
 
-      - name: Test and build the installer
+      - name: Test MFi packaging with generated identities
         shell: pwsh
-        run: ./gradlew.bat test installer "-Pchairplay.version=$env:VERSION" "-Pinno.iscc=${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" --console=plain
+        env:
+          TEST_ISCC: C:\Program Files (x86)\Inno Setup 6\ISCC.exe
+          TEST_POWERSHELL: pwsh
+        run: python packaging/installer/test_mfi.py -v
+
+      - name: Test and build the app image
+        shell: pwsh
+        run: ./gradlew.bat test jpackageImage "-Pchairplay.version=$env:VERSION" --console=plain
+
+      - name: Prepare optional MFi files
+        if: env.BUNDLE_MFI == 'true'
+        shell: pwsh
+        env:
+          MFI_PRIVATE_KEY_B64: ${{ secrets.MFI_PRIVATE_KEY_B64 }}
+          MFI_CERTIFICATE_B64: ${{ secrets.MFI_CERTIFICATE_B64 }}
+        run: ./packaging/installer/PrepareMfi.ps1 -Destination (Join-Path $env:RUNNER_TEMP 'chairplay-mfi')
+
+      - name: Package the installer
+        shell: pwsh
+        run: |
+          $buildArgs = @('installer', "-Pchairplay.version=$env:VERSION", "-Pinno.iscc=${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe", '--console=plain')
+          if ($env:BUNDLE_MFI -eq 'true') {
+            $buildArgs += "-Pinstaller.mfiDir=$(Join-Path $env:RUNNER_TEMP 'chairplay-mfi')"
+          }
+          ./gradlew.bat @buildArgs
+          if ($LASTEXITCODE -ne 0) { throw 'Installer packaging failed.' }
+
+      - name: Remove temporary MFi files
+        if: always() && env.BUNDLE_MFI == 'true'
+        shell: pwsh
+        run: |
+          $staging = Join-Path $env:RUNNER_TEMP 'chairplay-mfi'
+          foreach ($name in @('identity.pk8', 'certificate.p7b')) {
+            $file = Join-Path $staging $name
+            if (Test-Path -LiteralPath $file) { Remove-Item -LiteralPath $file -Force }
+          }
+          if (Test-Path -LiteralPath $staging) { Remove-Item -LiteralPath $staging -Force }
 
       - name: Draft the release
         if: github.event_name == 'push'
