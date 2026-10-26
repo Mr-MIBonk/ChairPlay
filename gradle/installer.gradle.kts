@@ -45,6 +45,8 @@ val installer by tasks.registering(Exec::class) {
             "/DAppVersion=${requireVersion()}",
             "/DSourceDir=${dir.path}",
             "/DOutputDir=${outDir.get().asFile.path}",
+            // What the uninstaller deletes when the user asks it to: the data deploy keeps, as file and folder names.
+            "/DAppData=${appDataFiles.joinToString(";") { it.removeSuffix("/**") }}",
             script.asFile.path,
         )
     }

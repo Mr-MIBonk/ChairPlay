@@ -48,6 +48,27 @@ class InstallerScriptTest {
         assertFalse(sections.containsKey("uninstalldelete"))
     }
 
+    // Uninstalling asks whether to delete the user's data too; No is the default, and the answer a silent run gets.
+    @Test
+    fun `asks before deleting the user's data on uninstall, and keeps it by default`() {
+        val script = File("packaging/installer/ChairPlay.iss").readText()
+        assertTrue(Regex("""SuppressibleMsgBox\(DeleteDataQuestion,[^;]*MB_DEFBUTTON2[^;]*IDNO\)""").containsMatchIn(script))
+    }
+
+    // What it deletes is the list the build keeps on deploy, passed in by Gradle, not a second list in the script.
+    @Test
+    fun `deletes on request only the data the build names`() {
+        val script = File("packaging/installer/ChairPlay.iss").readText()
+        assertTrue(script.contains("#ifndef AppData"))
+        assertTrue(script.contains("'{#AppData}'"))
+        val code = script.substringAfter("[Code]")
+        // File names only: the question's words (settings, pairings) are no list. ChairPlay.lock is the running check's.
+        val files = userData.filter { it != "ChairPlay.lock" && (it.contains('.') || it.contains('-')) }
+        for (name in files) assertFalse("[Code] names $name", code.contains(name))
+        val gradle = File("gradle/installer.gradle.kts").readText()
+        assertTrue(Regex(""""/DAppData=\$\{[^}]*appDataFiles""").containsMatchIn(gradle))
+    }
+
     @Test
     fun `ships no user data file`() {
         val sources = sections["files"].orEmpty().flatMap { listOf(param(it, "Source"), param(it, "DestName")) }

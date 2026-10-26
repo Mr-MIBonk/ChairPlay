@@ -1,10 +1,10 @@
 ; ChairPlay's installer, built by `./gradlew installer -Pchairplay.version=X.Y.Z` (gradle/installer.gradle.kts), which
-; passes AppVersion, SourceDir (the jpackage app image) and OutputDir.
+; passes AppVersion, SourceDir (the jpackage app image), OutputDir and AppData (the app's data, ';' between names).
 ;
 ; ChairPlay keeps its data next to its exe (settings, controls and window files, identity.properties, pairings\,
-; offline-mfi\, carplay-icon.png, logs\, screenshots\, ChairPlay.lock). The installer ships none of them, deletes only
-; the program folders app\ and runtime\ before an update, and leaves everything it did not install on uninstall: a lost
-; identity or pairing makes the iPhone see a new car.
+; offline-mfi\, carplay-icon.png, logs\, screenshots\, ChairPlay.lock). The installer ships none of them and deletes only
+; the program folders app\ and runtime\ before an update: a lost identity or pairing makes the iPhone see a new car.
+; Uninstalling asks whether to delete the data too, No by default and in a silent run.
 
 #ifndef AppVersion
   #error Pass the version: ISCC /DAppVersion=X.Y.Z
@@ -14,6 +14,9 @@
 #endif
 #ifndef OutputDir
   #define OutputDir "."
+#endif
+#ifndef AppData
+  #error Pass the app's data: ISCC /DAppData=settings.properties;pairings;...
 #endif
 
 [Setup]
@@ -69,6 +72,8 @@ const
   INVALID_HANDLE_VALUE = -1;
   ERROR_SHARING_VIOLATION = 32;
   RunningMessage = 'ChairPlay is running. Close its window, then click Retry.';
+  DeleteDataQuestion = 'Also delete your ChairPlay settings, iPhone pairings, and MFi files?' + #13#10#13#10 +
+    'Keep them to install ChairPlay again later without setting it up again.';
 
 function CreateFile(lpFileName: String; dwDesiredAccess, dwShareMode, lpSecurityAttributes,
   dwCreationDisposition, dwFlagsAndAttributes: Cardinal; hTemplateFile: THandle): THandle;
@@ -112,4 +117,33 @@ end;
 function InitializeUninstall(): Boolean;
 begin
   Result := WaitUntilClosed();
+end;
+
+// The data the build names ({#AppData}), each a file or a folder in {app}; then {app} itself if nothing else is left.
+procedure DeleteData();
+var
+  Names, Name, Path: String;
+  Split: Integer;
+begin
+  Names := '{#AppData}' + ';';
+  while Names <> '' do begin
+    Split := Pos(';', Names);
+    Name := Copy(Names, 1, Split - 1);
+    Names := Copy(Names, Split + 1, Length(Names));
+    if Name <> '' then begin
+      Path := ExpandConstant('{app}\' + Name);
+      if DirExists(Path) then
+        DelTree(Path, True, True, True)
+      else
+        DeleteFile(Path);
+    end;
+  end;
+  RemoveDir(ExpandConstant('{app}'));
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+begin
+  if CurUninstallStep = usPostUninstall then
+    if SuppressibleMsgBox(DeleteDataQuestion, mbConfirmation, MB_YESNO or MB_DEFBUTTON2, IDNO) = IDYES then
+      DeleteData();
 end;
