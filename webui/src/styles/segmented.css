@@ -13,7 +13,7 @@
   display: inline-flex;
   padding: 2px;
   border: 1px solid var(--edge);
-  border-radius: 2px;
+  border-radius: 3px;
   background: var(--ground);
 }
 
@@ -27,7 +27,7 @@
   height: 20px;
   padding: 0 10px;
   border: 0;
-  border-radius: 1px;
+  border-radius: 2px;
   background: transparent;
   color: var(--muted);
   font-size: 12px;

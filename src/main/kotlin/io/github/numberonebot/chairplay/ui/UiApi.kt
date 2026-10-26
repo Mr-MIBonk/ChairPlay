@@ -173,6 +173,9 @@ interface UiApi {
     /** Opens the Windows page or folder [place] names ([UiController.open]); false when there is none or it failed. */
     fun open(place: String): Boolean
 
+    /** The logs and screenshots folders' sizes in bytes, by name ([UiPlaces.folderSizes]). */
+    fun folderSizes(): Map<String, Long> = emptyMap()
+
     /**
      * Resizes the window named "main" or "altscreen" to one screen pixel per picture pixel; false when there is no such
      * window.

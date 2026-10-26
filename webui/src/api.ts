@@ -184,6 +184,9 @@ export type SaveOutcome = { ok: true; applies: Record<string, Applies> } | { ok:
 /** Where Windows locates this PC (WindowsLocation.kt), or why it does not say. */
 export type WindowsLocation = { latitude: number; longitude: number } | { error: 'denied' | 'unknown' }
 
+/** The logs and screenshots folders' sizes in bytes, by folder. */
+export type FolderSizes = Partial<Record<'logs' | 'screenshots', number>>
+
 /** What the screens need from the app; tests pass a fake. */
 export interface Backend {
   settings(): Promise<SettingsData>
@@ -217,6 +220,8 @@ export interface Backend {
   altscreen(content: AltscreenContent): Promise<boolean>
   /** Opens a Windows page or the MFi folder; false when Windows did not open it. */
   open(place: WindowsPlace): Promise<boolean>
+  /** The logs and screenshots folders' sizes in bytes; 0 for an empty or missing one. */
+  folderSizes(): Promise<FolderSizes>
   /** Resizes [window] to one screen pixel per picture pixel; false when there is no such window. */
   actualSize(window: PictureWindow): Promise<boolean>
   /** Adds the firewall rule with the consent Windows asks for; false when it was not given or the rule failed. */

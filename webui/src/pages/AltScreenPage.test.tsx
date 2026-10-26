@@ -166,7 +166,7 @@ describe('AltScreen page', () => {
 
   it('keeps the map stream under the HUD when asked, off until set', async () => {
     const backend = await altscreen()
-    const keep = screen.getByRole('checkbox', { name: 'Keep the map stream under the HUD' }) as HTMLInputElement
+    const keep = screen.getByRole('checkbox', { name: 'Keep map stream behind HUD' }) as HTMLInputElement
     expect(keep.checked).toBe(false)
 
     fireEvent.click(keep)

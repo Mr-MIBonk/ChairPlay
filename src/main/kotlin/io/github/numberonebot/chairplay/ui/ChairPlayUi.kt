@@ -118,15 +118,7 @@ class ChairPlayUi(
     /** Saves [changes] from one of the app's own keys, as a page saves them: the app and an open page hear of it alike. */
     fun saveSettings(changes: Map<String, String>) = controller.saveSettings(changes)
 
-    // The controller's API, with the GPS car's calls, which only the app's windows and car can answer.
-    private val api = object : UiApi by controller {
-        override fun gpsDrive(throttle: Double, brake: Double, steer: Double) =
-            driving?.gpsDrive(throttle, brake, steer) ?: false
-
-        override fun screenshot() = driving?.screenshot() ?: false
-
-        override fun driveMode(on: Boolean) = driving?.driveMode(on) ?: false
-    }
+    private val api = AppUiApi(controller) { driving }
 
     private val server = UiServer(api, pageAssets(), System.getenv("CHAIRPLAY_UI_PORT")?.toIntOrNull() ?: 0, log = log)
 

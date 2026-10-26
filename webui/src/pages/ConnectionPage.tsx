@@ -103,7 +103,7 @@ export function ConnectionPage(props: {
       </Row>
       <Row>
         <Checkbox
-          label="Connect when ChairPlay starts"
+          label="Connect on startup"
           checked={value('ui.autoconnect') !== 'false'}
           onChange={(checked) => save({ 'ui.autoconnect': String(checked) })}
         />
@@ -111,7 +111,7 @@ export function ConnectionPage(props: {
       </Row>
       <Row>
         <Checkbox
-          label="Show CarPlay as soon as the iPhone connects"
+          label="Show CarPlay on connect"
           checked={value('ui.autoshow') !== 'false'}
           onChange={(checked) => save({ 'ui.autoshow': String(checked) })}
         />

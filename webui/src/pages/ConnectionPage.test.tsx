@@ -85,8 +85,8 @@ describe('Connection page, iPhone', () => {
   it('saves the switches at once', async () => {
     const backend = await connection()
 
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Connect when ChairPlay starts' }))
-    fireEvent.click(screen.getByRole('checkbox', { name: 'Show CarPlay as soon as the iPhone connects' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Connect on startup' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Show CarPlay on connect' }))
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'ui.autoconnect': 'false' }, { 'ui.autoshow': 'false' }]))
   })
@@ -100,7 +100,7 @@ describe('Connection page, iPhone', () => {
 
     await connection(appState({ ...live, restartPending: ['ui.autoconnect'], reconnectPending: ['wifi.ssid'] }))
 
-    expect(within(rowOf('Connect when ChairPlay starts')).getByTitle('Changed; applies after restart')).toBeTruthy()
+    expect(within(rowOf('Connect on startup')).getByTitle('Changed; applies after restart')).toBeTruthy()
     const network = textbox('Network').closest('.row') as HTMLElement
     expect(within(network).getByTitle('Changed; applies at the next connection')).toBeTruthy()
     expect(screen.queryAllByTitle(/^Changed;/)).toHaveLength(2)

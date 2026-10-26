@@ -1,0 +1,26 @@
+/*
+ * The Experiments page's folder buttons, each with what its folder holds hung under it: the buttons stay in line with
+ * the row's label whether one, both, or neither shows a size, and the row makes room below while one does.
+ */
+
+.shell .folder {
+  position: relative;
+  display: inline-flex;
+}
+
+.shell .folder-size {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 13px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.shell .row:has(.folder-size) {
+  margin-bottom: 13px;
+}

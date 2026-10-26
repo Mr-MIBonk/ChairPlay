@@ -86,6 +86,18 @@ describe('Experiments page', () => {
     expect(backend.opened).toEqual(['logs', 'screenshots'])
   })
 
+  // Under each folder button, what the folder holds; an empty or missing one shows nothing.
+  it("shows a folder's size, none for an empty one, and asks again", async () => {
+    const backend = new FakeBackend()
+    backend.sizes = { logs: 1536, screenshots: 0 }
+    await experiments(appState(live), backend)
+
+    expect(await screen.findByText('1.50 KB')).toBeTruthy()
+    expect(screen.queryByText('0 bytes')).toBeNull()
+    backend.sizes = { logs: 1536, screenshots: 2048 }
+    expect(await screen.findByText('2.00 KB', {}, { timeout: 8000 })).toBeTruthy()
+  }, 10000)
+
   it('waits for the AltScreen', async () => {
     await experiments(appState({ ...live, demo: { playing: null, available: false } }))
 

@@ -132,6 +132,17 @@ class UiControllerPlacesTest : UiControllerFixture() {
         assertEquals(listOf(listOf("explorer.exe", dir.resolve("offline-mfi").toString())), launched)
     }
 
+    // Under the Experiments page's folder buttons: what each folder holds, its subfolders' files too.
+    @Test
+    fun `the logs and screenshots folders' sizes add up their files, a missing folder 0 and left unmade`() {
+        Files.createDirectories(dir.resolve("logs").resolve("old"))
+        Files.write(dir.resolve("logs").resolve("chairplay.log"), ByteArray(1500))
+        Files.write(dir.resolve("logs").resolve("old").resolve("carplay-data.jsonl"), ByteArray(24))
+
+        assertEquals(mapOf("logs" to 1524L, "screenshots" to 0L), controller().folderSizes())
+        assertFalse(Files.exists(dir.resolve("screenshots")))
+    }
+
     // The Experiments page's Logs: the CarPlay data log's folder and F12's screenshots, in the app folder.
     @Test
     fun `the logs and screenshots folders open in File Explorer, made first if they are missing`() {

@@ -1,9 +1,35 @@
-import type { AppState, Backend, DemoKind } from '../api'
+import { useEffect, useState } from 'react'
+import type { AppState, Backend, DemoKind, FolderSizes } from '../api'
 import { keyLabel } from '../ControlsScreen'
 import { Checkbox, Group, Row, Segmented, type Choice } from '../shell/controls'
 import { LogsIcon, ScreenshotsIcon } from '../shell/icons'
 import type { Settings } from '../shell/useSettings'
+import { byteSize } from './byteSize'
 import { Changed, parts, pendingOf } from './parts'
+
+/** How often the folders' sizes are read again while the page is open: the logs grow as the app runs. */
+const FOLDER_SIZES_EVERY_MS = 5000
+
+/** The logs and screenshots folders' sizes, read as the page opens and again every few seconds. */
+function useFolderSizes(backend: Backend): FolderSizes {
+  const [sizes, setSizes] = useState<FolderSizes>({})
+  useEffect(() => {
+    let open = true
+    const read = () => {
+      backend.folderSizes().then(
+        (next) => open && setSizes(next),
+        () => {},
+      )
+    }
+    read()
+    const timer = setInterval(read, FOLDER_SIZES_EVERY_MS)
+    return () => {
+      open = false
+      clearInterval(timer)
+    }
+  }, [backend])
+  return sizes
+}
 
 const LEVELS: readonly Choice[] = [
   ['error', 'Errors'],
@@ -34,6 +60,7 @@ export function ExperimentsPage({
   const demo = state.demo
   const { note } = parts(settings)
   const screenshotKey = state.controls?.keys.screenshot
+  const sizes = useFolderSizes(backend)
   return (
     <>
       <Group title="HUD demo" note="On the AltScreen's HUD" />
@@ -76,24 +103,30 @@ export function ExperimentsPage({
         <Changed keys={['log.carplay.data']} pending={pendingOf(state)} />
       </Row>
       <Row label="Folders">
-        <button
-          type="button"
-          className="btn small"
-          title="Open the logs folder in File Explorer"
-          onClick={() => backend.open('logs')}
-        >
-          <LogsIcon />
-          Logs
-        </button>
-        <button
-          type="button"
-          className="btn small"
-          title={`Open the screenshots folder in File Explorer${screenshotKey ? ` (${keyLabel(screenshotKey)} saves to it)` : ''}`}
-          onClick={() => backend.open('screenshots')}
-        >
-          <ScreenshotsIcon />
-          Screenshots
-        </button>
+        <span className="folder">
+          <button
+            type="button"
+            className="btn small"
+            title="Open the logs folder in File Explorer"
+            onClick={() => backend.open('logs')}
+          >
+            <LogsIcon />
+            Logs
+          </button>
+          {sizes.logs ? <span className="folder-size">{byteSize(sizes.logs)}</span> : null}
+        </span>
+        <span className="folder">
+          <button
+            type="button"
+            className="btn small"
+            title={`Open the screenshots folder in File Explorer${screenshotKey ? ` (${keyLabel(screenshotKey)} saves to it)` : ''}`}
+            onClick={() => backend.open('screenshots')}
+          >
+            <ScreenshotsIcon />
+            Screenshots
+          </button>
+          {sizes.screenshots ? <span className="folder-size">{byteSize(sizes.screenshots)}</span> : null}
+        </span>
       </Row>
     </>
   )

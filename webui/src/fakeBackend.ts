@@ -4,6 +4,7 @@ import type {
   Backend,
   ControlsData,
   DemoKind,
+  FolderSizes,
   KeyPhase,
   PictureWindow,
   SaveOutcome,
@@ -148,6 +149,11 @@ export class FakeBackend implements Backend {
   }
 
   opened: WindowsPlace[] = []
+  sizes: FolderSizes = {}
+
+  async folderSizes() {
+    return this.sizes
+  }
 
   async open(place: WindowsPlace) {
     this.opened.push(place)

@@ -53,6 +53,20 @@ internal class UiPlaces(
         else -> Files.createDirectories(setup.mfiDirectory).toString()
     }
 
+    /**
+     * The logs and screenshots folders' sizes in bytes, the files in their subfolders too; a missing folder is 0 and
+     * stays unmade, and a file that goes while they are added up counts nothing.
+     */
+    fun folderSizes(): Map<String, Long> = listOf("logs", "screenshots").associateWith { name ->
+        val folder = setup.settingsFile.resolveSibling(name)
+        if (!Files.isDirectory(folder)) 0L
+        else runCatching {
+            Files.walk(folder).use { files ->
+                files.filter(Files::isRegularFile).mapToLong { file -> runCatching { Files.size(file) }.getOrDefault(0L) }.sum()
+            }
+        }.getOrDefault(0L)
+    }
+
     /** What a report needs to say which ChairPlay it is about: the build, the DiPlay core, and Windows; no setting. */
     fun details(): String {
         fun commit(name: String, commit: Commit?) = "$name ${commit?.let { "${it.id} (${it.date})" } ?: "not recorded"}"

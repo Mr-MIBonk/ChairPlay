@@ -192,6 +192,7 @@ class UiController(
     override fun altscreenContent(content: String): Boolean = controls?.altscreenContent(content) ?: false
 
     override fun open(place: String): Boolean = places.open(place)
+    override fun folderSizes(): Map<String, Long> = places.folderSizes()
 
     private fun changed() {
         synchronized(lock) {

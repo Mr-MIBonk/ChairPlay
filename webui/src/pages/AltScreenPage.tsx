@@ -137,7 +137,7 @@ export function AltScreenPage({ state, backend, settings }: { state: AppState; b
         )}
         <Row title="Keep the iPhone drawing the map view picked last while the HUD shows, so the map comes back at once; the iPhone works harder">
           <Checkbox
-            label="Keep the map stream under the HUD"
+            label="Keep map stream behind HUD"
             checked={settings.value('altscreen.hud.stream') === 'true'}
             onChange={(checked) => settings.save({ 'altscreen.hud.stream': String(checked) })}
           />

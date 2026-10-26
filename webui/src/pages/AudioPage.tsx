@@ -100,7 +100,7 @@ export function AudioPage({ state, backend, settings }: { state: AppState; backe
       </Row>
       <Row title="Use the level the iPhone sends with a prompt; Music at applies when it sends none">
         <Checkbox
-          label="Prefer the iPhone's level"
+          label="Use iPhone ducking level"
           checked={value('audio.duck.iphone') !== 'false'}
           onChange={(checked) => save({ 'audio.duck.iphone': String(checked) })}
         />

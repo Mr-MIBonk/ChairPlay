@@ -6,6 +6,7 @@ import type {
   Backend,
   ControlsData,
   DemoKind,
+  FolderSizes,
   KeyPhase,
   PictureWindow,
   SaveOutcome,
@@ -45,6 +46,10 @@ export class Api implements Backend {
 
   async save(changes: Record<string, string>): Promise<SaveOutcome> {
     return this.saveTo('settings', changes)
+  }
+
+  async folderSizes(): Promise<FolderSizes> {
+    return (await this.request('GET', 'folder-sizes')).data as FolderSizes
   }
 
   async savedPassphrase(): Promise<string | null> {

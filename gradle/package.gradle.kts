@@ -121,8 +121,6 @@ val syncApp by tasks.registering(Sync::class) {
     // The app data: settings, controls and car icon, the AirPlay identity, pairings, the MFi files and the data logs.
     preserve {
         include("settings.properties", "controls.properties", "carplay-icon.png", "window.properties", "identity.properties", "pairings/**", "offline-mfi/**", "screenshots/**", "logs/**")
-        // Keep the optional Windows-style CarPlay icon alongside the active one.
-        include("carplay-icon-windows.png")
     }
     // jpackage leaves ChairPlay.exe read-only, and Windows refuses to replace a read-only file: the copies stay
     // writable, so the next deploy can replace them.
