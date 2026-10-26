@@ -61,8 +61,8 @@ internal class GaugeDial(private val pen: NanoPen, private val accent: Int) {
         nvgStrokeWidth(vg, 1.5f)
         pen.stroke(EDGE)
         // The reading in the hub's very middle, its unit below.
-        pen.text(digits, cx, cy, face * 0.336f, WHITE, BOLD)
-        pen.text(unit, cx, cy + face * 0.235f, face * 0.096f, CAPTION, REGULAR)
+        pen.text(digits, cx, cy, face * 0.40f, WHITE, BOLD)
+        pen.text(unit, cx, cy + face * 0.28f, face * 0.114f, CAPTION, REGULAR)
     }
 
     /** The red zone's start, dashed from [from] to [to]: dashes and gaps of even length, a dash at each end. */
@@ -143,7 +143,7 @@ internal object GaugeStyle {
     const val ITALIC = "wide-italic"
     /** The face inside the bezel, and the hub in the face, in their radii. */
     const val FACE = 0.92f
-    const val HUB = 0.456f
+    const val HUB = 0.5506f
     const val OPAQUE = 0xFF000000.toInt()
     const val BLACK = 0xFF000000.toInt()
     const val WHITE = 0xFFFFFFFF.toInt()

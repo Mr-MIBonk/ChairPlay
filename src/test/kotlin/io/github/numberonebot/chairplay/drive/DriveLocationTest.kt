@@ -58,6 +58,21 @@ class DriveLocationTest {
         assertEquals(270.0, sentence(reversing.latestNmea()!!, "GPRMC")!!.split(',')[8].toDouble(), 0.5)
     }
 
+    // Heading sending off: the course field stays empty even on the move, for the iPhone to reckon it from the places.
+    @Test
+    fun `with heading sending off, a moving car is sent with no course`() {
+        val drive = drive(heading = 90.0)
+        drive.input = CarInput(throttle = 1.0)
+        drive.tick(5.0)
+        val location = DriveLocation(drive, satellites = false, nanoTime = { now }, wallMillis = { wallClock },
+            settings = { GpsSettings(true, sendHeading = false) })
+        location.onRequested(setOf(1, 2))
+        location.start()
+        val rmc = sentence(location.latestNmea()!!, "GPRMC")!!.split(',')
+        assertTrue(rmc[7].toDouble() > 0.0)
+        assertEquals("", rmc[8])
+    }
+
     // $PASCD when asked (selector 4): the samples since the last sentence, with the gear.
     @Test
     fun `wheel speed goes with the position when asked`() {

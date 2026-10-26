@@ -195,6 +195,21 @@ class CarModelTest {
         assertTrue("rpm ${car.state.rpm}", car.state.rpm > 2500)
     }
 
+    // Starting out of park the engine flares above idle, then settles back to idle, as a real one caught starting does.
+    @Test
+    fun `the engine flares on start out of park, then settles to idle`() {
+        val car = CarModel(CarSpec(), CarState(parked = true))
+        // A touch of the throttle starts it; then lift off and let it idle at a standstill.
+        car.step(CarInput(throttle = 0.1), dt)
+        var peak = car.state.rpm
+        car.run(1.5, CarInput()) { peak = maxOf(peak, it.rpm) }
+        assertTrue("peak $peak", peak > car.spec.idleRpm + 250)
+
+        car.run(3.0, CarInput())
+        assertEquals(car.spec.idleRpm, car.state.rpm, 80.0)
+        assertEquals(0.0, car.state.speed, 0.0)
+    }
+
     // A pedal too light to beat the rolling resistance leaves the car standing, never rolling the other way.
     @Test
     fun `a pedal too light to move the car leaves it standing`() {

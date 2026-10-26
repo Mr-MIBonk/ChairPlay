@@ -3,8 +3,7 @@ import type { AppState, Backend, GpsState } from '../api'
 import { keyLabel } from '../ControlsScreen'
 import { Checkbox, Group, Row, Segmented, type Choice } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
-import { CITIES, cityAt } from './cities'
-import { Compass, HeadingField, placeOf, PositionFields } from './gpsFields'
+import { Compass, HeadingField, PositionFields } from './gpsFields'
 import { Changed, parts, pendingOf } from './parts'
 import { WindowsLocationButton } from './WindowsLocationButton'
 
@@ -31,11 +30,17 @@ const GAUGES: readonly Choice[] = [
   ['small', 'Small'],
 ]
 
-/** gps.nmea: the sentences the fixes go in. */
-const SENTENCES: readonly Choice[] = [
-  ['classic', 'Classic', "DiPlay's $GPGGA and $GPRMC"],
-  ['modern', 'Modern', "A current receiver's $GNGGA, $GNRMC, $GNGSA, and $GNVTG"],
+/** gps.wheel: what the gauges' steering wheel shows. */
+const WHEEL: readonly Choice[] = [
+  ['heading', 'Heading'],
+  ['steering', 'Steering'],
 ]
+
+// gps.nmea: the Sentences choice, hidden in the UI until it is tested.
+// const SENTENCES: readonly Choice[] = [
+//   ['classic', 'Classic', "DiPlay's $GPGGA and $GPRMC"],
+//   ['modern', 'Modern', "A current receiver's $GNGGA, $GNRMC, $GNGSA, and $GNVTG"],
+// ]
 
 /**
  * What the iPhone takes, for the iPhone row under the fixes; and how the car goes and what drives it, for the Car
@@ -53,8 +58,8 @@ function status(car: GpsState) {
 
 /**
  * The spoofed GPS: whether the iPhone navigates by the car ChairPlay drives, and what it is told besides the position;
- * where the car is and which way it faces, following it as it drives, and a city to put it in; the car itself and its
- * gauges; and how it goes and what the iPhone takes.
+ * where the car is and which way it faces, following it as it drives; the car itself and its gauges; and how it goes
+ * and what the iPhone takes. The city presets (CityPresets) are off the page for now.
  */
 export function GpsPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
   const pending = pendingOf(state)
@@ -66,7 +71,6 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
   const now = state.gps && status(state.gps)
   // Where the car is and which way it faces now, while the app runs; else as saved.
   const heading = state.gps ? String(state.gps.heading) : value('gps.heading') || '0'
-  const place = placeOf(state.gps, value('gps.start'))
   const ids = useId()
   /** A switch for [key]; [on] is what a blank value means, as the app reads it. */
   const check = (key: string, label: string, title?: string, on = false, experimental = false) => (
@@ -86,7 +90,7 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
       {check('gps.enabled', 'Enable spoofing', undefined, false, true)}
       <Row className="hint-row">
         <span className="hint">
-          The iPhone gets a made-up GPS signal in place of the car's: the position of a car ChairPlay drives, with a
+          The iPhone gets a fake GPS signal in place of the car's: the position of a car ChairPlay drives, with a
           gamepad or with the arrows in drive mode{driveKey ? ` (${keyLabel(driveKey)})` : ''}
         </span>
       </Row>
@@ -99,13 +103,20 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
           true,
         )}
         {check(
+          'gps.heading.send',
+          'Send the heading',
+          'The car heading as the course in the position sentences, so the iPhone can face its arrow the way the car goes',
+          true,
+        )}
+        {/* Hidden until the satellite almanac ($GPGSV) is tested:
+        {check(
           'gps.satellites',
           'Send satellites in view',
           'A clear sky of ten satellites; try it if the iPhone keeps to its own GPS',
           false,
           true,
-        )}
-        {/* Experiments in what the iPhone takes, from the next fix: how often the position goes, and in which sentences. */}
+        )} */}
+        {/* Experiment in what the iPhone takes, from the next fix: how often the position goes. */}
         <Row label="Updates" title="How often the car's position goes to the iPhone while it listens">
           <Segmented
             label="Updates"
@@ -115,6 +126,7 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
           />
           <span className="unit">a second</span>
         </Row>
+        {/* Hidden until the Sentences (NMEA dialect) choice is tested:
         <Row label="Sentences" title="The NMEA sentences the position goes to the iPhone in">
           <Segmented
             label="Sentences"
@@ -122,7 +134,7 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
             options={SENTENCES}
             onChange={(nmea) => save({ 'gps.nmea': nmea })}
           />
-        </Row>
+        </Row> */}
         {now && <Row label="iPhone">{now.iphone}</Row>}
         {/* Where the car is, apart from the car itself, whose own settings grow. */}
         <Group title="Position" />
@@ -132,27 +144,16 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
         >
           <PositionFields settings={settings} car={state.gps} heading={heading} />
         </Row>
-        <Row
-          label="Heading"
-          htmlFor={`${ids}-heading`}
-          title="Which way the car faces now: 0° is north, 90° east; change it to turn the car"
-        >
-          <HeadingField settings={settings} shown={heading} id={`${ids}-heading`} />
-          <Compass heading={Number(heading) || 0} />
-        </Row>
-        <Row label="City presets" title="Put the car on a busy road in one of these cities, facing along it">
-          <Segmented
-            label="City presets"
-            className="rows cities"
-            value={(place && cityAt(`${place.latitude}, ${place.longitude}`)?.code) ?? ''}
-            options={CITIES.map((city) => [city.code, city.code, `${city.name}: ${city.road}`])}
-            onChange={(code) => {
-              const city = CITIES.find((each) => each.code === code)
-              if (city)
-                void save({ 'gps.start': `${city.latitude}, ${city.longitude}`, 'gps.heading': String(city.heading) })
-            }}
-          />
-        </Row>
+        {value('gps.heading.send') !== 'false' && (
+          <Row
+            label="Heading"
+            htmlFor={`${ids}-heading`}
+            title="Which way the car faces now: 0° is north, 90° east; change it to turn the car"
+          >
+            <HeadingField settings={settings} shown={heading} id={`${ids}-heading`} />
+            <Compass heading={Number(heading) || 0} />
+          </Row>
+        )}
         <Row>
           <WindowsLocationButton backend={backend} settings={settings} heading={heading} />
         </Row>
@@ -174,6 +175,14 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
           {field('gps.car.mass.kg', 'Mass', '1500')}
           <span className="unit">kg</span>
         </Row>
+        <Row label="Handling" title="How fast the car turns standing and slow, and how well it holds a fast corner">
+          <Segmented
+            label="Handling"
+            value={value('gps.car.handling') || 'normal'}
+            options={HANDLING}
+            onChange={(handling) => save({ 'gps.car.handling': handling })}
+          />
+        </Row>
         <Row
           label="Gauges"
           title={`The speedometer and tachometer in drive mode: as tall as the AltScreen, or small in its lower corners${gaugesKey ? ` (${keyLabel(gaugesKey)})` : ''}`}
@@ -185,13 +194,23 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
             onChange={(size) => save({ 'gps.gauges': size })}
           />
         </Row>
-        <Row label="Handling" title="How fast the car turns standing and slow, and how well it holds a fast corner">
+        <Row
+          label="Wheel"
+          title="Which way the gauges' steering wheel points: the car's heading (north up) or its steering input (track up)"
+        >
           <Segmented
-            label="Handling"
-            value={value('gps.car.handling') || 'normal'}
-            options={HANDLING}
-            onChange={(handling) => save({ 'gps.car.handling': handling })}
+            label="Wheel"
+            value={value('gps.wheel') || 'heading'}
+            options={WHEEL}
+            onChange={(wheel) => save({ 'gps.wheel': wheel })}
           />
+        </Row>
+        <Row className="hint-row">
+          <span className="hint">
+            Heading — north-up maps (Apple Maps): the wheel shows the car's course.
+            <br />
+            Steering — track-up maps (Google Maps): the wheel follows input, car fixed up.
+          </span>
         </Row>
       </div>
     </>

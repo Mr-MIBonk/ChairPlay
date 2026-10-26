@@ -7,6 +7,7 @@ import io.github.numberonebot.chairplay.drive.GeoPoint
 import io.github.numberonebot.chairplay.drive.GpsSettings
 import io.github.numberonebot.chairplay.drive.NmeaDialect
 import io.github.numberonebot.chairplay.drive.NmeaFraming
+import io.github.numberonebot.chairplay.drive.WheelMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -22,6 +23,7 @@ class GpsConfigTest {
         val off = configWith().gps
         assertFalse(off.enabled)
         assertTrue(off.wheelSpeed)
+        assertTrue(off.sendHeading)
         assertFalse(off.satellites)
         assertNull(off.start)
         assertEquals(0.0, off.headingDegrees, 0.0)
@@ -35,32 +37,36 @@ class GpsConfigTest {
         assertEquals(NmeaFraming.JOINED, configWith("gps.framing=joined").gps.framing)
 
         val on = configWith(
-            "gps.enabled=true", "gps.satellites=true", "gps.wheel.speed=false", "gps.start=https://maps.apple.com/?ll=50.4501,30.5234",
+            "gps.enabled=true", "gps.satellites=true", "gps.wheel.speed=false", "gps.heading.send=false",
+            "gps.start=https://maps.apple.com/?ll=50.4501,30.5234",
             "gps.heading=270.5", "gps.car.power.hp=300", "gps.car.mass.kg=1600",
         ).gps
         assertEquals(
             GpsSettings(true, wheelSpeed = false, satellites = true, start = GeoPoint(50.4501, 30.5234), headingDegrees = 270.5,
-                car = CarSpec(massKg = 1600.0, powerHp = 300.0)),
+                sendHeading = false, car = CarSpec(massKg = 1600.0, powerHp = 300.0)),
             on,
         )
     }
 
-    // The car's handling and the gauges' size, as the GPS page sets them: normal and large unless set.
+    // The car's handling, the gauges' size and the wheel's mode, as the GPS page sets them: normal, large and the
+    // heading (north up) unless set.
     @Test
-    fun `the car's handling and the gauges' size`() {
+    fun `the car's handling, the gauges' size and the wheel's mode`() {
         val plain = configWith().gps
         assertEquals(Handling.NORMAL, plain.car.handling)
         assertEquals(GaugeSize.LARGE, plain.gauges)
-        val set = configWith("gps.car.handling=sharp", "gps.gauges=small").gps
+        assertEquals(WheelMode.HEADING, plain.wheel)
+        val set = configWith("gps.car.handling=sharp", "gps.gauges=small", "gps.wheel=steering").gps
         assertEquals(Handling.SHARP, set.car.handling)
         assertEquals(GaugeSize.SMALL, set.gauges)
+        assertEquals(WheelMode.STEERING, set.wheel)
     }
 
     @Test
     fun `rejects GPS values the car cannot have`() {
         for (bad in listOf(
             "gps.start=Kyiv", "gps.heading=north", "gps.heading=360", "gps.car.power.hp=5", "gps.car.mass.kg=50", "gps.rate=3",
-            "gps.nmea=ancient", "gps.framing=pigeons", "gps.car.handling=wild", "gps.gauges=huge",
+            "gps.nmea=ancient", "gps.framing=pigeons", "gps.car.handling=wild", "gps.gauges=huge", "gps.wheel=sideways",
         )) {
             val key = bad.substringBefore('=')
             val error = assertThrows(IllegalArgumentException::class.java) { configWith(bad).gps }

@@ -133,6 +133,8 @@ class Driving(
             tachometer = GaugeScale.tachometer(drive.spec),
             position = snapshot.position,
             size = settings.gauges,
+            steer = snapshot.input.steer,
+            wheelMode = settings.wheel,
         )
     }
 

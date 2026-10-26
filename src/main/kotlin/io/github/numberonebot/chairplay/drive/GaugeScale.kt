@@ -68,4 +68,20 @@ data class GaugeView(
     val tachometer: GaugeScale,
     val position: GeoPoint = GeoPoint(0.0, 0.0),
     val size: GaugeSize = GaugeSize.LARGE,
+    /** The steering input now, -1 full left to 1 full right, for the wheel in steering mode. */
+    val steer: Double = 0.0,
+    val wheelMode: WheelMode = WheelMode.HEADING,
 )
+
+/** Full steering lock, how far the wheel turns at [CarInput.steer] of 1: enough to read as a hard turn. */
+private val STEER_LOCK = Math.toRadians(115.0)
+
+/**
+ * How far the gauges' steering wheel is turned, in radians (NanoVG: 0 at rest pointing up, positive clockwise). In
+ * [WheelMode.HEADING] it points along the car's [headingDegrees] (north up); in [WheelMode.STEERING] it turns with the
+ * [steer] input (-1 left to 1 right) like a real wheel, centred going straight, whatever the heading.
+ */
+fun wheelTurn(mode: WheelMode, headingDegrees: Double, steer: Double): Double = when (mode) {
+    WheelMode.HEADING -> Math.toRadians(headingDegrees)
+    WheelMode.STEERING -> steer.coerceIn(-1.0, 1.0) * STEER_LOCK
+}

@@ -152,13 +152,17 @@ internal val SETTINGS_TEMPLATE = listOf(
     ),
     SettingBlock(
         "Where the car is: 'latitude, longitude' or a Google or Apple Maps link, and its heading in degrees\n" +
-            "(0 north, 90 east); the app writes them as the car stops, and the next start begins there.",
-        "gps.start" to "", "gps.heading" to "0",
+            "(0 north, 90 east); the app writes them as the car stops, and the next start begins there. Whether\n" +
+            "the heading goes to the iPhone as the course in the sentences, 'true' or 'false'.",
+        "gps.start" to "", "gps.heading" to "0", "gps.heading.send" to "true",
     ),
     SettingBlock(
         "The car: its power in hp (20-2000) and its mass in kg (300-10000); how it turns, 'gentle', 'normal' or\n" +
-            "'sharp'; and drive mode's gauges, 'large' or 'small' in the window's lower corners (Shift+F10).",
+            "'sharp'; drive mode's gauges, 'large' or 'small' in the window's lower corners (Shift+F10); and what the\n" +
+            "gauges' wheel shows, 'heading' (north up, for a north-up map like Apple Maps) or 'steering' (the car up,\n" +
+            "turning with the input like a real wheel, for a track-up map like Google Maps).",
         "gps.car.power.hp" to "300", "gps.car.mass.kg" to "1500", "gps.car.handling" to "normal", "gps.gauges" to "large",
+        "gps.wheel" to "heading",
     ),
     SettingBlock(
         "Experiments in what the iPhone takes from the GPS: fixes a second, '1', '4' (as the iPhone asks) or '10';\n" +

@@ -3,7 +3,8 @@ package io.github.numberonebot.chairplay.drive
 /**
  * gps.*: whether the iPhone navigates by the spoofed car, and what it is told besides its place ([wheelSpeed] for
  * $PASCD, [satellites] for $GPGSV); where the car is ([start], null until set; the car saves it as it stops) and which
- * way it faces; the car itself; and the experiments in how the fixes go ([rate], [nmea], [framing]).
+ * way it faces ([headingDegrees], sent as the course when [sendHeading]); the car itself; and the experiments in how
+ * the fixes go ([rate], [nmea], [framing]).
  */
 data class GpsSettings(
     val enabled: Boolean,
@@ -11,6 +12,8 @@ data class GpsSettings(
     val satellites: Boolean = false,
     val start: GeoPoint? = null,
     val headingDegrees: Double = 0.0,
+    /** gps.heading.send: whether the car's heading goes as the course in the position sentences. */
+    val sendHeading: Boolean = true,
     val car: CarSpec = CarSpec(),
     /** Experiments: fixes a second on the tunnel (the iPhone asks for 4), and which sentences carry them. */
     val rate: Int = 4,
@@ -18,6 +21,8 @@ data class GpsSettings(
     val framing: NmeaFraming = NmeaFraming.PARAMETERS,
     /** How large drive mode's gauges show, gps.gauges. */
     val gauges: GaugeSize = GaugeSize.LARGE,
+    /** What the gauges' steering wheel shows, gps.wheel: the car's heading, or its steering input. */
+    val wheel: WheelMode = WheelMode.HEADING,
 ) {
     companion object {
         val RATES = listOf(1, 4, 10)
@@ -35,4 +40,14 @@ enum class GaugeSize(val key: String) {
     SMALL("small");
 
     fun other(): GaugeSize = if (this == LARGE) SMALL else LARGE
+}
+
+/**
+ * What the gauges' steering wheel shows: the car's heading with north up ([HEADING], the red mark pointing where the car
+ * faces, to match a north-up map like Apple Maps on the AltScreen), or the car's steering input with the car up
+ * ([STEERING], the wheel turning with the input like a real wheel, to match a track-up map like Google Maps).
+ */
+enum class WheelMode(val key: String) {
+    HEADING("heading"),
+    STEERING("steering"),
 }

@@ -101,7 +101,7 @@
 .shell .row.hint-row {
   align-items: start;
   min-height: 0;
-  padding: 9px 0 9px;
+  padding: 2px 0 2px;
 }
 
 .shell .row > label {

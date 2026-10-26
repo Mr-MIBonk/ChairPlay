@@ -205,30 +205,35 @@ describe('GPS page', () => {
     expect(backend.saved).toEqual([])
   })
 
-  // A city puts the car on one of its busy roads, facing along it; the city it stands in is the one chosen.
-  it('puts the car in a city from its presets', async () => {
-    const backend = gpsBackend(true)
-    backend.data.values['gps.start'] = '48.87604, 2.28792'
-    backend.data.values['gps.heading'] = '116'
-    await gps(appState(live), backend)
-
-    expect(screen.getByRole('radio', { name: 'PAR' }).getAttribute('aria-checked')).toBe('true')
-    fireEvent.click(screen.getByRole('radio', { name: 'NYC' }))
-
-    await waitFor(() => expect(backend.saved).toEqual([{ 'gps.start': '40.74389, -74.00841', 'gps.heading': '7' }]))
-  })
-
-  // How the fixes go, for finding what the iPhone takes: the rate, 4 a second as it asks, and the sentences.
-  it('sets the GPS rate and sentences', async () => {
+  // How the fixes go, for finding what the iPhone takes: the rate, 4 a second as the iPhone asks.
+  it('sets the GPS rate', async () => {
     const backend = await gps()
 
     const fixes = screen.getByRole('radiogroup', { name: 'Updates' })
     expect(within(fixes).getByRole('radio', { name: '4' }).getAttribute('aria-checked')).toBe('true')
-    expect(screen.getByRole('radio', { name: 'Classic' }).getAttribute('aria-checked')).toBe('true')
     fireEvent.click(within(fixes).getByRole('radio', { name: '10' }))
-    fireEvent.click(screen.getByRole('radio', { name: 'Modern' }))
 
-    await waitFor(() => expect(backend.saved).toEqual([{ 'gps.rate': '10' }, { 'gps.nmea': 'modern' }]))
+    await waitFor(() => expect(backend.saved).toEqual([{ 'gps.rate': '10' }]))
+  })
+
+  // Heading sending, on by default: the switch turns it off, saving the key.
+  it('turns heading sending off', async () => {
+    const backend = await gps()
+
+    expect(screen.getByRole('textbox', { name: 'Heading' })).not.toBeNull()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Send the heading' }))
+
+    await waitFor(() => expect(backend.saved).toEqual([{ 'gps.heading.send': 'false' }]))
+  })
+
+  // Heading sending off: the heading row, its field and the compass are gone.
+  it('hides the heading field and compass when heading sending is off', async () => {
+    const backend = gpsBackend(true)
+    backend.data.values['gps.heading.send'] = 'false'
+    await gps(appState(live), backend)
+
+    expect(screen.queryByRole('textbox', { name: 'Heading' })).toBeNull()
+    expect(screen.queryByRole('img', { name: /Heading/ })).toBeNull()
   })
 
   // The car's handling and the gauges' size: normal and large until set.
@@ -243,5 +248,16 @@ describe('GPS page', () => {
     fireEvent.click(within(gauges).getByRole('radio', { name: 'Small' }))
 
     await waitFor(() => expect(backend.saved).toEqual([{ 'gps.car.handling': 'sharp' }, { 'gps.gauges': 'small' }]))
+  })
+
+  // The wheel's mode: the heading (north up) until set; choosing steering (track up) saves the key.
+  it('sets the wheel mode', async () => {
+    const backend = await gps()
+
+    const wheel = screen.getByRole('radiogroup', { name: 'Wheel' })
+    expect(within(wheel).getByRole('radio', { name: 'Heading' }).getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(within(wheel).getByRole('radio', { name: 'Steering' }))
+
+    await waitFor(() => expect(backend.saved).toEqual([{ 'gps.wheel': 'steering' }]))
   })
 })

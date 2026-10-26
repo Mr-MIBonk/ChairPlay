@@ -14,7 +14,7 @@ import kotlin.math.sign
 data class CarSpec(
     val massKg: Double = 1500.0,
     val powerHp: Double = 300.0,
-    val idleRpm: Double = 800.0,
+    val idleRpm: Double = 700.0,
     val redlineRpm: Double = 7000.0,
     val gearRatios: List<Double> = listOf(3.6, 2.2, 1.55, 1.2, 0.95, 0.78),
     val finalDrive: Double = 4.3,
@@ -72,6 +72,8 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
     private val gripNewtons = spec.massKg * GRAVITY * DRIVEN_GRIP
     private var standstillBrakeSeconds = 0.0
     private var standingSeconds = 0.0
+    // Extra rpm above idle just after the engine starts out of park, decaying away: the cold-start flare.
+    private var startFlareRpm = 0.0
 
     fun step(input: CarInput, dt: Double): CarState {
         val throttle = input.throttle.coerceIn(0.0, 1.0)
@@ -83,7 +85,8 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
 
         // Standing a while, the car parks and stops its engine; the throttle starts it in drive.
         standingSeconds = if (before == 0.0 && throttle == 0.0) standingSeconds + dt else 0.0
-        var parked = state.parked
+        val wasParked = state.parked
+        var parked = wasParked
         if (parked && throttle > 0) {
             parked = false
             gear = 1
@@ -98,6 +101,8 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
             gear = -1
             parked = false
         }
+        // Starting out of park flares the engine; it then settles back to idle over FLARE_SECONDS.
+        if (wasParked && !parked) startFlareRpm = COLD_START_RPM - spec.idleRpm
         val drive = if (gear > 0) throttle else brake
         val stopping = if (gear > 0) brake else throttle
         val direction = if (gear > 0) 1.0 else -1.0
@@ -119,9 +124,10 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
 
         if (gear > 0) gear = shifted(gear, wheelRpm(abs(speed), gear), throttle)
         val launch = spec.idleRpm + (LAUNCH_RPM - spec.idleRpm) * drive
-        // A stopped engine winds down to nothing, a started one up from it.
+        // A stopped engine winds down to nothing, a started one up from it; a start flares above idle first.
         val wheels = wheelRpm(abs(speed), gear)
-        val target = if (parked) 0.0 else maxOf(wheels, launch).coerceIn(spec.idleRpm, spec.redlineRpm)
+        val target = if (parked) 0.0 else maxOf(wheels, launch, spec.idleRpm + startFlareRpm).coerceIn(spec.idleRpm, spec.redlineRpm)
+        startFlareRpm *= exp(-dt / FLARE_SECONDS)
         // Driven up by the wheels the engine turns with them; the launch, a shift's drop and a stop ease.
         val rpm = if (!parked && wheels >= launch && target >= state.rpm) target else target + (state.rpm - target) * exp(-dt / RPM_SECONDS)
 
@@ -194,6 +200,9 @@ class CarModel(val spec: CarSpec, initial: CarState = CarState()) {
         /** What the engine revs to as the clutch slips at a launch, at full throttle. */
         private const val LAUNCH_RPM = 3500.0
         private const val RPM_SECONDS = 0.15
+        /** The cold-start flare: the engine jumps to this as it starts out of park, then settles to idle. */
+        private const val COLD_START_RPM = 1300.0
+        private const val FLARE_SECONDS = 0.9
         private const val SHIFT_UP_GENTLE = 2500.0
         /** How far below the red line full throttle shifts up. */
         private const val SHIFT_BELOW_REDLINE = 200.0

@@ -116,6 +116,7 @@ class DriveLocation(
         val car = drive.snapshot()
         val position = if (placed()) {
             val course = when {
+                !now.sendHeading -> null
                 car.car.speed > 0 -> car.car.headingDegrees
                 car.car.speed < 0 -> (car.car.headingDegrees + 180) % 360
                 else -> null

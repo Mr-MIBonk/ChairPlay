@@ -109,13 +109,13 @@ class GaugePainter(
                 well(pen, left, cy, r, face)
                 // The tachometer's single digits half as large again as the speedometer's three.
                 dial.draw(left, cy, face, now.tachometer, LABEL_SIZE * 1.5f, now.rpm / 1000, now.gear, "×1000 rpm")
-                place(pen, left, cy + face * 0.6f, face * 0.3f, now.position, now.headingDegrees)
+                place(pen, left, cy + face * 0.625f, face * 0.3f, now.position, now.headingDegrees)
             }
             scaled(pen.vg, w - cornerX, cornerY, scale) {
                 well(pen, right, cy, r, face)
                 dial.draw(right, cy, face, now.speedometer, LABEL_SIZE, now.speedKmh, now.speedKmh.roundToInt().toString(), "km/h")
-                // Under the speed the wheel, turned to where the car faces, and beside it both pedals, the throttle over the brake.
-                wheel(pen, right - face * 0.2f, cy + face * 0.76f, face * 0.112f, now.headingDegrees)
+                // Under the speed the wheel, turned by the heading or the steering, and beside it both pedals, the throttle over the brake.
+                wheel(pen, right - face * 0.2f, cy + face * 0.76f, face * 0.112f, wheelTurn(now.wheelMode, now.headingDegrees, now.steer))
                 pedalBar(pen, right + face * 0.18f, cy + face * 0.72f, face * 0.38f, face * 0.025f, now.throttle, GREEN)
                 pedalBar(pen, right + face * 0.18f, cy + face * 0.80f, face * 0.38f, face * 0.025f, now.brake, RED)
             }
@@ -258,13 +258,12 @@ class GaugePainter(
     }
 
     /**
-     * The heading as a schematic three-spoke wheel, dark and thin, its red centre mark pointing where the car faces with
-     * north up: a round rim, spokes to the left, the right and down, and a broad pad, each edged a shade lighter to
-     * stand off the face.
+     * A schematic three-spoke steering wheel, dark and thin, turned by [turn] radians with its red centre mark on it: a
+     * round rim, spokes to the left, the right and down, and a broad pad, each edged a shade lighter to stand off the
+     * face.
      */
-    private fun wheel(pen: NanoPen, cx: Float, cy: Float, radius: Float, headingDegrees: Double) {
+    private fun wheel(pen: NanoPen, cx: Float, cy: Float, radius: Float, turn: Double) {
         val vg = pen.vg
-        val turn = Math.toRadians(headingDegrees)
         val rim = radius * 0.86f
         val thick = radius * 0.13f
         fun shape(widen: Float, argb: Int) {
