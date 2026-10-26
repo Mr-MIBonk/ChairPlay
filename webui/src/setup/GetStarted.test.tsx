@@ -55,7 +55,7 @@ describe('Get started', () => {
   it('opens the first step not done, and the rest wait', async () => {
     await guide(firstStart({ mfiPresent: true }))
 
-    expect(stateOf('MFi files')).toBe('done')
+    expect(screen.queryByText('MFi files', { selector: '.st > span:first-child' })).toBeNull()
     expect(stateOf('Firewall')).toBe('now')
     expect(stateOf('Pair the iPhone')).toBe('todo')
     expect(stateOf('Wi-Fi network')).toBe('todo')
@@ -75,6 +75,24 @@ describe('Get started', () => {
     fireEvent.click(within(step('MFi files')).getByRole('button', { name: 'Open' }))
 
     expect(backend.opened).toEqual(['mfi-folder'])
+  })
+
+  it('reacts to MFi files appearing or disappearing without reopening the guide', async () => {
+    const backend = new FakeBackend()
+    const ready = firstStart({ ...everything }, wifiSet)
+    const { rerender } = render(<Shell state={ready} backend={backend} />)
+    await screen.findByRole('heading', { name: 'Get started' })
+    const connect = () => screen.getByRole('button', { name: 'Connect' }) as HTMLButtonElement
+    expect(screen.queryByText('MFi files', { selector: '.st > span:first-child' })).toBeNull()
+    expect(connect().disabled).toBe(false)
+
+    rerender(<Shell state={{ ...ready, setup: { ...ready.setup, mfiPresent: false } }} backend={backend} />)
+    expect(stateOf('MFi files')).toBe('now')
+    expect(connect().disabled).toBe(true)
+
+    rerender(<Shell state={ready} backend={backend} />)
+    expect(screen.queryByText('MFi files', { selector: '.st > span:first-child' })).toBeNull()
+    expect(connect().disabled).toBe(false)
   })
 
   it('adds the firewall rule, or opens the rules when one blocks ChairPlay', async () => {

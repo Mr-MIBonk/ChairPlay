@@ -13,7 +13,8 @@ export interface Step {
 export type WifiProblem = { kind: 'failed'; ssid: string } | { kind: 'other-network'; pcWifi: string } | null
 
 export interface Steps {
-  mfi: Step
+  /** Null when both MFi files are already in place: no user action is needed. */
+  mfi: Step | null
   /** Null while the firewall is off: there is nothing to let ChairPlay through, and the guide is a step shorter. */
   firewall: Step | null
   pair: Step
@@ -25,7 +26,8 @@ export interface Steps {
 }
 
 /**
- * Get started's four steps as the app's state has them: each done, open now (the first one not done), or still to do.
+ * Get started's checks: each done, open now (the first one not done), or still to do.
+ * Present MFi files and a disabled firewall need no visible step.
  * A join that timed out reopens the Wi-Fi step, since the password is the likely cause, until a password is saved
  * after it ([joinFailureSeen] is that error's time).
  */
@@ -63,7 +65,7 @@ export function setupSteps(state: AppState, joinFailureSeen: string | null): Ste
     failed ? 'Check the Wi-Fi password first' : 'Enter the Wi-Fi network first',
   ]
   return {
-    mfi: { state: stateOf(0), note: setup.mfiPresent ? 'Found' : 'Not found' },
+    mfi: setup.mfiPresent ? null : { state: stateOf(0), note: 'Not found' },
     firewall: setup.firewall === 'off' ? null : { state: stateOf(1), note: firewallNote },
     pair: { state: stateOf(2), note: setup.pairedIphone ?? 'No iPhone paired' },
     wifi: { state: stateOf(3), note: wifiNote },

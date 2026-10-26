@@ -59,13 +59,13 @@ internal fun HudPainter.routeBlock(maneuver: HudManeuver, arrival: HudArrival?, 
     val smallSize = 0.045f * h
     val textWidth = min(box.right - box.left - viewWidth - gap, 0.9f * h * 1.4f)
     // The distance stands out; a long one shrinks a little before it is cut.
-    val distanceSize = fitSize(maneuver.distance ?: "", textWidth, 0.14f * h, 0.10f * h, BOLD)
+    val distanceSize = fitSize(maneuver.distance ?: "", textWidth, 0.14f * h, 0.10f * h, WIDE)
     val road = maneuver.road ?: maneuver.description
     val arrivalLine = arrival
         ?.let { listOfNotNull(it.time?.let { time -> "Arrival $time" }, it.remaining).joinToString("  ·  ") }
         ?.ifEmpty { null }
     val lines = buildList {
-        add(Line(maneuver.distance ?: "", distanceSize, WHITE, BOLD, 1.0f))
+        add(Line(maneuver.distance ?: "", distanceSize, WHITE, WIDE, 1.0f))
         road?.let { add(Line(it, roadSize, GREY, REGULAR, 1.25f)) }
         arrivalLine?.let { add(Line(it, smallSize, WHITE, REGULAR, 1.9f)) }
         arrival?.destination?.let { add(Line(it, smallSize, GREY, REGULAR, 1.35f)) }

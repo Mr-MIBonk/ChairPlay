@@ -42,7 +42,7 @@ function Waiting({ children }: { children: string }) {
 }
 
 /**
- * The main window before the first connection: four steps the app checks on its own, the first one not done open
+ * The main window before the first connection: steps the app checks on its own, the first one not done open
  * with what to do. Once all are done, You're all set says what comes next, and the toolbar's Connect lights up.
  */
 export function GetStarted(props: {
@@ -59,24 +59,29 @@ export function GetStarted(props: {
   // The network starts as the one this PC is on, and is saved with the password.
   const network = settings.value('wifi.ssid') || setup.pcWifi || ''
   const problem = steps.wifiProblem
-  // With the firewall off its step is left out, and the steps after it move up.
+  // Omit checks that need no action, and number only the visible steps.
+  const mfi = steps.mfi
   const firewall = steps.firewall
-  const n = firewall ? 1 : 0
+  const mfiCount = mfi ? 1 : 0
+  const optionalCount = mfiCount + (firewall ? 1 : 0)
+  const stepCount = ['Two', 'Three', 'Four'][optionalCount]
   return (
     <div className="setup">
       <h2>Get started</h2>
-      <div className="sub">{firewall ? 'Four' : 'Three'} steps, once. ChairPlay checks each one on its own.</div>
-      <Step n={1} title="MFi files" {...steps.mfi}>
-        <span>Put identity.pk8 and certificate.p7b in this folder. ChairPlay finds them on its own.</span>
-        <div className="acts">
-          <CodeLine text={setup.mfiFolder}>
-            <OpenFolder backend={backend} />
-          </CodeLine>
-        </div>
-        <Waiting>Waiting for the files…</Waiting>
-      </Step>
+      <div className="sub">{stepCount} steps, once. ChairPlay checks each one on its own.</div>
+      {mfi && (
+        <Step n={1} title="MFi files" {...mfi}>
+          <span>Put identity.pk8 and certificate.p7b in this folder. ChairPlay finds them on its own.</span>
+          <div className="acts">
+            <CodeLine text={setup.mfiFolder}>
+              <OpenFolder backend={backend} />
+            </CodeLine>
+          </div>
+          <Waiting>Waiting for the files…</Waiting>
+        </Step>
+      )}
       {firewall && (
-        <Step n={2} title="Firewall" {...firewall}>
+        <Step n={1 + mfiCount} title="Firewall" {...firewall}>
           {setup.firewall === 'blocked' ? (
             <>
               <span>
@@ -111,7 +116,7 @@ export function GetStarted(props: {
           )}
         </Step>
       )}
-      <Step n={2 + n} title="Pair the iPhone" {...steps.pair}>
+      <Step n={1 + optionalCount} title="Pair the iPhone" {...steps.pair}>
         <span>
           Turn on Bluetooth on the iPhone, then pair it with this PC in Settings › Bluetooth &amp; devices › Add device.
         </span>
@@ -127,7 +132,7 @@ export function GetStarted(props: {
           <Waiting>Waiting for a paired iPhone…</Waiting>
         </div>
       </Step>
-      <Step n={3 + n} title="Wi-Fi network" {...steps.wifi}>
+      <Step n={2 + optionalCount} title="Wi-Fi network" {...steps.wifi}>
         {problem?.kind === 'failed' ? (
           <span className="errtext">
             The iPhone didn’t join “{problem.ssid}”. Check the password and save it again.

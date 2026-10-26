@@ -6,12 +6,19 @@ import io.github.numberonebot.chairplay.data.ManeuverType
 
 internal const val REGULAR = "regular"
 internal const val BOLD = "bold"
+internal const val WIDE = "wide"
+internal const val WIDE_FALLBACK = "wide-fallback"
 
 /** A face of the HUD's text, from the app's fonts/. */
-internal class HudFont(val name: String, val file: String)
+internal class HudFont(val name: String, val file: String, val fallback: String? = null)
 
-/** Inter, which draws Latin, Cyrillic and Greek alike. */
-internal val HUD_FONTS = listOf(HudFont(REGULAR, "Inter-Regular.ttf"), HudFont(BOLD, "Inter-SemiBold.ttf"))
+/** Inter for body text; wide Roboto Flex accents fall back to Inter Bold for missing glyphs. */
+internal val HUD_FONTS = listOf(
+    HudFont(REGULAR, "Inter-Regular.ttf"),
+    HudFont(BOLD, "Inter-SemiBold.ttf"),
+    HudFont(WIDE_FALLBACK, "Inter-Bold.ttf"),
+    HudFont(WIDE, "RobotoFlexWide-SemiBold.ttf", WIDE_FALLBACK),
+)
 /** About 60 frames a second while a part rises or fades; the parts move by elapsed time. */
 internal const val FRAME_MILLIS = 16L
 /** The size a part starts rising from, and fades down to, in its full size. */
