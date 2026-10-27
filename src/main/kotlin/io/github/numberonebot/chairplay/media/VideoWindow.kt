@@ -5,8 +5,6 @@ import io.github.numberonebot.chairplay.config.WindowSize
 import io.github.numberonebot.chairplay.config.fittedTo
 import io.github.numberonebot.chairplay.config.isVisibleOn
 import io.github.numberonebot.chairplay.config.openingSize
-import io.github.numberonebot.chairplay.config.limitFor
-import io.github.numberonebot.chairplay.config.grownTo
 import io.github.numberonebot.chairplay.input.PointerEvent
 import io.github.numberonebot.chairplay.input.Size
 import org.lwjgl.glfw.GLFW.*
@@ -344,11 +342,10 @@ class VideoWindow(
     }
 
     private fun limitSize(window: Long) {
-        val min = minSize?.let { aspect?.let(it::grownTo) ?: it } ?: return
+        val min = minSize ?: return
         val scale = FloatArray(1)
         glfwGetWindowContentScale(window, scale, null)
-        // In the web view's pixels, scaled with the display; never above the picture, so it can always show it 1:1.
-        val size = min.limitFor(if (minScales) scale[0] else 1f, stream)
+        val size = windowSizeLimit(min, aspect, stream, scale[0], minScales)
         glfwSetWindowSizeLimits(window, size.width, size.height, GLFW_DONT_CARE, GLFW_DONT_CARE)
         minimumSize = Size(size.width, size.height)
     }
