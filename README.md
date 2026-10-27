@@ -19,9 +19,6 @@ separate project, not affiliated with their authors or with Apple.
 - **One Wi-Fi network for the PC and the iPhone.** The PC must be on Wi-Fi, not only on a cable. The network must let
   devices see each other: most home networks do, guest networks usually don't. It must use WPA2 or no password;
   WPA3-only networks don't work yet.
-- **An Apple MFi identity**, a certificate and key that let the iPhone accept an accessory. ChairPlay doesn't include
-  one: provide your own certificate and key.
-  [The setup guide](docs/SETUP.md#set-up) shows where the files go.
 
 ## Get started
 
@@ -29,9 +26,8 @@ separate project, not affiliated with their authors or with Apple.
    [Releases page](https://github.com/NumberOneBot/ChairPlay/releases) and run it. No administrator rights needed.
    If Windows SmartScreen warns about an unrecognized app, choose **More info → Run anyway**.
 2. **Pair your iPhone** with the PC once, in Windows Settings → Bluetooth & devices, as you would headphones.
-3. **Open ChairPlay.** The **Get started** screen checks the MFi files, the firewall, your paired iPhone, and your
-   Wi-Fi network. If the MFi files are missing, it shows the folder to put them in; if both are already there, that
-   step is omitted. The firewall step is also omitted when Windows Firewall is off.
+3. **Open ChairPlay.** The **Get started** screen checks the firewall, your paired iPhone, and your Wi-Fi network.
+   The firewall step is omitted when Windows Firewall is off.
 4. **Connect.** When the checks are complete, keep your iPhone unlocked and nearby and press **Connect**.
    Accept the CarPlay prompt on the iPhone. CarPlay comes up.
 
@@ -41,7 +37,7 @@ A newer installer updates ChairPlay and keeps your settings, pairing and MFi fil
 delete them too.
 
 See the [changelog](CHANGELOG.md) for changes between versions and the
-[1.0.1 release notes](docs/RELEASE-NOTES-1.0.1.md) for the upcoming update.
+[1.0.2 release notes](docs/RELEASE-NOTES-1.0.2.md) for the upcoming update.
 
 ## Features
 
@@ -50,6 +46,7 @@ See the [changelog](CHANGELOG.md) for changes between versions and the
   Leaving full screen restores the window's previous size, position, and maximized state.
 - Keyboard controls like a car's knob and buttons (see [Controls](#controls)), and on-screen car controls from the
   toolbar's Controls button.
+- Basic keyboard text input in CarPlay fields, using the iPhone's keyboard layout.
 - Sound and microphone on the devices you choose, with a volume separate from Windows'.
 - **AltScreen** (experimental): a car's instrument cluster as a second CarPlay screen in its own window, with the
   map, the turn card or both, in a preset part of the cluster or a rectangle you draw. It can also show a **HUD**: the
@@ -63,29 +60,34 @@ Settings are in the app and save as you change them. Tested on Windows 11 with a
 
 ## Controls
 
-| Key                                       | Does                                                 |
-| ----------------------------------------- | ---------------------------------------------------- |
-| Mouse                                     | touch                                                |
-| Arrows                                    | tilt the knob: move the focus                        |
-| Tab / Shift+Tab, mouse wheel              | turn the knob                                        |
-| Enter, Space                              | select                                               |
-| Backspace, Esc                            | back                                                 |
-| Home                                      | home screen                                          |
-| Ctrl+R                                    | reconnect                                            |
-| S                                         | Siri                                                 |
-| F3 / F4                                   | answer / end a call                                  |
-| F7 / F8 / F9                              | previous track / play or pause / next track          |
-| F10                                       | drive the GPS car with the arrows (GPS spoofing on)  |
-| Shift+F10                                 | large or small gauges for the GPS car                |
-| F11                                       | AltScreen: switch between the HUD and the map        |
-| Shift+F11                                 | AltScreen: move the arrival time and turn card       |
-| F12                                       | save screenshots of CarPlay and the AltScreen        |
+| Key                                       | Does                                                           |
+| ----------------------------------------- | -------------------------------------------------------------- |
+| Mouse                                     | touch                                                          |
+| Arrows                                    | tilt the knob: move the focus                                  |
+| Tab / Shift+Tab, mouse wheel              | turn the knob                                                  |
+| Enter, Space                              | select                                                         |
+| Backspace, Esc                            | back                                                           |
+| Home                                      | home screen                                                    |
+| Ctrl+R                                    | reconnect                                                      |
+| S                                         | Siri                                                           |
+| F3 / F4                                   | answer / end a call                                            |
+| F7 / F8 / F9                              | previous track / play or pause / next track                    |
+| F10                                       | drive the GPS car with the arrows (GPS spoofing on)            |
+| Shift+F10                                 | large or small gauges for the GPS car                          |
+| F11                                       | AltScreen: switch between the HUD and the map                  |
+| Shift+F11                                 | AltScreen: move the arrival time and turn card                 |
+| F12                                       | save screenshots of CarPlay and the AltScreen                  |
 | F                                         | toggle full screen for the focused CarPlay or AltScreen window |
-| Ctrl+Up / Ctrl+Down / Ctrl+M              | ChairPlay's volume up / down / mute                  |
-| Mouse wheel over the AltScreen, + / −     | zoom the AltScreen map                               |
-| The car button on the CarPlay home screen | open the settings; the CarPlay button or Esc returns |
+| Ctrl+Up / Ctrl+Down / Ctrl+M              | ChairPlay's volume up / down / mute                            |
+| Mouse wheel over the AltScreen, + / −     | zoom the AltScreen map                                         |
+| The car button on the CarPlay home screen | open the settings; the CarPlay button or Esc returns           |
 
 Change any key on the Keyboard page.
+
+**Typing in CarPlay:** **Keyboard → Text input → Type in CarPlay** is on by default; reconnect after changing it.
+When CarPlay requests text input, letter shortcuts pause so you can type. Text follows the iPhone's layout,
+not the Windows layout. Shift, Caps Lock, Home/End, and text-selection shortcuts do not currently work in the
+tested CarPlay fields.
 
 ## Good to know
 

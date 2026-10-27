@@ -2,32 +2,39 @@
 
 User-visible changes and release tooling updates for ChairPlay.
 
-## 1.0.1 — Unreleased
+## 1.0.2 - 2026-10-27
 
 ### Added
 
-- Experimental **Send satellites in view** on the GPS page. GSV reports now use the virtual car's position and UTC
-  time to predict visible GPS satellites from a CelesTrak Yuma almanac, replacing the fixed satellite pattern.
-- Background almanac download and refresh, with a local cache for offline use. Missing or expired data suppresses
-  satellite reports without interrupting position or wheel-speed updates. Car coordinates are not sent to CelesTrak.
+- MFi files bundled with the installer; no manual certificate setup.
+- **F** toggles full screen for CarPlay or AltScreen and restores the previous window state. Shortcut configurable.
+- Basic keyboard text input in CarPlay, enabled by default; uses the iPhone's layout, with limited editing support.
+- CarPlay presets: **1080×1080**, **2560×1080** (2.5K Wide), and **2560×1440** (2.5K).
+- **GPS → Speed units** switches the speedometer and speed readings between **km/h** and **mph**, up to 180 mph.
+- Compass arrow in the tachometer when the wheel follows steering input.
 
 ### Changed
 
-- Refreshed the settings and controls interface with iOS-inspired switches, rounded fields and buttons, updated
-  sliders and selection highlights, and Reddit Sans. Moved **Use Windows location** above the GPS coordinates.
-- Get started omits the MFi step when both files are already present and adjusts the total and numbering. The step
-  returns if either file disappears, and Connect remains unavailable until the required checks pass.
-- HUD distances, calls, and the waiting message retain Roboto Flex Wide SemiBold, now with **Inter Bold** as the
-  fallback for missing characters. Other HUD text keeps Inter; gauge fonts are unchanged.
-- Lengthened the virtual car's sixth gear for a top speed of about 268 km/h with the default car, raised its limiter
-  to 280 km/h, and extended the speedometer to 300 km/h.
-- Reworked the README around installation, features, and controls; added GPS satellite documentation.
+- Wheel follows steering input by default; saved modes are preserved.
+- CarPlay streams wider than 1280 pixels can shrink to **1280 screen pixels wide**, regardless of Windows scaling.
+
+[Release notes](docs/RELEASE-NOTES-1.0.2.md) · [Changes since v1.0.1](https://github.com/NumberOneBot/ChairPlay/compare/v1.0.1...main)
+
+## 1.0.1 - 2026-10-27
+
+### Added
+
+- Experimental **Send satellites in view** predicts GPS satellites from the virtual car's position and time.
+- Background almanac refresh and offline cache; unavailable data does not interrupt position or speed updates.
+
+### Changed
+
+- Get started skips the MFi step when both files are present and restores it if either disappears.
+- Longer sixth gear: about 268 km/h with the default car, a 280 km/h limiter, and a speedometer up to 300 km/h.
 
 ### Notes
 
-- Satellite reports are experimental and off by default. Enable them and reconnect so the iPhone can request GSV.
-  Their geometry is calculated and their signal levels are simulated; increased spoofing range is not established.
-- CarPlay transport remains wireless. Experimental USB GPS development tools are not part of this release.
+- Satellite reports are off by default; reconnect after enabling. Signal levels are simulated; no proven range increase.
 
 [Release notes](docs/RELEASE-NOTES-1.0.1.md) · [Changes since v1.0.0](https://github.com/NumberOneBot/ChairPlay/compare/v1.0.0...main)
 
