@@ -3,7 +3,7 @@
 **Wireless Apple CarPlay on your Windows PC.** Listen to music, use navigation, take calls and talk to Siri through
 your PC's speakers and microphone. Control CarPlay with your mouse and keyboard.
 
-![ChairPlay on Windows: the AltScreen instrument cluster over a map, the CarPlay home screen in the ChairPlay window, and the on-screen car controls](docs/images/chairplay.png)
+![ChairPlay on Windows: the AltScreen instrument cluster over a map, the CarPlay home screen in the ChairPlay window, and the on-screen car controls](docs/images/chairplay.jpg)
 
 Useful for building and testing CarPlay apps and navigation without a car, for demos, or just CarPlay on a desk.
 
