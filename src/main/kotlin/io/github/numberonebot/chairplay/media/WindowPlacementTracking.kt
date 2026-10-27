@@ -26,6 +26,7 @@ internal fun workAreas(): List<ScreenArea> {
  * taskbar stays maximized: GLFW keeps the flag across the minimize.
  */
 internal class PlacementTracker(private val window: Long, @Volatile private var maximized: Boolean) {
+    var suspended = false
     private var x = 0
     private var y = 0
     private var width = 0
@@ -40,13 +41,13 @@ internal class PlacementTracker(private val window: Long, @Volatile private var 
         glfwGetWindowSize(window, a, b)
         width = a[0]
         height = b[0]
-        glfwSetWindowMaximizeCallback(window) { _, max -> maximized = max }
+        glfwSetWindowMaximizeCallback(window) { _, max -> if (!suspended) maximized = max }
         glfwSetWindowPosCallback(window) { _, newX, newY -> if (normal()) { x = newX; y = newY } }
         glfwSetWindowSizeCallback(window) { _, newW, newH -> if (normal() && newW > 0 && newH > 0) { width = newW; height = newH } }
     }
 
     private fun normal() =
-        glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_FALSE && glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_FALSE
+        !suspended && glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_FALSE && glfwGetWindowAttrib(window, GLFW_ICONIFIED) == GLFW_FALSE
 
     fun placement() = WindowPlacement(x, y, width, height, maximized)
 }

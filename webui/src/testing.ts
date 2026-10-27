@@ -101,6 +101,7 @@ const DEFAULT_KEYS: [string, string[]][] = [
   ['key.siri', ['S']],
   ['key.reconnect', ['Ctrl+R']],
   ['key.screenshot', ['F12']],
+  ['key.fullscreen', ['F']],
   ['key.altscreen.content', ['F11']],
   ['key.altscreen.zoom.in', ['Equal', 'Shift+Equal', 'KP_Add']],
   ['key.altscreen.zoom.out', ['Minus', 'KP_Subtract']],

@@ -193,9 +193,11 @@ describe('Shell', () => {
     fireEvent.keyDown(window, { code: 'F11', key: 'F11', repeat: true })
     fireEvent.keyUp(window, { code: 'F11', key: 'F11' })
     fireEvent.keyDown(window, { code: 'Equal', key: '=', shiftKey: true })
+    fireEvent.keyDown(window, { code: 'KeyF', key: 'f' })
     fireEvent.keyDown(window, { code: 'ShiftLeft', key: 'Shift', shiftKey: true })
     const field = await screen.findByRole('textbox', { name: 'Network' })
     fireEvent.keyDown(field, { code: 'Minus', key: '-' })
+    fireEvent.keyDown(field, { code: 'KeyF', key: 'f' })
     fireEvent.keyDown(field, { code: 'F12', key: 'F12' })
 
     expect(backend.keys).toEqual([
@@ -203,6 +205,7 @@ describe('Shell', () => {
       'F11 repeat settings',
       'F11 release settings',
       'Shift+Equal press settings',
+      'F press settings',
       'F12 press settings',
     ])
   })

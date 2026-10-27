@@ -78,6 +78,7 @@ Settings are in the app and save as you change them. Tested on Windows 11 with a
 | F11                                       | AltScreen: switch between the HUD and the map        |
 | Shift+F11                                 | AltScreen: move the arrival time and turn card       |
 | F12                                       | save screenshots of CarPlay and the AltScreen        |
+| F                                         | toggle full screen for the main window               |
 | Ctrl+Up / Ctrl+Down / Ctrl+M              | ChairPlay's volume up / down / mute                  |
 | Mouse wheel over the AltScreen, + / −     | zoom the AltScreen map                               |
 | The car button on the CarPlay home screen | open the settings; the CarPlay button or Esc returns |

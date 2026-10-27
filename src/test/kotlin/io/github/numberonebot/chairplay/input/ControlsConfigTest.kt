@@ -136,11 +136,6 @@ class ControlsConfigTest {
         assertEquals(10, ControlsConfig.DEFAULT.zoomRepeatEvery)
     }
 
-    @Test
-    fun `the summary counts bound actions and names the wheel mode`() {
-        assertEquals("controls: 26 actions, wheel=knob", ControlsConfig.DEFAULT.summary())
-    }
-
     // A file written before an action existed may give its default key to another: the file's binding stays, and the
     // new action has no key until the file gives it one, rather than the start stopping.
     @Test

@@ -9,7 +9,6 @@ import io.github.numberonebot.chairplay.config.limitFor
 import io.github.numberonebot.chairplay.config.grownTo
 import io.github.numberonebot.chairplay.input.PointerEvent
 import io.github.numberonebot.chairplay.input.Size
-import io.github.numberonebot.chairplay.input.toFramebuffer
 import org.lwjgl.glfw.GLFW.*
 import org.lwjgl.glfw.GLFWNativeWin32.glfwGetWin32Window
 import org.lwjgl.opengl.GL
@@ -69,6 +68,8 @@ class VideoWindow(
     private val latest = AtomicReference<DecodedFrame?>()
     private val closing = AtomicBoolean()
     private val minimizing = AtomicBoolean()
+    private val fullscreen = WindowFullscreen()
+    fun toggleFullscreen() { fullscreen.toggle(); wake() }
     private val screenshotRequest = AtomicReference<((BufferedImage) -> Unit)?>()
     private val titles = WindowTitle()
     private val shownRequest = AtomicReference<Boolean?>()
@@ -327,7 +328,8 @@ class VideoWindow(
         // Draw as soon as a frame is ready instead of waiting for vertical blank, which would add up to a frame.
         glfwSwapInterval(0)
         capabilities = GL.createCapabilities()
-        installInput(window)
+        installWindowInput(window, { event, size -> framebufferSize = size; inputHandler(event) },
+            { key, action, mods -> keyHandler(key, action, mods) }, { scrollHandler(it) })
         val gl = PictureGl().also { gl = it }
         // Black from the start, like the title bar, instead of the system's white until the first frame.
         glfwGetFramebufferSize(window, w, h)
@@ -366,7 +368,7 @@ class VideoWindow(
         }
         limitSize(window)
         // A maximized window keeps filling the screen.
-        if (glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE) return
+        if (glfwGetWindowMonitor(window) != 0L || glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE) return
         when {
             wasActual -> glfwSetWindowSize(window, size.width, size.height)
             aspect != null -> WindowSize(w[0], h[0]).fittedTo(size).let { glfwSetWindowSize(window, it.width, it.height) }
@@ -413,6 +415,7 @@ class VideoWindow(
         glfwMakeContextCurrent(window)
         GL.setCapabilities(capabilities)
         val gl = checkNotNull(gl)
+        tracker?.let { fullscreen.apply(window, it) }
         if (minimizing.getAndSet(false)) glfwIconifyWindow(window)
         shownRequest.getAndSet(null)?.let { applyShown(window, it) }
         streamRequest.getAndSet(null)?.let { size ->
@@ -420,6 +423,7 @@ class VideoWindow(
             applyStream(window, size)
         }
         resizeRequest.getAndSet(null)?.let { size ->
+            if (glfwGetWindowMonitor(window) != 0L) return@let
             // A maximized window keeps filling the screen whatever size it is given.
             if (glfwGetWindowAttrib(window, GLFW_MAXIMIZED) == GLFW_TRUE) glfwRestoreWindow(window)
             glfwSetWindowSize(window, size.width, size.height)
@@ -526,35 +530,6 @@ class VideoWindow(
         glfwMakeContextCurrent(0)
         glfwDestroyWindow(window)
         handle = 0L
-    }
-
-    private fun installInput(window: Long) {
-        var held = false
-        // Hovering sends nothing, so only a held button turns cursor motion into events.
-        glfwSetCursorPosCallback(window) { _, x, y -> if (held) emitPointer(window, x, y, true) }
-        glfwSetMouseButtonCallback(window) { _, button, action, _ ->
-            if (button != GLFW_MOUSE_BUTTON_LEFT) return@glfwSetMouseButtonCallback
-            held = action == GLFW_PRESS
-            val x = DoubleArray(1)
-            val y = DoubleArray(1)
-            glfwGetCursorPos(window, x, y)
-            emitPointer(window, x[0], y[0], held)
-        }
-        glfwSetKeyCallback(window) { _, key, _, action, mods -> keyHandler(key, action, mods) }
-        glfwSetScrollCallback(window) { _, _, dy -> scrollHandler(dy) }
-    }
-
-    /** Converts a cursor position in window units to framebuffer pixels, the space the letterbox is computed in. */
-    private fun emitPointer(window: Long, x: Double, y: Double, down: Boolean) {
-        val ww = IntArray(1)
-        val wh = IntArray(1)
-        val fw = IntArray(1)
-        val fh = IntArray(1)
-        glfwGetWindowSize(window, ww, wh)
-        glfwGetFramebufferSize(window, fw, fh)
-        // Cache the size the conversion used so the handler maps in exactly that space.
-        framebufferSize = Size(fw[0], fh[0])
-        inputHandler(PointerEvent(x, y, down).toFramebuffer(Size(ww[0], wh[0]), framebufferSize))
     }
 
     /** The safe-area frame [showFrame] asked for, while it lasts, over the picture as the window fits it in. */

@@ -125,7 +125,7 @@ private fun runCarPlay(windowsOpen: () -> Unit) {
         sink.fadeOut()
         sessionDropped.get()()
         reconnect()
-    }) { controlsChanged.get()() }
+    }) { controlsChanged.get()() }.apply { fullscreen = window::toggleFullscreen }
     val lockReady = CountDownLatch(1)
     val startBootstrap = AtomicReference<() -> Unit> {}
     val stopBootstrap = AtomicReference<() -> Unit> {}

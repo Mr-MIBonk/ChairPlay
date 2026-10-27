@@ -17,6 +17,7 @@ sealed interface Control {
     data object Siri : Control
     /** Saves what is on the CarPlay screen; nothing goes to the iPhone. */
     data object Screenshot : Control
+    data object Fullscreen : Control
     /** Ends the session as closing the window does and starts the connection over. */
     data object Reconnect : Control
     /** Zooms the altscreen's map [steps] times, in when positive (AirPlaySession.changeMapZoomLevel). */
@@ -147,6 +148,7 @@ internal fun knobHold(action: ControlAction): AirPlayKnobState? = when (action) 
 
 /** What [action] asks for at once, on its press alone; null for knob holds and turns. */
 internal fun pressControl(action: ControlAction): Control? = when (action) {
+    ControlAction.FULLSCREEN -> Control.Fullscreen
     ControlAction.MEDIA_PREVIOUS -> Control.Media(CarPlayMediaButton.PREVIOUS)
     ControlAction.MEDIA_PLAY_PAUSE -> Control.Media(CarPlayMediaButton.PLAY_PAUSE)
     ControlAction.MEDIA_NEXT -> Control.Media(CarPlayMediaButton.NEXT)
