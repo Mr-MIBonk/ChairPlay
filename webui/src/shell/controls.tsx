@@ -54,6 +54,7 @@ export function Segmented(props: {
     <span
       className={`seg ${props.className ?? (props.options.length >= 6 ? 'rows' : props.options.length >= 4 ? 'wide' : '')}`}
       data-items={props.options.length}
+      data-columns={columns}
       style={props.options.length >= 6 ? ({ '--columns': columns } as CSSProperties) : undefined}
       role="radiogroup"
       aria-label={props.label}

@@ -3,14 +3,17 @@ import { Group, Row } from '../shell/controls'
 import type { Settings } from '../shell/useSettings'
 import { ActualSize, Changed, parts, pendingOf, SafeArea, SizeRows } from './parts'
 
-/** The sizes of CarPlay's window in common cars, the 480 px tall ones first. */
+/** Common car and desktop display sizes, the 480 px tall ones first. */
 const PRESETS = [
   [800, 480],
   [1024, 480],
   [1280, 480],
   [1280, 720],
   [1920, 720],
+  [1080, 1080],
   [1920, 1080],
+  [2560, 1080],
+  [2560, 1440],
 ] as const
 
 const DISPLAY_KEYS = [
@@ -43,6 +46,7 @@ export function CarPlayPage({ state, backend, settings }: { state: AppState; bac
         settings={settings}
         prefix="display"
         presets={PRESETS}
+        columns={3}
         fallback={displayFallback}
         after={<ActualSize sizes={state.mainWindow} window="main" backend={backend} />}
         pending={pending}

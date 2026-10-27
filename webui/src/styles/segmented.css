@@ -184,7 +184,7 @@
   opacity: 0.75;
 }
 
-.shell .seg.rows[data-items='6'] button:nth-child(4)::before,
+.shell .seg.rows[data-columns='3'] button:nth-child(3n + 1)::before,
 .shell .seg.rows[data-items='7'] button:nth-child(5)::before,
 .shell .seg.rows[data-items='8'] button:nth-child(5)::before,
 .shell .seg.view-areas button:nth-child(3n + 1)::before,

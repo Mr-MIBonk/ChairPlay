@@ -92,6 +92,7 @@ export function SizeRows(props: {
   settings: Settings
   prefix: string
   presets: readonly (readonly [width: number, height: number])[]
+  columns?: number
   fallback: { width: number; height: number }
   /** Beside the fields: the CarPlay page's Actual size. */
   after?: ReactNode
@@ -109,6 +110,7 @@ export function SizeRows(props: {
       <Row label="Size">
         <Segmented
           label="Size"
+          columns={props.columns}
           value={refused ? '' : `${width}x${height}`}
           options={props.presets.map(([w, h]) => [`${w}x${h}`, `${w}×${h}`])}
           onChange={(preset) => {
