@@ -11,6 +11,8 @@ internal fun installWindowInput(
     pointer: (PointerEvent, Size) -> Unit,
     key: (Int, Int, Int) -> Unit,
     scroll: (Double) -> Unit,
+    character: (Int) -> Unit = {},
+    focusLost: () -> Unit = {},
 ) {
     var held = false
     fun emit(x: Double, y: Double) {
@@ -33,5 +35,7 @@ internal fun installWindowInput(
         emit(x[0], y[0])
     }
     glfwSetKeyCallback(window) { _, code, _, action, mods -> key(code, action, mods) }
+    glfwSetCharCallback(window) { _, codePoint -> character(codePoint) }
+    glfwSetWindowFocusCallback(window) { _, focused -> if (!focused) focusLost() }
     glfwSetScrollCallback(window) { _, _, dy -> scroll(dy) }
 }

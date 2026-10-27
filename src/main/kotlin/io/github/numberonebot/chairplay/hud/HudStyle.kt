@@ -8,16 +8,19 @@ internal const val REGULAR = "regular"
 internal const val BOLD = "bold"
 internal const val WIDE = "wide"
 internal const val WIDE_FALLBACK = "wide-fallback"
+internal const val STATUS = "status"
 
 /** A face of the HUD's text, from the app's fonts/. */
 internal class HudFont(val name: String, val file: String, val fallback: String? = null)
 
-/** Inter for body text; wide Roboto Flex accents fall back to Inter Bold for missing glyphs. */
+/** Inter body, wide Roboto Flex accents, and Reddit Sans Bold for status text, as in the main window. */
 internal val HUD_FONTS = listOf(
     HudFont(REGULAR, "Inter-Regular.ttf"),
     HudFont(BOLD, "Inter-SemiBold.ttf"),
     HudFont(WIDE_FALLBACK, "Inter-Bold.ttf"),
     HudFont(WIDE, "RobotoFlexWide-SemiBold.ttf", WIDE_FALLBACK),
+    // Static weight 700 from RedditSans-Variable.ttf: NanoVG does not select variable font weights.
+    HudFont(STATUS, "RedditSans-Bold.ttf", WIDE_FALLBACK),
 )
 /** About 60 frames a second while a part rises or fades; the parts move by elapsed time. */
 internal const val FRAME_MILLIS = 16L

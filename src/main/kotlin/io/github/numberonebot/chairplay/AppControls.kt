@@ -9,7 +9,9 @@ import io.github.numberonebot.chairplay.input.ControlPad
 import io.github.numberonebot.chairplay.input.ControlsConfig
 import io.github.numberonebot.chairplay.input.KeyControls
 import io.github.numberonebot.chairplay.input.PageKeys
+import io.github.numberonebot.chairplay.input.CarPlayTextInput
 import io.github.numberonebot.chairplay.media.Volume
+import io.github.numberonebot.chairplay.media.VideoWindow
 import io.github.numberonebot.chairplay.ui.UiControls
 import org.lwjgl.glfw.GLFW.GLFW_KEY_LEFT_ALT
 import org.lwjgl.glfw.GLFW.GLFW_KEY_RIGHT_ALT
@@ -39,6 +41,7 @@ internal class AppControls(
 ) {
     /** The windows' keys and wheel as the bindings map them. */
     val keys = KeyControls { bindings.get() }
+    val textInput = CarPlayTextInput(active, touchSender, ::log)
 
     // The controls window's page: a button pressed and released there makes the Controls a key does, through ControlPad.
     private val pad = ControlPad()
@@ -116,12 +119,23 @@ internal class AppControls(
      * Alt held shows the keys on the controls window's buttons, as Windows shows access keys; GLFW releases it when a
      * window loses the focus. In drive mode the arrows are the car's pedals and wheel, not the knob.
      */
-    fun windowKeys(fullscreen: () -> Unit = this.fullscreen, covered: () -> Boolean): (Int, Int, Int) -> Unit = { key, action, mods ->
+    fun windowKeys(fullscreen: () -> Unit = this.fullscreen, text: Boolean = false, covered: () -> Boolean): (Int, Int, Int) -> Unit = { key, action, mods ->
         if (key == GLFW_KEY_LEFT_ALT || key == GLFW_KEY_RIGHT_ALT) {
             val held = action != GLFW_RELEASE
             if (altHeld.getAndSet(held) != held) changed()
         }
-        if (!covered() && !driving.control.key(key, action, mods)) send(keys.key(key, action, mods), fullscreen)
+        if (!covered()) {
+            if (text && (textInput.key(key, action, mods) || textInput.capturesKey(key, mods))) send(keys.key(key, GLFW_RELEASE, mods))
+            else if (!driving.control.key(key, action, mods)) send(keys.key(key, action, mods), fullscreen)
+        }
+    }
+
+    fun bindWindows(main: VideoWindow, alt: VideoWindow, controls: VideoWindow, covered: () -> Boolean) {
+        main.keyHandler = windowKeys(text = true, covered = covered)
+        main.characterHandler = { if (!covered()) textInput.character(it) }
+        main.inputFocusLost = textInput::release
+        alt.keyHandler = windowKeys(fullscreen = alt::toggleFullscreen) { false }
+        controls.keyHandler = windowKeys { false }
     }
 
     /** What the settings screen's pages and the controls window's buttons do. */

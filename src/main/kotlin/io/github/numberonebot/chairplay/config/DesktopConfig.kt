@@ -195,6 +195,7 @@ class DesktopConfig private constructor(private val dir: Path, startedWith: Desk
      * CarPlay home screen shows the receiver's icon where a car shows its maker's; tapping it opens the settings screen.
      */
     val airPlay = AirPlayConfig(
+        keyboardInput = settings.booleanSetting("keyboard.text.input", true),
         deviceName = deviceName,
         deviceId = deviceId(identity),
         btMac = deviceId(identity),

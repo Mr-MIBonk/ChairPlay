@@ -29,6 +29,7 @@ internal val SETTINGS_TEMPLATE = listOf(
         "'true' shows each controls window button's key on it; 'false' shows them only while Alt is held.",
         "ui.controls.keys" to "false",
     ),
+    SettingBlock("Use the keyboard to type in CarPlay when the iPhone requests text input; reconnect to apply.", "keyboard.text.input" to "true"),
     SettingBlock(
         "The accent colour of the screens, the controls window, and the HUD, written #rrggbb; its lighter and\n" +
             "fainter shades are made from it.",

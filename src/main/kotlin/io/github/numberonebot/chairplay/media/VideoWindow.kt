@@ -215,13 +215,12 @@ class VideoWindow(
     var pictureSize = Size(0, 0)
         private set
 
-    fun setInputHandler(handler: (PointerEvent) -> Unit) {
-        inputHandler = handler
-    }
+    fun setInputHandler(handler: (PointerEvent) -> Unit) { inputHandler = handler }
 
     /** Receives GLFW key codes, actions (press, repeat, release) and modifier bits on the GL thread. */
-    @Volatile
-    var keyHandler: (key: Int, action: Int, mods: Int) -> Unit = { _, _, _ -> }
+    @Volatile var keyHandler: (key: Int, action: Int, mods: Int) -> Unit = { _, _, _ -> }
+    @Volatile var characterHandler: (Int) -> Unit = {}
+    @Volatile var inputFocusLost: () -> Unit = {}
 
     /** Receives the vertical scroll offset GLFW reports, on the GL thread. */
     @Volatile
@@ -327,7 +326,7 @@ class VideoWindow(
         glfwSwapInterval(0)
         capabilities = GL.createCapabilities()
         installWindowInput(window, { event, size -> framebufferSize = size; inputHandler(event) },
-            { key, action, mods -> keyHandler(key, action, mods) }, { scrollHandler(it) })
+            { key, action, mods -> keyHandler(key, action, mods) }, { scrollHandler(it) }, { characterHandler(it) }, { inputFocusLost() })
         val gl = PictureGl().also { gl = it }
         // Black from the start, like the title bar, instead of the system's white until the first frame.
         glfwGetFramebufferSize(window, w, h)

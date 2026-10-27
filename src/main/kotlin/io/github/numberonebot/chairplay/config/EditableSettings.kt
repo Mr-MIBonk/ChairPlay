@@ -42,6 +42,7 @@ object EditableSettings {
         "ui.autoconnect" to switch(Applies.RESTART),
         "ui.autoshow" to switch(Applies.NOW),
         "ui.controls.keys" to switch(Applies.NOW),
+        "keyboard.text.input" to switch(Applies.RECONNECT),
         "device.name" to Setting(Applies.RESTART, check = ::checkDeviceName),
         "iphone.address" to Setting(Applies.RESTART, check = ::checkAddress),
         "iphone.join.seconds" to Setting(Applies.RESTART) { checkPositive(it, "of seconds") },

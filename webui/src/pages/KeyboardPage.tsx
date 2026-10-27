@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react'
-import type { Backend, ControlsData } from '../api'
+import type { AppState, Backend, ControlsData } from '../api'
 import { keyLabel } from '../ControlsScreen'
 import { Group, Message, Row, Segmented, Switch } from '../shell/controls'
 import { Field } from '../shell/fields'
 import { LockIcon } from '../shell/icons'
 import type { Settings } from '../shell/useSettings'
 import { bindingName, isModifier } from './keyNames'
+import { TextInputSettings } from './TextInputSettings'
 
 /** The actions by group, in the page's order: each setting, the name the page gives it, and its tooltip. */
 const GROUPS: [group: string, actions: [key: string, label: string, title?: string][]][] = [
@@ -80,7 +81,7 @@ interface Wait {
  * for the next key and takes it; + waits for one more; a right-click removes a key. A key another action has moves
  * here; Esc cancels the wait; Escape always goes back and Enter always selects, so their keycaps are locked.
  */
-export function KeyboardPage({ backend, settings }: { backend: Backend; settings: Settings }) {
+export function KeyboardPage({ state, backend, settings }: { state: AppState; backend: Backend; settings: Settings }) {
   const [data, setData] = useState<ControlsData | null>(null)
   const [loaded, setLoaded] = useState(false)
   const [wait, setWait] = useState<Wait | null>(null)
@@ -241,20 +242,7 @@ export function KeyboardPage({ backend, settings }: { backend: Backend; settings
 
   return (
     <div className="keyboard">
-      <Group title="Controls window" />
-      <Row title="Hold Alt to see them for a moment">
-        <Switch
-          label="Show keys on the buttons"
-          checked={settings.value('ui.controls.keys') === 'true'}
-          onChange={(checked) => settings.save({ 'ui.controls.keys': String(checked) })}
-        />
-      </Row>
-      {GROUPS.map(([group, actions]) => (
-        <div key={group}>
-          <Group title={group} />
-          {actions.map(actionRow)}
-        </div>
-      ))}
+      <TextInputSettings state={state} settings={settings} />
       <Group title="Mouse" />
       <Row label="Wheel">
         <Segmented
@@ -284,6 +272,20 @@ export function KeyboardPage({ backend, settings }: { backend: Backend; settings
       </Row>
       <Row label="Zoom repeat every" title="A held AltScreen zoom key acts on every Nth repeat">
         {numberField('key.zoom.repeat.every', 'Zoom repeat every')}
+      </Row>
+      {GROUPS.map(([group, actions]) => (
+        <div key={group}>
+          <Group title={group} />
+          {actions.map(actionRow)}
+        </div>
+      ))}
+      <Group title="Controls window" />
+      <Row title="Hold Alt to see them for a moment">
+        <Switch
+          label="Show keys on the buttons"
+          checked={settings.value('ui.controls.keys') === 'true'}
+          onChange={(checked) => settings.save({ 'ui.controls.keys': String(checked) })}
+        />
       </Row>
     </div>
   )

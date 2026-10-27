@@ -39,25 +39,59 @@ val upstreamCore by tasks.registering(Sync::class) {
     // views each have their own. Patched into the copy, each anchor checked once, so a newer DiPlay that moved one
     // stops the build here instead of dropping the patch.
     val patches = mapOf(
-        "com/shilapi/xcertplay/airplay/AirPlayConfig.kt" to (
+        "com/shilapi/xcertplay/airplay/AirPlayConfig.kt" to listOf(
+            "    val speechWithout8And16Khz: Boolean = false,\n)" to
+                "    val speechWithout8And16Khz: Boolean = false,\n    val keyboardInput: Boolean = false,\n)",
+            (
             "    val dockEdge: Int? = null,\n)" to
                 "    val dockEdge: Int? = null,\n" +
                 "    /** ChairPlay: this area's own safe area, as insets from the whole display; null clips the display's to it. */\n" +
                 "    val safeArea: AirPlayInsets? = null,\n)"
             ),
-        "com/shilapi/xcertplay/airplay/AirPlayInfoPlist.kt" to (
+        ),
+        "com/shilapi/xcertplay/airplay/AirPlayInfoPlist.kt" to listOf(
+            (
             "val displaySafe = display.safeArea ?: AirPlayInsets()" to "val displaySafe = area?.safeArea ?: display.safeArea ?: AirPlayInsets()"
             ),
+            "        if (config.icons.isNotEmpty()) {" to
+                "        io.github.numberonebot.chairplay.input.HandwritingHid.advertise(info,\n" +
+                "            experimental = config.keyboardInput, keyboard = config.keyboardInput)\n" +
+                "        if (config.icons.isNotEmpty()) {",
+        ),
+        "com/shilapi/xcertplay/airplay/AirPlaySession.kt" to listOf(
+            "    fun sendCommand(command: Map<String, Any?>): Boolean" to
+                "    val keyboardInputEnabled: Boolean get() = config.keyboardInput\n\n" +
+                "    fun sendCommand(command: Map<String, Any?>): Boolean",
+            "    fun onCommand(session: AirPlaySession, type: String, params: Map<String, Any?>) {}" to
+                "    fun onCommand(session: AirPlaySession, type: String, params: Map<String, Any?>) {}\n" +
+                "    fun onCommandResponse(session: AirPlaySession, type: String, params: Map<String, Any?>): Map<String, Any?>? = null",
+            "        listener.onCommand(this, type, params)\n        return RtspMessage.Response(status = 200)" to
+                "        listener.onCommand(this, type, params)\n" +
+                "        val response = listener.onCommandResponse(this, type, params)\n" +
+                "        return if (response == null) RtspMessage.Response(status = 200) else RtspMessage.Response(\n" +
+                "            status = 200, headers = mapOf(\"Content-Type\" to PLIST_CONTENT_TYPE), body = BplistCodec.encode(response))",
+            "        trace(\"airplay event tx headers=\$head bodyHex=\${body.toHex()}\")" to
+                "        if (io.github.numberonebot.chairplay.input.HandwritingHid.isCharacterCommand(command)) debugLog(\"airplay character report tx cseq=\$eventCseq (contents hidden)\")\n" +
+                "        else trace(\"airplay event tx headers=\$head bodyHex=\${body.toHex()}\")",
+            "                    if (message.method.startsWith(\"RTSP/\") || message.method.startsWith(\"HTTP/\")) continue" to
+                "                    if (message.method.startsWith(\"RTSP/\") || message.method.startsWith(\"HTTP/\")) {\n" +
+                "                        if (io.github.numberonebot.chairplay.input.HandwritingHid.enabled) debugLog(\n" +
+                "                            \"airplay event response cseq=\${message.headers[\"cseq\"]?.toLongOrNull()} status=\${message.path.toIntOrNull()} bytes=\${message.body.size}\")\n" +
+                "                        continue\n                    }",
+        ),
     )
     val target = layout.buildDirectory.dir("upstream-core")
     doLast {
-        for ((path, change) in patches) {
+        for ((path, changes) in patches) {
             val file = target.get().file(path).asFile
             // A checkout with core.autocrlf=true (git's default on Windows, GitHub's runners) has CRLF: match on LF.
-            val text = file.readText().replace("\r\n", "\n")
-            val found = text.split(change.first).size - 1
-            check(found == 1) { "upstream $path: the line to patch is there $found times, not once; update gradle/upstream.gradle.kts" }
-            file.writeText(text.replace(change.first, change.second))
+            var text = file.readText().replace("\r\n", "\n")
+            for (change in changes) {
+                val found = text.split(change.first).size - 1
+                check(found == 1) { "upstream $path: the line to patch is there $found times, not once; update gradle/upstream.gradle.kts" }
+                text = text.replace(change.first, change.second)
+            }
+            file.writeText(text)
         }
     }
 }

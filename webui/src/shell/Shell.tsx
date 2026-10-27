@@ -124,7 +124,7 @@ export function Shell({ state, backend }: { state: AppState; backend: Backend })
                   {section === 'altscreen' && <AltScreenPage state={state} backend={backend} settings={settings} />}
                 </div>
               )}
-              {settings.data && section === 'keyboard' && <KeyboardPage backend={backend} settings={settings} />}
+              {settings.data && section === 'keyboard' && <KeyboardPage state={state} backend={backend} settings={settings} />}
               {settings.data && section === 'audio' && (
                 <AudioPage state={state} backend={backend} settings={settings} />
               )}

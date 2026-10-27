@@ -31,8 +31,8 @@ class HudView(
  * Draws the HUD with NanoVG on black, centred, as desktop-docs/hud-spec.md lays it out:
  * the song, the route or both in the middle, and a call on top; no clock, signal or battery, which the CarPlay
  * screen shows. Sizes
- * follow the window's height. Text is in Inter; distances, calls and the waiting message use wide Roboto Flex
- * SemiBold with Inter Bold for missing glyphs ([HUD_FONTS]). The fonts ship with the app, so the HUD looks the
+ * follow the window's height. Text is in Inter; distances and calls use wide Roboto Flex SemiBold; the waiting message
+ * uses Reddit Sans Bold, with Inter Bold for missing glyphs ([HUD_FONTS]). The fonts ship with the app, so the HUD looks the
  * same on every system. Symbols the fonts lack (play, pause) are drawn as vectors.
  *
  * The maneuver is the MHI2Q project's animated renderer ([ManeuverView]) where its library runs, else a simple
@@ -121,7 +121,7 @@ class HudPainter(
         val w = width.toFloat()
         // No clock, signal or battery: the CarPlay screen always shows them.
         // In the app's display face, as the main window's waiting screen says where the connection stands.
-        emerging(shown.waiting, w / 2, h / 2) { centred(HUD_WAITING, w / 2, h / 2, 0.07f * h, GREY, WIDE) }
+        emerging(shown.waiting, w / 2, h / 2) { centred(HUD_WAITING, w / 2, h / 2, 0.07f * h, GREY, STATUS) }
         // The song and the route each keep one layout round the middle and are only moved and scaled: beside each other,
         // and in drive mode into their slots between the wells, the song over the route, by the wells' own motion and
         // curve, so the blocks move as the wells do; the window draws on while they move.
