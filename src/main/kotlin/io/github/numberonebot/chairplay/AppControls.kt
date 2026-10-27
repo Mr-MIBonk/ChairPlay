@@ -60,7 +60,7 @@ internal class AppControls(
     var gaugeSize: () -> Unit = {}
     var fullscreen: () -> Unit = {}
 
-    fun send(control: Control?) {
+    fun send(control: Control?, fullscreen: () -> Unit = this.fullscreen) {
         control ?: return
         if (control == Control.Fullscreen) {
             fullscreen()
@@ -116,12 +116,12 @@ internal class AppControls(
      * Alt held shows the keys on the controls window's buttons, as Windows shows access keys; GLFW releases it when a
      * window loses the focus. In drive mode the arrows are the car's pedals and wheel, not the knob.
      */
-    fun windowKeys(covered: () -> Boolean): (Int, Int, Int) -> Unit = { key, action, mods ->
+    fun windowKeys(fullscreen: () -> Unit = this.fullscreen, covered: () -> Boolean): (Int, Int, Int) -> Unit = { key, action, mods ->
         if (key == GLFW_KEY_LEFT_ALT || key == GLFW_KEY_RIGHT_ALT) {
             val held = action != GLFW_RELEASE
             if (altHeld.getAndSet(held) != held) changed()
         }
-        if (!covered() && !driving.control.key(key, action, mods)) send(keys.key(key, action, mods))
+        if (!covered() && !driving.control.key(key, action, mods)) send(keys.key(key, action, mods), fullscreen)
     }
 
     /** What the settings screen's pages and the controls window's buttons do. */

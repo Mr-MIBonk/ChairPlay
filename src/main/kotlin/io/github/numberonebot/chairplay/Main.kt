@@ -194,10 +194,10 @@ private fun runCarPlay(windowsOpen: () -> Unit) {
     controlsWindow.child = ui.controlsView
     // While the page covers the window, the keys and the wheel are its own.
     window.keyHandler = appControls.windowKeys { ui.coversWindow }
-    // The same keys work while the altscreen or the controls window has the focus, whatever covers the main window;
-    // all run on the one GL thread.
-    altscreen.keyHandler = appControls.windowKeys { false }
-    controlsWindow.keyHandler = altscreen.keyHandler
+    // AltScreen's fullscreen key targets its own window; the controls window keeps targeting the main one.
+    // Other keys work in both windows whatever covers the main window, all on the one GL thread.
+    altscreen.keyHandler = appControls.windowKeys(fullscreen = altscreen::toggleFullscreen) { false }
+    controlsWindow.keyHandler = appControls.windowKeys { false }
     // Diagnostics: CHAIRPLAY_SCREENSHOT_AFTER=<seconds> saves one screenshot that long after the first picture, or
     // after half a minute without one, so the windows the app draws itself can be looked at without an iPhone.
     System.getenv("CHAIRPLAY_SCREENSHOT_AFTER")?.toLongOrNull()?.let { seconds ->

@@ -46,6 +46,8 @@ See the [changelog](CHANGELOG.md) for changes between versions and the
 ## Features
 
 - CarPlay in a resizable window; the mouse works as touch.
+- Full screen for CarPlay and the AltScreen: focus either window and press **F** to enter or leave full screen.
+  Leaving full screen restores the window's previous size, position, and maximized state.
 - Keyboard controls like a car's knob and buttons (see [Controls](#controls)), and on-screen car controls from the
   toolbar's Controls button.
 - Sound and microphone on the devices you choose, with a volume separate from Windows'.
@@ -78,7 +80,7 @@ Settings are in the app and save as you change them. Tested on Windows 11 with a
 | F11                                       | AltScreen: switch between the HUD and the map        |
 | Shift+F11                                 | AltScreen: move the arrival time and turn card       |
 | F12                                       | save screenshots of CarPlay and the AltScreen        |
-| F                                         | toggle full screen for the main window               |
+| F                                         | toggle full screen for the focused CarPlay or AltScreen window |
 | Ctrl+Up / Ctrl+Down / Ctrl+M              | ChairPlay's volume up / down / mute                  |
 | Mouse wheel over the AltScreen, + / −     | zoom the AltScreen map                               |
 | The car button on the CarPlay home screen | open the settings; the CarPlay button or Esc returns |
