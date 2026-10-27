@@ -32,19 +32,20 @@ const GAUGES: readonly Choice[] = [
 
 /** gps.wheel: what the gauges' steering wheel shows. */
 const WHEEL: readonly Choice[] = [
-  ['heading', 'Heading'],
   ['steering', 'Steering'],
+  ['heading', 'Heading'],
 ]
 
 /**
  * What the iPhone takes, for the iPhone row under the fixes; and how the car goes and what drives it, for the Car
  * group's note (where it is and which way it faces are in the fields).
  */
-function status(car: GpsState) {
+function status(car: GpsState, imperial: boolean) {
   const updates = `${car.sent} ${car.sent === 1 ? 'update' : 'updates'} sent`
+  const speed = imperial ? `${Math.round(car.speed / 1.609344)} mph` : `${car.speed} km/h`
   return {
     iphone: car.listening ? `Listening: ${(car.sentences ?? []).join(', ')}; ${updates}` : 'Not listening',
-    going: [`${car.speed} km/h`, `${car.rpm} rpm`, car.gear, car.gamepad ? 'Gamepad connected' : 'No gamepad'].join(
+    going: [speed, `${car.rpm} rpm`, car.gear, car.gamepad ? 'Gamepad connected' : 'No gamepad'].join(
       ' · ',
     ),
   }
@@ -62,7 +63,7 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
   const off = value('gps.enabled') !== 'true'
   const driveKey = state.controls?.keys.drive
   const gaugesKey = state.controls?.keys.gauges
-  const now = state.gps && status(state.gps)
+  const now = state.gps && status(state.gps, value('gps.units') === 'imperial')
   // Where the car is and which way it faces now, while the app runs; else as saved.
   const heading = state.gps ? String(state.gps.heading) : value('gps.heading') || '0'
   const ids = useId()
@@ -179,22 +180,33 @@ export function GpsPage({ state, backend, settings }: { state: AppState; backend
             onChange={(size) => save({ 'gps.gauges': size })}
           />
         </Row>
+        <Row label="Speed units" title="Choose kilometers or miles per hour for the gauges and speed readings">
+          <Segmented
+            label="Speed units"
+            value={value('gps.units') || 'metric'}
+            options={[
+              ['metric', 'km/h'],
+              ['imperial', 'mph'],
+            ]}
+            onChange={(units) => save({ 'gps.units': units })}
+          />
+        </Row>
         <Row
           label="Wheel"
           title="Which way the gauges' steering wheel points: the car's heading (north up) or its steering input (track up)"
         >
           <Segmented
             label="Wheel"
-            value={value('gps.wheel') || 'heading'}
+            value={value('gps.wheel') || 'steering'}
             options={WHEEL}
             onChange={(wheel) => save({ 'gps.wheel': wheel })}
           />
         </Row>
         <Row className="hint-row">
           <span className="hint">
-            Heading — north-up maps (Apple Maps): the wheel shows the car's course.
-            <br />
             Steering — track-up maps (Google Maps): the wheel follows input, car fixed up.
+            <br />
+            Heading — north-up maps (Apple Maps): the wheel shows the car's course.
           </span>
         </Row>
       </div>

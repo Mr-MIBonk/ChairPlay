@@ -22,7 +22,9 @@ data class GpsSettings(
     /** How large drive mode's gauges show, gps.gauges. */
     val gauges: GaugeSize = GaugeSize.LARGE,
     /** What the gauges' steering wheel shows, gps.wheel: the car's heading, or its steering input. */
-    val wheel: WheelMode = WheelMode.HEADING,
+    val wheel: WheelMode = WheelMode.STEERING,
+    /** gps.units: the speedometer scale and speed readouts; applied immediately. */
+    val units: SpeedUnits = SpeedUnits.METRIC,
 ) {
     companion object {
         val RATES = listOf(1, 4, 10)

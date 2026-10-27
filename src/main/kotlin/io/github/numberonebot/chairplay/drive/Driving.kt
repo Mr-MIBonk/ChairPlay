@@ -130,12 +130,13 @@ class Driving(
             throttle = snapshot.input.throttle,
             brake = snapshot.input.brake,
             headingDegrees = car.headingDegrees,
-            speedometer = GaugeScale.speedometer(),
+            speedometer = GaugeScale.speedometer(settings.units),
             tachometer = GaugeScale.tachometer(drive.spec),
             position = snapshot.position,
             size = settings.gauges,
             steer = snapshot.input.steer,
             wheelMode = settings.wheel,
+            units = settings.units,
         )
     }
 

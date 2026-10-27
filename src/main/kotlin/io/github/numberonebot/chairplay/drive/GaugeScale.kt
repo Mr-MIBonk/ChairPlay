@@ -41,8 +41,11 @@ data class GaugeScale(val numbers: List<Double>, val redFrom: Double? = null, va
         const val START_DEGREES = 130.0
         const val SWEEP_DEGREES = 280.0
 
-        /** km/h, as a fast car's: by 20 to 140, then by 40 to 300. */
-        fun speedometer(): GaugeScale = GaugeScale(listOf(0.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0, 140.0, 180.0, 220.0, 260.0, 300.0))
+        /** Dense at low speeds: km/h by 20 to 140, then 40 to 300; mph by 10 to 60, then 20 to 180. */
+        fun speedometer(units: SpeedUnits = SpeedUnits.METRIC): GaugeScale = GaugeScale(
+            if (units == SpeedUnits.IMPERIAL) listOf(0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 80.0, 100.0, 120.0, 140.0, 160.0, 180.0)
+            else listOf(0.0, 20.0, 40.0, 60.0, 80.0, 100.0, 120.0, 140.0, 180.0, 220.0, 260.0, 300.0),
+        )
 
         /**
          * Thousands of rpm, half a thousand past the red line and up to the next whole, the red zone from the red line,
@@ -70,8 +73,11 @@ data class GaugeView(
     val size: GaugeSize = GaugeSize.LARGE,
     /** The steering input now, -1 full left to 1 full right, for the wheel in steering mode. */
     val steer: Double = 0.0,
-    val wheelMode: WheelMode = WheelMode.HEADING,
-)
+    val wheelMode: WheelMode = WheelMode.STEERING,
+    val units: SpeedUnits = SpeedUnits.METRIC,
+) {
+    val speed: Double get() = units.fromKmh(speedKmh)
+}
 
 /** Full steering lock, how far the wheel turns at [CarInput.steer] of 1: enough to read as a hard turn. */
 private val STEER_LOCK = Math.toRadians(115.0)

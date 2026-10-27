@@ -109,6 +109,7 @@ object EditableSettings {
         "gps.car.handling" to choice("gentle", "normal", "sharp", applies = Applies.NOW),
         "gps.gauges" to choice("large", "small", applies = Applies.NOW),
         "gps.wheel" to choice("heading", "steering", applies = Applies.NOW),
+        "gps.units" to choice("metric", "imperial", applies = Applies.NOW),
         // The next fix goes so.
         "gps.rate" to choice(*GpsSettings.RATES.map { it.toString() }.toTypedArray(), applies = Applies.NOW),
         "gps.nmea" to choice("classic", "modern", applies = Applies.NOW),

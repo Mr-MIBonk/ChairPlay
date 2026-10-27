@@ -40,12 +40,12 @@ internal class NanoPen(val vg: Long) {
         nvgLineTo(vg, cx + dx * to, cy + dy * to)
     }
 
-    /** [text] centred on [x], [y]. */
-    fun text(text: String, x: Float, y: Float, size: Float, argb: Int, font: String) {
+    /** [text] at [x], [y], centred unless another horizontal [align] is given. */
+    fun text(text: String, x: Float, y: Float, size: Float, argb: Int, font: String, align: Int = NVG_ALIGN_CENTER) {
         if (!fonts) return
         nvgFontFace(vg, font)
         nvgFontSize(vg, size)
-        nvgTextAlign(vg, NVG_ALIGN_CENTER or NVG_ALIGN_MIDDLE)
+        nvgTextAlign(vg, align or NVG_ALIGN_MIDDLE)
         nvgFillColor(vg, rgba(argb, color))
         nvgText(vg, x, y, text)
     }

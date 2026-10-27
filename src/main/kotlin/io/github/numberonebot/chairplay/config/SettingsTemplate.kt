@@ -163,10 +163,11 @@ internal val SETTINGS_TEMPLATE = listOf(
     SettingBlock(
         "The car: its power in hp (20-2000) and its mass in kg (300-10000); how it turns, 'gentle', 'normal' or\n" +
             "'sharp'; drive mode's gauges, 'large' or 'small' in the window's lower corners (Shift+F10); and what the\n" +
-            "gauges' wheel shows, 'heading' (north up, for a north-up map like Apple Maps) or 'steering' (the car up,\n" +
-            "turning with the input like a real wheel, for a track-up map like Google Maps).",
+            "gauges' wheel shows, 'steering' (the car up, turning with the input like a real wheel, for a track-up\n" +
+            "map like Google Maps) or 'heading' (north up, for a north-up map like Apple Maps). Speed units are\n" +
+            "'metric' (km/h) or 'imperial' (mph), for the gauges and speed readouts only.",
         "gps.car.power.hp" to "300", "gps.car.mass.kg" to "1500", "gps.car.handling" to "normal", "gps.gauges" to "large",
-        "gps.wheel" to "heading",
+        "gps.wheel" to "steering", "gps.units" to "metric",
     ),
     SettingBlock(
         "Experiments in what the iPhone takes from the GPS: fixes a second, '1', '4' (as the iPhone asks) or '10';\n" +

@@ -274,14 +274,14 @@ describe('GPS page', () => {
     )
   })
 
-  // The wheel's mode: the heading (north up) until set; choosing steering (track up) saves the key.
+  // Steering input is the default; a saved heading mode still works.
   it('sets the wheel mode', async () => {
     const backend = await gps()
 
     const wheel = screen.getByRole('radiogroup', { name: 'Wheel' })
-    expect(within(wheel).getByRole('radio', { name: 'Heading' }).getAttribute('aria-checked')).toBe('true')
-    fireEvent.click(within(wheel).getByRole('radio', { name: 'Steering' }))
+    expect(within(wheel).getByRole('radio', { name: 'Steering' }).getAttribute('aria-checked')).toBe('true')
+    fireEvent.click(within(wheel).getByRole('radio', { name: 'Heading' }))
 
-    await waitFor(() => expect(backend.saved).toEqual([{ 'gps.wheel': 'steering' }]))
+    await waitFor(() => expect(backend.saved).toEqual([{ 'gps.wheel': 'heading' }]))
   })
 })

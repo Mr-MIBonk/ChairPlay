@@ -49,13 +49,14 @@ class GpsConfigTest {
     }
 
     // The car's handling, the gauges' size and the wheel's mode, as the GPS page sets them: normal, large and the
-    // heading (north up) unless set.
+    // steering input unless set.
     @Test
     fun `the car's handling, the gauges' size and the wheel's mode`() {
         val plain = configWith().gps
         assertEquals(Handling.NORMAL, plain.car.handling)
         assertEquals(GaugeSize.LARGE, plain.gauges)
-        assertEquals(WheelMode.HEADING, plain.wheel)
+        assertEquals(WheelMode.STEERING, plain.wheel)
+        assertEquals(WheelMode.HEADING, configWith("gps.wheel=heading").gps.wheel)
         val set = configWith("gps.car.handling=sharp", "gps.gauges=small", "gps.wheel=steering").gps
         assertEquals(Handling.SHARP, set.car.handling)
         assertEquals(GaugeSize.SMALL, set.gauges)

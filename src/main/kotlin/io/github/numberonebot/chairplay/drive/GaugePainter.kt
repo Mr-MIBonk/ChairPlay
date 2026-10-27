@@ -2,13 +2,11 @@ package io.github.numberonebot.chairplay.drive
 
 import io.github.numberonebot.chairplay.drive.GaugeStyle.BLACK
 import io.github.numberonebot.chairplay.drive.GaugeStyle.BOLD
-import io.github.numberonebot.chairplay.drive.GaugeStyle.CAPTION
 import io.github.numberonebot.chairplay.drive.GaugeStyle.REGULAR
 import io.github.numberonebot.chairplay.drive.GaugeStyle.GREEN
 import io.github.numberonebot.chairplay.drive.GaugeStyle.EDGE
 import io.github.numberonebot.chairplay.drive.GaugeStyle.FACE
 import io.github.numberonebot.chairplay.drive.GaugeStyle.FACE_LIGHT
-import io.github.numberonebot.chairplay.drive.GaugeStyle.HUB_FILL
 import io.github.numberonebot.chairplay.drive.GaugeStyle.ITALIC
 import io.github.numberonebot.chairplay.drive.GaugeStyle.OPAQUE
 import io.github.numberonebot.chairplay.drive.GaugeStyle.PANEL
@@ -21,7 +19,6 @@ import org.lwjgl.nanovg.NanoVGGL3.NVG_STENCIL_STROKES
 import org.lwjgl.nanovg.NanoVGGL3.nvgCreate
 import org.lwjgl.nanovg.NanoVGGL3.nvgDelete
 import java.nio.ByteBuffer
-import java.util.Locale
 import kotlin.math.PI
 import kotlin.math.roundToInt
 
@@ -29,7 +26,7 @@ import kotlin.math.roundToInt
  * The GPS car's tachometer and speedometer over the AltScreen, as Audi's Virtual Cockpit lays them out: the engine on
  * the left, the speed on the right, each a round [GaugeDial]. Each sits in a well finished as the controls window's
  * knob: a smooth rim round a knurled ring round a dark face lit from above. The speedometer's open bottom shows a small
- * wheel turned to the car's heading beside both pedals as bars, the tachometer's the car's coordinates. Nothing is drawn
+ * wheel following steering input or heading beside both pedals as bars, the tachometer's the car's coordinates. Nothing is drawn
  * while [view] is null.
  */
 class GaugePainter(
@@ -109,11 +106,11 @@ class GaugePainter(
                 well(pen, left, cy, r, face)
                 // The tachometer's single digits half as large again as the speedometer's three.
                 dial.draw(left, cy, face, now.tachometer, LABEL_SIZE * 1.5f, now.rpm / 1000, now.gear, "×1000 rpm")
-                place(pen, left, cy + face * 0.625f, face * 0.3f, now.position, now.headingDegrees)
+                gaugePosition(pen, left, cy + face * 0.625f, face * 0.3f, now.position, now.headingDegrees, now.wheelMode == WheelMode.STEERING)
             }
             scaled(pen.vg, w - cornerX, cornerY, scale) {
                 well(pen, right, cy, r, face)
-                dial.draw(right, cy, face, now.speedometer, LABEL_SIZE, now.speedKmh, now.speedKmh.roundToInt().toString(), "km/h")
+                dial.draw(right, cy, face, now.speedometer, LABEL_SIZE, now.speed, now.speed.roundToInt().toString(), now.units.symbol)
                 // Under the speed the wheel, turned by the heading or the steering, and beside it both pedals, the throttle over the brake.
                 wheel(pen, right - face * 0.2f, cy + face * 0.76f, face * 0.112f, wheelTurn(now.wheelMode, now.headingDegrees, now.steer))
                 pedalBar(pen, right + face * 0.18f, cy + face * 0.72f, face * 0.38f, face * 0.025f, now.throttle, GREEN)
@@ -213,33 +210,6 @@ class GaugePainter(
         nvgFill(vg)
     }
 
-    /**
-     * Where the car is and faces, latitude over longitude over the heading with its compass point, on a black panel set
-     * into the face, centred on [centerX] below [y]: as wide as its lines with the room at their sides they have above
-     * and below, shaded inside from the top, and edged as the hubs are.
-     */
-    private fun place(pen: NanoPen, centerX: Float, y: Float, height: Float, position: GeoPoint, headingDegrees: Double) {
-        val vg = pen.vg
-        val size = height * 0.24f
-        val degrees = headingDegrees.roundToInt() % 360
-        val point = COMPASS_POINTS[((degrees + 22.5) / 45).toInt() % COMPASS_POINTS.size]
-        val lines = listOf(position.latitude, position.longitude).map { String.format(Locale.ROOT, "%.5f", it) } + "$degrees° $point"
-        val width = lines.maxOf { pen.textWidth(it, size, REGULAR) } + height * 0.26f
-        val x = centerX - width / 2
-        val corner = height * 0.12f
-        nvgBeginPath(vg)
-        nvgRoundedRect(vg, x, y, width, height, corner)
-        pen.fill(HUB_FILL)
-        nvgBoxGradient(vg, x, y + height * 0.1f, width, height, corner, height * 0.3f, pen.rgba(0, pen.inner), pen.rgba(0xCC000000.toInt(), pen.outer), pen.paint)
-        nvgFillPaint(vg, pen.paint)
-        nvgFill(vg)
-        // Edged as the hubs are.
-        nvgStrokeWidth(vg, 1.5f)
-        pen.stroke(EDGE)
-        // A shade below the even thirds: the font's middle sits a little above its digits' middle.
-        for ((i, line) in lines.withIndex()) pen.text(line, centerX, y + height * (0.24f + 0.29f * i), size, CAPTION, REGULAR)
-    }
-
     /** A pedal's travel: a track filled and edged as the wheel is, filled in colour as far as the pedal is pressed. */
     private fun pedalBar(pen: NanoPen, cx: Float, cy: Float, width: Float, height: Float, pressed: Double, rgb: Int) {
         val vg = pen.vg
@@ -288,7 +258,6 @@ class GaugePainter(
         /** The speedometer's numbers, in the face's radius. */
         const val LABEL_SIZE = 0.13f
         const val RIDGES = 180
-        val COMPASS_POINTS = listOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
         /** How large the wells are as they start coming and as they are gone. */
         const val COME_SCALE = 1.6f
         /** The rim's edges and its crest: dark steel lit to a soft grey. */
