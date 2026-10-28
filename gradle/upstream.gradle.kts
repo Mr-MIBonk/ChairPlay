@@ -29,19 +29,24 @@ val upstreamCore by tasks.registering(Sync::class) {
         )
         // USB multiplexing belongs to wired CarPlay.
         exclude("com/shilapi/xcertplay/transport/Iap2UsbMuxHost.kt")
-        // Replaced in src/main/kotlin: the identification asks for lane guidance too, and the catalog knows the
-        // route guidance component's lane limits it gives.
+        // Desktop identification includes GPS and per-link capability extensions.
         exclude("com/shilapi/xcertplay/transport/Iap2IdentificationClient.kt")
-        exclude("com/shilapi/xcertplay/iap2/catalog/Iap2Endpoint.kt")
     }
     into(layout.buildDirectory.dir("upstream-core"))
     // A view area carries a safe area of its own, where DiPlay clips the display's to every area: the AltScreen's
     // views each have their own. Patched into the copy, each anchor checked once, so a newer DiPlay that moved one
     // stops the build here instead of dropping the patch.
     val patches = mapOf(
+        // Upstream now includes the lane limits. Only MHI2Q's destination and maneuver lengths remain extra.
+        "com/shilapi/xcertplay/iap2/catalog/Iap2Endpoint.kt" to listOf(
+            "                    field(4, \"MaxAfterManeuverRoadNameLength\", Iap2WireType.U16)," to
+                "                    field(3, \"MaxDestinationNameLength\", Iap2WireType.U16),\n" +
+                "                    field(4, \"MaxAfterManeuverRoadNameLength\", Iap2WireType.U16),\n" +
+                "                    field(5, \"MaxManeuverDescriptionLength\", Iap2WireType.U16),",
+        ),
         "com/shilapi/xcertplay/airplay/AirPlayConfig.kt" to listOf(
-            "    val speechWithout8And16Khz: Boolean = false,\n)" to
-                "    val speechWithout8And16Khz: Boolean = false,\n    val keyboardInput: Boolean = false,\n)",
+            "    val callAtCallRate: Boolean = false,\n)" to
+                "    val callAtCallRate: Boolean = false,\n    val keyboardInput: Boolean = false,\n)",
             (
             "    val dockEdge: Int? = null,\n)" to
                 "    val dockEdge: Int? = null,\n" +
@@ -70,9 +75,9 @@ val upstreamCore by tasks.registering(Sync::class) {
                 "        val response = listener.onCommandResponse(this, type, params)\n" +
                 "        return if (response == null) RtspMessage.Response(status = 200) else RtspMessage.Response(\n" +
                 "            status = 200, headers = mapOf(\"Content-Type\" to PLIST_CONTENT_TYPE), body = BplistCodec.encode(response))",
-            "        trace(\"airplay event tx headers=\$head bodyHex=\${body.toHex()}\")" to
+            "        trace { \"airplay event tx headers=\$head bodyHex=\${body.toHex()}\" }" to
                 "        if (io.github.numberonebot.chairplay.input.HandwritingHid.isCharacterCommand(command)) debugLog(\"airplay character report tx cseq=\$eventCseq (contents hidden)\")\n" +
-                "        else trace(\"airplay event tx headers=\$head bodyHex=\${body.toHex()}\")",
+                "        else trace { \"airplay event tx headers=\$head bodyHex=\${body.toHex()}\" }",
             "                    if (message.method.startsWith(\"RTSP/\") || message.method.startsWith(\"HTTP/\")) continue" to
                 "                    if (message.method.startsWith(\"RTSP/\") || message.method.startsWith(\"HTTP/\")) {\n" +
                 "                        if (io.github.numberonebot.chairplay.input.HandwritingHid.enabled) debugLog(\n" +
@@ -101,6 +106,18 @@ val upstreamCore by tasks.registering(Sync::class) {
 // core set; the excluded groups are listed below.
 val upstreamCoreTests by tasks.registering(Sync::class) {
     from("upstream/shared/src/test/java") {
+        // These new protocol tests use only sockets and our Log shim. Run their bodies unchanged on the JVM;
+        // the Android runner and SDK annotation are unnecessary. Actual AudioTrack tests remain excluded below.
+        val desktopProtocolTests = setOf(
+            "AirPlayEventPeerTest.kt", "AirPlayTouchTraceCostTest.kt", "AudioDuckCommandTest.kt",
+            "ControlReceiveBoundsTest.kt", "ScreenStreamPeerTest.kt",
+        )
+        eachFile {
+            if (name in desktopProtocolTests) filter { line: String ->
+                if (line.startsWith("import org.robolectric.") || line == "import org.junit.runner.RunWith" ||
+                    line.startsWith("@RunWith(") || line.startsWith("@Config(")) null else line
+            }
+        }
         include(
             "com/shilapi/xcertplay/airplay/**",
             "com/shilapi/xcertplay/iap2/**",
@@ -126,6 +143,8 @@ val upstreamCoreTests by tasks.registering(Sync::class) {
             "com/shilapi/xcertplay/airplay/ClusterContentTest.kt",
             "com/shilapi/xcertplay/airplay/CurrentScreenListenerTest.kt",
             "com/shilapi/xcertplay/airplay/IphoneCornerMaskSessionTest.kt",
+            "com/shilapi/xcertplay/airplay/BufferedMusicClockTrimTest.kt",
+            "com/shilapi/xcertplay/airplay/RealtimeMusicClockTrimTest.kt",
         )
         // Uses KeyEvent constants beyond the shim's, which carries only what the main code references.
         exclude("com/shilapi/xcertplay/airplay/CarPlayMediaButtonTest.kt")

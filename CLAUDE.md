@@ -5,6 +5,8 @@ submodule; its `AGENTS.md` and CI command are for the Android app and do not app
 
 ## Scope
 
+- For every upstream update, audit local overrides and bug workarounds. Remove code superseded by equivalent
+  upstream behavior, keeping regression coverage. Retain only documented desktop differences or missing features.
 - Never edit files inside `upstream/`: it is DiPlay, pinned to a commit, and moving it to a newer DiPlay must
   stay a pointer change. Replace or wrap upstream code from this repository instead.
 - Notes and plans that are not for the repository go to `desktop-docs/` (ignored by git).

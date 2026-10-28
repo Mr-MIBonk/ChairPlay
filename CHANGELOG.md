@@ -2,6 +2,13 @@
 
 User-visible changes and release tooling updates for ChairPlay.
 
+## Unreleased
+
+- Update the CarPlay core to DiPlay 0.2.22: bound network control input and binary plist decoding, and restrict
+  secondary connections and timing replies to the connected iPhone.
+- Avoid building protocol trace dumps when trace logging is disabled.
+- Use smaller PCM microphone packets when needed to fit the network MTU.
+
 ## 1.0.2 - 2026-10-27
 
 ### Added

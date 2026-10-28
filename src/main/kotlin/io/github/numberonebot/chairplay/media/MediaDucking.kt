@@ -4,8 +4,8 @@ import kotlin.math.pow
 
 /**
  * Hears the iPhone's duckAudio (true) and unduckAudio (false), which bracket each navigation prompt, with the command's
- * params. DiPlay's unmerged feat/navigation-audio-focus adds MediaSink.onAudioDuck(ducked) for the same commands; once
- * the pinned DiPlay has it, DesktopMediaSink overrides that instead and session.AudioDuckCommands goes.
+ * params. DiPlay 0.2.22's MediaSink.onAudioDuck carries only a Boolean, losing the iPhone's volume and ramp duration.
+ * Keep this adapter until upstream carries those parameters too; then remove it and AudioDuckCommands together.
  */
 interface AudioDuckSink {
     fun onAudioDuck(ducked: Boolean, params: Map<String, Any?> = emptyMap())

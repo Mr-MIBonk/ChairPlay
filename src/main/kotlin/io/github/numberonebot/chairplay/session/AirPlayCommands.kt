@@ -28,7 +28,7 @@ private val SECRET_KEY = Regex("key|secret|token|passw|passphrase|signature|cert
 private const val MAX_SHOWN_TEXT = 64
 
 /**
- * CarPlayMediaEngine.onAudioDuck on DiPlay's unmerged feat/navigation-audio-focus: duckAudio and unduckAudio go to
+ * Unlike DiPlay 0.2.22's Boolean-only callback, this preserves volume and ramp parameters. Commands go to
  * [sink], and the end of the session that ducked, which then never sends its unduckAudio, unducks. Commands come on
  * each session's RTSP thread.
  */

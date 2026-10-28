@@ -14,6 +14,20 @@ In a clone made without `--recursive`, run `git submodule update --init`. The su
 version this build is tested with. To move to a newer DiPlay: `git -C upstream fetch`, `git -C upstream checkout
 <commit or tag>`, build and run the tests, then commit the new `upstream` pointer.
 
+For each update, audit the patches in `gradle/upstream.gradle.kts` and the desktop replacements. Remove local
+workarounds when upstream provides equivalent behavior, retaining regression tests. Do not edit the submodule's
+sources. The current core is DiPlay v0.2.22 (`28d6002b`). Remaining integration differences include:
+
+- Keyboard input and per-view safe areas extend the upstream AirPlay configuration and commands.
+- The iAP2 catalog now comes from upstream; only destination and maneuver description limits are added locally.
+- Desktop identification retains GPS and per-link capability controls and the MHI2Q navigation limits.
+- Desktop audio ducking keeps the iPhone's volume and ramp parameters, which upstream's Boolean callback omits.
+- Mouse move coalescing and bounded Bonjour replies remain in the desktop implementations; their Android
+  counterparts are not used by ChairPlay.
+
+After automated tests, check Wi-Fi pairing/reconnect, main video and AltScreen, keyboard input, music, navigation
+ducking, and Siri/calls with an iPhone. In v0.2.22, secondary connections must come from the control session's IP.
+
 `scripts\mirror-upstream.cmd <mirror-url>` copies DiPlay into a repository you control (create it empty and
 private first) and points the submodule at it, so the build survives DiPlay's repository going away. With
 `--local` only your clone uses the mirror and `.gitmodules` keeps DiPlay's URL for everyone else. Once the

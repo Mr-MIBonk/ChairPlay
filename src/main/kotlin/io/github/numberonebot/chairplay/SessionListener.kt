@@ -18,6 +18,8 @@ internal fun sessionListener(
     theme: CarPlayTheme,
     sessionChanged: () -> Unit,
 ) = object : AirPlaySessionListener {
+    override val wantsTrace: Boolean get() = appLog.level == io.github.numberonebot.chairplay.log.LogLevel.TRACE
+
     override fun onSessionActive(session: AirPlaySession) {
         active.set(session)
         sessionChanged()
