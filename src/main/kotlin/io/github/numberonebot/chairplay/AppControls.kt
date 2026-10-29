@@ -49,6 +49,10 @@ internal class AppControls(
     // The keys a page with the keyboard hands on, held and repeated apart from the window's own.
     private val pageKeys = PageKeys { bindings.get() }
     private val altHeld = AtomicBoolean()
+    private var volumeTitle: VolumeTitle? = null
+
+    /** Keeps transient volume feedback alive until the window loop is due to restore the title. */
+    fun volumeTitlePass(): Double? = volumeTitle?.pass()
 
     /** Whether the iPhone plays, for the play/pause button's glyph; set once the CarPlay data exists. */
     var playing: () -> Boolean = { false }
@@ -79,10 +83,12 @@ internal class AppControls(
         }
         if (control is Control.VolumeStep) {
             volume.change(control.steps)
+            volumeTitle?.show(volume.level, volume.muted)
             return
         }
         if (control == Control.MuteToggle) {
             volume.toggleMute()
+            volumeTitle?.show(volume.level, volume.muted)
             return
         }
         if (control == Control.DriveMode) {
@@ -130,7 +136,10 @@ internal class AppControls(
         }
     }
 
-    fun bindWindows(main: VideoWindow, alt: VideoWindow, controls: VideoWindow, covered: () -> Boolean) {
+    fun bindWindows(main: VideoWindow, alt: VideoWindow, controls: VideoWindow, mainVolumeTitle: (String?) -> Unit, covered: () -> Boolean) {
+        volumeTitle = VolumeTitle({ controls.visible }, { notice ->
+            controls.setTitle(notice?.let { "Controls · $it" } ?: "Controls")
+        }, mainVolumeTitle)
         main.keyHandler = windowKeys(text = true, covered = covered)
         main.characterHandler = { if (!covered()) textInput.character(it) }
         main.inputFocusLost = textInput::release

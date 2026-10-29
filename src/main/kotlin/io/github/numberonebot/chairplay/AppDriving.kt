@@ -37,5 +37,5 @@ internal fun windowPass(driving: Driving, controls: AppControls, buttons: Gamepa
     val due = driving.pass()
     val pad = GlfwGamepad.buttons()
     buttons.pass(pad).forEach(controls::send)
-    listOfNotNull(due, pad?.let { DriveControl.GAMEPAD_POLL_SECONDS }).minOrNull()
+    listOfNotNull(due, controls.volumeTitlePass(), pad?.let { DriveControl.GAMEPAD_POLL_SECONDS }).minOrNull()
 }

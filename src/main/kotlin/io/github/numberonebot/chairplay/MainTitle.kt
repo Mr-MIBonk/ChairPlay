@@ -16,17 +16,35 @@ private const val CLOSING_PREVIOUS = "closing previous run…"
  * connection stands and why.
  */
 internal class MainTitle(private val window: VideoWindow, private val config: DesktopConfig) {
+    private var base = opening(config)
+    private var volume: String? = null
+
+    @Synchronized
+    private fun setBase(title: String) {
+        base = title
+        render()
+    }
+
+    /** Updates only the transient suffix, preserving connection and resolution changes made while it shows. */
+    @Synchronized
+    fun volumeFeedback(notice: String?) {
+        volume = notice
+        render()
+    }
+
+    private fun render() = window.setTitle(volume?.let { "$base · $it" } ?: base)
+
     /** Set while Reconnect is under way: the title says it reconnects rather than connects until a session is up. */
     val reconnecting = AtomicBoolean()
 
     private fun stream() = window.stream ?: WindowSize(config.displayWidth, config.displayHeight)
 
     /** A session shows: the picture's size alone. */
-    fun session() = window.setTitle(mainWindowTitle(stream()))
+    fun session() = setBase(mainWindowTitle(stream()))
 
     /** Connecting, or reconnecting after Reconnect, to a picture of [size]. */
     fun connecting(size: WindowSize = stream()) =
-        window.setTitle(mainWindowTitle(size, if (reconnecting.get()) RECONNECTING else CONNECTING))
+        setBase(mainWindowTitle(size, if (reconnecting.get()) RECONNECTING else CONNECTING))
 
     /** Reconnect pressed. */
     fun reconnect() {
@@ -34,9 +52,9 @@ internal class MainTitle(private val window: VideoWindow, private val config: De
         connecting()
     }
 
-    fun notConnected() = window.setTitle(mainWindowTitle(stream(), NOT_CONNECTED))
+    fun notConnected() = setBase(mainWindowTitle(stream(), NOT_CONNECTED))
 
-    fun closingPrevious() = window.setTitle(mainWindowTitle(stream(), CLOSING_PREVIOUS))
+    fun closingPrevious() = setBase(mainWindowTitle(stream(), CLOSING_PREVIOUS))
 
     companion object {
         /** The title the main window opens with, before anything else is known. */

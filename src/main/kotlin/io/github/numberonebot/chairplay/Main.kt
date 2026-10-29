@@ -192,7 +192,7 @@ private fun runCarPlay(windowsOpen: () -> Unit) {
     }
     window.child = ui.view
     controlsWindow.child = ui.controlsView
-    appControls.bindWindows(window, altscreen, controlsWindow) { ui.coversWindow }
+    appControls.bindWindows(window, altscreen, controlsWindow, title::volumeFeedback) { ui.coversWindow }
     // Diagnostics: CHAIRPLAY_SCREENSHOT_AFTER=<seconds> saves one screenshot that long after the first picture, or
     // after half a minute without one, so the windows the app draws itself can be looked at without an iPhone.
     System.getenv("CHAIRPLAY_SCREENSHOT_AFTER")?.toLongOrNull()?.let { seconds ->
